@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bản đồ số Công an & Điểm cấp CCCD - Phú Thọ</title>
+    <!-- Thư viện giao diện Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Thư viện bản đồ Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        /* CSS tuỳ chỉnh cho bản đồ */
+        #map {
+            height: 100%;
+            width: 100%;
+            z-index: 1;
+        }
+
+        .custom-popup .leaflet-popup-content-wrapper {
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .icon-police {
+            color: #1d4ed8;
+        }
+
+        /* Màu xanh công an */
+        .icon-id {
+            color: #b91c1c;
+        }
+
+        /* Màu đỏ CCCD */
+    </style>
+</head>
+
+<body class="bg-gray-50 flex flex-col h-screen font-sans">
+
+    <!-- Header -->
+    <header class="bg-blue-800 text-white p-4 shadow-md flex justify-between items-center z-10 relative">
+        <div class="flex items-center gap-3">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
+                </path>
+            </svg>
+            <h1 class="text-xl font-bold">Bản Đồ Phục Vụ Nhân Dân - Phú Thọ</h1>
+        </div>
+        <div class="text-sm hidden sm:block">
+            Phòng An ninh đối ngoại
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex flex-1 overflow-hidden relative">
+
+        <!-- Sidebar / Bộ lọc -->
+        <aside
+            class="w-64 bg-white shadow-lg p-4 flex flex-col gap-4 z-10 absolute sm:relative top-0 left-0 h-full transform -translate-x-full sm:translate-x-0 transition-transform duration-300"
+            id="sidebar">
+            <h2 class="font-bold text-gray-800 text-lg border-b pb-2">Bộ lọc địa điểm</h2>
+
+            <div class="flex flex-col gap-3 mt-2">
+                <label class="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-100 rounded-md transition">
+                    <input type="checkbox" id="filter-police" checked
+                        class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
+                    <span class="flex items-center gap-2 text-gray-700">
+                        <span class="w-3 h-3 rounded-full bg-blue-600 inline-block"></span>
+                        Trụ sở Công an
+                    </span>
+                </label>
+
+                <label class="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-100 rounded-md transition">
+                    <input type="checkbox" id="filter-id" checked
+                        class="w-5 h-5 text-red-600 rounded focus:ring-red-500">
+                    <span class="flex items-center gap-2 text-gray-700">
+                        <span class="w-3 h-3 rounded-full bg-red-600 inline-block"></span>
+                        Điểm cấp Căn cước
+                    </span>
+                </label>
+            </div>
+
+            <div class="mt-auto bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm text-blue-800">
+                <p><strong>Hướng dẫn:</strong> Bấm vào các biểu tượng trên bản đồ để xem chi tiết địa chỉ và thông tin
+                    liên hệ.</p>
+            </div>
+        </aside>
+
+        <!-- Nút mở menu trên mobile -->
+        <button id="menu-btn"
+            class="sm:hidden absolute top-4 left-4 z-20 bg-white p-2 rounded-md shadow-md text-gray-700">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                </path>
+            </svg>
+        </button>
+
+        <!-- Khu vực Bản đồ -->
+        <main class="flex-1 relative">
+            <div id="map"></div>
+        </main>
+    </div>
+
+    <!-- Thư viện bản đồ Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // 1. DỮ LIỆU ĐỊA ĐIỂM (Đồng chí Phương sẽ nhập thêm dữ liệu vào đây)
+        // Cấu trúc: tên, vĩ độ (lat), kinh độ (lng), loại, địa chỉ, số điện thoại
+        const locations = [
+            {
+                name: "Trụ sở Công an tỉnh Phú Thọ",
+                lat: 21.328065916387196,
+                lng: 105.40321942141614,
+                type: "police_station",
+                address: "TP. Việt Trì, Tỉnh Phú Thọ",
+                phone: "Cập nhật sau..."
+            },
+            {
+                name: "Công an tỉnh Phú Thọ (Điểm cấp CCCD)",
+                lat: 21.325992,
+                lng: 105.365518,
+                type: "id_center",
+                address: "Đường Trần Phú, P. Tân Dân, TP. Việt Trì",
+                phone: "0210 3846 114"
+            },
+            {
+                name: "Công an phường Tiên Cát",
+                lat: 21.312154,
+                lng: 105.398521,
+                type: "police_station",
+                address: "Phường Tiên Cát, TP. Việt Trì",
+                phone: "0210 3xxxxxx"
+            },
+            {
+                name: "Công an xã Thụy Vân",
+                lat: 21.345672,
+                lng: 105.371290,
+                type: "police_station",
+                address: "Khu 4, Xã Thụy Vân, TP. Việt Trì",
+                phone: "0210 3xxxxxx"
+            },
+            {
+                name: "Bộ phận Một cửa - Công an TP Việt Trì",
+                lat: 21.328300,
+                lng: 105.385200,
+                type: "id_center",
+                address: "Đường Châu Phong, P. Gia Cẩm, TP. Việt Trì",
+                phone: "0210 3xxxxxx"
+            },
+            {
+                name: "Công an thị xã Phú Thọ",
+                lat: 21.416723,
+                lng: 105.221568,
+                type: "police_station",
+                address: "Thị xã Phú Thọ, Tỉnh Phú Thọ",
+                phone: "0210 3xxxxxx"
+            }
+        ];
+
+        // 2. KHỞI TẠO BẢN ĐỒ
+        // Tập trung tọa độ vào khu vực Việt Trì, Phú Thọ. Mức zoom 12
+        const map = L.map('map').setView([21.325, 105.365], 12);
+
+        // Sử dụng lớp bản đồ chuẩn của OpenStreetMap (Miễn phí)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Phát triển bởi Đoàn thanh niên',
+            maxZoom: 19
+        }).addTo(map);
+
+        // 3. TẠO BIỂU TƯỢNG (ICONS) TUỲ CHỈNH
+        const createIcon = (color, svgPath) => {
+            return L.divIcon({
+                className: 'custom-icon',
+                html: `<div class="relative flex items-center justify-center w-10 h-10">
+                        <svg class="absolute w-full h-full text-${color}-600 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path>
+                        </svg>
+                        <svg class="absolute w-5 h-5 text-white mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            ${svgPath}
+                        </svg>
+                       </div>`,
+                iconSize: [40, 40],
+                iconAnchor: [20, 40], // Điểm nhọn chỉ xuống bản đồ
+                popupAnchor: [0, -40] // Vị trí hiện popup
+            });
+        };
+
+        // Icon khiên công an (cho Trụ sở)
+        const policeIcon = createIcon('blue', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>');
+        // Icon thẻ (cho Điểm cấp CCCD)
+        const idIcon = createIcon('red', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path>');
+
+
+        // 4. THÊM DỮ LIỆU LÊN BẢN ĐỒ VÀ PHÂN NHÓM
+        const policeLayerGroup = L.layerGroup().addTo(map);
+        const idLayerGroup = L.layerGroup().addTo(map);
+
+        locations.forEach(loc => {
+            const isPolice = loc.type === "police_station";
+            const iconToUse = isPolice ? policeIcon : idIcon;
+            const targetLayer = isPolice ? policeLayerGroup : idLayerGroup;
+
+            // Nội dung bảng thông tin khi bấm vào
+            const popupContent = `
+                <div class="p-1 min-w-[200px]">
+                    <h3 class="font-bold text-[16px] text-gray-800 border-b pb-2 mb-2">${loc.name}</h3>
+                    <p class="text-sm text-gray-600 mb-1">
+                        <span class="font-semibold">📍 Địa chỉ:</span> ${loc.address}
+                    </p>
+                    <p class="text-sm text-gray-600 mb-2">
+                        <span class="font-semibold">📞 SĐT:</span> <a href="tel:${loc.phone}" class="text-blue-600 hover:underline">${loc.phone}</a>
+                    </p>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}" target="_blank" 
+                       class="block w-full text-center bg-blue-600 text-white py-2 rounded-md text-sm font-semibold hover:bg-blue-700 transition">
+                       Chỉ đường
+                    </a>
+                </div>
+            `;
+
+            L.marker([loc.lat, loc.lng], { icon: iconToUse })
+                .bindPopup(popupContent, { className: 'custom-popup' })
+                .addTo(targetLayer);
+        });
+
+        // 5. XỬ LÝ SỰ KIỆN BỘ LỌC
+        document.getElementById('filter-police').addEventListener('change', function (e) {
+            if (e.target.checked) {
+                map.addLayer(policeLayerGroup);
+            } else {
+                map.removeLayer(policeLayerGroup);
+            }
+        });
+
+        document.getElementById('filter-id').addEventListener('change', function (e) {
+            if (e.target.checked) {
+                map.addLayer(idLayerGroup);
+            } else {
+                map.removeLayer(idLayerGroup);
+            }
+        });
+
+        // Xử lý menu mobile
+        const menuBtn = document.getElementById('menu-btn');
+        const sidebar = document.getElementById('sidebar');
+        menuBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('-translate-x-full');
+        });
+
+    </script>
+</body>
+
+</html>
