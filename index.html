@@ -214,14 +214,26 @@
                     </p>
                     <a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}" target="_blank" 
                        class="block w-full text-center bg-blue-600 text-white py-2 rounded-md text-sm font-semibold hover:bg-blue-700 transition">
-                       Chỉ đường
+                       Chỉ đường (Mở Google Maps)
                     </a>
                 </div>
             `;
 
-            L.marker([loc.lat, loc.lng], { icon: iconToUse })
+            const marker = L.marker([loc.lat, loc.lng], { icon: iconToUse })
                 .bindPopup(popupContent, { className: 'custom-popup' })
                 .addTo(targetLayer);
+
+            // ==========================================
+            // LỰA CHỌN THÊM DÀNH CHO ANH PHƯƠNG:
+            // Nếu anh muốn: BẤM 1 LẦN VÀO ICON LÀ CHUYỂN SANG GOOGLE MAPS LUÔN (Bỏ qua bảng thông tin bên trên)
+            // Thì anh hãy VÔ HIỆU HOÁ dòng ".bindPopup(..." ở ngay trên bằng cách thêm dấu "//" vào đầu dòng.
+            // Sau đó, Xoá dấu "//" ở 3 dòng lệnh dưới đây để kích hoạt:
+
+            // marker.on('click', function() {
+            //     window.open(`https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`, '_blank');
+            // });
+            // ==========================================
+
         });
 
         // 5. XỬ LÝ SỰ KIỆN BỘ LỌC
