@@ -58,11 +58,24 @@
 
         <!-- Sidebar / Bộ lọc -->
         <aside
-            class="w-64 bg-white shadow-lg p-4 flex flex-col gap-4 z-10 absolute sm:relative top-0 left-0 h-full transform -translate-x-full sm:translate-x-0 transition-transform duration-300"
+            class="w-64 bg-white shadow-lg p-4 flex flex-col gap-4 z-10 absolute sm:relative top-0 left-0 h-full transform -translate-x-full sm:translate-x-0 transition-transform duration-300 overflow-y-auto"
             id="sidebar">
-            <h2 class="font-bold text-gray-800 text-lg border-b pb-2">Bộ lọc địa điểm</h2>
+            <h2 class="font-bold text-gray-800 text-lg border-b pb-2">Tìm kiếm & Bộ lọc</h2>
 
-            <div class="flex flex-col gap-3 mt-2">
+            <!-- Thanh tìm kiếm -->
+            <div class="relative mt-2">
+                <input type="text" id="search-input" placeholder="Nhập tên phường, xã..."
+                    class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-3 mt-2 border-t pt-3">
+                <h3 class="text-sm font-semibold text-gray-600 mb-1">Loại địa điểm:</h3>
                 <label class="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-100 rounded-md transition">
                     <input type="checkbox" id="filter-police" checked
                         class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
@@ -100,65 +113,25 @@
         <!-- Khu vực Bản đồ -->
         <main class="flex-1 relative">
             <div id="map"></div>
+            <!-- Nút Vị trí của tôi -->
+            <button id="find-location-btn"
+                class="absolute bottom-6 right-6 z-[1000] bg-white p-3 rounded-full shadow-lg text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center group border border-gray-200"
+                title="Vị trí của tôi">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 22s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 8.2c0 7.3-8 11.8-8 11.8z" />
+                    <circle cx="12" cy="10" r="3" stroke-width="2" />
+                </svg>
+            </button>
         </main>
     </div>
 
     <!-- Thư viện bản đồ Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script>
-        // 1. DỮ LIỆU ĐỊA ĐIỂM (Đồng chí Phương sẽ nhập thêm dữ liệu vào đây)
-        // Cấu trúc: tên, vĩ độ (lat), kinh độ (lng), loại, địa chỉ, số điện thoại
-        const locations = [
-            {
-                name: "Trụ sở Công an tỉnh Phú Thọ",
-                lat: 21.328065916387196,
-                lng: 105.40321942141614,
-                type: "police_station",
-                address: "TP. Việt Trì, Tỉnh Phú Thọ",
-                phone: "Cập nhật sau..."
-            },
-            {
-                name: "Công an tỉnh Phú Thọ (Điểm cấp CCCD)",
-                lat: 21.325992,
-                lng: 105.365518,
-                type: "id_center",
-                address: "Đường Trần Phú, P. Tân Dân, TP. Việt Trì",
-                phone: "0210 3846 114"
-            },
-            {
-                name: "Công an phường Tiên Cát",
-                lat: 21.312154,
-                lng: 105.398521,
-                type: "police_station",
-                address: "Phường Tiên Cát, TP. Việt Trì",
-                phone: "0210 3xxxxxx"
-            },
-            {
-                name: "Công an xã Thụy Vân",
-                lat: 21.345672,
-                lng: 105.371290,
-                type: "police_station",
-                address: "Khu 4, Xã Thụy Vân, TP. Việt Trì",
-                phone: "0210 3xxxxxx"
-            },
-            {
-                name: "Bộ phận Một cửa - Công an TP Việt Trì",
-                lat: 21.328300,
-                lng: 105.385200,
-                type: "id_center",
-                address: "Đường Châu Phong, P. Gia Cẩm, TP. Việt Trì",
-                phone: "0210 3xxxxxx"
-            },
-            {
-                name: "Công an thị xã Phú Thọ",
-                lat: 21.416723,
-                lng: 105.221568,
-                type: "police_station",
-                address: "Thị xã Phú Thọ, Tỉnh Phú Thọ",
-                phone: "0210 3xxxxxx"
-            }
-        ];
+    <!-- Code Dữ liệu Địa điểm chạy trước -->
+    <script src="data.js"></script>
 
+    <script>
         // 2. KHỞI TẠO BẢN ĐỒ
         // Tập trung tọa độ vào khu vực Việt Trì, Phú Thọ. Mức zoom 12
         const map = L.map('map').setView([21.325, 105.365], 12);
@@ -197,15 +170,20 @@
         const policeLayerGroup = L.layerGroup().addTo(map);
         const idLayerGroup = L.layerGroup().addTo(map);
 
-        locations.forEach(loc => {
-            const isPolice = loc.type === "police_station";
-            const iconToUse = isPolice ? policeIcon : idIcon;
-            const targetLayer = isPolice ? policeLayerGroup : idLayerGroup;
-
-            // Nội dung bảng thông tin khi bấm vào
-            const popupContent = `
+        // Hàm tạo nội dung popup
+        function generatePopupContent(loc, distanceStr = null) {
+            let distHTML = '';
+            if (distanceStr) {
+                distHTML = `
+                <div class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-md mb-2 inline-block">
+                    📍 Cách bạn: ${distanceStr}
+                </div>
+               `;
+            }
+            return `
                 <div class="p-1 min-w-[200px]">
                     <h3 class="font-bold text-[16px] text-gray-800 border-b pb-2 mb-2">${loc.name}</h3>
+                    ${distHTML}
                     <p class="text-sm text-gray-600 mb-1">
                         <span class="font-semibold">📍 Địa chỉ:</span> ${loc.address}
                     </p>
@@ -218,40 +196,164 @@
                     </a>
                 </div>
             `;
+        }
+
+        locations.forEach(loc => {
+            const isPolice = loc.type === "police_station";
+            const iconToUse = isPolice ? policeIcon : idIcon;
+            const targetLayer = isPolice ? policeLayerGroup : idLayerGroup;
+
+            // Nội dung bảng thông tin khi bấm vào
+            const popupContent = generatePopupContent(loc);
 
             const marker = L.marker([loc.lat, loc.lng], { icon: iconToUse })
                 .bindPopup(popupContent, { className: 'custom-popup' })
                 .addTo(targetLayer);
 
+            // Lưu marker vào object loc để dùng sau này (cập nhật popup hiển thị khoảng cách)
+            loc.marker = marker;
+
             // ==========================================
             // LỰA CHỌN THÊM DÀNH CHO ANH PHƯƠNG:
-            // Nếu anh muốn: BẤM 1 LẦN VÀO ICON LÀ CHUYỂN SANG GOOGLE MAPS LUÔN (Bỏ qua bảng thông tin bên trên)
-            // Thì anh hãy VÔ HIỆU HOÁ dòng ".bindPopup(..." ở ngay trên bằng cách thêm dấu "//" vào đầu dòng.
-            // Sau đó, Xoá dấu "//" ở 3 dòng lệnh dưới đây để kích hoạt:
-
+            // Nếu anh muốn: BẤM 1 LẦN VÀO ICON LÀ CHUYỂN SANG GOOGLE MAPS LUÔN
+            // Thì anh hãy BỎ ghi chú khối lệnh dưới đây:
             // marker.on('click', function() {
             //     window.open(`https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`, '_blank');
             // });
             // ==========================================
-
         });
 
-        // 5. XỬ LÝ SỰ KIỆN BỘ LỌC
-        document.getElementById('filter-police').addEventListener('change', function (e) {
-            if (e.target.checked) {
-                map.addLayer(policeLayerGroup);
-            } else {
-                map.removeLayer(policeLayerGroup);
+        // ==========================================
+        // TÍNH NĂNG TÌM KIẾM ĐỊA ĐIỂM
+        // ==========================================
+        const searchInput = document.getElementById('search-input');
+
+        searchInput.addEventListener('input', function (e) {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            const showPolice = document.getElementById('filter-police').checked;
+            const showId = document.getElementById('filter-id').checked;
+
+            locations.forEach(loc => {
+                const isPolice = loc.type === "police_station";
+                const matchesFilter = (isPolice && showPolice) || (!isPolice && showId);
+                const matchesSearch = loc.name.toLowerCase().includes(searchTerm) ||
+                    loc.address.toLowerCase().includes(searchTerm);
+
+                if (matchesFilter && matchesSearch) {
+                    if (!map.hasLayer(loc.marker)) {
+                        loc.marker.addTo(isPolice ? policeLayerGroup : idLayerGroup);
+                    }
+                } else {
+                    if (map.hasLayer(loc.marker)) {
+                        map.removeLayer(loc.marker);
+                    }
+                }
+            });
+        });
+
+        // ==========================================
+        // TÍNH NĂNG TÌM ĐIỂM GẦN NHẤT & ĐỊNH VỊ
+        // ==========================================
+        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Bán kính trái đất (km)
+            const dLat = (lat2 - lat1) * (Math.PI / 180);
+            const dLon = (lon2 - lon1) * (Math.PI / 180);
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            const d = R * c;
+            return d;
+        }
+
+        let userMarker = null;
+
+        document.getElementById('find-location-btn').addEventListener('click', () => {
+            if (!navigator.geolocation) {
+                alert("Trình duyệt của bạn không hỗ trợ định vị (Geolocation).");
+                return;
             }
+
+            const btn = document.getElementById('find-location-btn');
+            const originalHTML = btn.innerHTML;
+            // Hiển thị icon loading xoay
+            btn.innerHTML = `<svg class="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const userLat = position.coords.latitude;
+                    const userLng = position.coords.longitude;
+                    btn.innerHTML = originalHTML;
+
+                    if (userMarker) {
+                        userMarker.setLatLng([userLat, userLng]);
+                    } else {
+                        userMarker = L.circleMarker([userLat, userLng], {
+                            radius: 8,
+                            fillColor: "#2563eb", /* Tailwind blue-600 */
+                            color: "#ffffff",
+                            weight: 2,
+                            opacity: 1,
+                            fillOpacity: 0.9
+                        }).addTo(map).bindPopup("<b>Vị trí hiện tại của bạn</b>");
+                    }
+
+                    // Tìm điểm Công an gần nhất dựa trên bộ lọc đang bật
+                    let closestLoc = null;
+                    let minDistance = Infinity;
+
+                    const showPolice = document.getElementById('filter-police').checked;
+                    const showId = document.getElementById('filter-id').checked;
+
+                    locations.forEach(loc => {
+                        const isPolice = loc.type === "police_station";
+                        // Chỉ tính khoảng cách cho những loại đang được bộ lọc bật
+                        if ((isPolice && showPolice) || (!isPolice && showId)) {
+                            const dist = getDistanceFromLatLonInKm(userLat, userLng, loc.lat, loc.lng);
+                            if (dist < minDistance) {
+                                minDistance = dist;
+                                closestLoc = loc;
+                            }
+                        }
+                    });
+
+                    if (closestLoc) {
+                        // Bay bản đồ tới điểm gần nhất
+                        map.flyTo([closestLoc.lat, closestLoc.lng], 14, {
+                            animate: true,
+                            duration: 1.5
+                        });
+
+                        // Cập nhật popup điểm gần nhất với label "Cách bạn: ..."
+                        const distStr = minDistance < 1 ? (minDistance * 1000).toFixed(0) + " mét" : minDistance.toFixed(1) + " km";
+                        const newPopupContent = generatePopupContent(closestLoc, distStr);
+                        closestLoc.marker.setPopupContent(newPopupContent);
+
+                        setTimeout(() => {
+                            closestLoc.marker.openPopup();
+                        }, 800);
+                    } else {
+                        alert("Không tìm thấy trụ sở nào phù hợp với bộ lọc hiện tại.");
+                    }
+                },
+                (error) => {
+                    btn.innerHTML = originalHTML;
+                    alert("Không thể lấy được vị trí của bạn. Vui lòng kiểm tra lại quyền truy cập vị trí trên trình duyệt hoặc điện thoại.");
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
         });
 
-        document.getElementById('filter-id').addEventListener('change', function (e) {
-            if (e.target.checked) {
-                map.addLayer(idLayerGroup);
-            } else {
-                map.removeLayer(idLayerGroup);
-            }
-        });
+        // 5. XỬ LÝ SỰ KIỆN BỘ LỌC VÀ MENU
+        function applyFilters() {
+            // Kích hoạt event input để chạy lại logic lọc (kết hợp cả Text Search + Checkbox)
+            const event = new Event('input');
+            document.getElementById('search-input').dispatchEvent(event);
+        }
+
+        document.getElementById('filter-police').addEventListener('change', applyFilters);
+        document.getElementById('filter-id').addEventListener('change', applyFilters);
 
         // Xử lý menu mobile
         const menuBtn = document.getElementById('menu-btn');
