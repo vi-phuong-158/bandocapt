@@ -400,8 +400,7 @@ function filterAndRender() {
     const matchesFilter = (isPolice && showPolice) || (!isPolice && showId);
     const matchesSearch =
       loc.name.toLowerCase().includes(searchTerm) ||
-      loc.address.toLowerCase().includes(searchTerm) ||
-      (loc.district && loc.district.toLowerCase().includes(searchTerm));
+      loc.address.toLowerCase().includes(searchTerm);
 
     if (matchesFilter && matchesSearch) {
       if (!map.hasLayer(loc.marker)) loc.marker.addTo(layerGroup);

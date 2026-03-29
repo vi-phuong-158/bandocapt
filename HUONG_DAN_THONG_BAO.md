@@ -39,8 +39,6 @@ Tính năng cho phép Công an xã/phường tự đăng thông báo (VD: "Tạm
    - Công an tỉnh Phú Thọ (Điểm cấp CCCD)
    - Công an phường Tiên Cát
    - Công an xã Thụy Vân
-   - Bộ phận Một cửa - Công an TP Việt Trì
-   - Công an thị xã Phú Thọ
    - *(thêm các đơn vị khác nếu có)*
 
 > ⚠️ **Tên đơn vị trong Form PHẢI GIỐNG CHÍNH XÁC với trường `name` trong `data.js`**
@@ -94,7 +92,7 @@ Tính năng cho phép Công an xã/phường tự đăng thông báo (VD: "Tạm
 |---|---|
 | Công an phường Tiên Cát | congan.tiencat1@gmail.com, nguyenvanA@gmail.com |
 | Công an xã Thụy Vân | conganthuyvan.phutho@gmail.com |
-| Công an thị xã Phú Thọ | caxphutho@gmail.com |
+| Công an xã Chu Hóa | cachuhoa@gmail.com |
 
 > 💡 **Chú ý**: Nếu 1 đơn vị có nhiều người được quyền đăng thông báo, hãy ngăn cách các email bằng **dấu phẩy**.
 

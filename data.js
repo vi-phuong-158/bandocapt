@@ -1,7 +1,7 @@
 // ==========================================
 // DỮ LIỆU ĐỊA ĐIỂM BẢN ĐỒ CÔNG AN & CCCD TỈNH PHÚ THỌ
 // ==========================================
-// Cấu trúc: id, tên, tọa độ, loại, huyện/TP, địa chỉ, SĐT, giờ làm việc
+// Cấu trúc: id, tên, tọa độ, loại, địa chỉ, SĐT, giờ làm việc
 
 const locations = [
     {
@@ -46,28 +46,5 @@ const locations = [
         district: "TP. Việt Trì",
         address: "Khu 4, Xã Thụy Vân, TP. Việt Trì",
         phone: "0210 3xxxxxx",
-        hours: "07:30 - 17:00"
-    },
-    {
-        id: 5,
-        name: "Bộ phận Một cửa - Công an TP Việt Trì",
-        lat: 21.328300,
-        lng: 105.385200,
-        type: "id_center",
-        district: "TP. Việt Trì",
-        address: "Đường Châu Phong, P. Gia Cẩm, TP. Việt Trì",
-        phone: "0210 3xxxxxx",
-        hours: "07:30 - 17:00"
-    },
-    {
-        id: 6,
-        name: "Công an thị xã Phú Thọ",
-        lat: 21.416723,
-        lng: 105.221568,
-        type: "police_station",
-        district: "TX. Phú Thọ",
-        address: "Thị xã Phú Thọ, Tỉnh Phú Thọ",
-        phone: "0210 3xxxxxx",
-        hours: "07:30 - 17:00"
     }
 ];
