@@ -1,368 +1,236 @@
 <!DOCTYPE html>
 <html lang="vi">
-
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bản đồ số Công an & Điểm cấp CCCD - Phú Thọ</title>
-    <!-- Thư viện giao diện Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Thư viện bản đồ Leaflet CSS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Terra Police Services - BĐS Công An Phú Thọ</title>
+    <meta name="description" content="Hệ thống Bản đồ số Công an và Điểm cấp CCCD tỉnh Phú Thọ - Terra Police Services. Soft UI Mod.">
+
+    <!-- Fonts: Space Grotesk for Display, Inter for Body -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Material Symbols -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" rel="stylesheet" />
+
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        /* CSS tuỳ chỉnh cho bản đồ */
-        #map {
-            height: 100%;
-            width: 100%;
-            z-index: 1;
-        }
 
-        .custom-popup .leaflet-popup-content-wrapper {
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-
-        .icon-police {
-            color: #1d4ed8;
-        }
-
-        /* Màu xanh công an */
-        .icon-id {
-            color: #b91c1c;
-        }
-
-        /* Màu đỏ CCCD */
-    </style>
+    <!-- Static Compiled Tailwind CSS to optimize performance -->
+    <link rel="stylesheet" href="output.css" />
+    
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="styles.css" />
 </head>
+<body class="bg-background font-body text-textMain h-screen w-screen overflow-hidden flex relative antialiased selection:bg-primary/20">
 
-<body class="bg-gray-50 flex flex-col h-screen font-sans">
+    <!-- BASE MAP -->
+    <!-- Thêm will-change-transform cho lớp chứa bản đồ lớn -->
+    <div id="map" class="absolute inset-0 z-0 bg-slate-200 transform-gpu will-change-transform"></div>
 
-    <!-- Header -->
-    <header class="bg-blue-800 text-white p-4 shadow-md flex justify-between items-center z-10 relative">
-        <div class="flex items-center gap-3">
-            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z">
-                </path>
-            </svg>
-            <h1 class="text-xl font-bold">Bản Đồ Phục Vụ Nhân Dân - Phú Thọ</h1>
-        </div>
-        <div class="text-sm hidden sm:block">
-            Phòng An ninh đối ngoại
-        </div>
-    </header>
+    <!-- UI OVERLAY -->
+    <div class="absolute inset-0 z-20 pointer-events-none flex flex-col md:flex-row overflow-hidden">
+        
+        <!-- Mobile Overlay -->
+        <div id="mobile-overlay" class="md:hidden absolute inset-0 bg-slate-900/40 z-20 hidden backdrop-blur-sm transition-opacity opacity-0 pointer-events-auto transform-gpu"></div>
 
-    <!-- Main Content -->
-    <div class="flex flex-1 overflow-hidden relative">
+        <!-- ========================================== -->
+        <!-- SEARCH PANEL -->
+        <!-- ========================================== -->
+        <!-- Soft UI: rounded-2xl, background-blur-md, bg-surface/90, shadow-lg, border border-white/20, transform-gpu -->
+        <div id="search-panel" class="pointer-events-auto absolute md:relative top-0 left-0 w-full md:w-[420px] h-[85vh] md:h-[calc(100vh-48px)] flex flex-col transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform -translate-y-[120%] md:translate-y-0 z-40 bg-surface/90 backdrop-blur-md rounded-b-2xl md:rounded-2xl md:my-6 md:ml-6 border border-white/20 shadow-lg transform-gpu will-change-transform overflow-hidden pb-4 md:pb-0">
+            
+            <div class="flex-none px-6 pt-7 pb-5 z-10">
+                <div class="flex justify-between items-start mb-6">
+                    <div class="flex items-center gap-3.5">
+                        <div class="w-11 h-11 bg-primary text-white rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg shadow-primary/30">
+                            <span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">shield</span>
+                        </div>
+                        <div>
+                            <h1 class="font-display text-[18px] font-bold text-slate-800 leading-tight">Terra Police Services</h1>
+                            <p class="text-[11px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Tỉnh Phú Thọ</p>
+                        </div>
+                    </div>
+                    
+                    <button id="close-search-btn" class="md:hidden w-9 h-9 bg-slate-100/80 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 transition-colors">
+                        <span class="material-symbols-outlined text-[20px]">close</span>
+                    </button>
+                </div>
 
-        <!-- Sidebar / Bộ lọc -->
-        <aside
-            class="w-64 bg-white shadow-lg p-4 flex flex-col gap-4 z-10 absolute sm:relative top-0 left-0 h-full transform -translate-x-full sm:translate-x-0 transition-transform duration-300 overflow-y-auto"
-            id="sidebar">
-            <h2 class="font-bold text-gray-800 text-lg border-b pb-2">Tìm kiếm & Bộ lọc</h2>
+                <!-- Modern Search Bar (rounded-full) -->
+                <div class="relative group mt-2">
+                    <input type="text" id="search-input" placeholder="Nhập tên đơn vị, phường xã..." class="w-full pl-12 pr-4 py-3.5 bg-slate-50/80 border border-white/40 focus:border-primary rounded-full focus:outline-none focus:ring-4 focus:ring-primary/10 text-[15px] transition-all font-medium text-slate-800 placeholder-slate-400 shadow-sm">
+                    <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <span class="material-symbols-outlined text-slate-400 text-[22px] group-focus-within:text-primary transition-colors">search</span>
+                    </div>
+                </div>
 
-            <!-- Thanh tìm kiếm -->
-            <div class="relative mt-2">
-                <input type="text" id="search-input" placeholder="Nhập tên phường, xã..."
-                    class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 text-sm">
-                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg class="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                    </svg>
+                <!-- Custom Filters (rounded-full) -->
+                <div class="flex gap-2.5 mt-5 bg-slate-100/60 p-1.5 rounded-full border border-white/30 backdrop-blur-sm">
+                    <label class="flex-1 flex justify-center items-center gap-2 cursor-pointer py-2.5 bg-transparent hover:bg-white/50 rounded-full transition-all group has-[:checked]:bg-white has-[:checked]:shadow-sm">
+                        <input type="checkbox" id="filter-police" checked class="hidden peer">
+                        <span class="material-symbols-outlined text-[20px] text-slate-400 peer-checked:text-primary transition-colors" style="font-variation-settings: 'FILL' 1;">local_police</span>
+                        <span class="text-[13px] font-bold text-slate-500 peer-checked:text-primary transition-colors">Công an</span>
+                    </label>
+                    <label class="flex-1 flex justify-center items-center gap-2 cursor-pointer py-2.5 bg-transparent hover:bg-white/50 rounded-full transition-all group has-[:checked]:bg-white has-[:checked]:shadow-sm">
+                        <input type="checkbox" id="filter-id" checked class="hidden peer">
+                        <span class="material-symbols-outlined text-[20px] text-slate-400 peer-checked:text-accent transition-colors" style="font-variation-settings: 'FILL' 1;">badge</span>
+                        <span class="text-[13px] font-bold text-slate-500 peer-checked:text-accent transition-colors">Điểm CCCD</span>
+                    </label>
+                </div>
+
+                <!-- Security Announcement Banner (rounded-xl) -->
+                <div id="announcement-banner" class="mt-5 bg-amber-50/90 border border-amber-200/60 p-3.5 rounded-xl flex items-start gap-3 cursor-pointer hover:bg-amber-100 transition-colors shadow-sm" style="display: none;">
+                    <span class="material-symbols-outlined text-accent mt-0.5" style="font-variation-settings: 'FILL' 1;">warning</span>
+                    <div class="flex-1">
+                        <p class="text-[14px] font-bold text-amber-900 leading-tight" id="announcement-banner-text">0 đơn vị có chú ý</p>
+                        <p class="text-[12px] text-amber-800/80 mt-1 font-medium">Theo dõi thông tin mới nhất.</p>
+                    </div>
                 </div>
             </div>
 
-            <div class="flex flex-col gap-3 mt-2 border-t pt-3">
-                <h3 class="text-sm font-semibold text-gray-600 mb-1">Loại địa điểm:</h3>
-                <label class="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-100 rounded-md transition">
-                    <input type="checkbox" id="filter-police" checked
-                        class="w-5 h-5 text-blue-600 rounded focus:ring-blue-500">
-                    <span class="flex items-center gap-2 text-gray-700">
-                        <span class="w-3 h-3 rounded-full bg-blue-600 inline-block"></span>
-                        Trụ sở Công an
-                    </span>
-                </label>
+            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 will-change-[contents]" id="results-list">
+                <!-- Data goes here -->
+            </div>
+        </div>
 
-                <label class="flex items-center gap-2 cursor-pointer p-2 hover:bg-gray-100 rounded-md transition">
-                    <input type="checkbox" id="filter-id" checked
-                        class="w-5 h-5 text-red-600 rounded focus:ring-red-500">
-                    <span class="flex items-center gap-2 text-gray-700">
-                        <span class="w-3 h-3 rounded-full bg-red-600 inline-block"></span>
-                        Điểm cấp Căn cước
-                    </span>
-                </label>
+        <!-- ========================================== -->
+        <!-- DETAIL PANEL (Bottom Sheet / Floating) -->
+        <!-- ========================================== -->
+        <!-- Soft UI: rounded-2xl, background-blur-md, bg-surface/90, shadow-lg, border border-white/20, transform-gpu -->
+        <div id="detail-panel" class="pointer-events-auto absolute md:relative bottom-0 md:top-auto md:bottom-auto md:my-auto md:ml-8 w-full md:w-[440px] h-[85vh] md:h-auto md:max-h-[85vh] flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] transform translate-y-full md:translate-y-0 md:-translate-x-[120%] z-40 bg-surface/90 backdrop-blur-md rounded-t-2xl md:rounded-2xl border border-white/20 shadow-lg transform-gpu will-change-transform overflow-hidden">
+            
+            <div id="drag-handle" class="md:hidden w-full h-8 flex items-center justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing absolute top-0 z-50 transform-gpu">
+                <div class="w-12 h-1.5 bg-white/50 backdrop-blur rounded-full"></div>
             </div>
 
-            <div class="mt-auto bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm text-blue-800">
-                <p><strong>Hướng dẫn:</strong> Bấm vào các biểu tượng trên bản đồ để xem chi tiết địa chỉ và thông tin
-                    liên hệ.</p>
-            </div>
-        </aside>
+            <!-- Header Image -->
+            <div class="flex-none relative w-full h-[220px] md:h-[240px] bg-slate-900 shrink-0 transform-gpu" style="perspective: 1000px;">
+                <img id="detail-image" alt="Hình ảnh trụ sở" class="w-full h-full object-cover opacity-90 transform-gpu" src="https://ui-avatars.com/api/?name=Police&background=random" />
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
 
-        <!-- Nút mở menu trên mobile -->
-        <button id="menu-btn"
-            class="sm:hidden absolute top-4 left-4 z-20 bg-white p-2 rounded-md shadow-md text-gray-700">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
-                </path>
-            </svg>
-        </button>
+                <button id="back-to-list-btn" class="absolute top-4 left-4 w-10 h-10 rounded-full bg-slate-900/30 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:bg-slate-900/50 transition-colors z-10 transform-gpu">
+                    <span class="material-symbols-outlined hidden md:block">arrow_back</span>
+                    <span class="material-symbols-outlined md:hidden">close</span>
+                </button>
 
-        <!-- Khu vực Bản đồ -->
-        <main class="flex-1 relative">
-            <div id="map"></div>
-            <!-- Nút Vị trí của tôi -->
-            <button id="find-location-btn"
-                class="absolute bottom-6 right-6 z-[1000] bg-white p-3 rounded-full shadow-lg text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center group border border-gray-200"
-                title="Vị trí của tôi">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 22s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 8.2c0 7.3-8 11.8-8 11.8z" />
-                    <circle cx="12" cy="10" r="3" stroke-width="2" />
-                </svg>
-            </button>
-        </main>
-    </div>
-
-    <!-- Thư viện bản đồ Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Code Dữ liệu Địa điểm chạy trước -->
-    <script src="data.js"></script>
-
-    <script>
-        // 2. KHỞI TẠO BẢN ĐỒ
-        // Tập trung tọa độ vào khu vực Việt Trì, Phú Thọ. Mức zoom 12
-        const map = L.map('map').setView([21.325, 105.365], 12);
-
-        // Sử dụng lớp bản đồ chuẩn của OpenStreetMap (Miễn phí)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors | Phát triển bởi Đoàn thanh niên',
-            maxZoom: 19
-        }).addTo(map);
-
-        // 3. TẠO BIỂU TƯỢNG (ICONS) TUỲ CHỈNH
-        const createIcon = (color, svgPath) => {
-            return L.divIcon({
-                className: 'custom-icon',
-                html: `<div class="relative flex items-center justify-center w-10 h-10">
-                        <svg class="absolute w-full h-full text-${color}-600 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"></path>
-                        </svg>
-                        <svg class="absolute w-5 h-5 text-white mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            ${svgPath}
-                        </svg>
-                       </div>`,
-                iconSize: [40, 40],
-                iconAnchor: [20, 40], // Điểm nhọn chỉ xuống bản đồ
-                popupAnchor: [0, -40] // Vị trí hiện popup
-            });
-        };
-
-        // Icon khiên công an (cho Trụ sở)
-        const policeIcon = createIcon('blue', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>');
-        // Icon thẻ (cho Điểm cấp CCCD)
-        const idIcon = createIcon('red', '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path>');
-
-
-        // 4. THÊM DỮ LIỆU LÊN BẢN ĐỒ VÀ PHÂN NHÓM
-        const policeLayerGroup = L.layerGroup().addTo(map);
-        const idLayerGroup = L.layerGroup().addTo(map);
-
-        // Hàm tạo nội dung popup
-        function generatePopupContent(loc, distanceStr = null) {
-            let distHTML = '';
-            if (distanceStr) {
-                distHTML = `
-                <div class="bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-md mb-2 inline-block">
-                    📍 Cách bạn: ${distanceStr}
+                <!-- Status & Title -->
+                <div class="absolute bottom-6 left-6 right-24 z-10 text-white transform-gpu">
+                    <!-- detail-badge content generated via JS includes rounded-full/rounded-md -> set fixed styles locally if needed or let bg-primary do it (We did inline-block rounded-md in JS update, so it's fine) -->
+                    <span id="detail-badge" class="inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-md text-[10px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu">Loại đơn vị</span>
+                    <h1 id="detail-title" class="font-display text-[26px] md:text-[28px] font-bold leading-tight drop-shadow-md text-white transform-gpu">Tên trụ sở</h1>
                 </div>
-               `;
-            }
-            return `
-                <div class="p-1 min-w-[200px]">
-                    <h3 class="font-bold text-[16px] text-gray-800 border-b pb-2 mb-2">${loc.name}</h3>
-                    ${distHTML}
-                    <p class="text-sm text-gray-600 mb-1">
-                        <span class="font-semibold">📍 Địa chỉ:</span> ${loc.address}
-                    </p>
-                    <p class="text-sm text-gray-600 mb-2">
-                        <span class="font-semibold">📞 SĐT:</span> <a href="tel:${loc.phone}" class="text-blue-600 hover:underline">${loc.phone}</a>
-                    </p>
-                    <a href="https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}" target="_blank" 
-                       class="block w-full text-center bg-blue-600 text-white py-2 rounded-md text-sm font-semibold hover:bg-blue-700 transition">
-                       Chỉ đường (Mở Google Maps)
+
+                <!-- Distance (rounded-full) -->
+                <div class="absolute bottom-6 right-6 z-10">
+                    <span id="detail-distance-badge" class="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-md text-primary text-[13px] font-bold px-3.5 py-2 rounded-full shadow-lg border border-white/30 hidden transform-gpu">
+                        <span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">near_me</span>
+                        <span id="detail-distance-text">-- km</span>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Detailed Content -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-8 pt-7 pb-24 md:pb-8 will-change-[contents]">
+                
+                <!-- Quick Actions Block (rounded-xl) -->
+                <div class="grid grid-cols-2 gap-4 mb-8">
+                    <a id="action-directions" href="#" target="_blank" class="flex items-center justify-center gap-2.5 bg-blue-50/80 hover:bg-blue-100 text-primary py-3.5 rounded-xl transition-colors shadow-sm border border-white/50">
+                        <span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">directions</span>
+                        <span class="text-[14px] font-bold">Chỉ đường</span>
+                    </a>
+                    <a id="action-call" href="#" class="flex items-center justify-center gap-2.5 bg-slate-50/80 hover:bg-slate-100 text-slate-700 py-3.5 rounded-xl transition-colors shadow-sm border border-white/50">
+                        <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">call</span>
+                        <span class="text-[14px] font-bold">Gọi điện</span>
                     </a>
                 </div>
-            `;
-        }
 
-        locations.forEach(loc => {
-            const isPolice = loc.type === "police_station";
-            const iconToUse = isPolice ? policeIcon : idIcon;
-            const targetLayer = isPolice ? policeLayerGroup : idLayerGroup;
+                <!-- Announcement Display (rounded-xl) -->
+                <div id="detail-announcement" class="bg-amber-50/80 rounded-xl p-5 border border-white/50 shadow-sm mb-8 hidden backdrop-blur-sm">
+                    <div class="flex flex-col gap-1.5">
+                        <div class="flex items-center gap-2 text-accent">
+                            <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">error</span>
+                            <h3 id="ann-title" class="font-display font-bold text-[15px]">Tiêu đề hộp thoại</h3>
+                        </div>
+                        <p id="ann-content" class="text-[14px] text-amber-900/80 leading-relaxed mt-1">Nội dung chi tiết...</p>
+                        <hr class="border-amber-200/60 my-2 mt-3">
+                        <p id="ann-time" class="text-[12px] font-semibold text-amber-700/80">Hết hiệu lực: --</p>
+                    </div>
+                </div>
 
-            // Nội dung bảng thông tin khi bấm vào
-            const popupContent = generatePopupContent(loc);
+                <!-- Attributes -->
+                <div class="flex flex-col gap-6">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-full bg-slate-50/80 border border-white/50 flex items-center justify-center text-primary shrink-0 shadow-sm">
+                            <span class="material-symbols-outlined text-[20px]">location_on</span>
+                        </div>
+                        <div class="pt-2">
+                            <p class="text-[12px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Địa chỉ</p>
+                            <p id="detail-address" class="text-[15px] font-medium text-slate-800 leading-snug">--</p>
+                        </div>
+                    </div>
+                    
+                    <a id="detail-phone-link" href="#" class="flex items-start gap-4 group">
+                        <div class="w-10 h-10 rounded-full bg-slate-50/80 border border-white/50 group-hover:bg-blue-50/80 flex items-center justify-center text-primary shrink-0 transition-colors shadow-sm">
+                            <span class="material-symbols-outlined text-[20px]">phone</span>
+                        </div>
+                        <div class="pt-2">
+                            <p class="text-[12px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Số điện thoại</p>
+                            <p id="detail-phone" class="text-[15px] font-bold text-slate-800 group-hover:text-primary transition-colors">--</p>
+                        </div>
+                    </a>
 
-            const marker = L.marker([loc.lat, loc.lng], { icon: iconToUse })
-                .bindPopup(popupContent, { className: 'custom-popup' })
-                .addTo(targetLayer);
+                    <div id="detail-hours-container" class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-full bg-slate-50/80 border border-white/50 flex items-center justify-center text-primary shrink-0 shadow-sm">
+                            <span class="material-symbols-outlined text-[20px]">schedule</span>
+                        </div>
+                        <div class="pt-2">
+                            <p class="text-[12px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">Giờ làm việc</p>
+                            <p id="detail-hours" class="text-[14px] font-medium text-slate-600 leading-relaxed">--</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            // Lưu marker vào object loc để dùng sau này (cập nhật popup hiển thị khoảng cách)
-            loc.marker = marker;
+    <!-- ========================================== -->
+    <!-- FLOATING MAP CONTROLS -->
+    <!-- ========================================== -->
+    
+    <!-- Mobile Fake Search Button -->
+    <button id="mobile-search-btn" class="md:hidden absolute top-5 left-4 right-4 z-10 h-14 bg-surface/90 backdrop-blur-md rounded-full shadow-lg flex items-center px-4 gap-3 text-slate-500 pointer-events-auto active:scale-[0.98] transition-all border border-white/20 transform-gpu will-change-transform">
+        <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+            <span class="material-symbols-outlined text-[18px]">menu</span>
+        </div>
+        <span class="flex-1 text-left text-[15px] font-medium">Khám phá đơn vị...</span>
+        <div class="w-8 h-8 bg-slate-50 rounded-full flex items-center justify-center border border-white/50 shadow-sm">
+            <span class="material-symbols-outlined text-[18px] text-slate-400">search</span>
+        </div>
+    </button>
 
-            // ==========================================
-            // LỰA CHỌN THÊM DÀNH CHO ANH PHƯƠNG:
-            // Nếu anh muốn: BẤM 1 LẦN VÀO ICON LÀ CHUYỂN SANG GOOGLE MAPS LUÔN
-            // Thì anh hãy BỎ ghi chú khối lệnh dưới đây:
-            // marker.on('click', function() {
-            //     window.open(`https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`, '_blank');
-            // });
-            // ==========================================
-        });
+    <!-- Map Actions (Bottom Right) -->
+    <div class="absolute bottom-8 right-5 md:right-8 flex flex-col gap-3 pointer-events-auto z-20">
+        
+        <button id="find-location-btn" class="w-14 h-14 bg-primary text-white rounded-full shadow-[0_8px_24px_rgba(30,58,138,0.3)] hover:shadow-[0_12px_28px_rgba(30,58,138,0.4)] flex items-center justify-center transition-all md:hover:-translate-y-1 active:scale-95 group border border-white/10 transform-gpu will-change-transform">
+            <span id="location-icon" class="material-symbols-outlined text-[26px]" style="font-variation-settings: 'FILL' 1;">my_location</span>
+        </button>
 
-        // ==========================================
-        // TÍNH NĂNG TÌM KIẾM ĐỊA ĐIỂM
-        // ==========================================
-        const searchInput = document.getElementById('search-input');
+        <div class="hidden md:flex flex-col bg-surface/90 backdrop-blur-md rounded-full shadow-lg border border-white/20 overflow-hidden mt-2 transform-gpu will-change-transform">
+            <button id="zoom-in-btn" class="w-14 h-14 hover:bg-slate-50/50 text-slate-600 hover:text-primary flex items-center justify-center transition-colors border-b border-white/40">
+                <span class="material-symbols-outlined text-[24px]">add</span>
+            </button>
+            <button id="zoom-out-btn" class="w-14 h-14 hover:bg-slate-50/50 text-slate-600 hover:text-primary flex items-center justify-center transition-colors">
+                <span class="material-symbols-outlined text-[24px]">remove</span>
+            </button>
+        </div>
+    </div>
 
-        searchInput.addEventListener('input', function (e) {
-            const searchTerm = e.target.value.toLowerCase().trim();
-            const showPolice = document.getElementById('filter-police').checked;
-            const showId = document.getElementById('filter-id').checked;
+    <!-- Scripts -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
 
-            locations.forEach(loc => {
-                const isPolice = loc.type === "police_station";
-                const matchesFilter = (isPolice && showPolice) || (!isPolice && showId);
-                const matchesSearch = loc.name.toLowerCase().includes(searchTerm) ||
-                    loc.address.toLowerCase().includes(searchTerm);
-
-                if (matchesFilter && matchesSearch) {
-                    if (!map.hasLayer(loc.marker)) {
-                        loc.marker.addTo(isPolice ? policeLayerGroup : idLayerGroup);
-                    }
-                } else {
-                    if (map.hasLayer(loc.marker)) {
-                        map.removeLayer(loc.marker);
-                    }
-                }
-            });
-        });
-
-        // ==========================================
-        // TÍNH NĂNG TÌM ĐIỂM GẦN NHẤT & ĐỊNH VỊ
-        // ==========================================
-        function getDistanceFromLatLonInKm(lat1, lon1, lat2, lon2) {
-            const R = 6371; // Bán kính trái đất (km)
-            const dLat = (lat2 - lat1) * (Math.PI / 180);
-            const dLon = (lon2 - lon1) * (Math.PI / 180);
-            const a =
-                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-            const d = R * c;
-            return d;
-        }
-
-        let userMarker = null;
-
-        document.getElementById('find-location-btn').addEventListener('click', () => {
-            if (!navigator.geolocation) {
-                alert("Trình duyệt của bạn không hỗ trợ định vị (Geolocation).");
-                return;
-            }
-
-            const btn = document.getElementById('find-location-btn');
-            const originalHTML = btn.innerHTML;
-            // Hiển thị icon loading xoay
-            btn.innerHTML = `<svg class="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`;
-
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const userLat = position.coords.latitude;
-                    const userLng = position.coords.longitude;
-                    btn.innerHTML = originalHTML;
-
-                    if (userMarker) {
-                        userMarker.setLatLng([userLat, userLng]);
-                    } else {
-                        userMarker = L.circleMarker([userLat, userLng], {
-                            radius: 8,
-                            fillColor: "#2563eb", /* Tailwind blue-600 */
-                            color: "#ffffff",
-                            weight: 2,
-                            opacity: 1,
-                            fillOpacity: 0.9
-                        }).addTo(map).bindPopup("<b>Vị trí hiện tại của bạn</b>");
-                    }
-
-                    // Tìm điểm Công an gần nhất dựa trên bộ lọc đang bật
-                    let closestLoc = null;
-                    let minDistance = Infinity;
-
-                    const showPolice = document.getElementById('filter-police').checked;
-                    const showId = document.getElementById('filter-id').checked;
-
-                    locations.forEach(loc => {
-                        const isPolice = loc.type === "police_station";
-                        // Chỉ tính khoảng cách cho những loại đang được bộ lọc bật
-                        if ((isPolice && showPolice) || (!isPolice && showId)) {
-                            const dist = getDistanceFromLatLonInKm(userLat, userLng, loc.lat, loc.lng);
-                            if (dist < minDistance) {
-                                minDistance = dist;
-                                closestLoc = loc;
-                            }
-                        }
-                    });
-
-                    if (closestLoc) {
-                        // Bay bản đồ tới điểm gần nhất
-                        map.flyTo([closestLoc.lat, closestLoc.lng], 14, {
-                            animate: true,
-                            duration: 1.5
-                        });
-
-                        // Cập nhật popup điểm gần nhất với label "Cách bạn: ..."
-                        const distStr = minDistance < 1 ? (minDistance * 1000).toFixed(0) + " mét" : minDistance.toFixed(1) + " km";
-                        const newPopupContent = generatePopupContent(closestLoc, distStr);
-                        closestLoc.marker.setPopupContent(newPopupContent);
-
-                        setTimeout(() => {
-                            closestLoc.marker.openPopup();
-                        }, 800);
-                    } else {
-                        alert("Không tìm thấy trụ sở nào phù hợp với bộ lọc hiện tại.");
-                    }
-                },
-                (error) => {
-                    btn.innerHTML = originalHTML;
-                    alert("Không thể lấy được vị trí của bạn. Vui lòng kiểm tra lại quyền truy cập vị trí trên trình duyệt hoặc điện thoại.");
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        });
-
-        // 5. XỬ LÝ SỰ KIỆN BỘ LỌC VÀ MENU
-        function applyFilters() {
-            // Kích hoạt event input để chạy lại logic lọc (kết hợp cả Text Search + Checkbox)
-            const event = new Event('input');
-            document.getElementById('search-input').dispatchEvent(event);
-        }
-
-        document.getElementById('filter-police').addEventListener('change', applyFilters);
-        document.getElementById('filter-id').addEventListener('change', applyFilters);
-
-        // Xử lý menu mobile
-        const menuBtn = document.getElementById('menu-btn');
-        const sidebar = document.getElementById('sidebar');
-        menuBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('-translate-x-full');
-        });
-
-    </script>
 </body>
-
 </html>
