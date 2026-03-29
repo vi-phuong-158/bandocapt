@@ -10,8 +10,8 @@ const locations = [
         lat: 21.328065916387196,
         lng: 105.40321942141614,
         type: "police_station",
-        district: "TP. Việt Trì",
-        address: "TP. Việt Trì, Tỉnh Phú Thọ",
+        district: "phường Việt Trì",
+        address: "phường Việt Trì, Tỉnh Phú Thọ",
         phone: "Cập nhật sau...",
         hours: "07:30 - 17:00"
     },
@@ -21,8 +21,8 @@ const locations = [
         lat: 21.325992,
         lng: 105.365518,
         type: "id_center",
-        district: "TP. Việt Trì",
-        address: "Đường Trần Phú, P. Tân Dân, TP. Việt Trì",
+        district: "phường Việt Trì",
+        address: "phường Việt Trì, Phú Thọ",
         phone: "0210 3846 114",
         hours: "07:30 - 17:00"
     },
@@ -32,19 +32,19 @@ const locations = [
         lat: 21.312154,
         lng: 105.398521,
         type: "police_station",
-        district: "TP. Việt Trì",
-        address: "Phường Tiên Cát, TP. Việt Trì",
+        district: "phường Việt Trì",
+        address: "phường Việt Trì",
         phone: "0210 3xxxxxx",
         hours: "07:30 - 17:00"
     },
     {
         id: 4,
-        name: "Công an xã Thụy Vân",
+        name: "Công an phường Nông Trang",
         lat: 21.345672,
         lng: 105.371290,
         type: "police_station",
-        district: "TP. Việt Trì",
-        address: "Khu 4, Xã Thụy Vân, TP. Việt Trì",
+        district: "phường Nông Trang",
+        address: "phường Nông Trang",
         phone: "0210 3xxxxxx",
     }
 ];
