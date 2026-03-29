@@ -6,8 +6,10 @@
 const CONFIG = {
   center: [21.325, 105.365],
   defaultZoom: 12,
-  sheetId: "YOUR_GOOGLE_SHEET_ID", // THAY BẰNG ID GOOGLE SHEET THỰC TẾ
+  sheetId: "1qkResomTlk3tLeoyz1HFFScwswxPIa8L4bySUammLSs", // THAY BẰNG ID GOOGLE SHEET THÔNG BÁO THỰC TẾ
   sheetName: "DaXacThuc",
+  hqSheetId: "1qkResomTlk3tLeoyz1HFFScwswxPIa8L4bySUammLSs",
+  hqSheetName: "Form_Responses",
   announcementRefreshInterval: 5 * 60 * 1000,
 };
 
@@ -125,14 +127,6 @@ function createCustomIcon(loc) {
 }
 
 const layerGroup = L.layerGroup().addTo(map);
-
-locations.forEach((loc) => {
-  const marker = L.marker([loc.lat, loc.lng], {
-    icon: createCustomIcon(loc),
-  }).addTo(layerGroup);
-  loc.marker = marker;
-  marker.on("click", () => openDetailPanel(loc));
-});
 
 function updateAllMarkersIcon() {
   locations.forEach((loc) => {
@@ -263,8 +257,8 @@ function openDetailPanel(loc) {
 
   // Data Fill
   detailBadge.textContent = isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD";
-  detailBadge.className = isPolice 
-    ? "inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu" 
+  detailBadge.className = isPolice
+    ? "inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu"
     : "inline-block px-3 py-1.5 bg-accent/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 border border-amber-400/20 text-amber-50 shadow-lg transform-gpu";
 
   detailTitle.textContent = loc.name;
@@ -272,10 +266,10 @@ function openDetailPanel(loc) {
 
   // Sửa link ảnh bảo mật (https) và có fallback trực quan
   if (loc.imageUrl && loc.imageUrl.startsWith("http")) {
-      detailImage.src = loc.imageUrl;
+    detailImage.src = loc.imageUrl;
   } else {
-      // Tạo ảnh mặc định dựa trên chữ cái đầu của tên địa điểm
-      detailImage.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(loc.name)}&background=random`;
+    // Tạo ảnh mặc định dựa trên chữ cái đầu của tên địa điểm
+    detailImage.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(loc.name)}&background=random`;
   }
 
   detailAddress.textContent = loc.address;
@@ -296,31 +290,31 @@ function openDetailPanel(loc) {
   }
 
   // Giờ làm việc cố định toàn tỉnh
-    // Tính năng 1: Trạng thái đóng/mở cửa theo thời gian thực
-    const now = new Date();
-    const currentHour = now.getHours() + now.getMinutes() / 60;
-    const isWeekday = now.getDay() >= 1 && now.getDay() <= 5; // Thứ 2 đến Thứ 6
-    const isMorning = currentHour >= 7.5 && currentHour <= 11.5;
-    const isAfternoon = currentHour >= 13 && currentHour <= 16.5;
+  // Tính năng 1: Trạng thái đóng/mở cửa theo thời gian thực
+  const now = new Date();
+  const currentHour = now.getHours() + now.getMinutes() / 60;
+  const isWeekday = now.getDay() >= 1 && now.getDay() <= 5; // Thứ 2 đến Thứ 6
+  const isMorning = currentHour >= 7.5 && currentHour <= 11.5;
+  const isAfternoon = currentHour >= 13 && currentHour <= 16.5;
 
-    let statusText = "Đã nghỉ làm";
-    let statusColor = "text-danger"; // text-danger = red-600
+  let statusText = "Đã nghỉ làm";
+  let statusColor = "text-danger"; // text-danger = red-600
 
-    if (isWeekday && (isMorning || isAfternoon)) {
-      statusText = "Đang mở cửa";
-      statusColor = "text-secondary font-bold animate-pulse"; // text-secondary = emerald-700
-    }
+  if (isWeekday && (isMorning || isAfternoon)) {
+    statusText = "Đang mở cửa";
+    statusColor = "text-secondary font-bold animate-pulse"; // text-secondary = emerald-700
+  }
 
-    // Tính năng 2: Nhắc nhở giấy tờ nếu là điểm cấp CCCD
-    const procedureNote =
-      loc.type === "id_center"
-        ? `<div class="text-[13px] text-amber-800 mt-2.5 bg-amber-50 border border-amber-200/50 p-3 rounded-xl flex items-start gap-2 shadow-sm font-medium">
+  // Tính năng 2: Nhắc nhở giấy tờ nếu là điểm cấp CCCD
+  const procedureNote =
+    loc.type === "id_center"
+      ? `<div class="text-[13px] text-amber-800 mt-2.5 bg-amber-50 border border-amber-200/50 p-3 rounded-xl flex items-start gap-2 shadow-sm font-medium">
         <span class="material-symbols-outlined text-[18px] text-amber-600">info</span>
         <span>Lưu ý: Người dân nhớ mang theo CCCD/CMND cũ hoặc Giấy khai sinh.</span>
        </div>`
-        : "";
+      : "";
 
-    detailHours.innerHTML = `<span class="${statusColor} font-bold">${statusText}</span> <span class="text-slate-300 mx-1.5">•</span> Sáng: 07h30-11h30 | Chiều: 13h00-16h30 ${procedureNote}`;
+  detailHours.innerHTML = `<span class="${statusColor} font-bold">${statusText}</span> <span class="text-slate-300 mx-1.5">•</span> Sáng: 07h30-11h30 | Chiều: 13h00-16h30 ${procedureNote}`;
   detailHoursContainer.style.display = "flex";
 
   if (loc._currentDistance != null) {
@@ -502,22 +496,44 @@ closeSearchBtn.addEventListener("click", hideMobileSearch);
 mobileOverlay.addEventListener("click", hideMobileSearch);
 
 // ==========================================
-// 9. API Google Sheets (Thông báo)
+// 9. API Google Sheets (Xử lý vượt lỗi CORS JSONP)
 // ==========================================
+function fetchGoogleSheetJSONP(sheetId, sheetName) {
+  return new Promise((resolve, reject) => {
+    const callbackName = 'gviz_' + Math.round(1000000 * Math.random());
+    window[callbackName] = function (data) {
+      delete window[callbackName];
+      document.body.removeChild(script);
+      resolve(data);
+    };
+
+    let url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${callbackName}`;
+    if (sheetName) {
+      url += `&sheet=${encodeURIComponent(sheetName)}`;
+    }
+
+    const script = document.createElement('script');
+    script.src = url;
+    script.onerror = function () {
+      delete window[callbackName];
+      document.body.removeChild(script);
+      reject(new Error("JSONP loading failed"));
+    };
+    document.body.appendChild(script);
+  });
+}
+
+// Thông báo 
+
 async function fetchAnnouncements() {
   if (!CONFIG.sheetId || CONFIG.sheetId === "YOUR_GOOGLE_SHEET_ID") return;
   try {
-    const url = `https://docs.google.com/spreadsheets/d/${CONFIG.sheetId}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(CONFIG.sheetName)}`;
-    const response = await fetch(url);
-    const match = (await response.text()).match(
-      /google\.visualization\.Query\.setResponse\((.+)\)/s,
-    );
-    if (!match) throw new Error("Data parse error");
+    const data = await fetchGoogleSheetJSONP(CONFIG.sheetId, CONFIG.sheetName);
 
     const now = new Date();
     activeAnnouncements = {};
 
-    JSON.parse(match[1]).table.rows.forEach((row) => {
+    data.table.rows.forEach((row) => {
       const cells = row.c;
       if (!cells || cells.length < 5) return;
       const unit = cells[1]?.v;
@@ -564,7 +580,7 @@ announcementBanner.addEventListener("click", () => {
     openDetailPanel(target);
   }
 });
-fetchAnnouncements();
+// fetchAnnouncements(); // Sẽ được gọi sau khi tải xong Trụ sở
 setInterval(fetchAnnouncements, CONFIG.announcementRefreshInterval);
 
 // ==========================================
@@ -642,4 +658,68 @@ function escapeHtml(text) {
     .replace(/\//g, "&#x2F;");
 }
 
-filterAndRender();
+// ==========================================
+// 11. API Google Sheets (Thông tin Trụ sở)
+// ==========================================
+async function fetchHeadquarters() {
+  try {
+    const data = await fetchGoogleSheetJSONP(CONFIG.hqSheetId, CONFIG.hqSheetName);
+
+    locations = [];
+
+    data.table.rows.forEach((row, index) => {
+      const c = row.c;
+      if (!c || !c[2] || !c[2].v) return;
+
+      const name = c[2]?.v || "";
+      const typeRaw = c[3]?.v || "";
+      const type = typeRaw.includes("CCCD") ? "id_center" : "police_station";
+      const address = c[4]?.v || "";
+      const phone = c[5]?.v || "Chưa có SĐT";
+      const mapLinkOrCoords = String(c[6]?.v || "");
+      const imageUrl = c[7]?.v || "";
+
+      let lat = 21.325 + (Math.random() * 0.05); // fallback nếu không có tọa độ
+      let lng = 105.365 + (Math.random() * 0.05);
+
+      const coordsMatch = mapLinkOrCoords.match(/(-?\d+\.\d+)[\s,]+(-?\d+\.\d+)/);
+      if (coordsMatch) {
+        lat = parseFloat(coordsMatch[1]);
+        lng = parseFloat(coordsMatch[2]);
+      } else {
+        const linkMatch = mapLinkOrCoords.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+        if (linkMatch) {
+          lat = parseFloat(linkMatch[1]);
+          lng = parseFloat(linkMatch[2]);
+        }
+      }
+
+      const loc = {
+        id: index + 1,
+        name,
+        type,
+        address,
+        phone,
+        imageUrl,
+        lat,
+        lng,
+        district: address
+      };
+
+      const marker = L.marker([loc.lat, loc.lng], {
+        icon: createCustomIcon(loc),
+      }).addTo(layerGroup);
+      loc.marker = marker;
+      marker.on("click", () => openDetailPanel(loc));
+
+      locations.push(loc);
+    });
+
+    filterAndRender();
+    fetchAnnouncements(); // Load thông báo sau khi có danh sách trụ sở
+  } catch (err) {
+    console.warn("Google Sheets Headquarters Error: ", err.message);
+  }
+}
+
+fetchHeadquarters();
