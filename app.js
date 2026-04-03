@@ -382,13 +382,49 @@ function getActiveFilters() {
   return {
     showPolice: document.getElementById("filter-police").checked,
     showId: document.getElementById("filter-id").checked,
+    showNearby: document.getElementById("filter-nearby").checked,
   };
 }
 
 function filterAndRender() {
   const searchTerm = searchInput.value.toLowerCase().trim();
-  const { showPolice, showId } = getActiveFilters();
-  const visibleLocations = [];
+  const { showPolice, showId, showNearby } = getActiveFilters();
+  const nearbySpinner = document.getElementById('nearby-spinner');
+
+  // Nếu bật "Gần tôi" mà chưa có tọa độ -> gọi GPS, tạm dừng render
+  if (showNearby && userLat == null) {
+    if (nearbySpinner) {
+      nearbySpinner.textContent = 'progress_activity';
+      nearbySpinner.classList.add('animate-spin');
+    }
+    requestUserLocation(
+      function () {
+        if (nearbySpinner) {
+          nearbySpinner.textContent = 'near_me';
+          nearbySpinner.classList.remove('animate-spin');
+        }
+        filterAndRender();
+      },
+      function () {
+        if (nearbySpinner) {
+          nearbySpinner.textContent = 'near_me';
+          nearbySpinner.classList.remove('animate-spin');
+        }
+        // Tắt checkbox nếu GPS thất bại
+        document.getElementById('filter-nearby').checked = false;
+        filterAndRender();
+      }
+    );
+    return;
+  }
+
+  // Reset spinner khi tắt nearby
+  if (!showNearby && nearbySpinner) {
+    nearbySpinner.textContent = 'near_me';
+    nearbySpinner.classList.remove('animate-spin');
+  }
+
+  let visibleLocations = [];
 
   locations.forEach((loc) => {
     const isPolice = loc.type === "police_station";
@@ -410,6 +446,29 @@ function filterAndRender() {
       (a, b) =>
         (a._currentDistance || Infinity) - (b._currentDistance || Infinity),
     );
+  }
+
+  // Nearby mode: chỉ hiển thị 5 địa điểm gần nhất
+  if (showNearby && userLat != null) {
+    // Ẩn marker của các điểm ngoài top 5
+    visibleLocations.slice(5).forEach((loc) => {
+      if (loc.marker && map.hasLayer(loc.marker)) map.removeLayer(loc.marker);
+    });
+    visibleLocations = visibleLocations.slice(0, 5);
+
+    // fitBounds bao gồm cả user và các điểm lân cận
+    if (visibleLocations.length > 0) {
+      const boundsCoords = [[userLat, userLng]];
+      visibleLocations.forEach((loc) => {
+        if (loc.lat != null && loc.lng != null) {
+          boundsCoords.push([loc.lat, loc.lng]);
+        }
+      });
+      if (boundsCoords.length > 1) {
+        const bounds = L.latLngBounds(boundsCoords);
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+      }
+    }
   }
 
   renderResultsList(visibleLocations);
@@ -435,16 +494,18 @@ function renderResultsList(results) {
             : `${loc._currentDistance.toFixed(1)}km`
           : "";
 
-      const iconClass = isPolice ? "bg-police" : "bg-id";
-      const iconName = isPolice ? "shield" : "badge";
+      const iconHTML = isPolice 
+        ? `<img src="logo.png" alt="Logo" class="w-6 h-6 object-contain">`
+        : `<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">badge</span>`;
+      const iconClass = isPolice ? "" : "bg-id";
       const annHTML = hasAnn
         ? `<div class="result-ann-tag"><span class="material-symbols-outlined">error</span> Bấm xem thông báo</div>`
         : "";
 
       return `
             <div class="result-item ${hasAnn ? "has-ann" : ""}" data-id="${loc.id}">
-                <div class="result-icon-box ${iconClass}">
-                    <span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">${iconName}</span>
+                <div class="result-icon-box ${iconClass} flex items-center justify-center">
+                    ${iconHTML}
                 </div>
                 <div class="result-content">
                     <h3 class="result-title">${escapeHtml(loc.name)}</h3>
@@ -471,6 +532,9 @@ document
   .addEventListener("change", filterAndRender);
 document
   .getElementById("filter-id")
+  .addEventListener("change", filterAndRender);
+document
+  .getElementById("filter-nearby")
   .addEventListener("change", filterAndRender);
 
 // ==========================================
@@ -585,23 +649,24 @@ announcementBanner.addEventListener("click", () => {
 // feature: setInterval(fetchAnnouncements, CONFIG.announcementRefreshInterval);
 
 // ==========================================
-// 10. Định vị (Geolocation)
+// 10. Định vị (Geolocation) - Hàm độc lập
 // ==========================================
-document.getElementById("find-location-btn").addEventListener("click", () => {
-  if (!navigator.geolocation) return alert("Trình duyệt không hỗ trợ.");
-  const icon = document.getElementById("location-icon");
-  icon.textContent = "progress_activity";
-  icon.classList.add("animate-spin");
+function requestUserLocation(onSuccessCallback, onErrorCallback) {
+  if (!navigator.geolocation) {
+    alert("Trình duyệt không hỗ trợ định vị.");
+    if (onErrorCallback) onErrorCallback();
+    return;
+  }
 
   navigator.geolocation.getCurrentPosition(
     (pos) => {
-      icon.textContent = "my_location";
-      icon.classList.remove("animate-spin");
       userLat = pos.coords.latitude;
       userLng = pos.coords.longitude;
 
-      if (userMarker) userMarker.setLatLng([userLat, userLng]);
-      else
+      // Cập nhật hoặc tạo userMarker
+      if (userMarker) {
+        userMarker.setLatLng([userLat, userLng]);
+      } else {
         userMarker = L.circleMarker([userLat, userLng], {
           radius: 9,
           fillColor: "#3B82F6",
@@ -611,7 +676,9 @@ document.getElementById("find-location-btn").addEventListener("click", () => {
           fillOpacity: 1,
           className: "user-marker",
         }).addTo(map);
+      }
 
+      // Tính khoảng cách Haversine cho tất cả locations
       const rad = Math.PI / 180;
       const userLatRad = userLat * rad;
       const cosUserLat = Math.cos(userLatRad);
@@ -619,23 +686,42 @@ document.getElementById("find-location-btn").addEventListener("click", () => {
       locations.forEach((loc) => {
         const dLat = (loc.lat - userLat) * rad;
         const dLng = (loc.lng - userLng) * rad;
-        // Công thức Haversine tối ưu, loại bỏ các phép tính thừa
         const a =
           Math.sin(dLat / 2) ** 2 +
           cosUserLat * Math.cos(loc.lat * rad) * Math.sin(dLng / 2) ** 2;
-        loc._currentDistance = 12742 * Math.asin(Math.sqrt(a)); // 12742 = 2 * 6371
+        loc._currentDistance = 12742 * Math.asin(Math.sqrt(a));
       });
+
+      if (onSuccessCallback) onSuccessCallback();
+    },
+    (err) => {
+      console.warn("Geolocation error:", err.message);
+      alert("Không thể lấy vị trí. Vui lòng kiểm tra quyền truy cập GPS.");
+      if (onErrorCallback) onErrorCallback();
+    },
+    { enableHighAccuracy: true, timeout: 8000 },
+  );
+}
+
+// Nút định vị trên bản đồ (gọi lại hàm đã tách)
+document.getElementById("find-location-btn").addEventListener("click", () => {
+  const icon = document.getElementById("location-icon");
+  icon.textContent = "progress_activity";
+  icon.classList.add("animate-spin");
+
+  requestUserLocation(
+    function () {
+      icon.textContent = "my_location";
+      icon.classList.remove("animate-spin");
       map.flyTo([userLat, userLng], 14, { animate: true });
       filterAndRender();
       if (currentlySelectedLocation) openDetailPanel(currentlySelectedLocation);
     },
-    () => {
+    function () {
       icon.textContent = "location_off";
       icon.classList.remove("animate-spin");
       setTimeout(() => (icon.textContent = "my_location"), 3000);
-      alert("Lỗi lấy vị trí.");
-    },
-    { enableHighAccuracy: true, timeout: 5000 },
+    }
   );
 });
 

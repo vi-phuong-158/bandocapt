@@ -62,18 +62,18 @@
 .marker-container:hover .marker-icon { transform: rotate(-45deg) scale(1.1) translateZ(0); box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2); }
 .marker-inner { transform: rotate(45deg); color: white; display: flex; justify-content: center; align-items: center; }
 
-/* Colors: Primary (Police Blue), Accent (Amber) */
-.marker-police .marker-icon { background: #1e3a8a; } /* Blue 900 */
+/* Colors: Primary (Police Green), Accent (Amber) */
+.marker-police .marker-icon { background: #1a5c2a; } /* Green - màu Công an */
 .marker-id .marker-icon { background: #d97706; } /* Amber 600 */
 
-@keyframes pulse-ring-blue { 0% { transform: scale(0.8) translateZ(0); opacity: 0.8; } 100% { transform: scale(3.5) translateZ(0); opacity: 0; } }
+@keyframes pulse-ring-green { 0% { transform: scale(0.8) translateZ(0); opacity: 0.8; } 100% { transform: scale(3.5) translateZ(0); opacity: 0; } }
 @keyframes pulse-ring-amber { 0% { transform: scale(0.8) translateZ(0); opacity: 0.8; } 100% { transform: scale(3.5) translateZ(0); opacity: 0; } }
 
 .marker-selected .marker-icon {
     transform: rotate(-45deg) scale(1.2) translateZ(0); box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.9), 0 8px 24px rgba(0, 0, 0, 0.25); z-index: 999 !important;
 }
 .marker-selected::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 50%; z-index: 1; }
-.marker-selected.marker-police::before { background-color: rgba(30, 58, 138, 0.4); animation: pulse-ring-blue 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+.marker-selected.marker-police::before { background-color: rgba(26, 92, 42, 0.4); animation: pulse-ring-green 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
 .marker-selected.marker-id::before { background-color: rgba(217, 119, 6, 0.4); animation: pulse-ring-amber 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
 
 .marker-has-announcement::after {
@@ -112,7 +112,7 @@
     width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white;
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
-.bg-police { background-color: #1e3a8a; }
+.bg-police { background-color: #1a5c2a; }
 .bg-id { background-color: #d97706; }
 
 .result-content { flex: 1; min-width: 0; padding-top: 2px; }
