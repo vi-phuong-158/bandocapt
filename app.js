@@ -264,12 +264,16 @@ function openDetailPanel(loc) {
   detailTitle.textContent = loc.name;
   detailTitle.className = "font-display text-[26px] md:text-[28px] font-bold leading-tight drop-shadow-md text-white";
 
-  // Sửa link ảnh bảo mật (https) và có fallback trực quan
-  if (loc.imageUrl && loc.imageUrl.startsWith("http")) {
+  // Hiển thị ảnh trụ sở (đã convert sẵn trong fetchHeadquarters, không cần gọi lại convertGoogleDriveUrl)
+  if (loc.imageUrl && loc.imageUrl.startsWith('https://')) {
     detailImage.src = loc.imageUrl;
+    detailImage.alt = 'Ảnh trụ sở';
+    detailImage.loading = 'lazy';
+    detailImage.classList.add('w-full', 'h-auto', 'rounded-lg', 'object-cover');
   } else {
     // Tạo ảnh mặc định dựa trên chữ cái đầu của tên địa điểm
     detailImage.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(loc.name)}&background=random`;
+    detailImage.alt = 'Ảnh trụ sở';
   }
 
   detailAddress.textContent = loc.address;
@@ -646,7 +650,7 @@ if (window.innerWidth < 768) {
   );
 }
 
-// Thay thế bằng các HTML entities chuẩn
+// Thay thế bằng các HTML entities chuẩn (chống XSS)
 function escapeHtml(text) {
   if (!text) return "";
   return String(text)
@@ -654,8 +658,52 @@ function escapeHtml(text) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#x27;")
+    .replace(/'/g, "&#039;")
     .replace(/\//g, "&#x2F;");
+}
+
+// ==========================================
+// Chuyển đổi URL Google Drive thành direct image link (CDN)
+// Sử dụng lh3.googleusercontent.com/d/ để bypass CORS/Cookie block
+// Input validation: chỉ nhận URL từ drive.google.com, chặn XSS
+// ==========================================
+function convertGoogleDriveUrl(url) {
+  if (!url || typeof url !== 'string') return '';
+
+  // Chỉ cho phép URL từ drive.google.com (chặn XSS / domain lạ)
+  const safeDomainRegex = /^https:\/\/drive\.google\.com\//;
+  if (!safeDomainRegex.test(url)) {
+    // Nếu là URL hợp lệ khác (https) thì trả về nguyên bản
+    if (/^https:\/\//.test(url)) return url;
+    return '';
+  }
+
+  // Pattern 1: https://drive.google.com/file/d/FILE_ID/view...
+  const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (fileIdMatch && fileIdMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${fileIdMatch[1]}`;
+  }
+
+  // Pattern 2: https://drive.google.com/open?id=FILE_ID
+  const openIdMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (openIdMatch && openIdMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${openIdMatch[1]}`;
+  }
+
+  // Pattern 3: https://drive.google.com/uc?... (legacy direct link)
+  const ucIdMatch = url.match(/\/uc\?.*id=([a-zA-Z0-9_-]+)/);
+  if (ucIdMatch && ucIdMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${ucIdMatch[1]}`;
+  }
+
+  // Pattern 4: https://drive.google.com/thumbnail?id=FILE_ID
+  const thumbMatch = url.match(/\/thumbnail\?.*id=([a-zA-Z0-9_-]+)/);
+  if (thumbMatch && thumbMatch[1]) {
+    return `https://lh3.googleusercontent.com/d/${thumbMatch[1]}`;
+  }
+
+  // Không khớp pattern nào -> trả về chuỗi rỗng
+  return '';
 }
 
 // ==========================================
@@ -677,7 +725,9 @@ async function fetchHeadquarters() {
       const address = c[4]?.v || "";
       const phone = c[5]?.v || "Chưa có SĐT";
       const mapLinkOrCoords = String(c[6]?.v || "");
-      const imageUrl = c[7]?.v || "";
+      // Cột 7: "Hình ảnh đại diện Trụ sở / Nơi làm việc"
+      const rawImageUrl = c[7]?.v || "";
+      const imageUrl = convertGoogleDriveUrl(rawImageUrl) || rawImageUrl;
 
       let lat = 21.325 + (Math.random() * 0.05); // fallback nếu không có tọa độ
       let lng = 105.365 + (Math.random() * 0.05);
