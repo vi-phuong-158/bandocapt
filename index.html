@@ -23,14 +23,15 @@
     <!-- Custom Styles -->
     <link rel="stylesheet" href="styles.css" />
 </head>
-<body class="bg-background font-body text-textMain h-screen w-screen overflow-hidden flex relative antialiased selection:bg-primary/20">
+<body class="bg-background font-body text-textMain h-screen w-screen overflow-hidden flex md:flex-row relative antialiased selection:bg-primary/20">
 
     <!-- BASE MAP -->
     <!-- Thêm will-change-transform cho lớp chứa bản đồ lớn -->
-    <div id="map" class="absolute inset-0 z-0 bg-slate-200 transform-gpu will-change-transform"></div>
+    <div id="map" class="absolute md:relative inset-0 md:inset-auto z-0 md:flex-1 bg-slate-200 transform-gpu will-change-transform md:order-last"></div>
 
-    <!-- UI OVERLAY -->
-    <div class="absolute inset-0 z-20 pointer-events-none flex flex-col md:flex-row overflow-hidden">
+    <!-- UI OVERLAY / DESKTOP SIDEBAR -->
+    <!-- md:hidden is just for inner elements if needed. T container này hoạt động như Sidebar width=400px trên Desktop -->
+    <div class="absolute md:relative inset-0 md:inset-auto z-20 pointer-events-none md:pointer-events-auto flex flex-col md:w-[400px] lg:w-[420px] md:h-screen md:flex-shrink-0 overflow-hidden md:bg-surface md:shadow-[4px_0_24px_rgba(0,0,0,0.06)] md:z-40 md:border-r md:border-slate-200">
         
         <!-- Mobile Overlay -->
         <div id="mobile-overlay" class="md:hidden absolute inset-0 bg-slate-900/40 z-20 hidden backdrop-blur-sm transition-opacity opacity-0 pointer-events-auto transform-gpu"></div>
@@ -39,7 +40,7 @@
         <!-- SEARCH PANEL -->
         <!-- ========================================== -->
         <!-- Soft UI: rounded-2xl, background-blur-md, bg-surface/90, shadow-lg, border border-white/20, transform-gpu -->
-        <div id="search-panel" class="pointer-events-auto absolute md:relative top-0 left-0 w-full md:w-[420px] lg:w-[460px] h-[85vh] md:h-[calc(100vh-48px)] flex flex-col transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform -translate-y-[120%] md:translate-y-0 z-40 bg-surface/90 backdrop-blur-md rounded-b-2xl md:rounded-2xl md:my-6 md:ml-6 border border-white/20 shadow-lg transform-gpu will-change-transform overflow-hidden pb-4 md:pb-0">
+        <div id="search-panel" class="pointer-events-auto absolute md:absolute top-0 left-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full flex flex-col transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform -translate-y-[120%] md:translate-y-0 md:translate-x-0 opacity-0 md:opacity-100 z-40 md:z-10 bg-surface/90 md:bg-transparent backdrop-blur-md md:backdrop-blur-none rounded-b-2xl md:rounded-none md:m-0 border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu will-change-transform overflow-hidden pb-4 md:pb-0">
             
             <div class="flex-none px-6 pt-7 pb-5 z-10">
                 <div class="flex justify-between items-start mb-6 md:mb-4">
@@ -102,7 +103,7 @@
         <!-- DETAIL PANEL (Bottom Sheet / Floating) -->
         <!-- ========================================== -->
         <!-- Soft UI: rounded-2xl, background-blur-md, bg-surface/90, shadow-lg, border border-white/20, transform-gpu -->
-        <div id="detail-panel" class="pointer-events-auto absolute md:relative bottom-0 md:top-auto md:bottom-auto md:my-auto md:ml-8 w-full md:w-[440px] h-[85vh] md:h-auto md:max-h-[85vh] flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] transform translate-y-full md:translate-y-0 md:-translate-x-[120%] z-40 bg-surface/90 backdrop-blur-md rounded-t-2xl md:rounded-2xl border border-white/20 shadow-lg transform-gpu will-change-transform overflow-hidden">
+        <div id="detail-panel" class="pointer-events-auto absolute md:absolute bottom-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full md:max-h-full flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] transform translate-y-full md:translate-y-0 md:-translate-x-full z-40 md:z-20 bg-surface/90 md:bg-surface backdrop-blur-md md:backdrop-blur-none rounded-t-2xl md:rounded-none border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu will-change-transform overflow-hidden">
             
             <div id="drag-handle" class="md:hidden w-full h-8 flex items-center justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing absolute top-0 z-50 transform-gpu">
                 <div class="w-12 h-1.5 bg-white/50 backdrop-blur rounded-full"></div>

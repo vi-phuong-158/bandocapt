@@ -155,18 +155,15 @@ function setSheetState(state, animate = true) {
     document.documentElement.style.setProperty("--sheet-translate", state);
     currentTranslate = state;
   } else {
-    // Trên PC: ẩn/hiện bằng translate-x
+    // Trên PC: ẩn/hiện detail-panel bằng TranslateX (Absolute positioning trượt ngang)
     if (state === STATE.HIDDEN) {
-      detailPanel.classList.add("-translate-x-[110%]");
-      detailPanel.classList.remove("md:relative");
-      searchPanel.classList.remove("-translate-x-[110%]");
-      searchPanel.classList.add("md:relative");
+      // Ẩn detail (Trượt ra ngoài lề trái)
+      detailPanel.classList.add("md:-translate-x-full");
+      detailPanel.classList.remove("md:translate-x-0");
     } else {
-      // Khác HIDDEN là hiện
-      searchPanel.classList.add("-translate-x-[110%]");
-      searchPanel.classList.remove("md:relative");
-      detailPanel.classList.remove("-translate-x-[110%]");
-      detailPanel.classList.add("md:relative");
+      // Hiện detail đè lên search (Trượt vào trong)
+      detailPanel.classList.add("md:translate-x-0");
+      detailPanel.classList.remove("md:-translate-x-full");
     }
   }
 }
@@ -584,8 +581,8 @@ announcementBanner.addEventListener("click", () => {
     openDetailPanel(target);
   }
 });
-// fetchAnnouncements(); // Sẽ được gọi sau khi tải xong Trụ sở
-setInterval(fetchAnnouncements, CONFIG.announcementRefreshInterval);
+// feature: fetchAnnouncements(); // Sẽ được gọi sau khi tải xong Trụ sở
+// feature: setInterval(fetchAnnouncements, CONFIG.announcementRefreshInterval);
 
 // ==========================================
 // 10. Định vị (Geolocation)
@@ -766,7 +763,7 @@ async function fetchHeadquarters() {
     });
 
     filterAndRender();
-    fetchAnnouncements(); // Load thông báo sau khi có danh sách trụ sở
+    // fetchAnnouncements(); // Load thông báo sau khi có danh sách trụ sở (Đã vô hiệu hóa theo yêu cầu)
   } catch (err) {
     console.warn("Google Sheets Headquarters Error: ", err.message);
   }
