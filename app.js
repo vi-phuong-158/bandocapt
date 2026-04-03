@@ -6,10 +6,8 @@
 const CONFIG = {
   center: [21.325, 105.365],
   defaultZoom: 12,
-  sheetId: "1qkResomTlk3tLeoyz1HFFScwswxPIa8L4bySUammLSs", // THAY BẰNG ID GOOGLE SHEET THÔNG BÁO THỰC TẾ
-  sheetName: "DaXacThuc",
-  hqSheetId: "1qkResomTlk3tLeoyz1HFFScwswxPIa8L4bySUammLSs",
-  hqSheetName: "Form_Responses",
+  // Sheet ID đã được chuyển sang biến môi trường phía server (process.env.GOOGLE_SHEET_ID)
+  // Frontend gọi qua /api/google-sheet thay vì truy cập trực tiếp Google Sheets
   announcementRefreshInterval: 5 * 60 * 1000,
 };
 
@@ -561,39 +559,20 @@ closeSearchBtn.addEventListener("click", hideMobileSearch);
 mobileOverlay.addEventListener("click", hideMobileSearch);
 
 // ==========================================
-// 9. API Google Sheets (Xử lý vượt lỗi CORS JSONP)
+// 9. API Google Sheets (gọi qua serverless proxy /api/google-sheet)
 // ==========================================
-function fetchGoogleSheetJSONP(sheetId, sheetName) {
-  return new Promise((resolve, reject) => {
-    const callbackName = 'gviz_' + Math.round(1000000 * Math.random());
-    window[callbackName] = function (data) {
-      delete window[callbackName];
-      document.body.removeChild(script);
-      resolve(data);
-    };
-
-    let url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json;responseHandler:${callbackName}`;
-    if (sheetName) {
-      url += `&sheet=${encodeURIComponent(sheetName)}`;
-    }
-
-    const script = document.createElement('script');
-    script.src = url;
-    script.onerror = function () {
-      delete window[callbackName];
-      document.body.removeChild(script);
-      reject(new Error("JSONP loading failed"));
-    };
-    document.body.appendChild(script);
-  });
+async function fetchSheetData(sheetName) {
+  const url = `/api/google-sheet${sheetName ? `?sheet=${encodeURIComponent(sheetName)}` : ''}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
 }
 
 // Thông báo 
 
 async function fetchAnnouncements() {
-  if (!CONFIG.sheetId || CONFIG.sheetId === "YOUR_GOOGLE_SHEET_ID") return;
   try {
-    const data = await fetchGoogleSheetJSONP(CONFIG.sheetId, CONFIG.sheetName);
+    const data = await fetchSheetData("DaXacThuc");
 
     const now = new Date();
     activeAnnouncements = {};
@@ -794,7 +773,7 @@ function convertGoogleDriveUrl(url) {
 // ==========================================
 async function fetchHeadquarters() {
   try {
-    const data = await fetchGoogleSheetJSONP(CONFIG.hqSheetId, CONFIG.hqSheetName);
+    const data = await fetchSheetData("Form_Responses");
 
     locations = [];
 
