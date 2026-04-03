@@ -6,43 +6,29 @@
     <title>Bản đồ Công an số</title>
     <meta name="description" content="Hệ thống Bản đồ Công an số và Điểm cấp CCCD tỉnh Phú Thọ. Soft UI Mod.">
 
-    <!-- Fonts: Space Grotesk for Display, Inter for Body -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Material Symbols -->
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" rel="stylesheet" />
 
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-    <!-- Static Compiled Tailwind CSS to optimize performance -->
-    <link rel="stylesheet" href="output.css" />
-    
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="output.css" />
+
+<link rel="stylesheet" href="styles.css" />
 </head>
 <body class="bg-background font-body text-textMain h-screen w-screen overflow-hidden flex md:flex-row relative antialiased selection:bg-primary/20">
 
-    <!-- BASE MAP -->
-    <!-- Thêm will-change-transform cho lớp chứa bản đồ lớn -->
-    <div id="map" class="absolute md:relative inset-0 md:inset-auto z-0 md:flex-1 bg-slate-200 transform-gpu will-change-transform md:order-last"></div>
+<div id="map" class="absolute md:relative inset-0 md:inset-auto z-0 md:flex-1 bg-slate-200 transform-gpu will-change-transform md:order-last"></div>
 
-    <!-- UI OVERLAY / DESKTOP SIDEBAR -->
-    <!-- md:hidden is just for inner elements if needed. T container này hoạt động như Sidebar width=400px trên Desktop -->
-    <div class="absolute md:relative inset-0 md:inset-auto z-20 pointer-events-none md:pointer-events-auto flex flex-col md:w-[400px] lg:w-[420px] md:h-screen md:flex-shrink-0 overflow-hidden md:bg-surface md:shadow-[4px_0_24px_rgba(0,0,0,0.06)] md:z-40 md:border-r md:border-slate-200">
-        
-        <!-- Mobile Overlay -->
-        <div id="mobile-overlay" class="md:hidden absolute inset-0 bg-slate-900/40 z-20 hidden backdrop-blur-sm transition-opacity opacity-0 pointer-events-auto transform-gpu"></div>
+<div class="absolute md:relative inset-0 md:inset-auto z-20 pointer-events-none md:pointer-events-auto flex flex-col md:w-[400px] lg:w-[420px] md:h-screen md:flex-shrink-0 overflow-hidden md:bg-surface md:shadow-[4px_0_24px_rgba(0,0,0,0.06)] md:z-40 md:border-r md:border-slate-200">
 
-        <!-- ========================================== -->
-        <!-- SEARCH PANEL -->
-        <!-- ========================================== -->
-        <!-- Soft UI: rounded-2xl, background-blur-md, bg-surface/90, shadow-lg, border border-white/20, transform-gpu -->
-        <div id="search-panel" class="pointer-events-auto absolute md:absolute top-0 left-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full flex flex-col transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform -translate-y-[120%] md:translate-y-0 md:translate-x-0 opacity-0 md:opacity-100 z-40 md:z-10 bg-surface/90 md:bg-transparent backdrop-blur-md md:backdrop-blur-none rounded-b-2xl md:rounded-none md:m-0 border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu will-change-transform overflow-hidden pb-4 md:pb-0">
-            
-            <div class="flex-none px-6 pt-7 pb-5 z-10">
+<div id="mobile-overlay" class="md:hidden absolute inset-0 bg-slate-900/40 z-20 hidden backdrop-blur-sm transition-opacity opacity-0 pointer-events-auto transform-gpu"></div>
+
+<div id="search-panel" class="pointer-events-auto absolute md:absolute top-0 left-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full flex flex-col transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform -translate-y-[120%] md:translate-y-0 md:translate-x-0 opacity-0 md:opacity-100 z-40 md:z-10 bg-surface/90 md:bg-transparent backdrop-blur-md md:backdrop-blur-none rounded-b-2xl md:rounded-none md:m-0 border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu will-change-transform overflow-hidden pb-4 md:pb-0">
+
+<div class="flex-none px-6 pt-7 pb-5 z-10">
                 <div class="flex justify-between items-start mb-6 md:mb-4">
                     <div class="flex items-center gap-3.5">
                         <div class="w-11 h-11 flex items-center justify-center flex-shrink-0">
@@ -53,24 +39,22 @@
                             <p class="text-[11px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Tỉnh Phú Thọ</p>
                         </div>
                     </div>
-                    
-                    <button id="close-search-btn" class="md:hidden w-9 h-9 bg-slate-100/80 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 transition-colors">
+
+<button id="close-search-btn" class="md:hidden w-9 h-9 bg-slate-100/80 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 transition-colors">
                         <span class="material-symbols-outlined text-[20px]">close</span>
                     </button>
                 </div>
 
-                <!-- Search Bar + Filters: dọc trên Mobile, ngang trên Desktop -->
-                <div class="flex flex-col md:flex-row md:items-center md:gap-3 lg:gap-4">
-                    <!-- Modern Search Bar (rounded-full) -->
-                    <div class="relative group mt-2 md:mt-0 md:flex-1 md:min-w-0">
+<div class="flex flex-col md:flex-row md:items-center md:gap-3 lg:gap-4">
+
+<div class="relative group mt-2 md:mt-0 md:flex-1 md:min-w-0">
                         <input type="text" id="search-input" placeholder="Nhập tên đơn vị, phường xã..." class="w-full pl-12 pr-4 py-3.5 md:py-3 bg-slate-50/80 border border-white/40 focus:border-primary rounded-full focus:outline-none focus:ring-4 focus:ring-primary/10 text-[15px] transition-all font-medium text-slate-800 placeholder-slate-400 shadow-sm">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                             <span class="material-symbols-outlined text-slate-400 text-[22px] group-focus-within:text-primary transition-colors">search</span>
                         </div>
                     </div>
 
-                    <!-- Custom Filters (rounded-full) -->
-                    <div class="flex gap-2.5 mt-5 md:mt-0 bg-slate-100/60 p-1.5 rounded-full border border-white/30 backdrop-blur-sm md:flex-shrink-0 md:w-auto">
+<div class="flex gap-2.5 mt-5 md:mt-0 bg-slate-100/60 p-1.5 rounded-full border border-white/30 backdrop-blur-sm md:flex-shrink-0 md:w-auto">
                         <label class="flex-1 md:flex-initial flex justify-center items-center gap-2 cursor-pointer py-2.5 md:py-2 md:px-4 bg-transparent hover:bg-white/50 rounded-full transition-all group has-[:checked]:bg-white has-[:checked]:shadow-sm">
                             <input type="checkbox" id="filter-police" checked class="hidden peer">
                             <span class="material-symbols-outlined text-[20px] text-slate-400 peer-checked:text-primary transition-colors" style="font-variation-settings: 'FILL' 1;">local_police</span>
@@ -89,8 +73,7 @@
                     </div>
                 </div>
 
-                <!-- Security Announcement Banner (rounded-xl) -->
-                <div id="announcement-banner" class="mt-5 md:mt-3 bg-amber-50/90 border border-amber-200/60 p-3.5 rounded-xl flex items-start gap-3 cursor-pointer hover:bg-amber-100 transition-colors shadow-sm" style="display: none;">
+<div id="announcement-banner" class="mt-5 md:mt-3 bg-amber-50/90 border border-amber-200/60 p-3.5 rounded-xl flex items-start gap-3 cursor-pointer hover:bg-amber-100 transition-colors shadow-sm" style="display: none;">
                     <span class="material-symbols-outlined text-accent mt-0.5" style="font-variation-settings: 'FILL' 1;">warning</span>
                     <div class="flex-1">
                         <p class="text-[14px] font-bold text-amber-900 leading-tight" id="announcement-banner-text">0 đơn vị có chú ý</p>
@@ -99,40 +82,33 @@
                 </div>
             </div>
 
-            <div class="flex-1 overflow-y-auto custom-scrollbar p-4 will-change-[contents]" id="results-list">
-                <!-- Data goes here -->
-            </div>
+<div class="flex-1 overflow-y-auto custom-scrollbar p-4 will-change-[contents]" id="results-list">
+
+</div>
         </div>
 
-        <!-- ========================================== -->
-        <!-- DETAIL PANEL (Bottom Sheet / Floating) -->
-        <!-- ========================================== -->
-        <!-- Soft UI: rounded-2xl, background-blur-md, bg-surface/90, shadow-lg, border border-white/20, transform-gpu -->
-        <div id="detail-panel" class="pointer-events-auto absolute md:absolute bottom-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full md:max-h-full flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] transform translate-y-full md:translate-y-0 md:-translate-x-full z-40 md:z-20 bg-surface/90 md:bg-surface backdrop-blur-md md:backdrop-blur-none rounded-t-2xl md:rounded-none border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu will-change-transform overflow-hidden">
-            
-            <div id="drag-handle" class="md:hidden w-full h-8 flex items-center justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing absolute top-0 z-50 transform-gpu">
+<div id="detail-panel" class="pointer-events-auto absolute md:absolute bottom-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full md:max-h-full flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] transform translate-y-full md:translate-y-0 md:-translate-x-full z-40 md:z-20 bg-surface/90 md:bg-surface backdrop-blur-md md:backdrop-blur-none rounded-t-2xl md:rounded-none border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu will-change-transform overflow-hidden">
+
+<div id="drag-handle" class="md:hidden w-full h-8 flex items-center justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing absolute top-0 z-50 transform-gpu">
                 <div class="w-12 h-1.5 bg-white/50 backdrop-blur rounded-full"></div>
             </div>
 
-            <!-- Header Image -->
-            <div class="flex-none relative w-full h-[220px] md:h-[240px] bg-slate-900 shrink-0 transform-gpu" style="perspective: 1000px;">
+<div class="flex-none relative w-full h-[220px] md:h-[240px] bg-slate-900 shrink-0 transform-gpu" style="perspective: 1000px;">
                 <img id="detail-image" alt="Hình ảnh trụ sở" class="w-full h-full object-cover opacity-90 transform-gpu" src="https://ui-avatars.com/api/?name=Police&background=random" />
                 <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
 
-                <button id="back-to-list-btn" class="absolute top-4 left-4 w-10 h-10 rounded-full bg-slate-900/30 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:bg-slate-900/50 transition-colors z-10 transform-gpu">
+<button id="back-to-list-btn" class="absolute top-4 left-4 w-10 h-10 rounded-full bg-slate-900/30 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:bg-slate-900/50 transition-colors z-10 transform-gpu">
                     <span class="material-symbols-outlined hidden md:block">arrow_back</span>
                     <span class="material-symbols-outlined md:hidden">close</span>
                 </button>
 
-                <!-- Status & Title -->
-                <div class="absolute bottom-6 left-6 right-24 z-10 text-white transform-gpu">
-                    <!-- detail-badge content generated via JS includes rounded-full/rounded-md -> set fixed styles locally if needed or let bg-primary do it (We did inline-block rounded-md in JS update, so it's fine) -->
-                    <span id="detail-badge" class="inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-md text-[10px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu">Loại đơn vị</span>
+<div class="absolute bottom-6 left-6 right-24 z-10 text-white transform-gpu">
+
+<span id="detail-badge" class="inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-md text-[10px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu">Loại đơn vị</span>
                     <h1 id="detail-title" class="font-display text-[26px] md:text-[28px] font-bold leading-tight drop-shadow-md text-white transform-gpu">Tên trụ sở</h1>
                 </div>
 
-                <!-- Distance (rounded-full) -->
-                <div class="absolute bottom-6 right-6 z-10">
+<div class="absolute bottom-6 right-6 z-10">
                     <span id="detail-distance-badge" class="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-md text-primary text-[13px] font-bold px-3.5 py-2 rounded-full shadow-lg border border-white/30 hidden transform-gpu">
                         <span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">near_me</span>
                         <span id="detail-distance-text">-- km</span>
@@ -140,11 +116,9 @@
                 </div>
             </div>
 
-            <!-- Detailed Content -->
-            <div class="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-8 pt-7 pb-24 md:pb-8 will-change-[contents]">
-                
-                <!-- Quick Actions Block (rounded-xl) -->
-                <div class="grid grid-cols-2 gap-4 mb-8">
+<div class="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-8 pt-7 pb-24 md:pb-8 will-change-[contents]">
+
+<div class="grid grid-cols-2 gap-4 mb-8">
                     <a id="action-directions" href="#" target="_blank" class="flex items-center justify-center gap-2.5 bg-blue-50/80 hover:bg-blue-100 text-primary py-3.5 rounded-xl transition-colors shadow-sm border border-white/50">
                         <span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">directions</span>
                         <span class="text-[14px] font-bold">Chỉ đường</span>
@@ -155,8 +129,7 @@
                     </a>
                 </div>
 
-                <!-- Announcement Display (rounded-xl) -->
-                <div id="detail-announcement" class="bg-amber-50/80 rounded-xl p-5 border border-white/50 shadow-sm mb-8 hidden backdrop-blur-sm">
+<div id="detail-announcement" class="bg-amber-50/80 rounded-xl p-5 border border-white/50 shadow-sm mb-8 hidden backdrop-blur-sm">
                     <div class="flex flex-col gap-1.5">
                         <div class="flex items-center gap-2 text-accent">
                             <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">error</span>
@@ -168,8 +141,7 @@
                     </div>
                 </div>
 
-                <!-- Attributes -->
-                <div class="flex flex-col gap-6">
+<div class="flex flex-col gap-6">
                     <div class="flex items-start gap-4">
                         <div class="w-10 h-10 rounded-full bg-slate-50/80 border border-white/50 flex items-center justify-center text-primary shrink-0 shadow-sm">
                             <span class="material-symbols-outlined text-[20px]">location_on</span>
@@ -179,8 +151,8 @@
                             <p id="detail-address" class="text-[15px] font-medium text-slate-800 leading-snug">--</p>
                         </div>
                     </div>
-                    
-                    <a id="detail-phone-link" href="#" class="flex items-start gap-4 group">
+
+<a id="detail-phone-link" href="#" class="flex items-start gap-4 group">
                         <div class="w-10 h-10 rounded-full bg-slate-50/80 border border-white/50 group-hover:bg-blue-50/80 flex items-center justify-center text-primary shrink-0 transition-colors shadow-sm">
                             <span class="material-symbols-outlined text-[20px]">phone</span>
                         </div>
@@ -190,7 +162,7 @@
                         </div>
                     </a>
 
-                    <div id="detail-hours-container" class="flex items-start gap-4">
+<div id="detail-hours-container" class="flex items-start gap-4">
                         <div class="w-10 h-10 rounded-full bg-slate-50/80 border border-white/50 flex items-center justify-center text-primary shrink-0 shadow-sm">
                             <span class="material-symbols-outlined text-[20px]">schedule</span>
                         </div>
@@ -204,12 +176,7 @@
         </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- FLOATING MAP CONTROLS -->
-    <!-- ========================================== -->
-    
-    <!-- Mobile Fake Search Button -->
-    <button id="mobile-search-btn" class="md:hidden absolute top-5 left-4 right-4 z-10 h-14 bg-surface/90 backdrop-blur-md rounded-full shadow-lg flex items-center px-4 gap-3 text-slate-500 pointer-events-auto active:scale-[0.98] transition-all border border-white/20 transform-gpu will-change-transform">
+<button id="mobile-search-btn" class="md:hidden absolute top-5 left-4 right-4 z-10 h-14 bg-surface/90 backdrop-blur-md rounded-full shadow-lg flex items-center px-4 gap-3 text-slate-500 pointer-events-auto active:scale-[0.98] transition-all border border-white/20 transform-gpu will-change-transform">
         <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
             <span class="material-symbols-outlined text-[18px]">menu</span>
         </div>
@@ -219,14 +186,13 @@
         </div>
     </button>
 
-    <!-- Map Actions (Bottom Right) -->
-    <div class="absolute bottom-8 right-5 md:right-8 flex flex-col gap-3 pointer-events-auto z-20">
-        
-        <button id="find-location-btn" class="w-14 h-14 text-white rounded-full flex items-center justify-center transition-all md:hover:-translate-y-1 active:scale-95 group border border-white/10 transform-gpu will-change-transform" style="background-color:#1a5c2a;box-shadow:0 8px 24px rgba(26,92,42,0.35);">
+<div class="absolute bottom-8 right-5 md:right-8 flex flex-col gap-3 pointer-events-auto z-20">
+
+<button id="find-location-btn" class="w-14 h-14 text-white rounded-full flex items-center justify-center transition-all md:hover:-translate-y-1 active:scale-95 group border border-white/10 transform-gpu will-change-transform" style="background-color:#1a5c2a;box-shadow:0 8px 24px rgba(26,92,42,0.35);">
             <span id="location-icon" class="material-symbols-outlined text-[26px]" style="font-variation-settings: 'FILL' 1;">my_location</span>
         </button>
 
-        <div class="hidden md:flex flex-col bg-surface/90 backdrop-blur-md rounded-full shadow-lg border border-white/20 overflow-hidden mt-2 transform-gpu will-change-transform">
+<div class="hidden md:flex flex-col bg-surface/90 backdrop-blur-md rounded-full shadow-lg border border-white/20 overflow-hidden mt-2 transform-gpu will-change-transform">
             <button id="zoom-in-btn" class="w-14 h-14 hover:bg-slate-50/50 text-slate-600 hover:text-primary flex items-center justify-center transition-colors border-b border-white/40">
                 <span class="material-symbols-outlined text-[24px]">add</span>
             </button>
@@ -236,8 +202,7 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="data.js"></script>
     <script src="app.js"></script>
 

@@ -1,19 +1,10 @@
-// ==========================================
-// APP.JS - Logic chính Bản đồ số Công an Phú Thọ (V2)
-// Hệ thống tương tác kéo Mobile Bottom Sheet
-// ==========================================
-
 const CONFIG = {
   center: [21.325, 105.365],
   defaultZoom: 12,
-  // Sheet ID đã được chuyển sang biến môi trường phía server (process.env.GOOGLE_SHEET_ID)
-  // Frontend gọi qua /api/google-sheet thay vì truy cập trực tiếp Google Sheets
-  announcementRefreshInterval: 5 * 60 * 1000,
+
+announcementRefreshInterval: 5 * 60 * 1000,
 };
 
-// ==========================================
-// 1. DOM Elements
-// ==========================================
 const searchPanel = document.getElementById("search-panel");
 const detailPanel = document.getElementById("detail-panel");
 const mobileOverlay = document.getElementById("mobile-overlay");
@@ -27,7 +18,6 @@ const announcementBannerText = document.getElementById(
   "announcement-banner-text",
 );
 
-// Detail Panel Elements
 const detailTitle = document.getElementById("detail-title");
 const detailBadge = document.getElementById("detail-badge");
 const detailAddress = document.getElementById("detail-address");
@@ -49,9 +39,6 @@ const detailDistanceBadge = document.getElementById("detail-distance-badge");
 const detailDistanceText = document.getElementById("detail-distance-text");
 const dragHandle = document.getElementById("drag-handle");
 
-// ==========================================
-// 2. State & Constants
-// ==========================================
 let activeAnnouncements = {};
 let userMarker = null;
 let userLat = null;
@@ -61,13 +48,10 @@ let previousSelectedLocation = null;
 
 const STATE = {
   HIDDEN: "100%",
-  COLLAPSED: "50%", // Thò lên một nửa
-  EXPANDED: "0%", // Kéo full màn hình
+  COLLAPSED: "50%", 
+  EXPANDED: "0%", 
 };
 
-// ==========================================
-// 3. Khởi tạo Bản đồ
-// ==========================================
 const map = L.map("map", {
   zoomControl: false,
   attributionControl: false,
@@ -87,23 +71,20 @@ document
   .getElementById("zoom-out-btn")
   .addEventListener("click", () => map.zoomOut());
 
-// ==========================================
-// 4. Icons & Layers
-// ==========================================
 function createCustomIcon(loc) {
   const isPolice = loc.type === "police_station";
   const hasAnn = !!activeAnnouncements[loc.name];
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
 
-  let wrapperClass = "marker-container";
+let wrapperClass = "marker-container";
   if (isSelected) wrapperClass += " marker-selected";
   wrapperClass += isPolice ? " marker-police" : " marker-id";
 
-  let iconClass = "marker-icon";
+let iconClass = "marker-icon";
   if (hasAnn) iconClass += " marker-has-announcement";
 
-  const html = `
+const html = `
         <div class="${wrapperClass}">
             <div class="${iconClass}">
                 <div class="marker-inner">
@@ -116,7 +97,7 @@ function createCustomIcon(loc) {
         </div>
     `;
 
-  return L.divIcon({
+return L.divIcon({
     className: "transparent-leaflet-icon",
     html: html,
     iconSize: [44, 44],
@@ -132,9 +113,6 @@ function updateAllMarkersIcon() {
   });
 }
 
-// ==========================================
-// 5. Mobile Bottom Sheet Logic (Kéo thả)
-// ==========================================
 let startY = 0;
 let currentY = 0;
 let isDragging = false;
@@ -143,36 +121,35 @@ let currentTranslate = STATE.HIDDEN;
 function setSheetState(state, animate = true) {
   const isMobile = window.innerWidth < 768;
 
-  if (animate) {
+if (animate) {
     detailPanel.classList.add("transitioning");
   } else {
     detailPanel.classList.remove("transitioning");
   }
 
-  if (isMobile) {
+if (isMobile) {
     document.documentElement.style.setProperty("--sheet-translate", state);
     currentTranslate = state;
   } else {
-    // Trên PC: ẩn/hiện detail-panel bằng TranslateX (Absolute positioning trượt ngang)
-    if (state === STATE.HIDDEN) {
-      // Ẩn detail (Trượt ra ngoài lề trái)
-      detailPanel.classList.add("md:-translate-x-full");
+
+if (state === STATE.HIDDEN) {
+
+detailPanel.classList.add("md:-translate-x-full");
       detailPanel.classList.remove("md:translate-x-0");
     } else {
-      // Hiện detail đè lên search (Trượt vào trong)
-      detailPanel.classList.add("md:translate-x-0");
+
+detailPanel.classList.add("md:translate-x-0");
       detailPanel.classList.remove("md:-translate-x-full");
     }
   }
 }
 
-// Gắn sự kiện kéo trên mobile cho thanh ngang
 dragHandle.addEventListener(
   "touchstart",
   (e) => {
     startY = e.touches[0].clientY;
     isDragging = true;
-    setSheetState(currentTranslate, false); // Bỏ CSS transition để kéo mượt theo ngón tay
+    setSheetState(currentTranslate, false); 
   },
   { passive: true },
 );
@@ -184,25 +161,23 @@ dragHandle.addEventListener(
     const y = e.touches[0].clientY;
     const deltaY = y - startY;
 
-    let translateYStr;
+let translateYStr;
     const panelHeight = detailPanel.offsetHeight;
 
-    if (currentTranslate === STATE.COLLAPSED) {
-      // Đang lửng, kéo lên (số âm) -> mở mảng
-      // kéo xuống (số dương) -> ẩn
-      const movePercent = (deltaY / window.innerHeight) * 100;
+if (currentTranslate === STATE.COLLAPSED) {
+
+const movePercent = (deltaY / window.innerHeight) * 100;
       let newPercent = 50 + movePercent;
 
-      // Giới hạn không cho kéo quá lên (0%) hay quá xuống (100%)
-      newPercent = Math.max(0, Math.min(100, newPercent));
+newPercent = Math.max(0, Math.min(100, newPercent));
       document.documentElement.style.setProperty(
         "--sheet-translate",
         `${newPercent}%`,
       );
     } else if (currentTranslate === STATE.EXPANDED) {
       if (deltaY > 0) {
-        // Chỉ cho kéo xuống
-        const movePercent = (deltaY / window.innerHeight) * 100;
+
+const movePercent = (deltaY / window.innerHeight) * 100;
         document.documentElement.style.setProperty(
           "--sheet-translate",
           `${Math.min(100, movePercent)}%`,
@@ -217,15 +192,15 @@ dragHandle.addEventListener("touchend", (e) => {
   if (!isDragging) return;
   isDragging = false;
 
-  const endY = e.changedTouches[0].clientY;
+const endY = e.changedTouches[0].clientY;
   const deltaY = endY - startY;
-  const threshold = 50; // Quãng đường kéo để chuyển state
+  const threshold = 50; 
 
-  if (currentTranslate === STATE.COLLAPSED) {
+if (currentTranslate === STATE.COLLAPSED) {
     if (deltaY < -threshold) setSheetState(STATE.EXPANDED);
     else if (deltaY > threshold) {
       setSheetState(STATE.HIDDEN);
-      closeDetailPanel(); // Tắt luôn
+      closeDetailPanel(); 
     } else setSheetState(STATE.COLLAPSED);
   } else if (currentTranslate === STATE.EXPANDED) {
     if (deltaY > threshold) setSheetState(STATE.COLLAPSED);
@@ -233,47 +208,42 @@ dragHandle.addEventListener("touchend", (e) => {
   }
 });
 
-// ==========================================
-// 6. Điều khiển giao diện (Flow chính)
-// ==========================================
 function openDetailPanel(loc) {
   previousSelectedLocation = currentlySelectedLocation;
   currentlySelectedLocation = loc;
 
-  if (previousSelectedLocation && previousSelectedLocation.marker) {
+if (previousSelectedLocation && previousSelectedLocation.marker) {
     previousSelectedLocation.marker.setIcon(createCustomIcon(previousSelectedLocation));
   }
   if (currentlySelectedLocation && currentlySelectedLocation.marker) {
     currentlySelectedLocation.marker.setIcon(createCustomIcon(currentlySelectedLocation));
   }
 
-  const isPolice = loc.type === "police_station";
+const isPolice = loc.type === "police_station";
   const hasAnn = !!activeAnnouncements[loc.name];
 
-  // Data Fill
-  detailBadge.textContent = isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD";
+detailBadge.textContent = isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD";
   detailBadge.className = isPolice
     ? "inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu"
     : "inline-block px-3 py-1.5 bg-accent/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 border border-amber-400/20 text-amber-50 shadow-lg transform-gpu";
 
-  detailTitle.textContent = loc.name;
+detailTitle.textContent = loc.name;
   detailTitle.className = "font-display text-[26px] md:text-[28px] font-bold leading-tight drop-shadow-md text-white";
 
-  // Hiển thị ảnh trụ sở (đã convert sẵn trong fetchHeadquarters, không cần gọi lại convertGoogleDriveUrl)
-  if (loc.imageUrl && loc.imageUrl.startsWith('https://')) {
+if (loc.imageUrl && loc.imageUrl.startsWith('https://')) {
     detailImage.src = loc.imageUrl;
     detailImage.alt = 'Ảnh trụ sở';
     detailImage.loading = 'lazy';
     detailImage.classList.add('w-full', 'h-auto', 'rounded-lg', 'object-cover');
   } else {
-    // Tạo ảnh mặc định dựa trên chữ cái đầu của tên địa điểm
-    detailImage.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(loc.name)}&background=random`;
+
+detailImage.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(loc.name)}&background=random`;
     detailImage.alt = 'Ảnh trụ sở';
   }
 
-  detailAddress.textContent = loc.address;
+detailAddress.textContent = loc.address;
 
-  if (loc.phone && loc.phone !== "Cập nhật sau...") {
+if (loc.phone && loc.phone !== "Cập nhật sau...") {
     detailPhone.textContent = loc.phone;
     const cleanPhone = String(loc.phone).replace(/[^\d+]/g, "");
     detailPhoneLink.href = `tel:${cleanPhone}`;
@@ -288,24 +258,21 @@ function openDetailPanel(loc) {
     actionCall.classList.add("opacity-40", "pointer-events-none");
   }
 
-  // Giờ làm việc cố định toàn tỉnh
-  // Tính năng 1: Trạng thái đóng/mở cửa theo thời gian thực
-  const now = new Date();
+const now = new Date();
   const currentHour = now.getHours() + now.getMinutes() / 60;
-  const isWeekday = now.getDay() >= 1 && now.getDay() <= 5; // Thứ 2 đến Thứ 6
+  const isWeekday = now.getDay() >= 1 && now.getDay() <= 5; 
   const isMorning = currentHour >= 7.5 && currentHour <= 11.5;
   const isAfternoon = currentHour >= 13 && currentHour <= 16.5;
 
-  let statusText = "Đã nghỉ làm";
-  let statusColor = "text-danger"; // text-danger = red-600
+let statusText = "Đã nghỉ làm";
+  let statusColor = "text-danger"; 
 
-  if (isWeekday && (isMorning || isAfternoon)) {
+if (isWeekday && (isMorning || isAfternoon)) {
     statusText = "Đang mở cửa";
-    statusColor = "text-secondary font-bold animate-pulse"; // text-secondary = emerald-700
+    statusColor = "text-secondary font-bold animate-pulse"; 
   }
 
-  // Tính năng 2: Nhắc nhở giấy tờ nếu là điểm cấp CCCD
-  const procedureNote =
+const procedureNote =
     loc.type === "id_center"
       ? `<div class="text-[13px] text-amber-800 mt-2.5 bg-amber-50 border border-amber-200/50 p-3 rounded-xl flex items-start gap-2 shadow-sm font-medium">
         <span class="material-symbols-outlined text-[18px] text-amber-600">info</span>
@@ -313,10 +280,10 @@ function openDetailPanel(loc) {
        </div>`
       : "";
 
-  detailHours.innerHTML = `<span class="${statusColor} font-bold">${statusText}</span> <span class="text-slate-300 mx-1.5">•</span> Sáng: 07h30-11h30 | Chiều: 13h00-16h30 ${procedureNote}`;
+detailHours.innerHTML = `<span class="${statusColor} font-bold">${statusText}</span> <span class="text-slate-300 mx-1.5">•</span> Sáng: 07h30-11h30 | Chiều: 13h00-16h30 ${procedureNote}`;
   detailHoursContainer.style.display = "flex";
 
-  if (loc._currentDistance != null) {
+if (loc._currentDistance != null) {
     detailDistanceText.textContent =
       loc._currentDistance < 1
         ? `${(loc._currentDistance * 1000).toFixed(0)} m`
@@ -326,10 +293,9 @@ function openDetailPanel(loc) {
     detailDistanceBadge.style.display = "none";
   }
 
-  // Sửa link chỉ đường chuẩn Google Maps
-  actionDirections.href = `https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`;
+actionDirections.href = `https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`;
 
-  if (hasAnn) {
+if (hasAnn) {
     const ann = activeAnnouncements[loc.name];
     annTitle.textContent = ann.title;
     annContent.textContent = ann.content || "";
@@ -339,15 +305,13 @@ function openDetailPanel(loc) {
     detailAnnBox.style.display = "none";
   }
 
-  // Giao diện
-  hideMobileSearch(); // Đảm bảo ẩn thanh search nếu đang ở mobile
+hideMobileSearch(); 
   const isMobile = window.innerWidth < 768;
-  setSheetState(isMobile ? STATE.COLLAPSED : STATE.EXPANDED); // Mobile thò nửa, PC full
+  setSheetState(isMobile ? STATE.COLLAPSED : STATE.EXPANDED); 
 
-  // Pan bản đồ
-  if (isMobile) {
-    // Dịch center cao lên 1 tí để popup che phần dưới
-    map.flyTo([loc.lat - 0.003, loc.lng], 15.5, {
+if (isMobile) {
+
+map.flyTo([loc.lat - 0.003, loc.lng], 15.5, {
       animate: true,
       duration: 0.8,
     });
@@ -363,7 +327,7 @@ function closeDetailPanel() {
   previousSelectedLocation = currentlySelectedLocation;
   currentlySelectedLocation = null;
 
-  if (previousSelectedLocation && previousSelectedLocation.marker) {
+if (previousSelectedLocation && previousSelectedLocation.marker) {
     previousSelectedLocation.marker.setIcon(createCustomIcon(previousSelectedLocation));
   }
   setSheetState(STATE.HIDDEN);
@@ -373,9 +337,6 @@ backToListBtn.addEventListener("click", () => {
   closeDetailPanel();
 });
 
-// ==========================================
-// 7. Search Sidebar Logic
-// ==========================================
 function getActiveFilters() {
   return {
     showPolice: document.getElementById("filter-police").checked,
@@ -389,8 +350,7 @@ function filterAndRender() {
   const { showPolice, showId, showNearby } = getActiveFilters();
   const nearbySpinner = document.getElementById('nearby-spinner');
 
-  // Nếu bật "Gần tôi" mà chưa có tọa độ -> gọi GPS, tạm dừng render
-  if (showNearby && userLat == null) {
+if (showNearby && userLat == null) {
     if (nearbySpinner) {
       nearbySpinner.textContent = 'progress_activity';
       nearbySpinner.classList.add('animate-spin');
@@ -408,30 +368,29 @@ function filterAndRender() {
           nearbySpinner.textContent = 'near_me';
           nearbySpinner.classList.remove('animate-spin');
         }
-        // Tắt checkbox nếu GPS thất bại
-        document.getElementById('filter-nearby').checked = false;
+
+document.getElementById('filter-nearby').checked = false;
         filterAndRender();
       }
     );
     return;
   }
 
-  // Reset spinner khi tắt nearby
-  if (!showNearby && nearbySpinner) {
+if (!showNearby && nearbySpinner) {
     nearbySpinner.textContent = 'near_me';
     nearbySpinner.classList.remove('animate-spin');
   }
 
-  let visibleLocations = [];
+let visibleLocations = [];
 
-  locations.forEach((loc) => {
+locations.forEach((loc) => {
     const isPolice = loc.type === "police_station";
     const matchesFilter = (isPolice && showPolice) || (!isPolice && showId);
     const matchesSearch =
       loc.name.toLowerCase().includes(searchTerm) ||
       loc.address.toLowerCase().includes(searchTerm);
 
-    if (matchesFilter && matchesSearch) {
+if (matchesFilter && matchesSearch) {
       if (!map.hasLayer(loc.marker)) loc.marker.addTo(layerGroup);
       visibleLocations.push(loc);
     } else {
@@ -439,23 +398,21 @@ function filterAndRender() {
     }
   });
 
-  if (userLat != null) {
+if (userLat != null) {
     visibleLocations.sort(
       (a, b) =>
         (a._currentDistance || Infinity) - (b._currentDistance || Infinity),
     );
   }
 
-  // Nearby mode: chỉ hiển thị 5 địa điểm gần nhất
-  if (showNearby && userLat != null) {
-    // Ẩn marker của các điểm ngoài top 5
-    visibleLocations.slice(5).forEach((loc) => {
+if (showNearby && userLat != null) {
+
+visibleLocations.slice(5).forEach((loc) => {
       if (loc.marker && map.hasLayer(loc.marker)) map.removeLayer(loc.marker);
     });
     visibleLocations = visibleLocations.slice(0, 5);
 
-    // fitBounds bao gồm cả user và các điểm lân cận
-    if (visibleLocations.length > 0) {
+if (visibleLocations.length > 0) {
       const boundsCoords = [[userLat, userLng]];
       visibleLocations.forEach((loc) => {
         if (loc.lat != null && loc.lng != null) {
@@ -469,7 +426,7 @@ function filterAndRender() {
     }
   }
 
-  renderResultsList(visibleLocations);
+renderResultsList(visibleLocations);
 }
 
 function renderResultsList(results) {
@@ -481,7 +438,7 @@ function renderResultsList(results) {
     return;
   }
 
-  resultsList.innerHTML = results
+resultsList.innerHTML = results
     .map((loc) => {
       const isPolice = loc.type === "police_station";
       const hasAnn = !!activeAnnouncements[loc.name];
@@ -492,7 +449,7 @@ function renderResultsList(results) {
             : `${loc._currentDistance.toFixed(1)}km`
           : "";
 
-      const iconHTML = isPolice 
+const iconHTML = isPolice 
         ? `<img src="logo.png" alt="Logo" class="w-6 h-6 object-contain">`
         : `<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">badge</span>`;
       const iconClass = isPolice ? "" : "bg-id";
@@ -500,7 +457,7 @@ function renderResultsList(results) {
         ? `<div class="result-ann-tag"><span class="material-symbols-outlined">error</span> Bấm xem thông báo</div>`
         : "";
 
-      return `
+return `
             <div class="result-item ${hasAnn ? "has-ann" : ""}" data-id="${loc.id}">
                 <div class="result-icon-box ${iconClass} flex items-center justify-center">
                     ${iconHTML}
@@ -516,7 +473,7 @@ function renderResultsList(results) {
     })
     .join("");
 
-  resultsList.querySelectorAll(".result-item").forEach((item) => {
+resultsList.querySelectorAll(".result-item").forEach((item) => {
     item.addEventListener("click", () => {
       const loc = locations.find((l) => l.id === parseInt(item.dataset.id));
       if (loc) openDetailPanel(loc);
@@ -535,16 +492,13 @@ document
   .getElementById("filter-nearby")
   .addEventListener("change", filterAndRender);
 
-// ==========================================
-// 8. Mobile Main Sidebar Toggle Logic
-// ==========================================
 function showMobileSearch() {
   closeDetailPanel();
   searchPanel.classList.remove("-translate-y-[120%]", "opacity-0");
   searchPanel.classList.add("translate-y-0", "opacity-100");
   mobileOverlay.classList.remove("hidden");
-  // timeout để bắt CSS fade
-  setTimeout(() => mobileOverlay.classList.remove("opacity-0"), 10);
+
+setTimeout(() => mobileOverlay.classList.remove("opacity-0"), 10);
 }
 
 function hideMobileSearch() {
@@ -558,9 +512,6 @@ mobileSearchBtn.addEventListener("click", showMobileSearch);
 closeSearchBtn.addEventListener("click", hideMobileSearch);
 mobileOverlay.addEventListener("click", hideMobileSearch);
 
-// ==========================================
-// 9. API Google Sheets (gọi qua serverless proxy /api/google-sheet)
-// ==========================================
 async function fetchSheetData(sheetName) {
   const url = `/api/google-sheet${sheetName ? `?sheet=${encodeURIComponent(sheetName)}` : ''}`;
   const res = await fetch(url);
@@ -568,22 +519,20 @@ async function fetchSheetData(sheetName) {
   return res.json();
 }
 
-// Thông báo 
-
 async function fetchAnnouncements() {
   try {
     const data = await fetchSheetData("DaXacThuc");
 
-    const now = new Date();
+const now = new Date();
     activeAnnouncements = {};
 
-    data.table.rows.forEach((row) => {
+data.table.rows.forEach((row) => {
       const cells = row.c;
       if (!cells || cells.length < 5) return;
       const unit = cells[1]?.v;
       const title = cells[2]?.v;
 
-      if (!unit || !title) return;
+if (!unit || !title) return;
       let expiresAt = null;
       if (cells[4]?.v) {
         const raw = String(cells[4].v);
@@ -594,7 +543,7 @@ async function fetchAnnouncements() {
       }
       if (expiresAt && expiresAt < now) return;
 
-      activeAnnouncements[unit] = {
+activeAnnouncements[unit] = {
         title,
         content: cells[3]?.v || "",
         expiresAt,
@@ -604,13 +553,13 @@ async function fetchAnnouncements() {
       };
     });
 
-    const count = Object.keys(activeAnnouncements).length;
+const count = Object.keys(activeAnnouncements).length;
     if (count > 0) {
       announcementBanner.style.display = "flex";
       announcementBannerText.textContent = `${count} đơn vị có cảnh báo cần chú ý`;
     } else announcementBanner.style.display = "none";
 
-    updateAllMarkersIcon();
+updateAllMarkersIcon();
     filterAndRender();
     if (currentlySelectedLocation) openDetailPanel(currentlySelectedLocation);
   } catch (err) {
@@ -624,12 +573,7 @@ announcementBanner.addEventListener("click", () => {
     openDetailPanel(target);
   }
 });
-// feature: fetchAnnouncements(); // Sẽ được gọi sau khi tải xong Trụ sở
-// feature: setInterval(fetchAnnouncements, CONFIG.announcementRefreshInterval);
 
-// ==========================================
-// 10. Định vị (Geolocation) - Hàm độc lập
-// ==========================================
 function requestUserLocation(onSuccessCallback, onErrorCallback) {
   if (!navigator.geolocation) {
     alert("Trình duyệt không hỗ trợ định vị.");
@@ -637,13 +581,12 @@ function requestUserLocation(onSuccessCallback, onErrorCallback) {
     return;
   }
 
-  navigator.geolocation.getCurrentPosition(
+navigator.geolocation.getCurrentPosition(
     (pos) => {
       userLat = pos.coords.latitude;
       userLng = pos.coords.longitude;
 
-      // Cập nhật hoặc tạo userMarker
-      if (userMarker) {
+if (userMarker) {
         userMarker.setLatLng([userLat, userLng]);
       } else {
         userMarker = L.circleMarker([userLat, userLng], {
@@ -657,12 +600,11 @@ function requestUserLocation(onSuccessCallback, onErrorCallback) {
         }).addTo(map);
       }
 
-      // Tính khoảng cách Haversine cho tất cả locations
-      const rad = Math.PI / 180;
+const rad = Math.PI / 180;
       const userLatRad = userLat * rad;
       const cosUserLat = Math.cos(userLatRad);
 
-      locations.forEach((loc) => {
+locations.forEach((loc) => {
         const dLat = (loc.lat - userLat) * rad;
         const dLng = (loc.lng - userLng) * rad;
         const a =
@@ -671,7 +613,7 @@ function requestUserLocation(onSuccessCallback, onErrorCallback) {
         loc._currentDistance = 12742 * Math.asin(Math.sqrt(a));
       });
 
-      if (onSuccessCallback) onSuccessCallback();
+if (onSuccessCallback) onSuccessCallback();
     },
     (err) => {
       console.warn("Geolocation error:", err.message);
@@ -682,13 +624,12 @@ function requestUserLocation(onSuccessCallback, onErrorCallback) {
   );
 }
 
-// Nút định vị trên bản đồ (gọi lại hàm đã tách)
 document.getElementById("find-location-btn").addEventListener("click", () => {
   const icon = document.getElementById("location-icon");
   icon.textContent = "progress_activity";
   icon.classList.add("animate-spin");
 
-  requestUserLocation(
+requestUserLocation(
     function () {
       icon.textContent = "my_location";
       icon.classList.remove("animate-spin");
@@ -704,7 +645,6 @@ document.getElementById("find-location-btn").addEventListener("click", () => {
   );
 });
 
-// Init Map Center check for mobile
 if (window.innerWidth < 768) {
   map.setView(
     [CONFIG.center[0] - 0.05, CONFIG.center[1]],
@@ -712,7 +652,6 @@ if (window.innerWidth < 768) {
   );
 }
 
-// Thay thế bằng các HTML entities chuẩn (chống XSS)
 function escapeHtml(text) {
   if (!text) return "";
   return String(text)
@@ -721,80 +660,66 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;")
-    .replace(/\//g, "&#x2F;");
+    .replace(/\
 }
 
-// ==========================================
-// Chuyển đổi URL Google Drive thành direct image link (CDN)
-// Sử dụng lh3.googleusercontent.com/d/ để bypass CORS/Cookie block
-// Input validation: chỉ nhận URL từ drive.google.com, chặn XSS
-// ==========================================
 function convertGoogleDriveUrl(url) {
   if (!url || typeof url !== 'string') return '';
 
-  // Chỉ cho phép URL từ drive.google.com (chặn XSS / domain lạ)
-  const safeDomainRegex = /^https:\/\/drive\.google\.com\//;
+const safeDomainRegex = /^https:\/\/drive\.google\.com\
   if (!safeDomainRegex.test(url)) {
-    // Nếu là URL hợp lệ khác (https) thì trả về nguyên bản
-    if (/^https:\/\//.test(url)) return url;
+
+if (/^https:\/\
     return '';
   }
 
-  // Pattern 1: https://drive.google.com/file/d/FILE_ID/view...
-  const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
   if (fileIdMatch && fileIdMatch[1]) {
     return `https://lh3.googleusercontent.com/d/${fileIdMatch[1]}`;
   }
 
-  // Pattern 2: https://drive.google.com/open?id=FILE_ID
-  const openIdMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+const openIdMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
   if (openIdMatch && openIdMatch[1]) {
     return `https://lh3.googleusercontent.com/d/${openIdMatch[1]}`;
   }
 
-  // Pattern 3: https://drive.google.com/uc?... (legacy direct link)
-  const ucIdMatch = url.match(/\/uc\?.*id=([a-zA-Z0-9_-]+)/);
+const ucIdMatch = url.match(/\/uc\?.*id=([a-zA-Z0-9_-]+)/);
   if (ucIdMatch && ucIdMatch[1]) {
     return `https://lh3.googleusercontent.com/d/${ucIdMatch[1]}`;
   }
 
-  // Pattern 4: https://drive.google.com/thumbnail?id=FILE_ID
-  const thumbMatch = url.match(/\/thumbnail\?.*id=([a-zA-Z0-9_-]+)/);
+const thumbMatch = url.match(/\/thumbnail\?.*id=([a-zA-Z0-9_-]+)/);
   if (thumbMatch && thumbMatch[1]) {
     return `https://lh3.googleusercontent.com/d/${thumbMatch[1]}`;
   }
 
-  // Không khớp pattern nào -> trả về chuỗi rỗng
-  return '';
+return '';
 }
 
-// ==========================================
-// 11. API Google Sheets (Thông tin Trụ sở)
-// ==========================================
 async function fetchHeadquarters() {
   try {
     const data = await fetchSheetData("Form_Responses");
 
-    locations = [];
+locations = [];
 
-    data.table.rows.forEach((row, index) => {
+data.table.rows.forEach((row, index) => {
       const c = row.c;
       if (!c || !c[2] || !c[2].v) return;
 
-      const name = c[2]?.v || "";
+const name = c[2]?.v || "";
       const typeRaw = c[3]?.v || "";
       const type = typeRaw.includes("CCCD") ? "id_center" : "police_station";
       const address = c[4]?.v || "";
       const phone = c[5]?.v || "Chưa có SĐT";
       const mapLinkOrCoords = String(c[6]?.v || "");
-      // Cột 7: "Hình ảnh đại diện Trụ sở / Nơi làm việc"
-      const rawImageUrl = c[7]?.v || "";
+
+const rawImageUrl = c[7]?.v || "";
       const imageUrl = convertGoogleDriveUrl(rawImageUrl) || rawImageUrl;
 
-      let lat = 21.325 + (Math.random() * 0.05); // fallback nếu không có tọa độ
+let lat = 21.325 + (Math.random() * 0.05); 
       let lng = 105.365 + (Math.random() * 0.05);
 
-      const coordsMatch = mapLinkOrCoords.match(/(-?\d+\.\d+)[\s,]+(-?\d+\.\d+)/);
+const coordsMatch = mapLinkOrCoords.match(/(-?\d+\.\d+)[\s,]+(-?\d+\.\d+)/);
       if (coordsMatch) {
         lat = parseFloat(coordsMatch[1]);
         lng = parseFloat(coordsMatch[2]);
@@ -806,7 +731,7 @@ async function fetchHeadquarters() {
         }
       }
 
-      const loc = {
+const loc = {
         id: index + 1,
         name,
         type,
@@ -818,18 +743,18 @@ async function fetchHeadquarters() {
         district: address
       };
 
-      const marker = L.marker([loc.lat, loc.lng], {
+const marker = L.marker([loc.lat, loc.lng], {
         icon: createCustomIcon(loc),
       }).addTo(layerGroup);
       loc.marker = marker;
       marker.on("click", () => openDetailPanel(loc));
 
-      locations.push(loc);
+locations.push(loc);
     });
 
-    filterAndRender();
-    // fetchAnnouncements(); // Load thông báo sau khi có danh sách trụ sở (Đã vô hiệu hóa theo yêu cầu)
-  } catch (err) {
+filterAndRender();
+
+} catch (err) {
     console.warn("Google Sheets Headquarters Error: ", err.message);
   }
 }
