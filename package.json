@@ -7,7 +7,7 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "build": "npx tailwindcss -i ./input.css -o ./output.css --minify",
+    "build": "echo 'Static site - output.css pre-built'",
     "dev": "npx tailwindcss -i ./input.css -o ./output.css --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
