@@ -46,6 +46,16 @@ let userLng = null;
 let currentlySelectedLocation = null;
 let previousSelectedLocation = null;
 
+// Debounce utility
+function debounce(fn, delay) {
+  let timer;
+  return function (...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), delay);
+  };
+}
+const debouncedFilterAndRender = debounce(filterAndRender, 250);
+
 const STATE = {
   HIDDEN: "100%",
   COLLAPSED: "50%", 
@@ -230,7 +240,16 @@ detailBadge.textContent = isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD
 detailTitle.textContent = loc.name;
   detailTitle.className = "font-display text-[26px] md:text-[28px] font-bold leading-tight drop-shadow-md text-white";
 
-if (loc.imageUrl && loc.imageUrl.startsWith('https://')) {
+  const isAllowedImage = loc.imageUrl && (() => {
+    try {
+      const { hostname } = new URL(loc.imageUrl);
+      return hostname.endsWith('googleusercontent.com') ||
+             hostname.endsWith('drive.google.com') ||
+             hostname === 'ui-avatars.com' ||
+             hostname === 'lh3.google.com';
+    } catch { return false; }
+  })();
+  if (isAllowedImage) {
     detailImage.src = loc.imageUrl;
     detailImage.alt = 'Ảnh trụ sở';
     detailImage.loading = 'lazy';
@@ -387,8 +406,8 @@ locations.forEach((loc) => {
     const isPolice = loc.type === "police_station";
     const matchesFilter = (isPolice && showPolice) || (!isPolice && showId);
     const matchesSearch =
-      loc.name.toLowerCase().includes(searchTerm) ||
-      loc.address.toLowerCase().includes(searchTerm);
+      (loc._nameLower || loc.name.toLowerCase()).includes(searchTerm) ||
+      (loc._addressLower || loc.address.toLowerCase()).includes(searchTerm);
 
 if (matchesFilter && matchesSearch) {
       if (!map.hasLayer(loc.marker)) loc.marker.addTo(layerGroup);
@@ -473,15 +492,17 @@ return `
     })
     .join("");
 
-resultsList.querySelectorAll(".result-item").forEach((item) => {
-    item.addEventListener("click", () => {
-      const loc = locations.find((l) => l.id === parseInt(item.dataset.id));
-      if (loc) openDetailPanel(loc);
-    });
-  });
 }
 
-searchInput.addEventListener("input", filterAndRender);
+// Event delegation: 1 listener thay vì N listeners
+resultsList.addEventListener("click", (e) => {
+  const item = e.target.closest(".result-item");
+  if (!item) return;
+  const loc = locations.find((l) => l.id === parseInt(item.dataset.id));
+  if (loc) openDetailPanel(loc);
+});
+
+searchInput.addEventListener("input", debouncedFilterAndRender);
 document
   .getElementById("filter-police")
   .addEventListener("change", filterAndRender);
@@ -740,7 +761,9 @@ const loc = {
         imageUrl,
         lat,
         lng,
-        district: address
+        district: address,
+        _nameLower: name.toLowerCase(),
+        _addressLower: address.toLowerCase(),
       };
 
 const marker = L.marker([loc.lat, loc.lng], {
