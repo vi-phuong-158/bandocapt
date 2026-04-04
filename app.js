@@ -689,7 +689,7 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;")
-    .replace(/\//g, "&#x2F;");
+    .split('/').join('&#x2F;');
 }
 
 /**
