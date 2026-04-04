@@ -243,10 +243,10 @@ detailTitle.textContent = loc.name;
   const isAllowedImage = loc.imageUrl && (() => {
     try {
       const { hostname } = new URL(loc.imageUrl);
-      return hostname.endsWith('googleusercontent.com') ||
-             hostname.endsWith('drive.google.com') ||
-             hostname === 'ui-avatars.com' ||
-             hostname === 'lh3.google.com';
+      return hostname.endsWith('.googleusercontent.com') ||
+             hostname.endsWith('.google.com') ||
+             hostname === 'drive.google.com' ||
+             hostname === 'ui-avatars.com';
     } catch { return false; }
   })();
   if (isAllowedImage) {
@@ -533,11 +533,19 @@ mobileSearchBtn.addEventListener("click", showMobileSearch);
 closeSearchBtn.addEventListener("click", hideMobileSearch);
 mobileOverlay.addEventListener("click", hideMobileSearch);
 
+const SHEET_ID = "1qkResomTlk3tLeoyz1HFFScwswxPIa8L4bySUammLSs"; 
+
 async function fetchSheetData(sheetName) {
-  const url = `/api/google-sheet${sheetName ? `?sheet=${encodeURIComponent(sheetName)}` : ''}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
+  let sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+  if (sheetName) sheetUrl += `&sheet=${encodeURIComponent(sheetName)}`;
+
+  // Tìm đoạn fetch hiện tại và đảm bảo nó gọi đúng biến sheetUrl
+  return fetch(sheetUrl)
+    .then(res => res.text())
+    .then(text => {
+      const jsonString = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
+      return JSON.parse(jsonString);
+    });
 }
 
 async function fetchAnnouncements() {
@@ -681,40 +689,26 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;")
-    .replace(/\
+    .replace(/\//g, "&#x2F;");
 }
 
+/**
+ * Converts a Google Drive URL to a direct view link.
+ * @param {string} url - The URL to convert.
+ * @returns {string} The direct view URL or the original URL.
+ */
 function convertGoogleDriveUrl(url) {
-  if (!url || typeof url !== 'string') return '';
-
-const safeDomainRegex = /^https:\/\/drive\.google\.com\
-  if (!safeDomainRegex.test(url)) {
-
-if (/^https:\/\
-    return '';
+  if (!url) return "";
+  
+  // Tự động tìm và tách mã ID của file ảnh
+  const idMatch = url.match(/[-\w]{25,}/);
+  
+  if (idMatch && idMatch[0]) {
+    // Dùng đường dẫn thumbnail, sz=w1000 để ảnh rộng 1000px, rõ nét và không bị Google chặn
+    return `https://drive.google.com/thumbnail?id=${idMatch[0]}&sz=w1000`;
   }
-
-const fileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (fileIdMatch && fileIdMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${fileIdMatch[1]}`;
-  }
-
-const openIdMatch = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (openIdMatch && openIdMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${openIdMatch[1]}`;
-  }
-
-const ucIdMatch = url.match(/\/uc\?.*id=([a-zA-Z0-9_-]+)/);
-  if (ucIdMatch && ucIdMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${ucIdMatch[1]}`;
-  }
-
-const thumbMatch = url.match(/\/thumbnail\?.*id=([a-zA-Z0-9_-]+)/);
-  if (thumbMatch && thumbMatch[1]) {
-    return `https://lh3.googleusercontent.com/d/${thumbMatch[1]}`;
-  }
-
-return '';
+  
+  return url;
 }
 
 async function fetchHeadquarters() {

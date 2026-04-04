@@ -2,6 +2,12 @@
    STYLES.CSS - Bản đồ Công an số Theme (Soft UI + Performance Mod)
    ========================================== */
 
+/* sr-only fallback (chưa có trong output.css) */
+.sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border-width: 0;
+}
+
 .custom-scrollbar::-webkit-scrollbar {
     width: 6px;
 }
