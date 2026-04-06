@@ -1,8 +1,6 @@
 const CONFIG = {
   center: [21.325, 105.365],
   defaultZoom: 12,
-
-announcementRefreshInterval: 5 * 60 * 1000,
 };
 
 const searchPanel = document.getElementById("search-panel");
@@ -13,10 +11,6 @@ const closeSearchBtn = document.getElementById("close-search-btn");
 
 const searchInput = document.getElementById("search-input");
 const resultsList = document.getElementById("results-list");
-const announcementBanner = document.getElementById("announcement-banner");
-const announcementBannerText = document.getElementById(
-  "announcement-banner-text",
-);
 
 const detailTitle = document.getElementById("detail-title");
 const detailBadge = document.getElementById("detail-badge");
@@ -30,16 +24,11 @@ const actionDirections = document.getElementById("action-directions");
 const actionCall = document.getElementById("action-call");
 const backToListBtn = document.getElementById("back-to-list-btn");
 
-const detailAnnBox = document.getElementById("detail-announcement");
-const annTitle = document.getElementById("ann-title");
-const annContent = document.getElementById("ann-content");
-const annTime = document.getElementById("ann-time");
 
 const detailDistanceBadge = document.getElementById("detail-distance-badge");
 const detailDistanceText = document.getElementById("detail-distance-text");
 const dragHandle = document.getElementById("drag-handle");
 
-let activeAnnouncements = {};
 let userMarker = null;
 let userLat = null;
 let userLng = null;
@@ -83,7 +72,6 @@ document
 
 function createCustomIcon(loc) {
   const isPolice = loc.type === "police_station";
-  const hasAnn = !!activeAnnouncements[loc.name];
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
 
@@ -91,8 +79,7 @@ let wrapperClass = "marker-container";
   if (isSelected) wrapperClass += " marker-selected";
   wrapperClass += isPolice ? " marker-police" : " marker-id";
 
-let iconClass = "marker-icon";
-  if (hasAnn) iconClass += " marker-has-announcement";
+  let iconClass = "marker-icon";
 
 const html = `
         <div class="${wrapperClass}">
@@ -230,7 +217,6 @@ if (previousSelectedLocation && previousSelectedLocation.marker) {
   }
 
 const isPolice = loc.type === "police_station";
-  const hasAnn = !!activeAnnouncements[loc.name];
 
 detailBadge.textContent = isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD";
   detailBadge.className = isPolice
@@ -253,6 +239,7 @@ detailTitle.textContent = loc.name;
     detailImage.src = loc.imageUrl;
     detailImage.alt = 'Ảnh trụ sở';
     detailImage.loading = 'lazy';
+    detailImage.referrerPolicy = 'no-referrer';
     detailImage.classList.add('w-full', 'h-auto', 'rounded-lg', 'object-cover');
   } else {
 
@@ -314,15 +301,6 @@ if (loc._currentDistance != null) {
 
 actionDirections.href = `https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`;
 
-if (hasAnn) {
-    const ann = activeAnnouncements[loc.name];
-    annTitle.textContent = ann.title;
-    annContent.textContent = ann.content || "";
-    annTime.textContent = `Hết hiệu lực: ${ann.expiresAtDisplay}`;
-    detailAnnBox.style.display = "block";
-  } else {
-    detailAnnBox.style.display = "none";
-  }
 
 hideMobileSearch(); 
   const isMobile = window.innerWidth < 768;
@@ -460,7 +438,6 @@ function renderResultsList(results) {
 resultsList.innerHTML = results
     .map((loc) => {
       const isPolice = loc.type === "police_station";
-      const hasAnn = !!activeAnnouncements[loc.name];
       const distStr =
         loc._currentDistance != null
           ? loc._currentDistance < 1
@@ -472,19 +449,15 @@ const iconHTML = isPolice
         ? `<img src="logo.png" alt="Logo" class="w-6 h-6 object-contain">`
         : `<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">badge</span>`;
       const iconClass = isPolice ? "" : "bg-id";
-      const annHTML = hasAnn
-        ? `<div class="result-ann-tag"><span class="material-symbols-outlined">error</span> Bấm xem thông báo</div>`
-        : "";
 
-return `
-            <div class="result-item ${hasAnn ? "has-ann" : ""}" data-id="${loc.id}">
+      return `
+            <div class="result-item" data-id="${loc.id}">
                 <div class="result-icon-box ${iconClass} flex items-center justify-center">
                     ${iconHTML}
                 </div>
                 <div class="result-content">
                     <h3 class="result-title">${escapeHtml(loc.name)}</h3>
                     <p class="result-address">${escapeHtml(loc.address)}</p>
-                    ${annHTML}
                 </div>
                 ${distStr ? `<div class="result-dist">${distStr}</div>` : ""}
             </div>
@@ -548,60 +521,6 @@ async function fetchSheetData(sheetName) {
     });
 }
 
-async function fetchAnnouncements() {
-  try {
-    const data = await fetchSheetData("DaXacThuc");
-
-const now = new Date();
-    activeAnnouncements = {};
-
-data.table.rows.forEach((row) => {
-      const cells = row.c;
-      if (!cells || cells.length < 5) return;
-      const unit = cells[1]?.v;
-      const title = cells[2]?.v;
-
-if (!unit || !title) return;
-      let expiresAt = null;
-      if (cells[4]?.v) {
-        const raw = String(cells[4].v);
-        const dm = raw.match(/Date\((\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\)/);
-        expiresAt = dm
-          ? new Date(dm[1], dm[2], dm[3], dm[4], dm[5], dm[6])
-          : new Date(raw);
-      }
-      if (expiresAt && expiresAt < now) return;
-
-activeAnnouncements[unit] = {
-        title,
-        content: cells[3]?.v || "",
-        expiresAt,
-        expiresAtDisplay:
-          cells[4]?.f ||
-          (expiresAt ? expiresAt.toLocaleString("vi-VN") : "N/A"),
-      };
-    });
-
-const count = Object.keys(activeAnnouncements).length;
-    if (count > 0) {
-      announcementBanner.style.display = "flex";
-      announcementBannerText.textContent = `${count} đơn vị có cảnh báo cần chú ý`;
-    } else announcementBanner.style.display = "none";
-
-updateAllMarkersIcon();
-    filterAndRender();
-    if (currentlySelectedLocation) openDetailPanel(currentlySelectedLocation);
-  } catch (err) {
-    console.warn("Google Sheets Error: ", err.message);
-  }
-}
-announcementBanner.addEventListener("click", () => {
-  const target = locations.find((loc) => activeAnnouncements[loc.name]);
-  if (target) {
-    if (window.innerWidth < 768) hideMobileSearch();
-    openDetailPanel(target);
-  }
-});
 
 function requestUserLocation(onSuccessCallback, onErrorCallback) {
   if (!navigator.geolocation) {

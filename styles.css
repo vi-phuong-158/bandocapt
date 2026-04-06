@@ -82,11 +82,6 @@
 .marker-selected.marker-police::before { background-color: rgba(26, 92, 42, 0.4); animation: pulse-ring-green 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
 .marker-selected.marker-id::before { background-color: rgba(217, 119, 6, 0.4); animation: pulse-ring-amber 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
 
-.marker-has-announcement::after {
-    content: '!'; position: absolute; top: -6px; right: -6px; background: #dc2626; color: white; font-size: 13px; font-weight: 800; font-family: 'Inter', sans-serif;
-    width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid white; z-index: 20; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2); animation: bounce 2s infinite; will-change: transform;
-}
-@keyframes bounce { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -4px, 0); } }
 
 /* --- Label hiển thị tên  --- */
 .marker-label {
@@ -110,7 +105,6 @@
     transform: translateZ(0);
 }
 .result-item:hover, .result-item:active { background: #ffffff; transform: translate3d(0, -2px, 0); box-shadow: 0 8px 24px -4px rgba(0,0,0,0.08); border-color: rgba(255, 255, 255, 1); }
-.result-item.has-ann { background: rgba(255, 251, 235, 0.9); border-color: rgba(253, 230, 138, 0.6); }
 
 .result-icon-box {
     width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white;
@@ -124,8 +118,6 @@
 .result-address { font-size: 13px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
 
 .result-dist { font-size: 12px; font-weight: 700; color: #047857; background: #d1fae5; padding: 4px 10px; border-radius: 9999px; /* Soft UI: rounded-full */ margin-top: 8px; display: inline-block; }
-.result-ann-tag { font-size: 13px; font-weight: 600; color: #b45309; gap: 4px; margin-top: 8px; background: #fef3c7; padding: 4px 10px; border-radius: 9999px; /* Soft UI: rounded-full */ display: inline-flex; align-items: center; }
-.result-ann-tag span { font-size: 16px; font-variation-settings: 'FILL' 1; }
 
 .empty-state { text-align: center; padding: 80px 20px; color: #64748b; }
 .empty-state span { font-size: 64px; opacity: 0.2; margin-bottom: 20px; color: #cbd5e1; display: block; }
