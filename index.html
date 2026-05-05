@@ -199,5 +199,55 @@
     <script src="data.js"></script>
     <script src="app.js"></script>
 
+    <!-- FAQ CHATBOT WIDGET -->
+    <!-- Nút pill 'Hỏi đáp' — pill shape phân biệt rõ với marker bản đồ -->
+    <button id="faq-toggle-btn" aria-label="Hỏi đáp thường gặp" aria-expanded="false" aria-controls="faq-window">
+        <span class="material-symbols-outlined" style="font-size:20px;" aria-hidden="true">chat</span>
+        <span class="faq-toggle-label">Hỏi đáp</span>
+    </button>
+
+    <!-- Cửa sổ chat -->
+    <div id="faq-window" class="faq-window--hidden" role="dialog" aria-label="Hỏi đáp thường gặp" aria-modal="false">
+        <!-- Header -->
+        <div id="faq-header">
+            <div id="faq-header-icon">
+                <span class="material-symbols-outlined" style="font-size:20px;" aria-hidden="true">support_agent</span>
+            </div>
+            <div>
+                <div id="faq-header-title">Hỏi đáp thường gặp</div>
+                <div id="faq-header-sub">Bản đồ Công an số · Tỉnh Phú Thọ</div>
+            </div>
+            <button id="faq-close-btn" aria-label="Đóng hộp thoại">
+                <span class="material-symbols-outlined" style="font-size:18px;" aria-hidden="true">close</span>
+            </button>
+        </div>
+
+        <!-- Thanh tìm kiếm -->
+        <div id="faq-search-wrap">
+            <span class="material-symbols-outlined" id="faq-search-icon" aria-hidden="true">search</span>
+            <input
+                type="search"
+                id="faq-search-input"
+                placeholder="Tìm câu hỏi..."
+                autocomplete="off"
+                maxlength="120"
+                aria-label="Tìm câu hỏi thường gặp"
+            >
+        </div>
+
+        <!-- Khu vực tin nhắn + nút lựa chọn -->
+        <div id="faq-body" role="log" aria-live="polite">
+            <!-- Tin nhắn chào -->
+            <div class="faq-msg faq-msg--bot">
+                Xin chào! Tôi có thể giúp bạn tìm <b>điểm cấp CCCD</b>, tra cứu <b>thủ tục hành chính</b> hoặc thông tin liên hệ.<br>Chọn chủ đề hoặc gõ câu hỏi bên dưới.
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts: data → engine → ui (thứ tự quan trọng) -->
+    <script src="js/faq_data.js"></script>
+    <script src="js/faq_engine.js"></script>
+    <script src="js/faq_ui.js"></script>
+
 </body>
 </html>
