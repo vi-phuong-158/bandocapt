@@ -7,9 +7,16 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "build": "echo 'Static site - output.css pre-built'",
-    "dev": "npx tailwindcss -i ./input.css -o ./output.css --watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "npm run build:css && npm run check:syntax && node scripts/build-static.js",
+    "build:css": "node ./node_modules/tailwindcss/lib/cli.js -i ./input.css -o ./output.css --minify",
+    "check:syntax": "node --check app.js && node --check api/chat.js && node --check api/google-sheet.js && node --check js/chatbot.js && node --check js/gemini.js && node --check js/location-data.js",
+    "ci": "npm test && npm run build && npm audit --omit=dev --audit-level=high",
+    "dev": "node ./node_modules/tailwindcss/lib/cli.js -i ./input.css -o ./output.css --watch",
+    "preview": "node scripts/preview-server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": "20.x"
   },
   "repository": {
     "type": "git",
@@ -22,5 +29,10 @@
   "bugs": {
     "url": "https://github.com/vi-phuong-158/bandocapt/issues"
   },
-  "homepage": "https://github.com/vi-phuong-158/bandocapt#readme"
+  "homepage": "https://github.com/vi-phuong-158/bandocapt#readme",
+  "dependencies": {
+    "@pinecone-database/pinecone": "^2.2.2",
+    "@vercel/edge-config": "^1.4.3",
+    "firebase-admin": "^13.10.0"
+  }
 }

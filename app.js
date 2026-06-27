@@ -34,6 +34,7 @@ let userLat = null;
 let userLng = null;
 let currentlySelectedLocation = null;
 let previousSelectedLocation = null;
+let detailTrigger = null;
 
 // Debounce utility
 function debounce(fn, delay) {
@@ -53,7 +54,6 @@ const STATE = {
 
 const map = L.map("map", {
   zoomControl: false,
-  attributionControl: false,
   zoomSnap: 0.5,
   zoomDelta: 0.5,
 }).setView(CONFIG.center, CONFIG.defaultZoom);
@@ -61,6 +61,8 @@ const map = L.map("map", {
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
   pane: "tilePane",
+  // Bắt buộc theo ToS của OpenStreetMap — không được ẩn attribution.
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
 }).addTo(map);
 
 document
@@ -102,7 +104,14 @@ return L.divIcon({
   });
 }
 
-const layerGroup = L.layerGroup().addTo(map);
+const layerGroup = typeof L.markerClusterGroup === "function"
+  ? L.markerClusterGroup({
+      chunkedLoading: true,
+      removeOutsideVisibleBounds: true,
+      maxClusterRadius: 52,
+      showCoverageOnHover: false,
+    }).addTo(map)
+  : L.layerGroup().addTo(map);
 
 function updateAllMarkersIcon() {
   locations.forEach((loc) => {
@@ -205,7 +214,8 @@ if (currentTranslate === STATE.COLLAPSED) {
   }
 });
 
-function openDetailPanel(loc) {
+function openDetailPanel(loc, trigger = null) {
+  detailTrigger = trigger;
   previousSelectedLocation = currentlySelectedLocation;
   currentlySelectedLocation = loc;
 
@@ -305,6 +315,8 @@ actionDirections.href = `https://www.google.com/maps/dir/?api=1&destination=${lo
 hideMobileSearch(); 
   const isMobile = window.innerWidth < 768;
   setSheetState(isMobile ? STATE.COLLAPSED : STATE.EXPANDED); 
+  detailPanel.setAttribute("aria-hidden", "false");
+  requestAnimationFrame(() => backToListBtn.focus());
 
 if (isMobile) {
 
@@ -328,6 +340,9 @@ if (previousSelectedLocation && previousSelectedLocation.marker) {
     previousSelectedLocation.marker.setIcon(createCustomIcon(previousSelectedLocation));
   }
   setSheetState(STATE.HIDDEN);
+  detailPanel.setAttribute("aria-hidden", "true");
+  detailTrigger?.focus();
+  detailTrigger = null;
 }
 
 backToListBtn.addEventListener("click", () => {
@@ -388,10 +403,10 @@ locations.forEach((loc) => {
       (loc._addressLower || loc.address.toLowerCase()).includes(searchTerm);
 
 if (matchesFilter && matchesSearch) {
-      if (!map.hasLayer(loc.marker)) loc.marker.addTo(layerGroup);
+      if (!layerGroup.hasLayer(loc.marker)) layerGroup.addLayer(loc.marker);
       visibleLocations.push(loc);
     } else {
-      if (map.hasLayer(loc.marker)) map.removeLayer(loc.marker);
+      if (layerGroup.hasLayer(loc.marker)) layerGroup.removeLayer(loc.marker);
     }
   });
 
@@ -405,7 +420,7 @@ if (userLat != null) {
 if (showNearby && userLat != null) {
 
 visibleLocations.slice(5).forEach((loc) => {
-      if (loc.marker && map.hasLayer(loc.marker)) map.removeLayer(loc.marker);
+      if (loc.marker && layerGroup.hasLayer(loc.marker)) layerGroup.removeLayer(loc.marker);
     });
     visibleLocations = visibleLocations.slice(0, 5);
 
@@ -427,11 +442,13 @@ renderResultsList(visibleLocations);
 }
 
 function renderResultsList(results) {
+  resultsList.setAttribute("aria-busy", "false");
+  resultsList.setAttribute("aria-label", `${results.length} kết quả tìm kiếm`);
   if (results.length === 0) {
-    resultsList.innerHTML = `<div class="empty-state">
+    resultsList.innerHTML = `<li class="empty-state">
             <span class="material-symbols-outlined">travel_explore</span>
             <p>Không tìm thấy kết quả</p>
-        </div>`;
+        </li>`;
     return;
   }
 
@@ -451,7 +468,8 @@ const iconHTML = isPolice
       const iconClass = isPolice ? "" : "bg-id";
 
       return `
-            <div class="result-item" data-id="${loc.id}">
+          <li class="result-list-item">
+            <button type="button" class="result-item" data-id="${escapeHtml(loc.id)}" aria-label="Xem ${escapeHtml(loc.name)}, ${escapeHtml(loc.address)}">
                 <div class="result-icon-box ${iconClass} flex items-center justify-center">
                     ${iconHTML}
                 </div>
@@ -460,7 +478,8 @@ const iconHTML = isPolice
                     <p class="result-address">${escapeHtml(loc.address)}</p>
                 </div>
                 ${distStr ? `<div class="result-dist">${distStr}</div>` : ""}
-            </div>
+            </button>
+          </li>
         `;
     })
     .join("");
@@ -469,10 +488,15 @@ const iconHTML = isPolice
 
 // Event delegation: 1 listener thay vì N listeners
 resultsList.addEventListener("click", (e) => {
+  const retry = e.target.closest(".data-retry-btn");
+  if (retry) {
+    fetchHeadquarters();
+    return;
+  }
   const item = e.target.closest(".result-item");
   if (!item) return;
-  const loc = locations.find((l) => l.id === parseInt(item.dataset.id));
-  if (loc) openDetailPanel(loc);
+  const loc = locations.find((l) => String(l.id) === item.dataset.id);
+  if (loc) openDetailPanel(loc, item);
 });
 
 searchInput.addEventListener("input", debouncedFilterAndRender);
@@ -506,19 +530,12 @@ mobileSearchBtn.addEventListener("click", showMobileSearch);
 closeSearchBtn.addEventListener("click", hideMobileSearch);
 mobileOverlay.addEventListener("click", hideMobileSearch);
 
-const SHEET_ID = "1qkResomTlk3tLeoyz1HFFScwswxPIa8L4bySUammLSs"; 
-
 async function fetchSheetData(sheetName) {
-  let sheetUrl = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
-  if (sheetName) sheetUrl += `&sheet=${encodeURIComponent(sheetName)}`;
-
-  // Tìm đoạn fetch hiện tại và đảm bảo nó gọi đúng biến sheetUrl
-  return fetch(sheetUrl)
-    .then(res => res.text())
-    .then(text => {
-      const jsonString = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
-      return JSON.parse(jsonString);
-    });
+  const response = await fetch(`/api/google-sheet?sheet=${encodeURIComponent(sheetName)}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) throw new Error(`SHEET_API_${response.status}`);
+  return response.json();
 }
 
 
@@ -631,49 +648,37 @@ function convertGoogleDriveUrl(url) {
 }
 
 async function fetchHeadquarters() {
+  resultsList.setAttribute("aria-busy", "true");
+  resultsList.innerHTML = '<li class="loading-state" role="status">Đang tải dữ liệu...</li>';
   try {
-    const data = await fetchSheetData("Form_Responses");
+    const data = await fetchSheetData("Published_Locations");
 
-locations = [];
+layerGroup.clearLayers();
+    locations = [];
 
-data.table.rows.forEach((row, index) => {
-      const c = row.c;
-      if (!c || !c[2] || !c[2].v) return;
+    const normalized = window.LocationData.normalizePublishedLocations(data);
+    normalized.rejected.forEach(item => {
+      console.warn(`[data-quality] Row ${item.row}: ${item.error}${item.name ? ` (${item.name})` : ''}`);
+    });
 
-const name = c[2]?.v || "";
-      const typeRaw = c[3]?.v || "";
-      const type = typeRaw.includes("CCCD") ? "id_center" : "police_station";
-      const address = c[4]?.v || "";
-      const phone = c[5]?.v || "Chưa có SĐT";
-      const mapLinkOrCoords = String(c[6]?.v || "");
-
-const rawImageUrl = c[7]?.v || "";
+normalized.locations.forEach((item) => {
+const name = item.name;
+      const type = item.type;
+      const address = item.address;
+      const phone = item.phone || "Chưa có SĐT";
+      const rawImageUrl = item.imageUrl;
       const imageUrl = convertGoogleDriveUrl(rawImageUrl) || rawImageUrl;
 
-let lat = 21.325 + (Math.random() * 0.05); 
-      let lng = 105.365 + (Math.random() * 0.05);
-
-const coordsMatch = mapLinkOrCoords.match(/(-?\d+\.\d+)[\s,]+(-?\d+\.\d+)/);
-      if (coordsMatch) {
-        lat = parseFloat(coordsMatch[1]);
-        lng = parseFloat(coordsMatch[2]);
-      } else {
-        const linkMatch = mapLinkOrCoords.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-        if (linkMatch) {
-          lat = parseFloat(linkMatch[1]);
-          lng = parseFloat(linkMatch[2]);
-        }
-      }
-
 const loc = {
-        id: index + 1,
+        id: item.id,
         name,
         type,
         address,
         phone,
         imageUrl,
-        lat,
-        lng,
+        lat: item.lat,
+        lng: item.lng,
+        updatedAt: item.updatedAt,
         district: address,
         _nameLower: name.toLowerCase(),
         _addressLower: address.toLowerCase(),
@@ -692,7 +697,18 @@ filterAndRender();
 
 } catch (err) {
     console.warn("Google Sheets Headquarters Error: ", err.message);
+    resultsList.setAttribute("aria-busy", "false");
+    resultsList.innerHTML = `<li class="error-state" role="alert">
+      <p>Không thể tải dữ liệu địa điểm.</p>
+      <button type="button" class="data-retry-btn">Thử lại</button>
+    </li>`;
   }
 }
+
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && detailPanel.getAttribute("aria-hidden") === "false") {
+    closeDetailPanel();
+  }
+});
 
 fetchHeadquarters();
