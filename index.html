@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 
     <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com https://docs.google.com 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com https://unpkg.com 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.googleusercontent.com https://*.usercontent.google.com https://ui-avatars.com https://drive.google.com https://lh3.google.com https://accounts.google.com https://doc-*.googleusercontent.com; connect-src 'self' https://docs.google.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com https://docs.google.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://challenges.cloudflare.com 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com https://unpkg.com 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.googleusercontent.com https://*.usercontent.google.com https://ui-avatars.com https://drive.google.com https://lh3.google.com https://accounts.google.com https://doc-*.googleusercontent.com; connect-src 'self' https://docs.google.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com;">
     <title>Bản đồ Công an số</title>
     <meta name="description" content="Hệ thống Bản đồ Công an số và Điểm cấp CCCD tỉnh Phú Thọ. Soft UI Mod.">
 
@@ -17,6 +17,8 @@
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css" integrity="sha384-pmjIAcz2bAn0xukfxADbZIb3t8oRT9Sv0rvO+BR5Csr6Dhqq+nZs59P0pPKQJkEV" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css" integrity="sha384-wgw+aLYNQ7dlhK47ZPK7FRACiq7ROZwgFNg0m04avm4CaXS+Z9Y7nMu8yNjBKYC+" crossorigin="anonymous" />
 
 <link rel="stylesheet" href="output.css" />
 
@@ -28,7 +30,7 @@
     <a href="#map" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:bg-primary focus:text-white focus:px-4 focus:py-2 focus:rounded-lg focus:shadow-lg">Bỏ qua đến bản đồ</a>
 
     <!-- BASE MAP -->
-    <div id="map" role="application" aria-label="Bản đồ các trụ sở Công an tỉnh Phú Thọ" class="absolute md:relative inset-0 md:inset-auto z-0 md:flex-1 bg-slate-200 transform-gpu will-change-transform md:order-last"></div>
+    <div id="map" role="region" tabindex="0" aria-label="Bản đồ các trụ sở Công an tỉnh Phú Thọ" class="absolute md:relative inset-0 md:inset-auto z-0 md:flex-1 bg-slate-200 transform-gpu will-change-transform md:order-last"></div>
 
 <div class="absolute md:relative inset-0 md:inset-auto z-20 pointer-events-none md:pointer-events-auto flex flex-col md:w-[400px] lg:w-[420px] md:h-screen md:flex-shrink-0 overflow-hidden md:bg-surface md:shadow-[4px_0_24px_rgba(0,0,0,0.06)] md:z-40 md:border-r md:border-slate-200">
 
@@ -84,12 +86,12 @@
 
             </div>
 
-<div class="flex-1 overflow-y-auto custom-scrollbar p-4 will-change-[contents]" id="results-list">
-
-</div>
+<ul class="result-list flex-1 overflow-y-auto custom-scrollbar p-4 will-change-[contents]" id="results-list" aria-live="polite" aria-busy="true" aria-label="Kết quả tìm kiếm">
+    <li class="loading-state" role="status">Đang tải dữ liệu...</li>
+</ul>
         </div>
 
-<div id="detail-panel" class="pointer-events-auto absolute md:absolute bottom-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full md:max-h-full flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] transform translate-y-full md:translate-y-0 md:-translate-x-full z-40 md:z-20 bg-surface/90 md:bg-surface backdrop-blur-md md:backdrop-blur-none rounded-t-2xl md:rounded-none border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu will-change-transform overflow-hidden">
+<div id="detail-panel" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="detail-title" tabindex="-1" class="pointer-events-auto absolute md:absolute bottom-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full md:max-h-full flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] transform translate-y-full md:translate-y-0 md:-translate-x-full z-40 md:z-20 bg-surface/90 md:bg-surface backdrop-blur-md md:backdrop-blur-none rounded-t-2xl md:rounded-none border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu will-change-transform overflow-hidden">
 
 <div id="drag-handle" class="md:hidden w-full h-8 flex items-center justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing absolute top-0 z-50 transform-gpu">
                 <div class="w-12 h-1.5 bg-white/50 backdrop-blur rounded-full"></div>
@@ -196,58 +198,72 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js" integrity="sha384-eXVCORTRlv4FUUgS/xmOyr66XBVraen8ATNLMESp92FKXLAMiKkerixTiBvXriZr" crossorigin="anonymous"></script>
     <script src="data.js"></script>
+    <script src="js/location-data.js"></script>
     <script src="app.js"></script>
 
-    <!-- FAQ CHATBOT WIDGET -->
-    <!-- Nút pill 'Hỏi đáp' — pill shape phân biệt rõ với marker bản đồ -->
-    <button id="faq-toggle-btn" aria-label="Hỏi đáp thường gặp" aria-expanded="false" aria-controls="faq-window">
-        <span class="material-symbols-outlined" style="font-size:20px;" aria-hidden="true">chat</span>
-        <span class="faq-toggle-label">Hỏi đáp</span>
+    <!-- AI CHATBOT WIDGET -->
+    <button id="ai-chat-toggle-btn" aria-label="Mở trợ lý AI" aria-expanded="false" aria-controls="ai-chat-window">
+        <span class="material-symbols-outlined" aria-hidden="true">chat_bubble</span>
+        <span>Hỏi đáp AI</span>
     </button>
 
-    <!-- Cửa sổ chat -->
-    <div id="faq-window" class="faq-window--hidden" role="dialog" aria-label="Hỏi đáp thường gặp" aria-modal="false">
-        <!-- Header -->
-        <div id="faq-header">
-            <div id="faq-header-icon">
-                <span class="material-symbols-outlined" style="font-size:20px;" aria-hidden="true">support_agent</span>
+    <div id="ai-chat-window" class="ai-chat-window--hidden" role="dialog" aria-labelledby="ai-chat-title" aria-modal="false" aria-hidden="true">
+        <div id="ai-chat-header">
+            <div class="ai-chat-header-main">
+                <div class="ai-chat-header-avatar">
+                    <img src="icon.png" alt="" aria-hidden="true">
+                    <span></span>
+                </div>
+                <div>
+                    <div id="ai-chat-title" class="ai-chat-title">Trợ lý hỗ trợ pháp luật</div>
+                    <div class="ai-chat-subtitle">Sẵn sàng hỗ trợ</div>
+                </div>
             </div>
-            <div>
-                <div id="faq-header-title">Hỏi đáp thường gặp</div>
-                <div id="faq-header-sub">Bản đồ Công an số · Tỉnh Phú Thọ</div>
-            </div>
-            <button id="faq-close-btn" aria-label="Đóng hộp thoại">
-                <span class="material-symbols-outlined" style="font-size:18px;" aria-hidden="true">close</span>
+            <button id="ai-chat-close-btn" aria-label="Đóng trợ lý AI">
+                <span class="material-symbols-outlined" aria-hidden="true">close</span>
             </button>
         </div>
 
-        <!-- Thanh tìm kiếm -->
-        <div id="faq-search-wrap">
-            <span class="material-symbols-outlined" id="faq-search-icon" aria-hidden="true">search</span>
-            <input
-                type="search"
-                id="faq-search-input"
-                placeholder="Tìm câu hỏi..."
-                autocomplete="off"
-                maxlength="120"
-                aria-label="Tìm câu hỏi thường gặp"
-            >
+        <div id="chatHistory" role="log" aria-live="polite">
+            <div class="ai-chat-row ai-chat-row--assistant">
+                <img src="icon.png" class="ai-chat-avatar" alt="">
+                <div class="ai-chat-bubble ai-chat-bubble--assistant">
+                    <p class="ai-chat-label">Trợ lý hỗ trợ pháp luật</p>
+                    <div class="ai-chat-content">
+                        <p>Xin chào! Tôi là Trợ lý ảo tư vấn tự động các quy định xuất nhập cảnh và pháp luật liên quan. Tôi có thể giúp gì cho bạn hôm nay?</p>
+                        <p class="ai-chat-disclaimer">Nội dung tổng hợp bằng AI nên có thể có sai sót, vui lòng kiểm chứng lại thông tin.</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <!-- Khu vực tin nhắn + nút lựa chọn -->
-        <div id="faq-body" role="log" aria-live="polite">
-            <!-- Tin nhắn chào -->
-            <div class="faq-msg faq-msg--bot">
-                Xin chào! Tôi có thể giúp bạn tìm <b>điểm cấp CCCD</b>, tra cứu <b>thủ tục hành chính</b> hoặc thông tin liên hệ.<br>Chọn chủ đề hoặc gõ câu hỏi bên dưới.
-            </div>
+        <div id="turnstileContainer">
+            <div id="turnstile-widget" data-sitekey="0x4AAAAAACxYIuZq7j7f9a7N" data-error-callback="onTurnstileError"></div>
+        </div>
+
+        <div id="ai-chat-input-bar">
+            <label for="fakeChatInput" class="sr-only">Nhập tin nhắn cho trợ lý AI</label>
+            <input
+                type="text"
+                id="fakeChatInput"
+                placeholder="Vui lòng xác minh Turnstile trước..."
+                autocomplete="off"
+                maxlength="1000"
+                disabled
+            >
+            <button id="chatSendBtn" type="button" aria-label="Gửi tin nhắn" disabled>
+                <span class="material-symbols-outlined" aria-hidden="true">send</span>
+            </button>
         </div>
     </div>
 
-    <!-- Scripts: data → engine → ui (thứ tự quan trọng) -->
-    <script src="js/faq_data.js"></script>
-    <script src="js/faq_engine.js"></script>
-    <script src="js/faq_ui.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js" integrity="sha384-H+hy9ULve6xfxRkWIh/YOtvDdpXgV2fmAGQkIDTxIgZwNoaoBal14Di2YTMR6MzR" crossorigin="anonymous" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.7/purify.min.js" integrity="sha384-6gdBb4YMPz19eGx6Wf1vmT47Jh7wZArqJc84JuA3BRnoZQwt/X5qLfIip51LgpB/" crossorigin="anonymous" defer></script>
+    <script src="js/gemini.js" defer></script>
+    <script src="js/chatbot.js" defer></script>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad" defer></script>
 
 </body>
 </html>
