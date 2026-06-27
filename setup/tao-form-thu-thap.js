@@ -8,6 +8,9 @@
  * 4. Bấm "Chạy" (Run) nút Play bên trên
  * 5. Cấp quyền truy cập khi được hỏi
  * 6. Xem nhật ký (Log) để lấy Link Form vừa tạo
+ * 7. Sau khi tạo Form, bind `setup/apps-script.js` vào spreadsheet đích để bật pipeline
+ *    Unit_Allowlist -> Location_Staging -> Published_Locations -> Approval_Audit_Log
+ * 8. Giới hạn người trả lời theo Workspace/nhóm tài khoản phù hợp trong phần Settings của Google Form
  */
 
 function taoFormThuThapDuLieu() {

@@ -16,7 +16,7 @@ function safeHTML(html) {
 const CHATBOT_TEXT = {
     assistantName: 'Trợ lý hỗ trợ pháp luật',
     ready: 'Sẵn sàng hỗ trợ',
-    welcome: 'Xin chào! Tôi là Trợ lý ảo tư vấn tự động các quy định xuất nhập cảnh và pháp luật liên quan. Tôi có thể giúp gì cho bạn hôm nay?',
+    welcome: 'Xin chào! Tôi là Trợ lý ảo tư vấn tự động các thủ tục hành chính. Tôi có thể giúp gì cho bạn hôm nay?',
     disclaimer: 'Nội dung tổng hợp bằng AI nên có thể có sai sót, vui lòng kiểm chứng lại thông tin.',
     placeholder: 'Nhập câu hỏi...',
     captchaPlaceholder: 'Vui lòng xác minh Turnstile trước...',
@@ -33,7 +33,7 @@ const CHATBOT_ERROR_MESSAGES = {
     INVALID_KEY: 'API Key không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại.',
     RATE_LIMIT: 'Rất xin lỗi, hiện tại hệ thống đang có nhiều lượt truy cập. Vui lòng thử lại sau.',
     RATE_LIMIT_EXCEEDED: 'Rất xin lỗi, hệ thống đã đạt giới hạn lượt hỏi trong ngày/tháng. Vui lòng thử lại sau.',
-    BLOCKED_CONTENT: 'Câu hỏi này không phù hợp. Vui lòng hỏi về các quy định pháp luật, xuất nhập cảnh hoặc thủ tục hành chính.',
+    BLOCKED_CONTENT: 'Câu hỏi này không phù hợp. Vui lòng hỏi về các quy định pháp luật hoặc thủ tục hành chính.',
     CAPTCHA_FAILED: 'Xác minh CAPTCHA thất bại. Vui lòng thử lại.',
     INVALID_TOKEN: 'Request token không hợp lệ hoặc đã hết hạn. Vui lòng tải lại trang và thử lại.',
     MISSING_TOKEN: 'Thiếu request token. Vui lòng tải lại trang và thử lại.',
@@ -49,7 +49,41 @@ let chatHistory = [];
 let turnstileVerified = false;
 let turnstileToken = null;
 let isChatSending = false;
+let activeCancelController = null;
+let activeAbortMode = null;
 const isLocalHost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const CHAT_MODAL_BREAKPOINT = 768;
+
+function stopActiveStream(mode = 'stop') {
+    activeAbortMode = mode;
+    activeCancelController?.abort();
+}
+
+function isChatModalViewport() {
+    return typeof window.matchMedia === 'function' &&
+        window.matchMedia(`(max-width: ${CHAT_MODAL_BREAKPOINT}px)`).matches;
+}
+
+function isChatWindowVisible() {
+    return getChatElements().window?.classList.contains('ai-chat-window--visible');
+}
+
+function syncChatWindowPresentation(isOpen) {
+    const { toggle, window: chatWindow } = getChatElements();
+    if (!toggle || !chatWindow) return;
+
+    const isModal = isOpen && isChatModalViewport();
+    chatWindow.setAttribute('aria-modal', isModal ? 'true' : 'false');
+    toggle.hidden = isModal;
+    document.body.classList.toggle('ai-chat-modal-open', isModal);
+}
+
+function formatSourceDate(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return new Intl.DateTimeFormat('vi-VN').format(date);
+}
 
 window._turnstileWidgetId = null;
 window._turnstileToken = null;
@@ -82,16 +116,19 @@ function openChatWindow() {
     chatWindow.classList.add('ai-chat-window--visible');
     toggle.setAttribute('aria-expanded', 'true');
     chatWindow.setAttribute('aria-hidden', 'false');
+    syncChatWindowPresentation(true);
     setTimeout(() => input?.focus(), 120);
 }
 
 function closeChatWindow() {
+    if (isChatSending) stopActiveStream('close');
     const { toggle, window: chatWindow } = getChatElements();
     if (!toggle || !chatWindow) return;
     chatWindow.classList.remove('ai-chat-window--visible');
     chatWindow.classList.add('ai-chat-window--hidden');
     toggle.setAttribute('aria-expanded', 'false');
     chatWindow.setAttribute('aria-hidden', 'true');
+    syncChatWindowPresentation(false);
     toggle.focus();
 }
 
@@ -219,10 +256,35 @@ function appendSources(bubble, sources) {
     sourceWrap.className = 'ai-chat-sources';
 
     sources.forEach(source => {
-        const chip = document.createElement('span');
-        chip.className = 'ai-chat-source-chip';
-        chip.textContent = source.article ? `${source.file} - ${source.article}` : source.file;
-        sourceWrap.appendChild(chip);
+        const item = document.createElement('div');
+        item.className = 'ai-chat-source-item';
+        const label = source.article ? `${source.file} - ${source.article}` : source.file;
+        if (source.url) {
+            const link = document.createElement('a');
+            link.className = 'ai-chat-source-chip';
+            link.href = source.url;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = label;
+            item.appendChild(link);
+        } else {
+            const chip = document.createElement('span');
+            chip.className = 'ai-chat-source-chip';
+            chip.textContent = label;
+            item.appendChild(chip);
+        }
+
+        const metadata = [];
+        if (source.effective_date) metadata.push(`Hiệu lực: ${formatSourceDate(source.effective_date)}`);
+        if (source.last_verified_at) metadata.push(`Xác minh: ${formatSourceDate(source.last_verified_at)}`);
+        if (metadata.length > 0) {
+            const meta = document.createElement('span');
+            meta.className = 'ai-chat-source-meta';
+            meta.textContent = metadata.join(' • ');
+            item.appendChild(meta);
+        }
+
+        sourceWrap.appendChild(item);
     });
 
     bubble.appendChild(sourceWrap);
@@ -253,7 +315,11 @@ function handleChatEnter(event) {
 }
 
 async function handleChatSend() {
-    if (isChatSending) return;
+    // Nút gửi hoạt động như nút Dừng khi đang stream.
+    if (isChatSending) {
+        stopActiveStream('stop');
+        return;
+    }
     if (!turnstileVerified || !turnstileToken) return;
 
     const { input, send } = getChatElements();
@@ -263,21 +329,27 @@ async function handleChatSend() {
     if (!text) return;
 
     isChatSending = true;
+    activeCancelController = new AbortController();
+    activeAbortMode = null;
     appendUserMessage(text);
     input.value = '';
     input.disabled = true;
     if (send) {
-        send.disabled = true;
-        send.innerHTML = '<span class="ai-chat-send-spinner"></span>';
+        send.disabled = false;
+        send.setAttribute('aria-label', 'Dừng phản hồi');
+        send.innerHTML = '<span class="material-symbols-outlined">stop</span>';
     }
 
     const { row, bubble, content } = appendAssistantShell();
     let rawText = '';
     let firstChunk = true;
     let renderTimer = null;
+    let shouldRestoreFocus = true;
+    const requestController = activeCancelController;
 
     try {
         const result = await window.GeminiAI.stream(text, chatHistory, (chunkText) => {
+            if (activeAbortMode === 'close' && requestController.signal.aborted) return;
             if (firstChunk) {
                 content.innerHTML = '';
                 firstChunk = false;
@@ -290,9 +362,14 @@ async function handleChatSend() {
                     renderTimer = null;
                 }, 80);
             }
-        });
+        }, activeCancelController.signal);
 
         if (renderTimer) clearTimeout(renderTimer);
+        if (activeAbortMode === 'close' && requestController.signal.aborted) {
+            shouldRestoreFocus = false;
+            row?.remove();
+            return;
+        }
 
         if (result.ok) {
             chatHistory = result.history || chatHistory;
@@ -313,23 +390,37 @@ async function handleChatSend() {
 
         row?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     } catch (error) {
+        if (activeAbortMode === 'close' && requestController.signal.aborted) {
+            shouldRestoreFocus = false;
+            row?.remove();
+            return;
+        }
         bubble.classList.add('ai-chat-bubble--error');
         content.textContent = CHATBOT_ERROR_MESSAGES.DEFAULT;
         appendNotice(bubble, error.message || '');
     } finally {
-        await refreshTurnstileAfterRequest(input, send);
+        if (renderTimer) clearTimeout(renderTimer);
+        activeCancelController = null;
+        await refreshTurnstileAfterRequest(input, send, {
+            restoreFocus: shouldRestoreFocus && isChatWindowVisible()
+        });
+        activeAbortMode = null;
         isChatSending = false;
     }
 }
 
-async function refreshTurnstileAfterRequest(input, send) {
+async function refreshTurnstileAfterRequest(input, send, options = {}) {
+    const restoreFocus = options.restoreFocus !== false;
+    if (send) {
+        send.setAttribute('aria-label', 'Gửi tin nhắn');
+        send.innerHTML = '<span class="material-symbols-outlined">send</span>';
+    }
     if (isLocalHost) {
         turnstileToken = 'localhost-bypass';
         turnstileVerified = true;
         window._turnstileToken = turnstileToken;
         setChatInputEnabled(true);
-        if (send) send.innerHTML = '<span class="material-symbols-outlined">send</span>';
-        input?.focus();
+        if (restoreFocus) input?.focus();
         return;
     }
 
@@ -341,7 +432,7 @@ async function refreshTurnstileAfterRequest(input, send) {
                 turnstileVerified = true;
                 window._turnstileToken = newToken;
                 setChatInputEnabled(true);
-                input?.focus();
+                if (restoreFocus) input?.focus();
             } else {
                 turnstileToken = null;
                 turnstileVerified = false;
@@ -423,12 +514,31 @@ function initChatbotWidget() {
         if (event.key === 'Escape') {
             event.preventDefault();
             closeChatWindow();
+            return;
+        }
+        if (event.key === 'Tab' && isChatModalViewport()) {
+            const focusable = Array.from(chatWindow.querySelectorAll(
+                'button:not([disabled]), input:not([disabled])'
+            )).filter(el => el.offsetParent !== null);
+            if (focusable.length < 2) return;
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
         }
     });
     input?.addEventListener('keydown', handleChatEnter);
     const { send } = getChatElements();
     send?.addEventListener('click', handleChatSend);
     setChatInputEnabled(isLocalHost, isLocalHost ? CHATBOT_TEXT.placeholder : CHATBOT_TEXT.captchaPlaceholder);
+    window.addEventListener('resize', () => {
+        if (isChatWindowVisible()) syncChatWindowPresentation(true);
+    });
 
     if (isLocalHost) {
         turnstileToken = 'localhost-bypass';
@@ -441,5 +551,14 @@ function initChatbotWidget() {
 
 window.handleChatSend = handleChatSend;
 window.handleChatEnter = handleChatEnter;
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports.__test = {
+        CHAT_MODAL_BREAKPOINT,
+        formatSourceDate,
+        isChatModalViewport,
+        syncChatWindowPresentation
+    };
+}
 
 document.addEventListener('DOMContentLoaded', initChatbotWidget);

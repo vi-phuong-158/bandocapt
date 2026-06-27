@@ -51,8 +51,9 @@
 - **Quyết định:** Dùng Firebase Realtime DB để đếm lượt dùng (tháng: 3500, ngày/IP: 20). Dùng
   ETag + Optimistic Locking để tránh race condition.
 - **Lý do:** Firebase có free tier, không cần setup Redis riêng. Vercel KV tốn phí hơn.
-- **Đánh đổi:** Firebase Realtime DB có latency cao hơn Redis; rate limit không phải atomic 100%
-  trong trường hợp rất nhiều concurrent request.
+- **Đánh đổi:** Firebase Realtime DB có latency cao hơn Redis; cần retry/rollback nhiều hơn để giữ
+  quota đúng dưới tải đồng thời. Harness local 50 concurrent request đã khóa hành vi không vượt quota,
+  nhưng độ ổn định vẫn phụ thuộc semantics ETag của RTDB.
 - **Người quyết định:** user
 
 ---
@@ -107,13 +108,38 @@
 
 ---
 
+## [2026-06-27] Pipeline dữ liệu bản đồ qua allowlist → staging → published
+
+- **Quyết định:** Dữ liệu Google Form không đi thẳng ra public; Apps Script quản trị ghi vào
+  `Location_Staging`, chỉ admin mới approve/reject/revoke để cập nhật `Published_Locations`, và mọi
+  hành động append vào `Approval_Audit_Log`.
+- **Lý do:** Chặn bản ghi giả hoặc sai đơn vị trước khi xuất hiện trên bản đồ công khai, đồng thời giữ
+  truy vết submitter + reviewer cho từng marker.
+- **Đánh đổi:** Cần triển khai trigger/menu trong Google Workspace thật và vận hành allowlist/audit.
+- **Người quyết định:** user / Codex
+
+---
+
 ## [2026-06-27] Telemetry tối thiểu, diagnostic content là opt-in
 
 - **Quyết định:** Log mặc định chỉ chứa metric tổng hợp và HMAC bucket của IP; question/answer chỉ
-  được ghi khi `CHAT_DIAGNOSTIC_LOG=on|true`. RTDB fallback bắt buộc dùng `FIREBASE_DB_URL` từ env.
+  được ghi khi `CHAT_DIAGNOSTIC_LOG=on|true`, còn nằm trong cửa sổ `CHAT_DIAGNOSTIC_LOG_UNTIL`, qua
+  sample rate cấu hình và có `CHAT_DIAGNOSTIC_LOG_APPROVED` nếu chạy ở production. RTDB fallback bắt buộc
+  dùng `FIREBASE_DB_URL` từ env.
 - **Lý do:** Giảm thu thập dữ liệu cá nhân trong hội thoại pháp luật và loại fallback cross-project.
 - **Đánh đổi:** Điều tra lỗi nội dung cần phê duyệt privacy và bật cờ vận hành có kiểm soát.
 - **Người quyết định:** user / Claude Code
+
+---
+
+## [2026-06-27] Tách metric và diagnostic telemetry, TTL theo `expires_at`
+
+- **Quyết định:** Metric log và diagnostic log được ghi vào collection/path riêng; cả hai đều có
+  `retention_days` và `expires_at`. Diagnostic content bị sanitize email/token/số hộ chiếu trước khi lưu.
+- **Lý do:** Giảm blast radius của dữ liệu nhạy cảm, cho phép TTL policy riêng cho metric và diagnostic,
+  và giữ RTDB fallback có thể prune tự động bằng script.
+- **Đánh đổi:** Cần thêm cấu hình vận hành cho TTL Firestore và chạy prune job cho RTDB fallback khi dùng.
+- **Người quyết định:** user / Codex
 
 ---
 

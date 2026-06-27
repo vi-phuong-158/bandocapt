@@ -81,7 +81,7 @@ function resetTurnstileAndWaitForNewToken() {
     });
 }
 
-async function callGeminiStream(userMessage, conversationHistory = [], onChunk) {
+async function callGeminiStream(userMessage, conversationHistory = [], onChunk, signal) {
     // Lấy Turnstile token (đã được render sẵn từ lúc load trang)
     const captchaToken = getTurnstileToken();
 
@@ -95,6 +95,18 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk) 
         clearTimeout(idleTimeoutId);
         idleTimeoutId = setTimeout(() => controller.abort(), 15000);
     };
+
+    // Wire external signal — cho phép caller huỷ stream (nút Stop).
+    if (signal) {
+        if (signal.aborted) {
+            controller.abort();
+        } else {
+            signal.addEventListener('abort', () => controller.abort(), { once: true });
+        }
+    }
+
+    // Khai báo ngoài try để catch có thể trả partialText khi bị abort.
+    let fullText = '';
 
     try {
 
@@ -149,7 +161,6 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk) 
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let fullText = '';
         let sources = []; // UI-05: citation sources
         let history = null;
         let buffer = '';
@@ -220,6 +231,8 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk) 
 
     } catch (err) {
         if (err.name === 'AbortError') {
+            // Trả partial text nếu đã nhận được một phần — chatbot.js sẽ hiển thị với notice "gián đoạn".
+            if (fullText) return { ok: false, error: 'STREAM_ERROR', partialText: fullText };
             return { ok: false, error: 'TIMEOUT' };
         }
         if (err.name === 'TypeError' && err.message.includes('fetch')) {
@@ -239,7 +252,7 @@ function getErrorMessage(errorCode, lang = 'vi') {
             'NO_KEY': '⚠️ Chưa có API Key. Vui lòng nhập Gemini API Key để sử dụng trợ lý AI thực.',
             'INVALID_KEY': '❌ API Key không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại.',
             'RATE_LIMIT': '⏳ Rất xin lỗi, hiện tại đang có quá nhiều người truy cập nên hệ thống tạm thời quá tải. <br><br>Bạn hãy dùng thử <a href="https://notebooklm.google.com/notebook/03f2338f-f7f7-4adf-aba3-52b93672b484" target="_blank" class="px-2 py-1 bg-green-100 text-green-800 rounded font-bold hover:bg-green-200 transition-colors inline-block mt-1">Sổ tay AI</a> để tiếp tục câu hỏi nhé!',
-            'BLOCKED_CONTENT': '🚫 Câu hỏi này không phù hợp. Vui lòng hỏi về các quy định pháp luật về xuất nhập cảnh, thủ tục hành chính.',
+            'BLOCKED_CONTENT': '🚫 Câu hỏi này không phù hợp. Vui lòng hỏi về các quy định pháp luật, thủ tục hành chính.',
             'NETWORK_ERROR': '📡 Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.',
             'SERVICE_UNAVAILABLE': '🔧 Dịch vụ Gemini AI tạm thời không khả dụng. Vui lòng thử lại sau.',
             'NO_RESPONSE': '🤔 Không nhận được phản hồi từ AI. Vui lòng thử lại.',

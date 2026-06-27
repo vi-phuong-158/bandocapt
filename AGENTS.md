@@ -1,7 +1,7 @@
 # AGENTS.md — Hướng dẫn cho Codex
 
 > Dành riêng cho **OpenAI Codex**. Claude Code dùng CLAUDE.md.
-> Dự án: **bandocapt** — Bản đồ Công an số tỉnh Phú Thọ (tra cứu trụ sở + chatbot tư vấn pháp luật XNC)
+> Dự án: **bandocapt** — Bản đồ Công an số tỉnh Phú Thọ (tra cứu trụ sở + chatbot tư vấn thủ tục hành chính)
 
 ---
 

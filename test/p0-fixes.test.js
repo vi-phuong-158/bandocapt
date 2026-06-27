@@ -62,6 +62,45 @@ function setSecureTestEnv() {
     delete process.env.EVAL_BYPASS_TOKEN;
 }
 
+function createAtomicQuotaHarness(initialState = {}) {
+    const state = {
+        usage: {
+            value: initialState.usage ?? 0,
+            version: 0,
+        },
+        ip: {
+            value: initialState.ip ?? { count: 0, last_access: null },
+            version: 0,
+        },
+    };
+
+    function getEntry(url) {
+        return String(url).includes('/usage_ips/') ? state.ip : state.usage;
+    }
+
+    return {
+        state,
+        fetch: async (url, options = {}) => {
+            const entry = getEntry(url);
+            await new Promise(resolve => setImmediate(resolve));
+
+            if ((options.method || 'GET').toUpperCase() === 'PUT') {
+                const expectedEtag = `"v${entry.version}"`;
+                const ifMatch = options.headers?.['if-match'];
+                if (ifMatch && ifMatch !== expectedEtag) {
+                    return jsonResponse({ error: 'etag mismatch' }, { status: 412 });
+                }
+
+                entry.value = JSON.parse(options.body);
+                entry.version += 1;
+                return jsonResponse(entry.value, { headers: { etag: `"v${entry.version}"` } });
+            }
+
+            return jsonResponse(entry.value, { headers: { etag: `"v${entry.version}"` } });
+        },
+    };
+}
+
 test.afterEach(() => {
     process.env = { ...ORIGINAL_ENV };
     global.fetch = ORIGINAL_FETCH;
@@ -106,7 +145,7 @@ for (const failure of [401, 403, 429, 500, 'network']) {
 
         assert.equal(res.statusCode, 503);
         assert.equal(res.body.error, 'RATE_LIMIT_UNAVAILABLE');
-        assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 2);
+        assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 1);
         assert.equal(urls.some(url => /pinecone|generativelanguage|openai|cohere/i.test(url)), false);
     });
 }
@@ -131,7 +170,7 @@ test('rate-limit write failure returns 503 before any provider call', async () =
 
     assert.equal(res.statusCode, 503);
     assert.equal(res.body.error, 'RATE_LIMIT_UNAVAILABLE');
-    assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 4);
+    assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 2);
     assert.equal(urls.some(url => /pinecone|generativelanguage|openai|cohere/i.test(url)), false);
 });
 
@@ -193,28 +232,85 @@ test('telemetry payload omits question, answer and raw IP by default', () => {
     // IP phải được hash, không lưu plaintext.
     assert.ok(payload.ip_bucket_hash && payload.ip_bucket_hash !== '203.0.113.7');
     assert.equal(payload.source_count, 1);
+    assert.equal(payload.telemetry_type, 'metric');
+    assert.equal(payload.retention_days, 30);
+    assert.ok(payload.expires_at instanceof Date);
 });
 
-test('telemetry includes content only when diagnostic flag is enabled', () => {
+test('diagnostic telemetry is separated and sanitized when flag is enabled', () => {
+    process.env.NODE_ENV = 'development';
     process.env.CHAT_DIAGNOSTIC_LOG = 'on';
     try {
-        const payload = handler.buildTelemetryPayload({
-            question: 'cau hoi',
-            answer: 'cau tra loi',
+        const payload = handler.buildDiagnosticTelemetryPayload({
+            question: 'Email: citizen@example.com; so ho chieu C1234567; Bearer abcdefghijklmnop',
+            answer: 'x-request-token=super-secret-token',
             ip: '203.0.113.7',
             user_agent: 'Mozilla/5.0',
             language: 'vi',
             sources: [],
             latency_ms: 5,
         });
-        assert.equal(payload.question, 'cau hoi');
-        assert.equal(payload.answer, 'cau tra loi');
+
+        assert.match(payload.question, /\[redacted:email\]/);
+        assert.match(payload.question, /\[redacted:passport\]/);
+        assert.match(payload.question, /\[redacted:token\]/);
+        assert.match(payload.answer, /\[redacted:secret\]/);
         assert.equal(payload.diagnostic, true);
+        assert.equal(payload.telemetry_type, 'diagnostic');
+        assert.equal(payload.retention_days, 7);
         // Ngay cả khi bật chẩn đoán, IP vẫn không lưu plaintext.
         assert.equal(payload.ip, undefined);
     } finally {
         delete process.env.CHAT_DIAGNOSTIC_LOG;
     }
+});
+
+test('diagnostic telemetry stays disabled when flag is off', () => {
+    delete process.env.CHAT_DIAGNOSTIC_LOG;
+    const payload = handler.buildDiagnosticTelemetryPayload({
+        question: 'cau hoi',
+        answer: 'cau tra loi',
+        ip: '203.0.113.7',
+        user_agent: 'Mozilla/5.0',
+        language: 'vi',
+        sources: [],
+        latency_ms: 5,
+    });
+
+    assert.equal(payload, null);
+});
+
+test('diagnostic telemetry respects expiry, sampling and production approval gates', () => {
+    process.env.CHAT_DIAGNOSTIC_LOG = 'on';
+
+    assert.equal(handler.isDiagnosticContentLogging(new Date('2026-06-27T12:00:00.000Z'), 0.2), true);
+
+    process.env.CHAT_DIAGNOSTIC_LOG_UNTIL = '2026-06-27T11:00:00.000Z';
+    assert.equal(handler.isDiagnosticContentLogging(new Date('2026-06-27T12:00:00.000Z'), 0.2), false, 'expired window disables diagnostic logging');
+
+    process.env.CHAT_DIAGNOSTIC_LOG_UNTIL = '2026-06-27T13:00:00.000Z';
+    process.env.CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE = '0.1';
+    assert.equal(handler.isDiagnosticContentLogging(new Date('2026-06-27T12:00:00.000Z'), 0.2), false, 'sample gate blocks when random exceeds rate');
+    assert.equal(handler.isDiagnosticContentLogging(new Date('2026-06-27T12:00:00.000Z'), 0.05), true, 'sample gate allows when random is within rate');
+
+    process.env.NODE_ENV = 'production';
+    assert.equal(handler.isDiagnosticContentLogging(new Date('2026-06-27T12:00:00.000Z'), 0.05), false, 'production requires explicit approval');
+    process.env.CHAT_DIAGNOSTIC_LOG_APPROVED = 'true';
+    assert.equal(handler.isDiagnosticContentLogging(new Date('2026-06-27T12:00:00.000Z'), 0.05), true, 'approval re-enables production diagnostic logging');
+});
+
+test('telemetry retention helpers identify expired records', () => {
+    const now = new Date('2026-06-27T12:00:00.000Z');
+    const entries = {
+        keep: { expires_at: '2026-06-28T00:00:00.000Z' },
+        drop1: { expires_at: '2026-06-27T11:59:59.000Z' },
+        drop2: { expires_at: new Date('2026-06-20T00:00:00.000Z') },
+        ignore: { created_at: '2026-06-20T00:00:00.000Z' },
+    };
+
+    assert.equal(handler.isTelemetryExpired(entries.keep, now), false);
+    assert.equal(handler.isTelemetryExpired(entries.drop1, now), true);
+    assert.deepEqual(handler.listExpiredTelemetryKeys(entries, now).sort(), ['drop1', 'drop2']);
 });
 
 test('rate-limit keys and operational logs do not contain raw IP or message content', async () => {
@@ -239,6 +335,52 @@ test('rate-limit keys and operational logs do not contain raw IP or message cont
     assert.doesNotMatch(source, /console\.(?:log|warn|error)\([^\n]*userMessage\.substring/);
 });
 
+test('50 concurrent reservations stop exactly at daily IP quota', async () => {
+    const { reserveRateLimitQuota } = require('../api/chat');
+    const harness = createAtomicQuotaHarness();
+    const lastAccess = '2026-06-27T10:00:00+07:00';
+
+    const results = await Promise.all(
+        Array.from({ length: 50 }, () => reserveRateLimitQuota({
+            fetchImpl: harness.fetch,
+            usageUrl: 'https://quota.example.test/usage/2026_06.json',
+            ipUsageUrl: 'https://quota.example.test/usage_ips/2026_06_27/hash.json',
+            monthlyLimit: 3500,
+            dailyIpLimit: 20,
+            lastAccess,
+        }))
+    );
+
+    assert.equal(results.filter(result => result.ok).length, 20);
+    assert.equal(results.filter(result => !result.ok && result.reason === 'limit_exceeded' && result.scope === 'daily_ip').length, 30);
+    assert.equal(results.some(result => result.reason === 'store_error'), false);
+    assert.equal(harness.state.usage.value, 20);
+    assert.equal(harness.state.ip.value.count, 20);
+});
+
+test('50 concurrent reservations stop at monthly quota and rollback daily slot leaks', async () => {
+    const { reserveRateLimitQuota } = require('../api/chat');
+    const harness = createAtomicQuotaHarness();
+    const lastAccess = '2026-06-27T10:00:00+07:00';
+
+    const results = await Promise.all(
+        Array.from({ length: 50 }, () => reserveRateLimitQuota({
+            fetchImpl: harness.fetch,
+            usageUrl: 'https://quota.example.test/usage/2026_06.json',
+            ipUsageUrl: 'https://quota.example.test/usage_ips/2026_06_27/hash.json',
+            monthlyLimit: 7,
+            dailyIpLimit: 100,
+            lastAccess,
+        }))
+    );
+
+    assert.equal(results.filter(result => result.ok).length, 7);
+    assert.equal(results.filter(result => !result.ok && result.reason === 'limit_exceeded' && result.scope === 'monthly').length, 43);
+    assert.equal(results.some(result => result.reason === 'store_error'), false);
+    assert.equal(harness.state.usage.value, 7);
+    assert.equal(harness.state.ip.value.count, 7);
+});
+
 test('OpenStreetMap attribution is enabled (ToS compliance)', () => {
     const appSource = fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8');
     const css = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
@@ -246,4 +388,49 @@ test('OpenStreetMap attribution is enabled (ToS compliance)', () => {
     assert.doesNotMatch(appSource, /attributionControl:\s*false/);
     assert.match(appSource, /attribution:\s*['"`].*OpenStreetMap/);
     assert.doesNotMatch(css, /\.leaflet-control-attribution[^}]*display:\s*none/);
+});
+
+test('EVAL_BYPASS_TOKEN production guard is present in source', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'api', 'chat.js'), 'utf8');
+    // Xác minh có đoạn kiểm tra production guard cho EVAL_BYPASS_TOKEN
+    assert.match(source, /NODE_ENV.*===.*production.*EVAL_BYPASS_TOKEN/s);
+});
+
+test('citation allowlist blocks non-https and unlisted domains', () => {
+    const { buildCitationSource, isAllowedCitationUrl } = require('../api/chat');
+    assert.equal(isAllowedCitationUrl(null), false);
+    assert.equal(isAllowedCitationUrl('http://vbpl.vn/abc'), false, 'http rejected');
+    assert.equal(isAllowedCitationUrl('https://evil.com/vbpl.vn'), false, 'path spoof rejected');
+    assert.equal(isAllowedCitationUrl('https://www.vbpl.vn/pages/vbpq.aspx'), true, 'www stripped');
+    assert.equal(isAllowedCitationUrl('https://sub.mps.gov.vn/abc'), true, 'subdomain allowed');
+    assert.equal(isAllowedCitationUrl('https://thuvienphapluat.vn/van-ban/123'), false, 'commercial legal portal rejected');
+    assert.equal(isAllowedCitationUrl('https://luatvietnam.vn/van-ban/123'), false, 'commercial portal rejected');
+    assert.equal(isAllowedCitationUrl('https://xuatnhapcanh.gov.vn/van-ban/123'), true, 'official immigration domain allowed');
+
+    const source = buildCitationSource({
+        van_ban: 'Luật XNC',
+        dieu: 'Điều 7',
+        official_url: 'https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=1',
+        source_url: 'https://thuvienphapluat.vn/van-ban/123',
+        effective_date: '2025-01-01',
+        last_verified_at: '2026-06-27T10:00:00.000Z',
+        kb_version: 'kb-2026-06-27'
+    }, 0.91);
+
+    assert.equal(source.url, 'https://vbpl.vn/TW/Pages/vbpq-toanvan.aspx?ItemID=1', 'official_url preferred over legacy fields');
+    assert.equal(source.effective_date, '2025-01-01');
+    assert.equal(source.last_verified_at, '2026-06-27T10:00:00.000Z');
+    assert.equal(source.kb_version, 'kb-2026-06-27');
+});
+
+test('chatbot mobile modal and close-abort guards remain in source', () => {
+    const js = fs.readFileSync(path.join(ROOT, 'js', 'chatbot.js'), 'utf8');
+    const css = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
+
+    assert.match(js, /CHAT_MODAL_BREAKPOINT\s*=\s*768/);
+    assert.match(js, /stopActiveStream\('close'\)/);
+    assert.match(js, /restoreFocus:\s*shouldRestoreFocus\s*&&\s*isChatWindowVisible\(\)/);
+    assert.match(js, /event\.key === 'Tab' && isChatModalViewport\(\)/);
+    assert.match(css, /body\.ai-chat-modal-open\s*\{\s*overflow:\s*hidden;/);
+    assert.match(css, /@media \(max-width: 768px\)[\s\S]*#ai-chat-window[\s\S]*100dvh/);
 });

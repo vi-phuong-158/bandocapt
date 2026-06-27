@@ -35,9 +35,9 @@ bandocapt/
 ├── api/
 │   ├── chat.js             # Serverless: proxy Gemini/DeepSeek + RAG Pinecone (logic chính)
 │   └── google-sheet.js     # Serverless: proxy Google Sheets để ẩn Sheet ID
-├── setup/                  # Script tiện ích (không deploy): import dữ liệu, kiểm tra
+├── setup/                  # Script tiện ích (không deploy): form/pipeline Apps Script, import dữ liệu, retention job RTDB fallback
 ├── scripts/                # Build static artifact và preview server
-├── test/                   # Node test runner: P0, location data, Google Sheet API
+├── test/                   # Node test runner: P0, location data, Google Sheet API, admin pipeline helpers
 ├── .github/workflows/ci.yml # CI test, build và audit trên push/PR
 ├── dist/                   # Artifact build local/Vercel (ignored)
 ├── logo.png                # Logo ứng dụng
@@ -63,6 +63,7 @@ bandocapt/
 | `js/chatbot.js` | UI chatbot: panel toggle, render tin nhắn, gọi gemini.js | `index.html` (script tag) | `js/gemini.js` |
 | `api/chat.js` | Serverless chính: xác thực, RAG, streaming Gemini/DeepSeek | `js/gemini.js` (HTTP POST) | Pinecone, Gemini API, Edge Config, Firebase |
 | `api/google-sheet.js` | Proxy CommonJS chỉ cho phép `Published_Locations`, validate payload và cache endpoint | `app.js` (fetch) | Google Sheets API |
+| `setup/apps-script.js` | Pipeline quản trị Google Sheets: allowlist, staging, approve/reject/revoke, audit log | Google Sheets trigger / admin menu | Google Apps Script SpreadsheetApp |
 
 ### Luồng xử lý chính
 
@@ -72,6 +73,17 @@ index.html load → app.js init →
   fetch /api/google-sheet?sheet=Published_Locations → Google Sheets →
   js/location-data.js validate/normalize → render MarkerCluster
   (bản ghi lỗi) → loại khỏi marker + data-quality warning
+```
+
+**Luồng quản trị dữ liệu bản đồ:**
+```
+Google Form submit → setup/apps-script.js onFormSubmit →
+  Unit_Allowlist check + normalize/validate →
+  ghi Location_Staging (pending|rejected) + Approval_Audit_Log →
+Admin chọn dòng staging →
+  approve/reject qua menu Apps Script →
+  Published_Locations upsert hoặc giữ nguyên + append audit log →
+Admin có thể revoke dòng published để rollback marker ở lần refresh kế tiếp
 ```
 
 **Luồng chatbot (RAG):**
@@ -126,9 +138,15 @@ FIREBASE_CLIENT_EMAIL
 FIREBASE_PRIVATE_KEY
 FIREBASE_DB_URL             # Firebase Realtime DB URL
 FIREBASE_DB_SECRET          # Auth token Firebase RTDB
-FIRESTORE_CHAT_COLLECTION   # Tên collection Firestore (default: chat_logs)
+FIRESTORE_CHAT_COLLECTION   # Tên collection Firestore metric (default: chat_logs)
+FIRESTORE_DIAGNOSTIC_COLLECTION # Tên collection Firestore diagnostic (default: chat_logs_diagnostic)
 CHAT_LOG_HASH_SALT          # Salt cho hash IP trong log
 CHAT_DIAGNOSTIC_LOG         # on/true mới ghi question/answer; mặc định off, cần privacy approval
+CHAT_DIAGNOSTIC_LOG_APPROVED # on/true để cho phép diagnostic ở production
+CHAT_DIAGNOSTIC_LOG_UNTIL   # ISO timestamp; quá hạn thì bỏ diagnostic log
+CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE # 0..1, tỷ lệ lấy mẫu diagnostic log
+TELEMETRY_METRIC_RETENTION_DAYS # Số ngày giữ metric (default: 30)
+TELEMETRY_DIAGNOSTIC_RETENTION_DAYS # Số ngày giữ diagnostic log (default: 7)
 EDGE_CONFIG                 # Vercel Edge Config connection string
 TURNSTILE_SECRET_KEY        # Cloudflare Turnstile secret
 ALLOWED_ORIGINS             # Comma-separated extra CORS origins
@@ -146,8 +164,12 @@ GOOGLE_SHEET_ID             # Sheet ID cho dữ liệu trụ sở (dùng trong a
   shared giữa các instance, không persist khi cold start.
 - **Pinecone namespace fallback**: code thử lần lượt nhiều namespace nếu namespace chính trả về rỗng.
 - **Edge Config cache**: system prompt được cache 5 phút trong bộ nhớ serverless để giảm latency.
-- **Firebase rate limit** dùng key HMAC của IP, ETag + optimistic reservation và fail-closed khi store lỗi. Test hiện tại
-  khóa các nhánh lỗi; test tải đồng thời để chứng minh không vượt quota vẫn là backlog.
+- **Firebase rate limit** dùng key HMAC của IP, ETag + optimistic reservation, re-check limit ở mỗi retry 412
+  và rollback reservation IP/ngày nếu quota toàn cục thất bại. Test hiện tại khóa cả nhánh lỗi lẫn tải
+  đồng thời 50 request để chứng minh không vượt quota trong harness local.
+- **Telemetry retention**: metric và diagnostic đi vào collection/path riêng, đều mang `expires_at` + `retention_days`.
+  Firestore cần TTL policy ngoài code; RTDB fallback có script `setup/prune-telemetry.js` để xóa bản ghi hết hạn.
 - **Published data boundary**: runtime public không được đọc `Form_Responses`; việc tạo/phê duyệt
-  `Published_Locations` thuộc pipeline quản trị bên ngoài và phải được kiểm chứng riêng.
+  `Published_Locations` đi qua `Unit_Allowlist` → `Location_Staging` → thao tác admin approve/reject/revoke
+  trong `setup/apps-script.js`, và vẫn phải được kiểm chứng trên Google Workspace thật.
 - **DeepSeek override**: nếu biến `DEEPSEEK_API_KEY` tồn tại, toàn bộ chat chuyển sang DeepSeek (không phải Gemini).

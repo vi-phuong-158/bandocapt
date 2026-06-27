@@ -4,22 +4,23 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: "#1e3a8a", // blue-900 (Police Blue)
-        secondary: "#047857", // emerald-700 
-        accent: "#d97706", // amber-600
+        primary: "#1d4ed8", // Sharp Blue 700
+        secondary: "#09090b", // Zinc 950
+        accent: "#2563eb", // Vibrant Blue 600
         surface: "#ffffff",
-        background: "#f1f5f9", // slate-100
-        textMain: "#0f172a", // slate-900
-        textMuted: "#64748b", // slate-500
+        background: "#f4f4f5", // Zinc 100
+        textMain: "#09090b", // Zinc 950
+        textMuted: "#71717a", // Zinc 500
       },
       fontFamily: {
-        display: ["Space Grotesk", "sans-serif"],
-        body: ["Inter", "sans-serif"],
+        display: ["'Be Vietnam Pro'", "sans-serif"],
+        body: ["'Plus Jakarta Sans'", "sans-serif"],
       },
       boxShadow: {
-        glass: "0 8px 32px 0 rgba(31, 38, 135, 0.07)",
-        sheet: "0 -8px 30px rgba(0, 0, 0, 0.12)",
-        card: "0 4px 16px -2px rgba(0, 0, 0, 0.05)",
+        glass: "0 8px 32px 0 rgba(0, 0, 0, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.5)",
+        sheet: "0 -8px 30px rgba(0, 0, 0, 0.08)",
+        card: "0 4px 16px -4px rgba(0, 0, 0, 0.06)",
+        sm: "0 1px 2px 0 rgba(0, 0, 0, 0.05)",
       },
       borderRadius: {
         "2xl": "1.25rem",
