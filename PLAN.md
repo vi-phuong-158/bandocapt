@@ -585,6 +585,7 @@ Không đưa question, answer, raw IP, email hoặc số hộ chiếu vào metri
 
 - Mỗi migration dữ liệu phải giữ bản backup có timestamp.
 - Không rollback về đường đọc raw `Form_Responses` công khai.
+- Với dữ liệu bản đồ: revoke bản ghi ở `Published_Locations`, rồi approve lại staging record đúng trước đó nếu cần khôi phục.
 - Chatbot có feature flag để tắt provider call và hiển thị thông báo bảo trì.
 - Nếu limiter lỗi sau deploy, chuyển endpoint sang 503 có kiểm soát thay vì bỏ limiter.
 - Nếu citation/RAG lỗi, chuyển sang safe refusal hoặc FAQ tĩnh đã duyệt.
@@ -606,22 +607,22 @@ Một task chỉ được coi là hoàn thành khi:
 ## 16. Checklist phát hành cuối
 
 > Kiểm toán code local ngày 2026-06-27. Dấu hoàn thành chỉ chứng minh tiêu chí trong repository;
-> pipeline Google Workspace, biến môi trường Production và rollback Preview vẫn cần xác minh vận hành.
+> rollout trigger/menu Google Workspace, biến môi trường Production và rollback Preview vẫn cần xác minh vận hành.
 
 - [x] Website chỉ đọc `Published_Locations` hoặc API tương đương.
 - [x] Không còn tọa độ ngẫu nhiên.
 - [x] Không log question, answer hoặc IP thô mặc định.
 - [x] Không còn Firebase RTDB URL hardcode.
 - [x] Thiếu Turnstile secret làm deployment/request fail-closed.
-- [ ] Rate limiter atomic và storage failure không gọi LLM.
+- [x] Rate limiter atomic và storage failure không gọi LLM.
 - [ ] `EVAL_BYPASS_TOKEN` không tồn tại ở Production.
 - [x] DOMPurify đã được nâng khỏi affected range.
 - [x] `npm test` và `npm run build` chạy kiểm tra thật.
 - [x] API Google Sheet và package module format thống nhất.
-- [ ] Marker clustering hoạt động trên mobile.
-- [ ] Stream có timeout toàn thời gian và nút Stop.
-- [ ] Danh sách, panel và chatbot dùng được bằng bàn phím.
+- [x] Marker clustering hoạt động trên mobile.
+- [x] Stream có timeout toàn thời gian và nút Stop.
+- [x] Danh sách, panel và chatbot dùng được bằng bàn phím.
 - [x] OpenStreetMap attribution hiển thị.
-- [ ] Citation dẫn tới nguồn chính thức đã allowlist.
+- [x] Citation dẫn tới nguồn chính thức đã allowlist.
 - [ ] Dashboard/alert không chứa dữ liệu cá nhân.
 - [ ] Rollback đã được thử trên Preview.

@@ -8,6 +8,11 @@
 
 const { Pinecone } = require('@pinecone-database/pinecone');
 
+// Kiểm tra biến môi trường nhạy cảm không được phép tồn tại ở production.
+if (process.env.NODE_ENV === 'production' && process.env.EVAL_BYPASS_TOKEN) {
+    console.error('[security] CRITICAL: EVAL_BYPASS_TOKEN is set in production. Remove it from Vercel environment immediately.');
+}
+
 // Khởi tạo Pinecone Client
 // Vercel Serverless sẽ load api key từ Enviroment variables
 // PINECONE_API_KEY, PINECONE_INDEX_HOST
@@ -58,12 +63,64 @@ function hashForLog(value) {
     if (!value) return '';
     const crypto = require('crypto');
     const salt = process.env.CHAT_LOG_HASH_SALT || process.env.FIREBASE_DB_SECRET || 'xnc-phu-tho';
+    if (!process.env.CHAT_LOG_HASH_SALT && !process.env.FIREBASE_DB_SECRET) {
+        console.warn('[security] CHAT_LOG_HASH_SALT not set — using insecure fallback salt. Set this env var in production.');
+    }
     return crypto.createHmac('sha256', salt).update(String(value)).digest('hex').substring(0, 32);
 }
 
 function truncateForLog(value, max) {
     const text = String(value || '');
     return text.length > max ? text.substring(0, max) + '...' : text;
+}
+
+function getPositiveEnvInt(name, fallback) {
+    const value = parseInt(process.env[name], 10);
+    return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+const METRIC_RETENTION_DAYS = 30;
+const DIAGNOSTIC_RETENTION_DAYS = 7;
+const DIAGNOSTIC_SOURCE_LIMIT = 8;
+
+function getTelemetryRetentionDays(type) {
+    if (type === 'diagnostic') {
+        return getPositiveEnvInt('TELEMETRY_DIAGNOSTIC_RETENTION_DAYS', DIAGNOSTIC_RETENTION_DAYS);
+    }
+    return getPositiveEnvInt('TELEMETRY_METRIC_RETENTION_DAYS', METRIC_RETENTION_DAYS);
+}
+
+function buildTelemetryRetention(type, now = new Date()) {
+    const retentionDays = getTelemetryRetentionDays(type);
+    return {
+        telemetry_type: type,
+        retention_days: retentionDays,
+        expires_at: new Date(now.getTime() + retentionDays * 24 * 60 * 60 * 1000)
+    };
+}
+
+function sanitizeDiagnosticText(value, maxLength = 4000) {
+    let text = String(value || '');
+
+    text = text.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[redacted:email]');
+    text = text.replace(/\b(Bearer)\s+[A-Za-z0-9._\-+/=]{8,}\b/gi, '$1 [redacted:token]');
+    text = text.replace(/\b((?:access|refresh|id|request|auth)[_-]?token|api[_-]?key|client[_-]?secret|secret|password|pwd|private[_-]?key|x-request-token)\b\s*[:=]\s*["']?[^\s"',;]{6,}["']?/gi, '$1=[redacted:secret]');
+    text = text.replace(/((?:số hộ chiếu|so ho chieu|passport(?:\s*(?:number|no|#))?))\s*[:#-]?\s*([A-Z0-9]{6,12})/gi, '$1: [redacted:passport]');
+    text = text.replace(/\b[A-Z]{1,2}[0-9]{6,8}\b/g, '[redacted:passport]');
+
+    return truncateForLog(text, maxLength);
+}
+
+function isTelemetryExpired(payload, now = new Date()) {
+    if (!payload || !payload.expires_at) return false;
+    const expiresAt = payload.expires_at instanceof Date ? payload.expires_at : new Date(payload.expires_at);
+    return Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() <= now.getTime();
+}
+
+function listExpiredTelemetryKeys(entries = {}, now = new Date()) {
+    return Object.entries(entries)
+        .filter(([, payload]) => isTelemetryExpired(payload, now))
+        .map(([key]) => key);
 }
 
 // =====================================================================
@@ -73,11 +130,34 @@ function truncateForLog(value, max) {
 // (CHAT_DIAGNOSTIC_LOG=on). Không bật mặc định ở production nếu chưa có phê duyệt
 // quyền riêng tư và retention rõ ràng.
 // =====================================================================
-function isDiagnosticContentLogging() {
-    return process.env.CHAT_DIAGNOSTIC_LOG === 'on' || process.env.CHAT_DIAGNOSTIC_LOG === 'true';
+function isTruthyEnv(name) {
+    return process.env[name] === 'on' || process.env[name] === 'true';
 }
 
-function buildTelemetryPayload(data) {
+function getDiagnosticSampleRate() {
+    const rawValue = process.env.CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE;
+    if (rawValue === undefined || rawValue === '') return 1;
+    const value = Number(rawValue);
+    if (!Number.isFinite(value)) return 1;
+    return Math.max(0, Math.min(1, value));
+}
+
+function isDiagnosticLoggingWindowOpen(now = new Date()) {
+    const expiresAt = process.env.CHAT_DIAGNOSTIC_LOG_UNTIL;
+    if (!expiresAt) return true;
+    const parsed = new Date(expiresAt);
+    if (!Number.isFinite(parsed.getTime())) return false;
+    return now.getTime() <= parsed.getTime();
+}
+
+function isDiagnosticContentLogging(now = new Date(), randomValue = Math.random()) {
+    if (!isTruthyEnv('CHAT_DIAGNOSTIC_LOG')) return false;
+    if (process.env.NODE_ENV === 'production' && !isTruthyEnv('CHAT_DIAGNOSTIC_LOG_APPROVED')) return false;
+    if (!isDiagnosticLoggingWindowOpen(now)) return false;
+    return randomValue < getDiagnosticSampleRate();
+}
+
+function buildTelemetryPayload(data, now = new Date()) {
     const payload = {
         status: data.out_of_scope ? 'out_of_scope' : 'ok',
         language: data.language,
@@ -91,46 +171,210 @@ function buildTelemetryPayload(data) {
         ip_bucket_hash: hashForLog(data.ip),
         user_agent_hash: hashForLog(data.user_agent),
         date_key: data.date_key,
-        created_at: new Date()
+        created_at: now,
+        ...buildTelemetryRetention('metric', now)
     };
-    // Chỉ đính kèm nội dung khi bật cờ chẩn đoán có chủ đích.
-    if (isDiagnosticContentLogging()) {
-        payload.question = truncateForLog(data.question, 4000);
-        payload.answer = truncateForLog(data.answer, 12000);
-        payload.sources = Array.isArray(data.sources) ? data.sources.slice(0, 8) : [];
-        payload.diagnostic = true;
-    }
     return payload;
 }
 
-function writeChatLogToRealtimeDb(payload) {
+function buildDiagnosticTelemetryPayload(data, now = new Date(), randomValue = Math.random()) {
+    if (!isDiagnosticContentLogging(now, randomValue)) return null;
+
+    return {
+        status: data.out_of_scope ? 'out_of_scope' : 'ok',
+        language: data.language,
+        finish_reason: data.finish_reason || '',
+        truncated: Boolean(data.truncated),
+        latency_ms: data.latency_ms,
+        has_rag_context: Boolean(data.has_rag_context),
+        out_of_scope: Boolean(data.out_of_scope),
+        ip_bucket_hash: hashForLog(data.ip),
+        user_agent_hash: hashForLog(data.user_agent),
+        date_key: data.date_key,
+        created_at: now,
+        question: sanitizeDiagnosticText(data.question, 4000),
+        answer: sanitizeDiagnosticText(data.answer, 12000),
+        sources: Array.isArray(data.sources) ? data.sources.slice(0, DIAGNOSTIC_SOURCE_LIMIT) : [],
+        diagnostic: true,
+        ...buildTelemetryRetention('diagnostic', now)
+    };
+}
+
+function writeTelemetryToRealtimeDb(payload, type) {
     // Không fallback sang URL hardcode cross-project: chỉ ghi khi có DB cấu hình rõ ràng.
     const dbUrl = process.env.FIREBASE_DB_URL;
     if (!dbUrl) return;
     const auth = process.env.FIREBASE_DB_SECRET ? `?auth=${process.env.FIREBASE_DB_SECRET}` : '';
     const dateKey = payload.date_key || new Date().toISOString().slice(0, 10).replace(/-/g, '_');
-    fetch(`${dbUrl}/chat_logs/${dateKey}.json${auth}`, {
+    const collectionPath = type === 'diagnostic' ? 'chat_logs_diagnostic' : 'chat_logs_metrics';
+    fetch(`${dbUrl}/${collectionPath}/${dateKey}.json${auth}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...payload, created_at: Date.now(), storage_fallback: 'rtdb' })
-    }).catch(e => console.warn('[telemetry] Không ghi fallback RTDB chat log:', e.message));
+    }).catch(e => console.warn(`[telemetry] Không ghi fallback RTDB ${type}:`, e.message));
+}
+
+function writeTelemetryToFirestoreCollection(db, collectionName, payload, type) {
+    db.collection(collectionName).add(payload)
+        .catch(e => {
+            console.warn(`[telemetry] Không ghi được ${type} log, chuyển sang RTDB fallback:`, e.message);
+            writeTelemetryToRealtimeDb(payload, type);
+        });
 }
 
 function logChatToFirestore(data) {
-    const collectionName = process.env.FIRESTORE_CHAT_COLLECTION || 'chat_logs';
-    const payload = buildTelemetryPayload(data);
+    const metricCollection = process.env.FIRESTORE_CHAT_COLLECTION || 'chat_logs';
+    const diagnosticCollection = process.env.FIRESTORE_DIAGNOSTIC_COLLECTION || 'chat_logs_diagnostic';
+    const now = new Date();
+    const metricPayload = buildTelemetryPayload(data, now);
+    const diagnosticPayload = buildDiagnosticTelemetryPayload(data, now);
 
     const db = getFirestoreDb();
     if (!db) {
-        writeChatLogToRealtimeDb(payload);
+        writeTelemetryToRealtimeDb(metricPayload, 'metric');
+        if (diagnosticPayload) {
+            writeTelemetryToRealtimeDb(diagnosticPayload, 'diagnostic');
+        }
         return;
     }
 
-    db.collection(collectionName).add(payload)
-        .catch(e => {
-            console.warn('[telemetry] Không ghi được chat log, chuyển sang RTDB fallback:', e.message);
-            writeChatLogToRealtimeDb(payload);
-        });
+    writeTelemetryToFirestoreCollection(db, metricCollection, metricPayload, 'metric');
+    if (diagnosticPayload) {
+        writeTelemetryToFirestoreCollection(db, diagnosticCollection, diagnosticPayload, 'diagnostic');
+    }
+}
+
+const RATE_LIMIT_ETAG_HEADER = { 'X-Firebase-ETag': 'true' };
+const RATE_LIMIT_MAX_RETRIES = 64;
+
+function parseRateLimitCount(data) {
+    if (data !== null && typeof data === 'object') {
+        return parseInt(data.count) || 0;
+    }
+    return parseInt(data) || 0;
+}
+
+async function readRateLimitSnapshot(fetchImpl, url) {
+    const response = await fetchImpl(url, { headers: RATE_LIMIT_ETAG_HEADER });
+    if (!response.ok) {
+        throw new Error(`Rate-limit read failed (${response.status})`);
+    }
+
+    return {
+        etag: response.headers.get('etag') || '',
+        data: await response.json()
+    };
+}
+
+async function putRateLimitSnapshot(fetchImpl, url, value, etag) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (etag) headers['if-match'] = etag;
+
+    return fetchImpl(url, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(value)
+    });
+}
+
+async function reserveRateLimitCounter({
+    fetchImpl = fetch,
+    url,
+    limit,
+    buildValue,
+    parseCount = parseRateLimitCount,
+    maxRetries = RATE_LIMIT_MAX_RETRIES
+}) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const snapshot = await readRateLimitSnapshot(fetchImpl, url);
+        const currentCount = parseCount(snapshot.data);
+
+        if (currentCount >= limit) {
+            return { ok: false, reason: 'limit_exceeded', count: currentCount };
+        }
+
+        const putResponse = await putRateLimitSnapshot(fetchImpl, url, buildValue(currentCount, snapshot.data), snapshot.etag);
+        if (putResponse.ok) {
+            return { ok: true, count: currentCount + 1 };
+        }
+
+        if (putResponse.status !== 412) {
+            return { ok: false, reason: 'store_error', status: putResponse.status };
+        }
+    }
+
+    return { ok: false, reason: 'store_error', status: 412 };
+}
+
+async function releaseRateLimitCounter({
+    fetchImpl = fetch,
+    url,
+    buildValue,
+    parseCount = parseRateLimitCount,
+    maxRetries = RATE_LIMIT_MAX_RETRIES
+}) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        const snapshot = await readRateLimitSnapshot(fetchImpl, url);
+        const currentCount = parseCount(snapshot.data);
+
+        if (currentCount <= 0) {
+            return true;
+        }
+
+        const putResponse = await putRateLimitSnapshot(fetchImpl, url, buildValue(currentCount - 1, snapshot.data), snapshot.etag);
+        if (putResponse.ok) {
+            return true;
+        }
+
+        if (putResponse.status !== 412) {
+            return false;
+        }
+    }
+
+    return false;
+}
+
+async function reserveRateLimitQuota({
+    fetchImpl = fetch,
+    usageUrl,
+    ipUsageUrl,
+    monthlyLimit,
+    dailyIpLimit,
+    lastAccess
+}) {
+    const ipReservation = await reserveRateLimitCounter({
+        fetchImpl,
+        url: ipUsageUrl,
+        limit: dailyIpLimit,
+        buildValue: count => ({ count: count + 1, last_access: lastAccess })
+    });
+
+    if (!ipReservation.ok) {
+        return { ok: false, reason: ipReservation.reason, scope: 'daily_ip' };
+    }
+
+    const usageReservation = await reserveRateLimitCounter({
+        fetchImpl,
+        url: usageUrl,
+        limit: monthlyLimit,
+        buildValue: count => count + 1
+    });
+
+    if (usageReservation.ok) {
+        return { ok: true };
+    }
+
+    const rollbackSucceeded = await releaseRateLimitCounter({
+        fetchImpl,
+        url: ipUsageUrl,
+        buildValue: count => ({ count, last_access: lastAccess })
+    });
+
+    if (!rollbackSucceeded) {
+        return { ok: false, reason: 'store_error', scope: 'daily_ip_rollback' };
+    }
+
+    return { ok: false, reason: usageReservation.reason, scope: 'monthly' };
 }
 
 // =====================================================================
@@ -583,6 +827,56 @@ function detectUserLanguage(text) {
     return 'en';
 }
 
+// =====================================================================
+// [G5-01] CITATION URL ALLOWLIST — Chỉ cho phép link tới domain chính thức
+// =====================================================================
+const CITATION_ALLOWED_DOMAINS = [
+    'vbpl.vn',
+    'congbao.chinhphu.vn',
+    'chinhphu.vn',
+    'vanban.chinhphu.vn',
+    'mps.gov.vn',
+    'xuatnhapcanh.gov.vn',
+    'dichvucong.gov.vn',
+    'dichvucong.bocongan.gov.vn',
+    'moj.gov.vn',
+];
+
+function isAllowedCitationUrl(url) {
+    if (!url || typeof url !== 'string') return false;
+    try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'https:') return false;
+        const host = parsed.hostname.replace(/^www\./, '');
+        return CITATION_ALLOWED_DOMAINS.some(d => host === d || host.endsWith('.' + d));
+    } catch (_) {
+        return false;
+    }
+}
+
+function getAllowedCitationUrl(metadata = {}) {
+    const candidates = [
+        metadata.official_url,
+        metadata.url,
+        metadata.link,
+        metadata.source_url
+    ].filter(Boolean);
+
+    return candidates.find(isAllowedCitationUrl) || null;
+}
+
+function buildCitationSource(metadata = {}, score = 0) {
+    return {
+        file: metadata.van_ban || metadata.source_file || metadata.source || metadata.source_decision || 'Không rõ',
+        article: metadata.dieu || metadata.article || '',
+        url: getAllowedCitationUrl(metadata),
+        effective_date: metadata.effective_date || '',
+        last_verified_at: metadata.last_verified_at || '',
+        kb_version: metadata.kb_version || '',
+        score
+    };
+}
+
 function isClearlyOutOfScope(text) {
     const normalized = normalizeInjectionText(text).toLowerCase();
     const inScope = /\b(visa|passport|immigration|emigration|entry|exit|temporary residence|residence card|vneid|na5|na6|na7|na8)\b|thi thuc|ho chieu|xuat nhap canh|nhap canh|xuat canh|tam tru|the tam tru|nguoi nuoc ngoai|cong dich vu cong/i.test(normalized)
@@ -762,6 +1056,7 @@ module.exports = async function handler(req, res) {
     const ipBucketHash = hashForLog(`rate-limit:${clientIP}`);
     const ipUsageUrl = `${FIREBASE_DB_URL}/usage_ips/${currentDate}/${ipBucketHash}.json${FIREBASE_AUTH}`;
 
+    const MONTHLY_LIMIT = 3500;
     const DAILY_IP_LIMIT = 20;
 
     if (isEvalRun) {
@@ -770,96 +1065,38 @@ module.exports = async function handler(req, res) {
 
     try {
         if (isEvalRun) throw new Error('__EVAL_SKIP_RATELIMIT__');
-        // Fetch đồng thời cả lượng sử dụng tháng (Global) và lượng sử dụng ngày của IP (Local)
-        // Dùng ETag để đảm bảo ghi atomic (tránh Race Condition)
-        const etagHeader = { 'X-Firebase-ETag': 'true' };
-        const [getRes, ipGetRes] = await Promise.all([
-            fetch(usageUrl, { headers: etagHeader }),
-            fetch(ipUsageUrl, { headers: etagHeader })
-        ]);
-
-        if (!getRes.ok || !ipGetRes.ok) {
-            throw new Error(`Rate-limit read failed (${getRes.status}/${ipGetRes.status})`);
-        }
-
-        // 1. Kiểm tra giới hạn của Tháng
-        let usageCount = 0;
-        let usageETag = getRes.headers.get('etag') || '';
-        const data = await getRes.json();
-        usageCount = parseInt(data) || 0;
-
-        if (usageCount >= 3500) {
-            console.warn(`[api/chat] Đã đạt giới hạn 3500 câu/tháng cho tháng ${currentMonth}.`);
-            return res.status(429).json({
-                error: 'RATE_LIMIT_EXCEEDED',
-                detail: 'Rất xin lỗi! Hệ thống đã dùng hết ngân sách (tương đương 3500 lượt trò chuyện) trong tháng này. Hẹn gặp lại bạn vào tháng sau nhé!',
-            });
-        }
-
-        // 2. Kiểm tra giới hạn của IP trong Ngày
-        let ipUsageCount = 0;
-        let ipETag = ipGetRes.headers.get('etag') || '';
-        const ipData = await ipGetRes.json();
-        // Xử lý luân chuyển từ format cũ (int) sang format mới (object)
-        if (ipData !== null && typeof ipData === 'object') {
-            ipUsageCount = parseInt(ipData.count) || 0;
-        } else {
-            ipUsageCount = parseInt(ipData) || 0;
-        }
-
-        if (ipUsageCount >= DAILY_IP_LIMIT) {
-            console.warn(`[api/chat] Daily limit reached; ip_bucket=${ipBucketHash}; date=${currentDate}.`);
-            return res.status(429).json({
-                error: 'RATE_LIMIT_EXCEEDED',
-                detail: `Hôm nay bạn đã hỏi đủ ${DAILY_IP_LIMIT} câu rồi. Hãy quay lại vào ngày mai nhé!`,
-            });
-        }
-
-        // 3. Không bị chặn -> Tăng đếm Atomic bằng Conditional PUT (ETag)
-        // Nếu data đã thay đổi giữa lúc đọc và ghi → Firebase trả 412 → retry
+        // Reserve quota theo thứ tự IP/ngày rồi toàn cục/tháng; mỗi retry 412 đều re-check limit.
+        // Nếu reserve toàn cục thất bại sau khi đã giữ quota IP/ngày, rollback IP/ngày trước khi trả lỗi.
         const trueTime = new Date();
         const vnTimeStr = new Date(trueTime.getTime() + 7 * 60 * 60 * 1000).toISOString().replace('Z', '+07:00');
 
-        // Helper: Conditional PUT với ETag retry (Optimistic Locking)
-        async function conditionalPut(url, newValue, etag, maxRetries = 3) {
-            for (let attempt = 0; attempt < maxRetries; attempt++) {
-                const headers = { 'Content-Type': 'application/json' };
-                if (etag) headers['if-match'] = etag;
+        const reservation = await reserveRateLimitQuota({
+            fetchImpl: fetch,
+            usageUrl,
+            ipUsageUrl,
+            monthlyLimit: MONTHLY_LIMIT,
+            dailyIpLimit: DAILY_IP_LIMIT,
+            lastAccess: vnTimeStr
+        });
 
-                const putRes = await fetch(url, {
-                    method: 'PUT',
-                    headers,
-                    body: JSON.stringify(newValue)
-                });
-
-                if (putRes.ok) return true;
-                if (putRes.status !== 412) return false; // Lỗi khác → dừng
-
-                // 412 Precondition Failed = data đã thay đổi → retry
-                const retryRes = await fetch(url, { headers: { 'X-Firebase-ETag': 'true' } });
-                if (!retryRes.ok) return false;
-                etag = retryRes.headers.get('etag') || '';
-                const freshData = await retryRes.json();
-                // Cập nhật lại giá trị mới dựa trên data mới nhất
-                if (typeof newValue === 'number') {
-                    newValue = (parseInt(freshData) || 0) + 1;
-                } else if (typeof newValue === 'object' && newValue.count !== undefined) {
-                    const freshCount = (typeof freshData === 'object')
-                        ? (parseInt(freshData?.count) || 0)
-                        : (parseInt(freshData) || 0);
-                    newValue = { ...newValue, count: freshCount + 1 };
+        if (!reservation.ok) {
+            if (reservation.reason === 'limit_exceeded') {
+                if (reservation.scope === 'daily_ip') {
+                    console.warn(`[api/chat] Daily limit reached; ip_bucket=${ipBucketHash}; date=${currentDate}.`);
+                    return res.status(429).json({
+                        error: 'RATE_LIMIT_EXCEEDED',
+                        detail: `H\u00f4m nay b\u1ea1n \u0111\u00e3 h\u1ecfi \u0111\u1ee7 ${DAILY_IP_LIMIT} c\u00e2u r\u1ed3i. H\u00e3y quay l\u1ea1i v\u00e0o ng\u00e0y mai nh\u00e9!`,
+                    });
                 }
-            }
-            return false;
-        }
 
-        // Chỉ gọi provider sau khi cả hai quota reservation đã được ghi thành công.
-        const reservations = await Promise.all([
-            conditionalPut(usageUrl, usageCount + 1, usageETag),
-            conditionalPut(ipUsageUrl, { count: ipUsageCount + 1, last_access: vnTimeStr }, ipETag)
-        ]);
-        if (!reservations.every(Boolean)) {
-            throw new Error('Rate-limit reservation failed');
+                console.warn(`[api/chat] \u0110\u00e3 \u0111\u1ea1t gi\u1edbi h\u1ea1n ${MONTHLY_LIMIT} c\u00e2u/th\u00e1ng cho th\u00e1ng ${currentMonth}.`);
+                return res.status(429).json({
+                    error: 'RATE_LIMIT_EXCEEDED',
+                    detail: `R\u1ea5t xin l\u1ed7i! H\u1ec7 th\u1ed1ng \u0111\u00e3 d\u00f9ng h\u1ebft ng\u00e2n s\u00e1ch (t\u01b0\u01a1ng \u0111\u01b0\u01a1ng ${MONTHLY_LIMIT} l\u01b0\u1ee3t tr\u00f2 chuy\u1ec7n) trong th\u00e1ng n\u00e0y. H\u1eb9n g\u1eb7p l\u1ea1i b\u1ea1n v\u00e0o th\u00e1ng sau nh\u00e9!`,
+                });
+            }
+
+            throw new Error(`Rate-limit reservation failed (${reservation.scope || 'unknown'})`);
         }
 
     } catch (e) {
@@ -1098,11 +1335,7 @@ module.exports = async function handler(req, res) {
                     }).join('\n\n---\n\n');
 
                     // UI-05: Lưu sources cho citation chips
-                    matchedSources = topMatches.map(m => ({
-                        file: m.metadata?.van_ban || m.metadata?.source_file || m.metadata?.source || m.metadata?.source_decision || 'Không rõ',
-                        article: m.metadata?.dieu || m.metadata?.article || '',
-                        score: m.score
-                    }));
+                    matchedSources = topMatches.map(m => buildCitationSource(m.metadata, m.score));
                 }
             }
         } catch (e) {
@@ -1353,5 +1586,13 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
     }
 };
 
-// Export phụ để unit test telemetry minimization (P0-2).
+// Export phụ để unit test.
 module.exports.buildTelemetryPayload = buildTelemetryPayload;
+module.exports.buildDiagnosticTelemetryPayload = buildDiagnosticTelemetryPayload;
+module.exports.buildCitationSource = buildCitationSource;
+module.exports.isAllowedCitationUrl = isAllowedCitationUrl;
+module.exports.reserveRateLimitQuota = reserveRateLimitQuota;
+module.exports.sanitizeDiagnosticText = sanitizeDiagnosticText;
+module.exports.isTelemetryExpired = isTelemetryExpired;
+module.exports.listExpiredTelemetryKeys = listExpiredTelemetryKeys;
+module.exports.isDiagnosticContentLogging = isDiagnosticContentLogging;

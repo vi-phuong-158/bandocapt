@@ -44,6 +44,6 @@ Repository có test tự động bằng Node test runner, build tĩnh tạo `dis
 Runtime bản đồ chỉ yêu cầu sheet `Published_Locations`; dữ liệu tọa độ sai bị loại thay vì tạo vị trí
 ngẫu nhiên. Telemetry mặc định không lưu nội dung hội thoại hoặc IP thô.
 
-Việc còn mở quan trọng: hoàn thiện và kiểm chứng luồng staging/approval tạo
-`Published_Locations`, chứng minh rate limiter an toàn khi có request đồng thời, thiết lập retention
-cho telemetry và xác minh cấu hình/rollback trên Vercel Preview trước phát hành.
+Việc còn mở quan trọng: bật TTL vận hành cho telemetry trên môi trường thật, triển khai
+trigger/menu Apps Script cho pipeline staging-approval ngoài Google Workspace thật, và xác minh
+cấu hình/rollback trên Vercel Preview trước phát hành.

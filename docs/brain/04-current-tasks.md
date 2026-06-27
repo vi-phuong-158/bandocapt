@@ -12,31 +12,13 @@ _(trống)_
 
 ## Chờ làm (backlog)
 
-### TASK-P0-01: Hoàn thiện và kiểm chứng pipeline staging/approval
-- **Mô tả:** Runtime đã chỉ đọc `Published_Locations`, nhưng cần xác minh/tạo luồng allowlist,
-  staging, approve/reject, audit và rollback từ Google Form sang sheet công khai.
-- **Liên quan:** Google Workspace/Apps Script, `api/google-sheet.js`, `PLAN.md` G1-01
-- **Ưu tiên:** P0
-
-### TASK-P0-02: Chứng minh rate limiter atomic dưới tải đồng thời
-- **Mô tả:** Các nhánh store lỗi đã fail-closed; còn thiếu test 50 request đồng thời và bằng chứng
-  counter không lost update/vượt quota.
-- **Liên quan:** `api/chat.js`, Firebase test project/emulator, `test/p0-fixes.test.js`
-- **Ưu tiên:** P0
-
-### TASK-P1-01: Retention và sanitizer cho diagnostic telemetry
-- **Mô tả:** Thiết lập TTL/retention, tách metric và diagnostic collection, thêm test xóa dữ liệu
-  hết hạn và sanitizer token/email/số hộ chiếu.
-- **Liên quan:** Firebase, `api/chat.js`, tài liệu vận hành
-- **Ưu tiên:** Cao
-
 ### TASK-02: Cập nhật dữ liệu Pinecone
 - **Mô tả:** Bổ sung/cập nhật văn bản pháp luật mới vào Pinecone index khi có Nghị định/Thông tư mới.
 - **Liên quan:** `api/chat.js` (PINECONE_NAMESPACE, indexing script trong setup/)
 - **Ưu tiên:** Trung bình
 
 ### TASK-P1-02: Mở rộng test chatbot và trình duyệt
-- **Mô tả:** Bổ sung CORS/injection/SSE parser và E2E desktop-mobile-keyboard ngoài 24 unit test hiện có.
+- **Mô tả:** Bổ sung CORS/injection/SSE parser và E2E desktop-mobile-keyboard ngoài 39 unit test hiện có.
 - **Liên quan:** `api/chat.js`, `js/gemini.js`, `js/chatbot.js`, `test/`
 - **Ưu tiên:** Trung bình
 
@@ -54,8 +36,12 @@ _(trống)_
 
 - [2026-06-27] Tích hợp chatbot/gemini vào UI; thay FAQ tĩnh cũ bằng chatbot RAG streaming
 - [2026-06-27] Runtime chỉ đọc Published_Locations; validation tọa độ và data-quality report
+- [2026-06-27] Pipeline staging/approval Google Sheets: allowlist, approve/reject/revoke, audit và rollback path
 - [2026-06-27] Turnstile/rate-limit storage fail-closed; DOMPurify được nâng và pin SRI
+- [2026-06-27] Chứng minh rate limiter atomic dưới tải đồng thời 50 request, có rollback quota rò
+- [2026-06-27] Tách metric/diagnostic telemetry, thêm TTL metadata, sanitizer, gate expiry/sampling và RTDB prune script
 - [2026-06-27] Telemetry tối thiểu, bỏ RTDB hardcode; bật OSM attribution
+- [2026-06-27] Sửa close-mid-stream chatbot, modal mobile full-screen và citation ưu tiên official_url
 - [2026-06-27] Node test runner 24 test, build artifact thật và GitHub Actions CI
 - [2026-06-27] Khởi tạo bộ não dự án (CLAUDE.md, AGENTS.md, docs/brain/)
 - [2025] Fix OpenStreetMap 403 bằng cách xóa no-referrer meta tag

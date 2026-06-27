@@ -499,6 +499,20 @@ resultsList.addEventListener("click", (e) => {
   if (loc) openDetailPanel(loc, item);
 });
 
+// Arrow key navigation trong danh sách kết quả
+resultsList.addEventListener("keydown", (e) => {
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+  const items = Array.from(resultsList.querySelectorAll(".result-item:not([disabled])"));
+  if (items.length === 0) return;
+  const current = items.indexOf(document.activeElement);
+  if (current === -1) return;
+  e.preventDefault();
+  const next = e.key === "ArrowDown"
+    ? Math.min(current + 1, items.length - 1)
+    : Math.max(current - 1, 0);
+  items[next].focus();
+});
+
 searchInput.addEventListener("input", debouncedFilterAndRender);
 document
   .getElementById("filter-police")
@@ -706,8 +720,12 @@ filterAndRender();
 }
 
 document.addEventListener("keydown", event => {
-  if (event.key === "Escape" && detailPanel.getAttribute("aria-hidden") === "false") {
+  if (event.key !== "Escape") return;
+  if (detailPanel.getAttribute("aria-hidden") === "false") {
     closeDetailPanel();
+  } else if (closeSearchBtn.offsetParent !== null) {
+    // Mobile search panel đang mở (close button hiển thị)
+    hideMobileSearch();
   }
 });
 

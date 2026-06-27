@@ -20,8 +20,15 @@ PINECONE_NAMESPACE=chatbot-tthc-xnc
 FIREBASE_SERVICE_ACCOUNT_JSON=
 FIREBASE_DB_URL=
 FIREBASE_DB_SECRET=
+FIRESTORE_CHAT_COLLECTION=
+FIRESTORE_DIAGNOSTIC_COLLECTION=
 CHAT_LOG_HASH_SALT=
 CHAT_DIAGNOSTIC_LOG=off
+CHAT_DIAGNOSTIC_LOG_APPROVED=off
+CHAT_DIAGNOSTIC_LOG_UNTIL=
+CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE=1
+TELEMETRY_METRIC_RETENTION_DAYS=30
+TELEMETRY_DIAGNOSTIC_RETENTION_DAYS=7
 EDGE_CONFIG=
 TURNSTILE_SECRET_KEY=
 GOOGLE_SHEET_ID=
@@ -65,8 +72,9 @@ git add output.css
 ## Test
 
 ```bash
-npm test        # 24 unit/contract test hiện tại
-npm run ci      # test + build + production dependency audit mức High
+npm test                 # 39 unit/contract test hiện tại
+npm run ci               # test + build + production dependency audit mức High
+npm run prune:telemetry  # xóa log RTDB fallback đã quá hạn theo expires_at
 ```
 
 GitHub Actions chạy `npm ci` và `npm run ci` trên pull request và push vào `main`.
@@ -88,6 +96,29 @@ captchaToken: "test-bypass-token"   # = EVAL_BYPASS_TOKEN env
 NODE_ENV: development
 ```
 
+## Google Workspace / Apps Script cho pipeline bản đồ
+
+1. Mở Google Sheet gắn với Form.
+2. Tạo hoặc dán nội dung [apps-script.js](</D:/04. Github/bandocapt/setup/apps-script.js>) vào Apps Script bound với sheet.
+3. Chạy `bootstrapLocationPipeline` một lần để tạo:
+   - `Unit_Allowlist`
+   - `Location_Staging`
+   - `Published_Locations`
+   - `Approval_Audit_Log`
+4. Điền `Unit_Allowlist` với `unit_code`, `unit_name`, `allowed_emails`, `active`.
+5. Tạo trigger `onFormSubmit` từ spreadsheet.
+6. Trong phần cài đặt Google Form, giới hạn người trả lời theo Workspace/nhóm tài khoản vận hành nếu môi trường yêu cầu.
+7. Reload sheet để hiện menu `Bản đồ số`.
+8. Admin review tại `Location_Staging`:
+   - `Phê duyệt dòng staging đang chọn`
+   - `Từ chối dòng staging đang chọn`
+   - `Thu hồi dòng published đang chọn`
+
+Rollback bản ghi sai:
+
+- Chọn dòng tại `Published_Locations` → `Thu hồi`.
+- Nếu cần khôi phục bản ghi cũ, chọn staging record trước đó của cùng đơn vị và `Phê duyệt` lại.
+
 ## Deploy
 
 **Tự động:** Merge/push vào branch `main` → Vercel chạy `npm run build` và deploy `dist/`.
@@ -103,6 +134,9 @@ npx vercel --prod
 **Cập nhật biến môi trường:**
 → Vercel Dashboard → Project Settings → Environment Variables.
 
+**Bật TTL cho Firestore telemetry:**
+→ Tạo TTL policy cho field `expires_at` trên collection metric và diagnostic đang dùng.
+
 ## Môi trường
 
 | Môi trường | Branch | URL |
@@ -117,5 +151,7 @@ npx vercel --prod
 - **Vercel function timeout:** `api/chat.js` có maxDuration 60s (cấu hình trong `vercel.json`).
 - **Pinecone cold start:** Instance Pinecone có thể sleep sau thời gian không dùng → query đầu chậm.
 - **Firebase Realtime DB:** Dùng `.firebaseio.app` domain Asia Southeast — latency ~100-200ms từ Vercel.
+- **RTDB fallback retention:** khi dùng RTDB fallback, chạy `npm run prune:telemetry` bằng môi trường có
+  `FIREBASE_DB_URL`/`FIREBASE_DB_SECRET` để xóa bản ghi hết hạn ở `chat_logs_metrics` và `chat_logs_diagnostic`.
 - **Edge Config TTL:** System prompt được cache 5 phút trong serverless instance. Sau khi cập nhật
   Edge Config, phải chờ tối đa 5 phút hoặc trigger cold start mới.

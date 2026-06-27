@@ -81,7 +81,7 @@ function resetTurnstileAndWaitForNewToken() {
     });
 }
 
-async function callGeminiStream(userMessage, conversationHistory = [], onChunk) {
+async function callGeminiStream(userMessage, conversationHistory = [], onChunk, signal) {
     // Lấy Turnstile token (đã được render sẵn từ lúc load trang)
     const captchaToken = getTurnstileToken();
 
@@ -95,6 +95,18 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk) 
         clearTimeout(idleTimeoutId);
         idleTimeoutId = setTimeout(() => controller.abort(), 15000);
     };
+
+    // Wire external signal — cho phép caller huỷ stream (nút Stop).
+    if (signal) {
+        if (signal.aborted) {
+            controller.abort();
+        } else {
+            signal.addEventListener('abort', () => controller.abort(), { once: true });
+        }
+    }
+
+    // Khai báo ngoài try để catch có thể trả partialText khi bị abort.
+    let fullText = '';
 
     try {
 
@@ -149,7 +161,6 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk) 
 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
-        let fullText = '';
         let sources = []; // UI-05: citation sources
         let history = null;
         let buffer = '';
@@ -220,6 +231,8 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk) 
 
     } catch (err) {
         if (err.name === 'AbortError') {
+            // Trả partial text nếu đã nhận được một phần — chatbot.js sẽ hiển thị với notice "gián đoạn".
+            if (fullText) return { ok: false, error: 'STREAM_ERROR', partialText: fullText };
             return { ok: false, error: 'TIMEOUT' };
         }
         if (err.name === 'TypeError' && err.message.includes('fetch')) {
