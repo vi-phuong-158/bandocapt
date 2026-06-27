@@ -535,6 +535,8 @@ async function verifyTurnstile(token, ip) {
         return true;
     }
     if (!secret) return false;
+    // Bỏ qua Turnstile ở môi trường local development để dễ test
+    if (process.env.NODE_ENV === 'development') return true;
 
     if (!token) return false; // Có secret nhưng không có token → reject
 

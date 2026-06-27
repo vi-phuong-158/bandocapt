@@ -8,6 +8,7 @@
 ## Format entry
 
 ```
+
 ## [YYYY-MM-DD] [Tên task ngắn gọn]
 - **Agent:** Claude Code | Codex
 - **Thay đổi:** <mô tả ngắn những gì đã làm>
@@ -15,6 +16,14 @@
 - **Lý do:** <vì sao cần thay đổi>
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
+
+## [2026-06-27] Nâng cấp giao diện UI/UX (Taste-Skill Redesign)
+
+- **Agent:** Antigravity
+- **Thay đổi:** Nâng cấp toàn diện giao diện ứng dụng theo triết lý `taste-skill`. Chuyển đổi font chữ sang `Be Vietnam Pro` và `Plus Jakarta Sans`. Thay đổi tông màu chủ đạo thành Sharp Blue (`#1d4ed8`) & Zinc 950. Thêm hiệu ứng tactile feedback (`scale-98`) và Skeleton loading. Đổi icon Chatbot sang dạng viên thuốc (Command Pill). Đồng bộ màu của nút GPS Leaflet.
+- **File đã sửa:** `index.html`, `styles.css`, `tailwind.config.js`, `redesign.js`.
+- **Lý do:** Người dùng yêu cầu hiện đại hoá giao diện, gỡ bỏ các pattern UI mặc định khô khan và rập khuôn của AI, đồng thời thay đổi scope dự án sang Thủ tục hành chính.
+- **Kiểm tra:** Đã chạy `npm run build` thành công và verify UI trực quan (font chữ Tiếng Việt không bị rớt dấu, màu sắc đồng nhất).
 
 ## [2026-06-27] Tạo script test API RAG độc lập
 
