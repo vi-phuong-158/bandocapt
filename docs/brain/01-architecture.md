@@ -9,7 +9,7 @@
 | LLM / Chat | Gemini 2.5 Flash (streaming SSE), fallback DeepSeek |
 | Embedding / RAG | Gemini Embedding 001 + Pinecone vector DB |
 | Backend API | Vercel Serverless Functions (Node.js 20, CommonJS) |
-| Config động | Vercel Edge Config (system prompt không cần redeploy) |
+| System prompt | Hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`) — không dùng Edge Config |
 | Dữ liệu trụ sở | Google Sheets (qua `api/google-sheet.js` proxy) |
 | Telemetry | Firebase Firestore + Firebase Realtime DB (fallback, metric tối thiểu mặc định) |
 | Rate limiting | Firebase Realtime DB (đếm lượt/tháng + lượt/ngày/IP) |
@@ -43,7 +43,7 @@ bandocapt/
 ├── logo.png                # Logo ứng dụng
 ├── icon.png                # Favicon
 ├── vercel.json             # Cấu hình Vercel (outputDirectory, function timeout, headers)
-└── package.json            # deps: pinecone, @vercel/edge-config, firebase-admin
+└── package.json            # deps: pinecone, firebase-admin (@vercel/edge-config còn cài nhưng không dùng)
 ```
 
 ## Code Graph (bản đồ module)
@@ -61,7 +61,7 @@ bandocapt/
 | `js/location-data.js` | Parse tọa độ, kiểm tra bounding box và normalize payload Google Sheet | `app.js`, unit test | — |
 | `js/gemini.js` | Gọi `POST /api/chat`, nhận SSE stream, parse chunk | `js/chatbot.js` | `api/chat.js` (HTTP) |
 | `js/chatbot.js` | UI chatbot: panel toggle, render tin nhắn, gọi gemini.js | `index.html` (script tag) | `js/gemini.js` |
-| `api/chat.js` | Serverless chính: xác thực, RAG, streaming Gemini/DeepSeek | `js/gemini.js` (HTTP POST) | Pinecone, Gemini API, Edge Config, Firebase |
+| `api/chat.js` | Serverless chính: xác thực, RAG, streaming Gemini/DeepSeek | `js/gemini.js` (HTTP POST) | Pinecone, Gemini API, Firebase |
 | `api/google-sheet.js` | Proxy CommonJS chỉ cho phép `Published_Locations`, validate payload và cache endpoint | `app.js` (fetch) | Google Sheets API |
 | `setup/apps-script.js` | Pipeline quản trị Google Sheets: allowlist, staging, approve/reject/revoke, audit log | Google Sheets trigger / admin menu | Google Apps Script SpreadsheetApp |
 
@@ -97,7 +97,7 @@ User nhập → js/chatbot.js →
       4. Detect prompt injection
       5. Embed query → Gemini Embedding 001
       6. Query Pinecone (top-8, filter by category, re-rank)
-      7. Build system prompt (Edge Config || fallback hardcode)
+      7. Build system prompt (hằng số `SYSTEM_PROMPT_BASE` hardcode trong code)
       8. Stream → Gemini 2.5 Flash (hoặc DeepSeek)
       9. SSE stream → client
      10. Ghi metric tối thiểu → Firestore (fallback: RTDB đã cấu hình)
@@ -147,7 +147,6 @@ CHAT_DIAGNOSTIC_LOG_UNTIL   # ISO timestamp; quá hạn thì bỏ diagnostic log
 CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE # 0..1, tỷ lệ lấy mẫu diagnostic log
 TELEMETRY_METRIC_RETENTION_DAYS # Số ngày giữ metric (default: 30)
 TELEMETRY_DIAGNOSTIC_RETENTION_DAYS # Số ngày giữ diagnostic log (default: 7)
-EDGE_CONFIG                 # Vercel Edge Config connection string
 TURNSTILE_SECRET_KEY        # Cloudflare Turnstile secret
 ALLOWED_ORIGINS             # Comma-separated extra CORS origins
 DEEPSEEK_API_KEY            # (tuỳ chọn) Nếu có → dùng DeepSeek thay Gemini
@@ -163,7 +162,7 @@ GOOGLE_SHEET_ID             # Sheet ID cho dữ liệu trụ sở (dùng trong a
 - **FAQ cache in-memory** trong `api/chat.js` chỉ tồn tại trong 1 serverless instance — không
   shared giữa các instance, không persist khi cold start.
 - **Pinecone namespace fallback**: code thử lần lượt nhiều namespace nếu namespace chính trả về rỗng.
-- **Edge Config cache**: system prompt được cache 5 phút trong bộ nhớ serverless để giảm latency.
+- **System prompt**: hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`), không đọc Edge Config (tránh đụng prompt với dự án mohinh-andn dùng chung store). Đổi prompt phải sửa code + redeploy.
 - **Firebase rate limit** dùng key HMAC của IP, ETag + optimistic reservation, re-check limit ở mỗi retry 412
   và rollback reservation IP/ngày nếu quota toàn cục thất bại. Test hiện tại khóa cả nhánh lỗi lẫn tải
   đồng thời 50 request để chứng minh không vượt quota trong harness local.

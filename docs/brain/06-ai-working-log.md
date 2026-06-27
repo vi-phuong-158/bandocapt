@@ -17,6 +17,23 @@
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
 
+## [2026-06-27] Viết lại system prompt chatbot + bỏ Edge Config
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - Viết lại `SYSTEM_PROMPT_BASE` (đổi tên từ `FALLBACK_SYSTEM_PROMPT_BASE`) trong `api/chat.js`:
+    prompt mới đặt mục tiêu rõ — mỗi câu trả lời thủ tục phải có khối **📋 Hồ sơ cần chuẩn bị** và
+    **📍 Nơi nộp & đường đi** kèm link Google Maps; thêm "QUY TẮC GOOGLE MAPS" 3 mức fallback
+    (URL có sẵn → tọa độ → dựng link maps/search từ tên+địa chỉ); tách cấu trúc A (thủ tục) / B (trụ sở)
+    / C (câu ghép); giữ nguyên chống prompt-injection + đa ngôn ngữ.
+  - **Bỏ Vercel Edge Config**: gỡ `require('@vercel/edge-config')`, xóa cache prompt + đọc key
+    `SYSTEM_PROMPT`. `getSystemPrompt()` trả thẳng hằng số. Lý do: tránh đụng prompt với dự án
+    mohinh-andn dùng chung Edge Config store.
+- **File đã sửa:** `api/chat.js`, `docs/brain/00,01,02,03,05,06`.
+- **Lý do:** Theo yêu cầu người dùng — prompt hoàn chỉnh hướng người dân biết cần chuẩn bị gì + có
+  địa chỉ Google Maps để đến; và cô lập prompt khỏi mohinh-andn.
+- **Kiểm tra:** `npm run check:syntax` OK; `node --test test/*.test.js` → 39/39 pass;
+  `grep "edge-config" api/` → không còn code đọc Edge Config. Cần test thật trên Vercel sau deploy.
+
 ## [2026-06-27] Sửa lỗi review của commit UI redesign
 - **Agent:** Claude Code
 - **Thay đổi:**
