@@ -11,7 +11,7 @@
     "build:css": "node ./node_modules/tailwindcss/lib/cli.js -i ./input.css -o ./output.css --minify",
     "check:syntax": "node --check app.js && node --check api/chat.js && node --check api/google-sheet.js && node --check js/chatbot.js && node --check js/gemini.js && node --check js/location-data.js && node --check setup/prune-telemetry.js && node --check setup/apps-script.js",
     "ci": "npm test && npm run build && npm audit --omit=dev --audit-level=high",
-    "watch:css": "node ./node_modules/tailwindcss/lib/cli.js -i ./input.css -o ./output.css --watch",
+    "dev": "node ./node_modules/tailwindcss/lib/cli.js -i ./input.css -o ./output.css --watch",
     "preview": "node scripts/preview-server.js",
     "prune:telemetry": "node setup/prune-telemetry.js",
     "test": "node --test test/*.test.js"
@@ -19,6 +19,13 @@
   "author": "",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": "20.x"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vi-phuong-158/bandocapt.git"
+  },
   "bugs": {
     "url": "https://github.com/vi-phuong-158/bandocapt/issues"
   },

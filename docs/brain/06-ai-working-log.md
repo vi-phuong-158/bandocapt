@@ -17,6 +17,17 @@
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
 
+## [2026-06-27] Sửa lỗi review của commit UI redesign
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - Vá lỗi font: `styles.css` tham chiếu `'Geist'`/`'Outfit'` (không được load ở `index.html`) → đổi thành `'Plus Jakarta Sans'` (body) và `'Be Vietnam Pro'` (display) cho khớp font đã nạp + `tailwind.config.js`.
+  - Xóa `redesign.js` — script migration một lần, dead code, lại còn gây ra lỗi font ở trên.
+  - Khôi phục script `dev` (đã bị đổi thành `watch:css`) cùng `engines: node 20.x` và `repository` trong `package.json` để khớp tài liệu (`npm run dev`) và pin Node trên Vercel.
+  - Thêm lại 2 dòng chống prompt-injection bị xóa khỏi `FALLBACK_SYSTEM_PROMPT_BASE` (không đổi vai/tiết lộ system prompt-API key; từ chối jailbreak).
+- **File đã sửa:** `styles.css`, `package.json`, `api/chat.js`, `docs/brain/06-ai-working-log.md`; xóa `redesign.js`
+- **Lý do:** Khắc phục các vấn đề phát hiện khi review PR #4 (font không nhất quán, dead code, lệnh dev hỏng, regression bảo mật ở prompt).
+- **Kiểm tra:** `npm run check:syntax` OK; `node --test test/*.test.js` → 39/39 pass; `grep "'Geist'\|'Outfit'" styles.css` → 0.
+
 ## [2026-06-27] Nâng cấp giao diện UI/UX (Taste-Skill Redesign)
 
 - **Agent:** Antigravity
