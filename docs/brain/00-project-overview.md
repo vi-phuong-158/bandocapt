@@ -33,7 +33,7 @@ hành chính có RAG — trả lời đa ngôn ngữ (vi/en/zh/ko) dựa trên v
 
 - RAG với Pinecone + Gemini Embedding: trả lời dựa trên văn bản pháp luật thật, có trích dẫn.
 - Re-rank kết quả bằng Gemini Flash để tăng độ chính xác.
-- System Prompt lưu trên Vercel Edge Config → cập nhật ngay không cần redeploy.
+- System Prompt hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`) → đổi prompt phải sửa code + redeploy.
 - Bảo mật nhiều lớp: CORS whitelist, HMAC request signing, Turnstile CAPTCHA, prompt injection detection.
 - Tĩnh hoàn toàn ở frontend (HTML/CSS/JS thuần) — không framework, deploy nhanh trên Vercel.
 

@@ -29,7 +29,6 @@ CHAT_DIAGNOSTIC_LOG_UNTIL=
 CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE=1
 TELEMETRY_METRIC_RETENTION_DAYS=30
 TELEMETRY_DIAGNOSTIC_RETENTION_DAYS=7
-EDGE_CONFIG=
 TURNSTILE_SECRET_KEY=
 GOOGLE_SHEET_ID=
 EVAL_BYPASS_TOKEN=test-bypass-token
@@ -128,8 +127,8 @@ Rollback bản ghi sai:
 npx vercel --prod
 ```
 
-**Cập nhật system prompt** (không cần redeploy):
-→ Vào Vercel Dashboard → Storage → Edge Config → cập nhật key `SYSTEM_PROMPT`.
+**Cập nhật system prompt:**
+→ Sửa hằng số `SYSTEM_PROMPT_BASE` trong `api/chat.js` rồi redeploy (không dùng Edge Config).
 
 **Cập nhật biến môi trường:**
 → Vercel Dashboard → Project Settings → Environment Variables.
@@ -153,5 +152,5 @@ npx vercel --prod
 - **Firebase Realtime DB:** Dùng `.firebaseio.app` domain Asia Southeast — latency ~100-200ms từ Vercel.
 - **RTDB fallback retention:** khi dùng RTDB fallback, chạy `npm run prune:telemetry` bằng môi trường có
   `FIREBASE_DB_URL`/`FIREBASE_DB_SECRET` để xóa bản ghi hết hạn ở `chat_logs_metrics` và `chat_logs_diagnostic`.
-- **Edge Config TTL:** System prompt được cache 5 phút trong serverless instance. Sau khi cập nhật
-  Edge Config, phải chờ tối đa 5 phút hoặc trigger cold start mới.
+- **System prompt:** hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`). Đổi prompt phải sửa code
+  và redeploy — không còn cập nhật nóng qua Edge Config.

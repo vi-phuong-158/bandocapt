@@ -25,12 +25,18 @@
 
 ---
 
-## [2025] System Prompt lưu trên Vercel Edge Config
+## [2026-06-27] System Prompt hardcode trong code, BỎ Vercel Edge Config
 
-- **Quyết định:** System prompt chatbot được lưu trên Vercel Edge Config (key `SYSTEM_PROMPT`),
-  có fallback hardcode trong `api/chat.js`.
-- **Lý do:** Cho phép cập nhật system prompt ngay lập tức không cần redeploy.
-- **Đánh đổi:** Thêm dependency vào Vercel Edge Config; nếu Edge Config lỗi thì dùng fallback cứng.
+- **Quyết định:** System prompt chatbot là hằng số `SYSTEM_PROMPT_BASE` trong `api/chat.js`
+  (nguồn duy nhất). `getSystemPrompt()` trả thẳng hằng số này, KHÔNG đọc Edge Config nữa.
+- **Lý do:** bandocapt và `mohinh-andn` dùng chung Edge Config store → cùng đọc key `SYSTEM_PROMPT`
+  sẽ đè prompt của nhau. Hai dự án cần prompt khác nhau. Hardcode loại bỏ rủi ro đụng độ và làm
+  prompt minh bạch trong source.
+- **Đánh đổi:** Đổi system prompt phải sửa code + redeploy (không còn cập nhật nóng qua dashboard).
+  Chấp nhận được vì prompt ít đổi và tính đúng đắn quan trọng hơn tốc độ cập nhật.
+- **Hệ quả:** Gỡ `require('@vercel/edge-config')` trong `api/chat.js`; biến env `EDGE_CONFIG`,
+  `EDGE_CONFIG_ID` trở thành không dùng (vô hại nếu vẫn còn trên Vercel).
+- **Thay thế quyết định cũ** "[2025] System Prompt lưu trên Vercel Edge Config".
 - **Người quyết định:** user
 
 ---

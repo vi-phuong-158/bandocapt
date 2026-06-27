@@ -61,8 +61,8 @@
 
 ## Không làm
 
-- Không tự ý thay đổi system prompt hardcode (`FALLBACK_SYSTEM_PROMPT_BASE`) mà không có chỉ thị
-  rõ ràng — thay đổi system prompt ảnh hưởng trực tiếp đến hành vi chatbot với người dùng.
+- Không tự ý thay đổi system prompt hardcode (`SYSTEM_PROMPT_BASE` trong `api/chat.js`) mà không
+  có chỉ thị rõ ràng — thay đổi system prompt ảnh hưởng trực tiếp đến hành vi chatbot với người dùng.
 - Không xóa các lớp bảo mật (CAPTCHA, HMAC, rate limit) dù chúng làm phức tạp code.
 - Không thêm framework JS (React, Vue...) vào frontend — dự án chọn Vanilla JS có chủ đích.
 - Không build TailwindCSS trên Vercel — `output.css` đã pre-built và commit.
