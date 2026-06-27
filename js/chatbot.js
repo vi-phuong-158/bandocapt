@@ -16,7 +16,7 @@ function safeHTML(html) {
 const CHATBOT_TEXT = {
     assistantName: 'Trợ lý hỗ trợ pháp luật',
     ready: 'Sẵn sàng hỗ trợ',
-    welcome: 'Xin chào! Tôi là Trợ lý ảo tư vấn tự động các quy định xuất nhập cảnh và pháp luật liên quan. Tôi có thể giúp gì cho bạn hôm nay?',
+    welcome: 'Xin chào! Tôi là Trợ lý ảo tư vấn tự động các thủ tục hành chính. Tôi có thể giúp gì cho bạn hôm nay?',
     disclaimer: 'Nội dung tổng hợp bằng AI nên có thể có sai sót, vui lòng kiểm chứng lại thông tin.',
     placeholder: 'Nhập câu hỏi...',
     captchaPlaceholder: 'Vui lòng xác minh Turnstile trước...',
@@ -33,7 +33,7 @@ const CHATBOT_ERROR_MESSAGES = {
     INVALID_KEY: 'API Key không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại.',
     RATE_LIMIT: 'Rất xin lỗi, hiện tại hệ thống đang có nhiều lượt truy cập. Vui lòng thử lại sau.',
     RATE_LIMIT_EXCEEDED: 'Rất xin lỗi, hệ thống đã đạt giới hạn lượt hỏi trong ngày/tháng. Vui lòng thử lại sau.',
-    BLOCKED_CONTENT: 'Câu hỏi này không phù hợp. Vui lòng hỏi về các quy định pháp luật, xuất nhập cảnh hoặc thủ tục hành chính.',
+    BLOCKED_CONTENT: 'Câu hỏi này không phù hợp. Vui lòng hỏi về các quy định pháp luật hoặc thủ tục hành chính.',
     CAPTCHA_FAILED: 'Xác minh CAPTCHA thất bại. Vui lòng thử lại.',
     INVALID_TOKEN: 'Request token không hợp lệ hoặc đã hết hạn. Vui lòng tải lại trang và thử lại.',
     MISSING_TOKEN: 'Thiếu request token. Vui lòng tải lại trang và thử lại.',

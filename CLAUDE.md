@@ -1,7 +1,7 @@
 # CLAUDE.md — Hướng dẫn cho Claude Code
 
 > Dành riêng cho **Claude Code**. Codex dùng AGENTS.md.
-> Dự án: **bandocapt** — Bản đồ Công an số tỉnh Phú Thọ (tra cứu trụ sở + chatbot tư vấn pháp luật XNC)
+> Dự án: **bandocapt** — Bản đồ Công an số tỉnh Phú Thọ (tra cứu trụ sở + chatbot tư vấn thủ tục hành chính)
 
 ---
 
