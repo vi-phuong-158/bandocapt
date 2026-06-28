@@ -472,9 +472,9 @@ resultsList.innerHTML = results
           : "";
 
 const iconHTML = isPolice
-        ? `<img src="assets/logo.png" alt="" aria-hidden="true" style="width:28px;height:28px;object-fit:contain;">`
+        ? `<img src="assets/logo.png" alt="" aria-hidden="true" style="width:40px;height:40px;object-fit:contain;">`
         : `<span class="material-symbols-outlined" style="font-size:22px;font-variation-settings:'FILL' 1;">badge</span>`;
-      const iconClass = isPolice ? "bg-police" : "bg-id";
+      const iconClass = isPolice ? "result-icon-box--plain" : "bg-id";
 
       return `
           <li class="result-list-item">
