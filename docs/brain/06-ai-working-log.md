@@ -17,6 +17,15 @@
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
 
+## [2026-06-28] Fix marker đen trên production — thiếu tokens.css trong build
+- **Agent:** Claude Code
+- **Thay đổi:** Thêm `tokens.css` vào danh sách copy của `scripts/build-static.js`.
+- **File đã sửa:** `scripts/build-static.js`
+- **Lý do:** `index.html` link `tokens.css` nhưng file không được copy vào `dist/` → 404 trên production →
+  mọi `var(--color-primary)`, `var(--color-cccd)`, `var(--white)` trong `styles.css` không resolve →
+  marker bản đồ mất màu (hiển thị đen). Nút sidebar vẫn xanh vì Tailwind compile hex thẳng vào `output.css`.
+- **Kiểm tra:** Chạy `node scripts/build-static.js` → `dist/tokens.css` tồn tại ✓ (11 files). Sau deploy marker xanh/cam trở lại.
+
 ## [2026-06-28] Tinh chỉnh vị trí launcher trên desktop + đổi đường dẫn assets
 - **Agent:** Claude Code
 - **Thay đổi:**
