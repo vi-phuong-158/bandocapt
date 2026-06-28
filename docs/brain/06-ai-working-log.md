@@ -17,6 +17,17 @@
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
 
+## [2026-06-28] TASK-FIX-01: Dọn dẹp lỗi trong commit security (api/chat.js)
+- **Agent:** Antigravity
+- **Thay đổi:** 
+  - Xóa lặp lại 6 key metric (embedding_ms, v.v.) trong `buildTelemetryPayload`.
+  - Sửa lỗi font (mojibake) UTF-8 ở phần trả về lỗi của Request Signing (ví dụ: `Thiáº¿u request token.` -> `Thiếu request token.`).
+  - Xóa sạch block request-signing cũ bị vô hiệu hóa (`if (false && reqToken && reqTime)`).
+  - Xóa block validate inline thừa của `userMessage` (đã được bao phủ bởi `validateChatRequestBody`).
+- **File đã sửa:** `api/chat.js`
+- **Lý do:** Làm sạch code sau đợt cập nhật bảo mật, loại bỏ logic thừa và đảm bảo thông báo lỗi tới client được hiển thị đúng tiếng Việt.
+- **Kiểm tra:** `node --check api/chat.js` và `npm test` thành công (pass 44/44 tests).
+
 ## [2026-06-28] Hoàn thành kế hoạch kiểm thử và phát hành (E2E & CI)
 - **Agent:** Antigravity
 - **Thay đổi:** 

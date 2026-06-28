@@ -12,6 +12,36 @@ _(trống)_
 
 ## Chờ làm (backlog)
 
+### [DONE] TASK-FIX-01: Dọn dẹp lỗi trong commit security `9e3b2d9` (api/chat.js)
+- **Mô tả:** Review commit `feat(security)` phát hiện 4 lỗi do copy-paste / vô hiệu hóa code nửa vời. Đã được dọn dẹp và sửa dứt điểm.
+- **Liên quan:** `api/chat.js` (toàn bộ trong file này)
+- **Ưu tiên:** Cao
+- **Phạm vi cứng:** CHỈ sửa 4 mục dưới đây. Không refactor lân cận, không đổi logic ký request mới (`verifyRequestSignature`).
+
+**Mục 1 — Key trùng trong `buildTelemetryPayload`** (quanh dòng 198-209)
+  - Object payload khai báo 2 lần các trường: `embedding_ms`, `retrieval_ms`, `rerank_ms`, `history_summary_ms`, `generation_ms`, `total_ms`.
+  - [Bước] Xóa block lặp lại lần thứ 2 (giữ lần đầu, mỗi key chỉ còn 1 lần).
+  - [Kiểm tra] `grep -c "embedding_ms:" api/chat.js` trong hàm này chỉ còn 1; `node --check api/chat.js` pass.
+
+**Mục 2 — Mojibake (double-encode UTF-8) trong block request-signing mới** (quanh dòng 1118)
+  - Các chuỗi bị hỏng mã hóa, hiển thị lỗi cho người dùng. Sửa lại tiếng Việt đúng:
+    - Comment `[Báº¢O Máº¬T #6] ... â€" HMAC ...` → `[BẢO MẬT #6] ... — HMAC ...`
+    - `detail: 'Thiáº¿u request token.'` → `detail: 'Thiếu request token.'`
+    - `detail: 'Request token khÃ´ng há»£p lá»‡.'` (xuất hiện 2 chỗ) → `detail: 'Request token không hợp lệ.'`
+  - [Kiểm tra] `grep -nP "[\x80-\xff]{4,}" api/chat.js` không còn match rác; mở file xác nhận tiếng Việt đọc được.
+
+**Mục 3 — Xóa code chết: block request-signing CŨ đã bị vô hiệu** (quanh dòng 1148-1186)
+  - Block cũ bị tắt bằng `if (false && reqToken && reqTime)` và `else if (false && origin)`. Logic thật đã chuyển sang `verifyRequestSignature` (block mới phía trên).
+  - [Bước] Xóa hẳn toàn bộ block `if (false ...)` và biến không dùng `reqToken`, `reqTime` khai báo cho nó.
+  - [Kiểm tra] `grep -n "false &&" api/chat.js` không còn; chức năng ký request vẫn do `verifyRequestSignature` đảm nhiệm.
+
+**Mục 4 — Validate input trùng**
+  - `validateChatRequestBody` đã kiểm tra `userMessage` (rỗng/kiểu/độ dài/injection). Sau khi destructure vẫn còn block `if (!userMessage || typeof userMessage !== 'string' ...)` cũ.
+  - [Bước] Xóa block validate inline thừa đó (giữ kết quả từ `validateChatRequestBody`).
+  - [Kiểm tra] `node --test test/*.test.js` pass; request thiếu/sai `userMessage` vẫn trả 400.
+
+- **Xác minh tổng:** `node --check api/chat.js` + `npm test` xanh. Sau khi xong, thêm entry vào `06-ai-working-log.md`.
+
 ### TASK-02: Cập nhật dữ liệu Pinecone
 - **Mô tả:** Bổ sung/cập nhật văn bản pháp luật mới vào Pinecone index khi có Nghị định/Thông tư mới.
 - **Liên quan:** `api/chat.js` (PINECONE_NAMESPACE, indexing script trong setup/)

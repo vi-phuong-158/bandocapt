@@ -204,12 +204,6 @@ function buildTelemetryPayload(data, now = new Date()) {
         history_summary_ms: data.history_summary_ms,
         generation_ms: data.generation_ms,
         total_ms: data.total_ms,
-        embedding_ms: data.embedding_ms,
-        retrieval_ms: data.retrieval_ms,
-        rerank_ms: data.rerank_ms,
-        history_summary_ms: data.history_summary_ms,
-        generation_ms: data.generation_ms,
-        total_ms: data.total_ms,
         // IP được HMAC-hash (pseudonymize), không bao giờ lưu plaintext.
         ip_bucket_hash: hashForLog(data.ip),
         user_agent_hash: hashForLog(data.user_agent),
@@ -1102,26 +1096,26 @@ module.exports = async function handler(req, res) {
     const { userMessage, history = [], captchaToken } = bodyValidation;
     const userAgent = req.headers['user-agent'] || '';
 
-    // --- [Báº¢O Máº¬T #6] Request Signing â€” HMAC-SHA256 chá»‘ng casual scraping ---
+    // --- [BẢO MẬT #6] Request Signing — HMAC-SHA256 chống casual scraping ---
     const requestToken = req.headers['x-request-token'];
     const requestTime = req.headers['x-request-time'];
     if (origin) {
         if (!requestToken || !requestTime) {
             return res.status(403).json({
                 error: 'MISSING_TOKEN',
-                detail: 'Thiáº¿u request token.',
+                detail: 'Thiếu request token.',
             });
         }
         if (!verifyRequestSignature({ token: requestToken, requestTime, userMessage, userAgent, origin })) {
             return res.status(403).json({
                 error: 'INVALID_TOKEN',
-                detail: 'Request token khÃ´ng há»£p lá»‡.',
+                detail: 'Request token không hợp lệ.',
             });
         }
     } else if ((requestToken && !requestTime) || (!requestToken && requestTime)) {
         return res.status(403).json({
             error: 'INVALID_TOKEN',
-            detail: 'Request token khÃ´ng há»£p lá»‡.',
+            detail: 'Request token không hợp lệ.',
         });
     }
 
@@ -1145,50 +1139,7 @@ module.exports = async function handler(req, res) {
         });
     }
 
-    // --- [BẢO MẬT #6] Request Signing — HMAC-SHA256 chống casual scraping ---
-    const reqToken = req.headers['x-request-token'];
-    const reqTime = req.headers['x-request-time'];
-    if (false && reqToken && reqTime) {
-        const timeDiff = Math.abs(Date.now() - parseInt(reqTime));
-        if (timeDiff > 5 * 60 * 1000) { // Token quá 5 phút → reject
-            return res.status(403).json({
-                error: 'INVALID_TOKEN',
-                detail: 'Request token đã hết hạn.',
-            });
-        }
 
-        // Xác minh HMAC-SHA256 nếu token dạng hex (64 chars = SHA256)
-        if (reqToken.length === 64 && /^[0-9a-f]+$/.test(reqToken)) {
-            try {
-                const crypto = require('crypto');
-                const userMessage = req.body?.userMessage || '';
-                const userAgent = req.headers['user-agent'] || '';
-                const signData = `${reqTime}:${userAgent.length}:${userMessage.length}`;
-                const keyMaterial = `xnc-phu-tho:${new URL(origin || 'http://localhost').hostname}:${userAgent.substring(0, 16)}`;
-                const expectedSig = crypto.createHmac('sha256', keyMaterial).update(signData).digest('hex');
-
-                const expectedBuffer = Buffer.from(expectedSig);
-                const tokenBuffer = Buffer.from(reqToken || '');
-
-                if (expectedBuffer.length !== tokenBuffer.length || !crypto.timingSafeEqual(expectedBuffer, tokenBuffer)) {
-                    return res.status(403).json({
-                        error: 'INVALID_TOKEN',
-                        detail: 'Request token không hợp lệ.',
-                    });
-                }
-            } catch (e) {
-                console.warn('[api/chat] HMAC verify error (pass-through):', e.message);
-                // Lỗi verify → cho qua (fail-open) vì Turnstile vẫn bảo vệ
-            }
-        }
-        // Nếu token dạng Base64 (fallback từ trình duyệt cũ) → chỉ kiểm tra thời gian (đã check ở trên)
-    } else if (false && origin) {
-        // Request từ browser phải có token (server-to-server không cần)
-        return res.status(403).json({
-            error: 'MISSING_TOKEN',
-            detail: 'Thiếu request token.',
-        });
-    }
 
     // --- [EVAL BYPASS] Bỏ qua rate limit khi chạy bộ kiểm thử nội bộ ---
     const isEvalRun = process.env.NODE_ENV !== 'production' &&
@@ -1267,24 +1218,7 @@ module.exports = async function handler(req, res) {
         }
     }
 
-    // --- Validate input ---
-    if (!userMessage || typeof userMessage !== 'string' || userMessage.trim() === '') {
-        return res.status(400).json({ error: 'BAD_REQUEST', detail: 'userMessage is required.' });
-    }
 
-    if (userMessage.length > 1000) {
-        return res.status(400).json({ error: 'BAD_REQUEST', detail: 'userMessage quá dài (tối đa 1000 ký tự).' });
-    }
-
-    // --- [BẢO MẬT #7] Phát hiện Prompt Injection ---
-    if (detectPromptInjection(userMessage)) {
-        console.warn(`[api/chat] Prompt injection detected; ip_bucket=${hashForLog(clientIP)}.`);
-        // (Rate limit in-memory đã được loại bỏ — Firebase rate limit xử lý thay)
-        return res.status(400).json({
-            error: 'BAD_REQUEST',
-            detail: 'Câu hỏi không hợp lệ. Vui lòng hỏi về các quy định pháp luật xuất nhập cảnh.',
-        });
-    }
 
     if (isClearlyOutOfScope(userMessage)) {
         const fullText = getOutOfScopeReply(userMessage);
