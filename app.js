@@ -119,14 +119,7 @@ return L.divIcon({
   });
 }
 
-const layerGroup = typeof L.markerClusterGroup === "function"
-  ? L.markerClusterGroup({
-      chunkedLoading: true,
-      removeOutsideVisibleBounds: true,
-      maxClusterRadius: 52,
-      showCoverageOnHover: false,
-    }).addTo(map)
-  : L.layerGroup().addTo(map);
+const layerGroup = L.layerGroup().addTo(map);
 
 function updateAllMarkersIcon() {
   locations.forEach((loc) => {

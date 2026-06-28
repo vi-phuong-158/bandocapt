@@ -17,6 +17,13 @@
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
 
+## [2026-06-28] Loại bỏ MarkerCluster khỏi bản đồ
+- **Agent:** Antigravity
+- **Thay đổi:** Gỡ bỏ thư viện `Leaflet.markercluster` khỏi `index.html` và sử dụng `L.layerGroup()` trong `app.js` để render trực tiếp các marker. Cập nhật `01-architecture.md` và `03-decisions.md`.
+- **File đã sửa:** `index.html`, `app.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`
+- **Lý do:** Khi zoom khu vực rộng, marker bị gộp thành cluster (hiển thị số) thay vì vị trí cụ thể. Người dùng không muốn behavior này và yêu cầu hiển thị icon trực tiếp mọi lúc.
+- **Kiểm tra:** Đã check logic JS `L.layerGroup().addTo(map)` thay thế hoàn toàn cho `L.markerClusterGroup`.
+
 ## [2026-06-28] Xây dựng bộ thuyết trình với presentation-builder
 - **Agent:** Antigravity
 - **Thay đổi:** 

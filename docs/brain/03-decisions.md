@@ -159,6 +159,15 @@
 
 ---
 
+## [2026-06-28] Loại bỏ MarkerCluster khỏi bản đồ
+
+- **Quyết định:** Gỡ bỏ thư viện `Leaflet.markercluster`, hiển thị tất cả các marker trực tiếp qua `L.layerGroup()`.
+- **Lý do:** Khi zoom khu vực rộng, marker bị gộp lại thành các con số (cluster) khiến người dùng không thể nhìn thấy trực tiếp vị trí các trụ sở. Người dùng muốn xem tất cả vị trí mọi lúc.
+- **Đánh đổi:** Nếu số lượng trụ sở tăng lên rất lớn (hàng nghìn), bản đồ có thể bị chậm do phải render quá nhiều DOM node cùng lúc trên Leaflet.
+- **Người quyết định:** user / Antigravity
+
+---
+
 ## Template cho entry mới
 
 ```

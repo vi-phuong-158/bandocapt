@@ -5,7 +5,7 @@
 | Layer | Công nghệ |
 |-------|-----------|
 | Frontend | HTML5 + Tailwind CSS 3 + Vanilla JS (không framework) |
-| Bản đồ | Leaflet.js 1.9.4 + MarkerCluster 1.5.3 + OpenStreetMap tiles |
+| Bản đồ | Leaflet.js 1.9.4 + OpenStreetMap tiles |
 | LLM / Chat | Gemini 2.5 Flash (streaming SSE), fallback DeepSeek |
 | Embedding / RAG | Gemini Embedding 001 + Pinecone vector DB |
 | Backend API | Vercel Serverless Functions (Node.js 20, CommonJS) |
@@ -72,7 +72,7 @@ bandocapt/
 ```
 index.html load → app.js init →
   fetch /api/google-sheet?sheet=Published_Locations → Google Sheets →
-  js/location-data.js validate/normalize → render MarkerCluster
+  js/location-data.js validate/normalize → render markers
   (bản ghi lỗi) → loại khỏi marker + data-quality warning
 ```
 
