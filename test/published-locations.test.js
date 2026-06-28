@@ -1,0 +1,241 @@
+const assert = require('node:assert/strict');
+const test = require('node:test');
+
+const {
+    LOCATION_CACHE_STALE_MAX_MS,
+    findVerifiedLocationMatches,
+    formatVerifiedLocationsPrompt,
+    getPublishedLocations,
+    resetPublishedLocationsCache,
+} = require('../lib/published-locations');
+
+function buildPayload(rows) {
+    return {
+        table: {
+            cols: [
+                { label: 'record_id' },
+                { label: 'Tên đơn vị' },
+                { label: 'Loại đơn vị' },
+                { label: 'Địa chỉ' },
+                { label: 'Số điện thoại' },
+                { label: 'Tọa độ' },
+            ],
+            rows: rows.map(row => ({
+                c: [
+                    { v: row.id },
+                    { v: row.name },
+                    { v: row.type || 'Trụ sở' },
+                    { v: row.address },
+                    { v: row.phone || '' },
+                    { v: row.coordinates },
+                ],
+            })),
+        },
+    };
+}
+
+test.afterEach(() => {
+    resetPublishedLocationsCache();
+});
+
+test('published locations dedupe identical rows and keep conflicting rows separate', async () => {
+    const payload = buildPayload([
+        {
+            id: '1',
+            name: 'Công an xã Sông Lô',
+            address: 'Địa chỉ A',
+            phone: '0210',
+            coordinates: '21.325,105.365',
+        },
+        {
+            id: '2',
+            name: 'Công an xã Sông Lô',
+            address: 'Địa chỉ A',
+            phone: '0210',
+            coordinates: '21.325,105.365',
+        },
+        {
+            id: '3',
+            name: 'Công an xã Đông Lương',
+            address: 'Địa chỉ B',
+            phone: '0211',
+            coordinates: '21.326,105.366',
+        },
+        {
+            id: '4',
+            name: 'Công an xã Đông Lương',
+            address: 'Địa chỉ C',
+            phone: '0211',
+            coordinates: '21.327,105.367',
+        },
+    ]);
+
+    const result = await getPublishedLocations({
+        now: 1,
+        fetchImpl: async () => new Response(`google.visualization.Query.setResponse(${JSON.stringify(payload)});`),
+        sheetId: 'sheet-id',
+    });
+
+    assert.equal(result.locations.length, 1);
+    assert.equal(result.locations[0].name, 'Công an xã Sông Lô');
+    assert.equal(result.conflicts.length, 1);
+    assert.equal(result.conflicts[0].records.length, 2);
+});
+
+test('published locations cache serves fresh then stale fallback up to five minutes', async () => {
+    const payload = buildPayload([
+        {
+            id: '1',
+            name: 'Công an phường Thanh Miếu',
+            address: 'Số 1028 Đường Hùng Vương',
+            phone: '02103863928',
+            coordinates: '21.304528,105.415528',
+        },
+    ]);
+
+    let calls = 0;
+    const fetchSuccess = async () => {
+        calls += 1;
+        return new Response(`google.visualization.Query.setResponse(${JSON.stringify(payload)});`);
+    };
+    const fetchFailure = async () => {
+        calls += 1;
+        throw new Error('network down');
+    };
+
+    const first = await getPublishedLocations({
+        now: 1,
+        fetchImpl: fetchSuccess,
+        sheetId: 'sheet-id',
+    });
+    const fresh = await getPublishedLocations({
+        now: 30 * 1000,
+        fetchImpl: fetchFailure,
+        sheetId: 'sheet-id',
+    });
+    const stale = await getPublishedLocations({
+        now: 2 * 60 * 1000,
+        fetchImpl: fetchFailure,
+        sheetId: 'sheet-id',
+    });
+
+    assert.equal(first.cacheStatus, 'fresh');
+    assert.equal(fresh.cacheStatus, 'fresh');
+    assert.equal(stale.cacheStatus, 'stale');
+    assert.equal(calls, 2, 'fresh cache should not re-fetch');
+
+    await assert.rejects(() => getPublishedLocations({
+        now: LOCATION_CACHE_STALE_MAX_MS + 2,
+        fetchImpl: fetchFailure,
+        sheetId: 'sheet-id',
+    }), /network down/);
+});
+
+test('verified location matcher resolves Thanh Mieu exactly without fuzzy confusion', () => {
+    const dataset = {
+        cacheStatus: 'fresh',
+        locations: [
+            {
+                name: 'Công an phường Thanh Miếu',
+                address: 'Số 1028 Đường Hùng Vương',
+                phone: '02103863928',
+                lat: 21.304528,
+                lng: 105.415528,
+                googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=21.304528,105.415528',
+                aliases: ['cong an phuong thanh mieu', 'phuong thanh mieu', 'thanh mieu'],
+            },
+            {
+                name: 'Công an phường Văn Miếu',
+                address: 'Địa chỉ khác',
+                phone: '0210000000',
+                lat: 21.31,
+                lng: 105.42,
+                googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=21.31,105.42',
+                aliases: ['cong an phuong van mieu', 'phuong van mieu', 'van mieu'],
+            },
+        ],
+        conflicts: [],
+    };
+
+    const exact = findVerifiedLocationMatches('Công an phường thanh miếu ở đâu?', [], dataset);
+    const accentless = findVerifiedLocationMatches('cong an PHUONG THANH MIEU', [], dataset);
+    const followUp = findVerifiedLocationMatches('Thanh Mieu', [
+        { role: 'model', parts: [{ text: 'Bạn ở xã/phường nào để mình chỉ đúng trụ sở Công an và đường đi nhé?' }] },
+    ], dataset);
+
+    assert.equal(exact.status, 'matched');
+    assert.equal(accentless.status, 'matched');
+    assert.equal(followUp.status, 'matched');
+    assert.equal(exact.matches[0].address, 'Số 1028 Đường Hùng Vương');
+    assert.equal(followUp.matches[0].name, 'Công an phường Thanh Miếu');
+    assert.notEqual(exact.matches[0].name, 'Công an phường Văn Miếu');
+});
+
+test('conversation regression: CCCD follow-up for Thanh Mieu resolves the verified station', () => {
+    const dataset = {
+        cacheStatus: 'fresh',
+        locations: [
+            {
+                name: 'Công an Phường Thanh Miếu',
+                address: 'Số 1028 Đường Hùng Vương, phường Thanh Miếu, tỉnh Phú Thọ',
+                phone: '02103863928',
+                lat: 21.304528,
+                lng: 105.415528,
+                googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=21.304528,105.415528',
+                aliases: ['cong an phuong thanh mieu', 'phuong thanh mieu', 'thanh mieu'],
+            },
+        ],
+        conflicts: [],
+    };
+    const history = [
+        { role: 'user', parts: [{ text: 'Tôi muốn làm căn cước công dân thì làm thế nào' }] },
+        { role: 'model', parts: [{ text: 'Bạn ở xã/phường nào thuộc tỉnh Phú Thọ để mình chỉ đúng trụ sở Công an cấp xã nơi bạn cư trú và đường đi nhé?' }] },
+    ];
+
+    const followUpMatch = findVerifiedLocationMatches('Tôi ở phường Thanh Miếu và 30 tuổi', history, dataset);
+    const explicitRetryMatch = findVerifiedLocationMatches('Tìm lại trụ sở Công an phường Thanh Miếu', history, dataset);
+
+    assert.equal(followUpMatch.lookupRequested, true);
+    assert.equal(followUpMatch.status, 'matched');
+    assert.equal(followUpMatch.matches[0].address, 'Số 1028 Đường Hùng Vương, phường Thanh Miếu, tỉnh Phú Thọ');
+    assert.equal(followUpMatch.matches[0].phone, '02103863928');
+    assert.equal(followUpMatch.matches[0].googleMapsUrl, 'https://www.google.com/maps/search/?api=1&query=21.304528,105.415528');
+
+    assert.equal(explicitRetryMatch.lookupRequested, true);
+    assert.equal(explicitRetryMatch.status, 'matched');
+    assert.equal(explicitRetryMatch.matches[0].name, 'Công an Phường Thanh Miếu');
+});
+
+test('verified location prompt marks conflicting rows as ambiguous', () => {
+    const prompt = formatVerifiedLocationsPrompt({
+        lookupRequested: true,
+        status: 'ambiguous_conflict',
+        conflicts: [
+            {
+                name: 'Công an xã Hiền Quan',
+                records: [
+                    {
+                        name: 'Công an xã Hiền Quan',
+                        address: 'Địa chỉ 1',
+                        phone: '0210',
+                        lat: 21.3,
+                        lng: 105.3,
+                        googleMapsUrl: 'https://maps.example/1',
+                    },
+                    {
+                        name: 'Công an xã Hiền Quan',
+                        address: 'Địa chỉ 2',
+                        phone: '0211',
+                        lat: 21.31,
+                        lng: 105.31,
+                        googleMapsUrl: 'https://maps.example/2',
+                    },
+                ],
+            },
+        ],
+    }, { cacheStatus: 'stale' });
+
+    assert.match(prompt, /STATUS: ambiguous_conflict/);
+    assert.match(prompt, /CACHE_STATUS: stale/);
+    assert.match(prompt, /Dia chi 1|Địa chỉ 1/);
+});

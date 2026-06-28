@@ -1,175 +1,179 @@
-# 01 — Architecture
+# 01 - Architecture
 
 ## Stack
 
-| Layer | Công nghệ |
+| Layer | Cong nghe |
 |-------|-----------|
-| Frontend | HTML5 + Tailwind CSS 3 + Vanilla JS (không framework) |
-| Bản đồ | Leaflet.js 1.9.4 + OpenStreetMap tiles |
+| Frontend | HTML5 + Tailwind CSS 3 + Vanilla JS |
+| Ban do | Leaflet.js 1.9.4 + OpenStreetMap tiles |
 | LLM / Chat | Gemini 2.5 Flash (streaming SSE), fallback DeepSeek |
 | Embedding / RAG | Gemini Embedding 001 + Pinecone vector DB |
 | Backend API | Vercel Serverless Functions (Node.js 20, CommonJS) |
-| System prompt | Hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`) — không dùng Edge Config |
-| Dữ liệu trụ sở | Google Sheets (qua `api/google-sheet.js` proxy) |
-| Telemetry | Firebase Firestore + Firebase Realtime DB (fallback, metric tối thiểu mặc định) |
-| Rate limiting | Firebase Realtime DB (đếm lượt/tháng + lượt/ngày/IP) |
+| System prompt | Hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`) |
+| Du lieu tru so | Google Sheets `Published_Locations` qua helper + proxy |
+| Telemetry | Firebase Firestore + Firebase Realtime DB fallback |
+| Rate limiting | Firebase Realtime DB |
 | CAPTCHA | Cloudflare Turnstile |
-| Hosting | Vercel (static + serverless) |
-| CSS build | TailwindCSS CLI (`input.css` → `output.css`, pre-built) |
+| Hosting | Vercel |
+| CSS build | Tailwind CLI (`input.css` -> `output.css`) |
 
-## Cấu trúc thư mục chính
+## Cau truc thu muc chinh
 
-```
+```text
 bandocapt/
-├── index.html              # Entry point duy nhất — toàn bộ UI
-├── styles.css              # CSS tùy chỉnh bổ sung TailwindCSS
-├── output.css              # TailwindCSS đã build và commit; build production cũng tái tạo file
-├── input.css               # Source TailwindCSS (chỉ dùng khi dev local)
-├── tailwind.config.js      # Cấu hình Tailwind
-├── app.js                  # Logic bản đồ Leaflet, tìm kiếm, hiển thị marker
-├── data.js                 # Dữ liệu trụ sở tĩnh (fallback khi Google Sheets lỗi)
-├── js/
-│   ├── chatbot.js          # UI chatbot (mở/đóng panel, gửi tin, hiển thị stream)
-│   ├── gemini.js           # Client gọi api/chat, xử lý SSE stream
-│   └── location-data.js    # Parse/validate/normalize dữ liệu Published_Locations
-├── api/
-│   ├── chat.js             # Serverless: proxy Gemini/DeepSeek + RAG Pinecone (logic chính)
-│   └── google-sheet.js     # Serverless: proxy Google Sheets để ẩn Sheet ID
-├── setup/                  # Script tiện ích (không deploy): form/pipeline Apps Script, import dữ liệu, retention job RTDB fallback
-├── scripts/                # Build static artifact và preview server
-├── test/                   # Node test runner: P0, location data, Google Sheet API, admin pipeline helpers
-├── .github/workflows/ci.yml # CI test, build và audit trên push/PR
-├── dist/                   # Artifact build local/Vercel (ignored)
-├── assets/
-│   ├── logo.png            # Logo ứng dụng
-│   └── icon.png            # Favicon / mascot AI
-├── vercel.json             # Cấu hình Vercel (outputDirectory, function timeout, headers)
-└── package.json            # deps: pinecone, firebase-admin (@vercel/edge-config còn cài nhưng không dùng)
+|- index.html
+|- app.js
+|- styles.css
+|- input.css
+|- output.css
+|- data.js
+|- js/
+|  |- chatbot.js
+|  |- gemini.js
+|  `- location-data.js
+|- lib/
+|  `- published-locations.js
+|- api/
+|  |- chat.js
+|  `- google-sheet.js
+|- setup/
+|- scripts/
+|- test/
+|- assets/
+|- vercel.json
+`- package.json
 ```
 
-## Code Graph (bản đồ module)
+## Code Graph
 
-> Mục quan trọng nhất. Agent đọc đây để biết "đụng vào X ảnh hưởng đâu" trước khi sửa.
-> Cập nhật lại MỖI KHI thay đổi cấu trúc/quan hệ phụ thuộc.
-
-### Module/file then chốt
-
-| Module / file | Vai trò | Được gọi bởi | Phụ thuộc vào |
+| Module / file | Vai tro | Duoc goi boi | Phu thuoc vao |
 |---------------|---------|--------------|---------------|
-| `index.html` | Shell UI — tải tất cả script, định nghĩa DOM | Trình duyệt | `output.css`, `styles.css`, `app.js`, `js/chatbot.js`, `js/gemini.js` |
-| `app.js` | Khởi tạo Leaflet/cluster, tải trụ sở, tìm kiếm, marker | `index.html` (script tag) | `js/location-data.js`, `api/google-sheet.js` (fetch) |
-| `data.js` | Dữ liệu trụ sở tĩnh (array) — fallback khi Sheets lỗi | `app.js` | — |
-| `js/location-data.js` | Parse tọa độ, kiểm tra bounding box và normalize payload Google Sheet | `app.js`, unit test | — |
-| `js/gemini.js` | Gọi `POST /api/chat`, nhận SSE stream, parse chunk | `js/chatbot.js` | `api/chat.js` (HTTP) |
-| `js/chatbot.js` | UI chatbot: panel toggle, render tin nhắn, gọi gemini.js | `index.html` (script tag) | `js/gemini.js` |
-| `api/chat.js` | Serverless chính: xác thực, RAG, streaming Gemini/DeepSeek | `js/gemini.js` (HTTP POST) | Pinecone, Gemini API, Firebase |
-| `api/google-sheet.js` | Proxy CommonJS chỉ cho phép `Published_Locations`, validate payload và cache endpoint | `app.js` (fetch) | Google Sheets API |
-| `setup/apps-script.js` | Pipeline quản trị Google Sheets: allowlist, staging, approve/reject/revoke, audit log | Google Sheets trigger / admin menu | Google Apps Script SpreadsheetApp |
+| `index.html` | Shell UI, tai CSS/JS va DOM | Browser | `output.css`, `styles.css`, `app.js`, `js/chatbot.js`, `js/gemini.js` |
+| `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker | `index.html` | `js/location-data.js`, `api/google-sheet.js`, `data.js` |
+| `data.js` | Fallback tinh cho map khi Google Sheets loi | `app.js` | - |
+| `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check | `app.js`, `lib/published-locations.js`, test | - |
+| `js/gemini.js` | Goi `POST /api/chat`, parse SSE stream | `js/chatbot.js` | `api/chat.js` |
+| `js/chatbot.js` | UI chat, toggle panel, render stream | `index.html` | `js/gemini.js` |
+| `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, match tru so theo hoi thoai | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
+| `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
+| `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone, stream model, inject `<verified_locations>` | `js/gemini.js` | Pinecone, Gemini API, Firebase, `lib/published-locations.js` |
+| `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets | Google Apps Script | SpreadsheetApp |
 
-### Luồng xử lý chính
+## Luong xu ly chinh
 
-**Luồng bản đồ:**
-```
-index.html load → app.js init →
-  fetch /api/google-sheet?sheet=Published_Locations → Google Sheets →
-  js/location-data.js validate/normalize → render markers
-  (bản ghi lỗi) → loại khỏi marker + data-quality warning
-```
+### Luong ban do
 
-**Luồng quản trị dữ liệu bản đồ:**
-```
-Google Form submit → setup/apps-script.js onFormSubmit →
-  Unit_Allowlist check + normalize/validate →
-  ghi Location_Staging (pending|rejected) + Approval_Audit_Log →
-Admin chọn dòng staging →
-  approve/reject qua menu Apps Script →
-  Published_Locations upsert hoặc giữ nguyên + append audit log →
-Admin có thể revoke dòng published để rollback marker ở lần refresh kế tiếp
+```text
+index.html load
+-> app.js init
+-> fetch /api/google-sheet?sheet=Published_Locations
+-> lib/published-locations.js fetch Google GViz payload
+-> js/location-data.js normalize/validate
+-> render markers
 ```
 
-**Luồng chatbot (RAG):**
-```
-User nhập → js/chatbot.js →
-  js/gemini.js → POST /api/chat (HMAC token + Turnstile) →
-    api/chat.js:
-      1. Verify CORS + Turnstile + HMAC
-      2. Check rate limit Firebase (tháng + ngày/IP)
-      3. Check FAQ cache (in-memory)
-      4. Detect prompt injection
-      5. Embed query → Gemini Embedding 001
-      6. Query Pinecone (top-8, filter by category, re-rank)
-      7. Build system prompt (hằng số `SYSTEM_PROMPT_BASE` hardcode trong code)
-      8. Stream → Gemini 2.5 Flash (hoặc DeepSeek)
-      9. SSE stream → client
-     10. Ghi metric tối thiểu → Firestore (fallback: RTDB đã cấu hình)
-  js/gemini.js parse SSE chunks →
-  js/chatbot.js render từng chunk
+### Luong quan tri du lieu ban do
+
+```text
+Google Form submit
+-> setup/apps-script.js onFormSubmit
+-> Unit_Allowlist check
+-> ghi Location_Staging + Approval_Audit_Log
+-> admin approve/reject/revoke
+-> Published_Locations update
 ```
 
-## Mô hình dữ liệu / API
+### Luong chatbot RAG
 
-**POST /api/chat** (body JSON):
+```text
+User nhap
+-> js/chatbot.js
+-> js/gemini.js
+-> POST /api/chat
+-> api/chat.js
+   1. Verify CORS + Turnstile + HMAC
+   2. Check rate limit Firebase
+   3. Sanitize history
+   4. Detect nhu cau tra tru so tu current message + recent history
+   5. Skip FAQ cache neu cau hoi co dia diem/PII
+   6. Tai Published_Locations qua helper cache 60s / stale 5m
+   7. Dedupe ban ghi giong nhau, phat hien ban ghi mau thuan
+   8. Match ten tru so exact-normalized, khong fuzzy
+   9. Embed query -> Gemini Embedding 001
+  10. Query Pinecone cho thu tuc/phap luat
+  11. Loai runtime moi match `tru_so` khoi prompt va citation
+  12. Inject `<verified_locations>` + `<retrieved_documents>` vao system prompt
+  13. Stream Gemini 2.5 Flash / DeepSeek
+  14. Ghi telemetry toi thieu
+-> SSE ve client
+```
+
+## Mo hinh du lieu / API
+
+### `POST /api/chat`
+
 ```json
 {
-  "userMessage": "string (max 1000 ký tự)",
+  "userMessage": "string (max 1000 ky tu)",
   "history": [{ "role": "user|model", "parts": [{ "text": "..." }] }],
-  "captchaToken": "string (Turnstile)"
+  "captchaToken": "string"
 }
 ```
-Headers bắt buộc: `X-Request-Token` (HMAC-SHA256), `X-Request-Time` (timestamp ms).
+
+Headers bat buoc:
+
+- `X-Request-Token`
+- `X-Request-Time`
 
 SSE response events:
-- `{ "text": "chunk" }` — từng đoạn text streaming
-- `{ "done": true, "fullText": "...", "history": [...], "sources": [...] }` — kết thúc
-- `{ "error": "..." }` — lỗi
 
-**GET /api/google-sheet** — trả về JSON array trụ sở từ Google Sheets.
+- `{ "text": "chunk" }`
+- `{ "done": true, "fullText": "...", "history": [...], "sources": [...] }`
+- `{ "error": "..." }`
 
-## Biến môi trường
+### `GET /api/google-sheet`
 
-```
-GEMINI_API_KEY              # Gemini API key
-PINECONE_API_KEY            # Pinecone API key
-PINECONE_INDEX_NAME         # Tên index Pinecone (default: chatbot-tthc-xnc)
-PINECONE_INDEX_HOST         # Host Pinecone index
-PINECONE_NAMESPACE          # Namespace Pinecone
-FIREBASE_SERVICE_ACCOUNT_JSON  # JSON key Firebase Admin (hoặc tách ra 3 biến dưới)
+Tra ve payload GViz da parse cua sheet `Published_Locations`. Public contract giu nguyen.
+
+## Bien moi truong
+
+```text
+GEMINI_API_KEY
+PINECONE_API_KEY
+PINECONE_INDEX_NAME
+PINECONE_INDEX_HOST
+PINECONE_NAMESPACE
+FIREBASE_SERVICE_ACCOUNT_JSON
 FIREBASE_PROJECT_ID
 FIREBASE_CLIENT_EMAIL
 FIREBASE_PRIVATE_KEY
-FIREBASE_DB_URL             # Firebase Realtime DB URL
-FIREBASE_DB_SECRET          # Auth token Firebase RTDB
-FIRESTORE_CHAT_COLLECTION   # Tên collection Firestore metric (default: chat_logs)
-FIRESTORE_DIAGNOSTIC_COLLECTION # Tên collection Firestore diagnostic (default: chat_logs_diagnostic)
-CHAT_LOG_HASH_SALT          # Salt cho hash IP trong log
-CHAT_DIAGNOSTIC_LOG         # on/true mới ghi question/answer; mặc định off, cần privacy approval
-CHAT_DIAGNOSTIC_LOG_APPROVED # on/true để cho phép diagnostic ở production
-CHAT_DIAGNOSTIC_LOG_UNTIL   # ISO timestamp; quá hạn thì bỏ diagnostic log
-CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE # 0..1, tỷ lệ lấy mẫu diagnostic log
-TELEMETRY_METRIC_RETENTION_DAYS # Số ngày giữ metric (default: 30)
-TELEMETRY_DIAGNOSTIC_RETENTION_DAYS # Số ngày giữ diagnostic log (default: 7)
-TURNSTILE_SECRET_KEY        # Cloudflare Turnstile secret
-ALLOWED_ORIGINS             # Comma-separated extra CORS origins
-DEEPSEEK_API_KEY            # (tuỳ chọn) Nếu có → dùng DeepSeek thay Gemini
-DEEPSEEK_MODEL              # (tuỳ chọn) Model DeepSeek (default: deepseek-v4-flash)
-EVAL_BYPASS_TOKEN           # Token để bypass rate limit/captcha khi test nội bộ
-GOOGLE_SHEET_ID             # Sheet ID cho dữ liệu trụ sở (dùng trong api/google-sheet.js)
+FIREBASE_DB_URL
+FIREBASE_DB_SECRET
+FIRESTORE_CHAT_COLLECTION
+FIRESTORE_DIAGNOSTIC_COLLECTION
+CHAT_LOG_HASH_SALT
+CHAT_DIAGNOSTIC_LOG
+CHAT_DIAGNOSTIC_LOG_APPROVED
+CHAT_DIAGNOSTIC_LOG_UNTIL
+CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE
+TELEMETRY_METRIC_RETENTION_DAYS
+TELEMETRY_DIAGNOSTIC_RETENTION_DAYS
+TURNSTILE_SECRET_KEY
+ALLOWED_ORIGINS
+DEEPSEEK_API_KEY
+DEEPSEEK_MODEL
+EVAL_BYPASS_TOKEN
+GOOGLE_SHEET_ID
 ```
 
-## Lưu ý kiến trúc quan trọng
+## Luu y kien truc quan trong
 
-- **output.css được commit** vào repo và `npm run build` tái tạo CSS minified trước khi tạo `dist/`.
-  Khi sửa Tailwind class, commit cả source và `output.css` mới.
-- **FAQ cache in-memory** trong `api/chat.js` chỉ tồn tại trong 1 serverless instance — không
-  shared giữa các instance, không persist khi cold start.
-- **Pinecone namespace fallback**: code thử lần lượt nhiều namespace nếu namespace chính trả về rỗng.
-- **System prompt**: hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`), không đọc Edge Config (tránh đụng prompt với dự án mohinh-andn dùng chung store). Đổi prompt phải sửa code + redeploy.
-- **Firebase rate limit** dùng key HMAC của IP, ETag + optimistic reservation, re-check limit ở mỗi retry 412
-  và rollback reservation IP/ngày nếu quota toàn cục thất bại. Test hiện tại khóa cả nhánh lỗi lẫn tải
-  đồng thời 50 request để chứng minh không vượt quota trong harness local.
-- **Telemetry retention**: metric và diagnostic đi vào collection/path riêng, đều mang `expires_at` + `retention_days`.
-  Firestore cần TTL policy ngoài code; RTDB fallback có script `setup/prune-telemetry.js` để xóa bản ghi hết hạn.
-- **Published data boundary**: runtime public không được đọc `Form_Responses`; việc tạo/phê duyệt
-  `Published_Locations` đi qua `Unit_Allowlist` → `Location_Staging` → thao tác admin approve/reject/revoke
-  trong `setup/apps-script.js`, và vẫn phải được kiểm chứng trên Google Workspace thật.
-- **DeepSeek override**: nếu biến `DEEPSEEK_API_KEY` tồn tại, toàn bộ chat chuyển sang DeepSeek (không phải Gemini).
+- `output.css` duoc commit va `npm run build` se tai tao lai file nay truoc khi tao `dist/`.
+- FAQ cache trong `api/chat.js` la in-memory theo tung serverless instance, khong shared giua cac instance.
+- Cau hoi co nhu cau tra dia diem/tru so khong duoc dung FAQ cache 1 gio de tranh dia chi cu sau khi Google Sheet cap nhat.
+- `Published_Locations` la nguon runtime duy nhat cho ten don vi, dia chi, so dien thoai, toa do va Google Maps cua chatbot.
+- Helper `lib/published-locations.js` cache fresh 60 giay, cho phep dung stale toi da 5 phut neu Google Sheets loi.
+- Ban ghi trung hoan toan duoc gop. Ban ghi cung ten nhung khac dia chi/toa do thi chatbot khong tu chon, phai hoi lai user.
+- Vector Pinecone `tru_so` van duoc giu trong index de rollback, nhung runtime `api/chat.js` loai bo khoi prompt va citation.
+- `Published_Locations` public khong doc `Form_Responses`; pipeline admin van di qua `Unit_Allowlist` -> `Location_Staging` -> `Published_Locations`.
+- Neu `DEEPSEEK_API_KEY` ton tai thi runtime chat chuyen sang DeepSeek thay Gemini.

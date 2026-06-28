@@ -5,6 +5,24 @@
 
 ---
 
+## [2026-06-28] Them hoi quy test Thanh Mieu cho chatbot
+- **Agent:** Codex
+- **Thay doi:** Bo sung ca test hoi quy cho kich ban hoi CCCD, bot hoi xa/phuong, user tra loi `Toi o phuong Thanh Mieu va 30 tuoi`, sau do hoi lai tru so thi van phai ra dung `Cong an Phuong Thanh Mieu` voi dia chi `So 1028 Duong Hung Vuong`.
+- **File da sua:** `test/published-locations.test.js`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Khoa chat regression da xay ra trong thuc te de `npm test` tu dong bao do neu matcher hoi thoai hoac nguon `Published_Locations` bi sua sai ve sau.
+- **Kiem tra:** `npm test`
+
+---
+
+## [2026-06-28] Dung Published_Locations lam nguon tru so cho chatbot
+- **Agent:** Codex
+- **Thay doi:** Tach helper `lib/published-locations.js` de dung chung parse/fetch Google Sheets, cache fresh 60s va stale fallback 5 phut, dedupe ban ghi trung, phat hien ban ghi mau thuan va match tru so theo hoi thoai. `api/chat.js` nay inject `<verified_locations>`, bo FAQ cache cho cau hoi dia diem, va loai bo runtime Pinecone `tru_so` khoi prompt/citation.
+- **File da sua:** `lib/published-locations.js`, `api/google-sheet.js`, `api/chat.js`, `test/published-locations.test.js`, `test/p0-fixes.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Chatbot bi sai khi cau hoi ghep thu tuc + noi nop phu thuoc vao xep hang Pinecone; can tach nguon tru so da duyet ra khoi RAG phap luat de ket qua on dinh va co the cache/rollback doc lap.
+- **Kiem tra:** `npm test`, `npm run build`
+
+---
+
 ## Format entry
 
 ```

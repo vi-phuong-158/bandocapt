@@ -410,6 +410,7 @@ test('faq cache keys are hashed and obvious PII is excluded from caching', () =>
     const key = handler.getFaqCacheKey('auto', 'Ho so cap ho chieu?');
     assert.match(key, /^auto:[0-9a-f]{64}$/);
     assert.equal(handler.shouldSkipFaqCache('Email cua toi la citizen@example.com'), true);
+    assert.equal(handler.shouldSkipFaqCache('Cong an phuong Thanh Mieu o dau?', { locationLookupRequested: true }), true);
     assert.equal(handler.shouldSkipFaqCache('Thu tuc cap ho chieu cho tre em'), false);
 });
 
@@ -535,6 +536,14 @@ test('citation allowlist blocks non-https and unlisted domains', () => {
     assert.equal(source.effective_date, '2025-01-01');
     assert.equal(source.last_verified_at, '2026-06-27T10:00:00.000Z');
     assert.equal(source.kb_version, 'kb-2026-06-27');
+});
+
+test('chat runtime injects verified locations and excludes tru_so Pinecone vectors in source', () => {
+    const source = fs.readFileSync(path.join(ROOT, 'api', 'chat.js'), 'utf8');
+
+    assert.match(source, /<verified_locations>/);
+    assert.match(source, /isLocationVectorMetadata/);
+    assert.doesNotMatch(source, /filterCategories\.push\('tru_so'\)/);
 });
 
 test('chatbot mobile modal and close-abort guards remain in source', () => {

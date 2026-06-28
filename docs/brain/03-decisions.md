@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-06-28] Chatbot lay tru so chi tu Published_Locations
+
+- **Quyet dinh:** Runtime chatbot van dung Pinecone cho thu tuc/phap luat, nhung ten don vi, dia chi, so dien thoai, toa do va Google Maps chi duoc lay tu Google Sheet `Published_Locations` qua helper `lib/published-locations.js`. Vector Pinecone `tru_so` duoc giu lai de rollback nhung khong dua vao prompt/citation.
+- **Ly do:** Pinecone rerank co the day chunk `tru_so` ra khoi top ket qua khi cau hoi ghep thu tuc + noi nop, dan den luc dau chatbot bao "chua co du lieu" nhung hoi lai thi tim thay. `Published_Locations` la nguon duoc duyet va co cau truc on dinh hon cho dia chi tru so.
+- **Danh doi:** Backend phai them cache Google Sheets 60 giay va stale fallback 5 phut, them logic match exact-normalized khong fuzzy, va xu ly rieng ban ghi mau thuan thay vi de model tu suy dien.
+- **Nguoi quyet dinh:** user / Codex
+
+---
+
 ## [2025] Static site — không dùng framework frontend
 
 - **Quyết định:** Frontend là HTML + TailwindCSS + Vanilla JS thuần, không React/Vue/Svelte.
