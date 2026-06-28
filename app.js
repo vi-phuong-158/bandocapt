@@ -46,11 +46,17 @@ function debounce(fn, delay) {
 }
 const debouncedFilterAndRender = debounce(filterAndRender, 250);
 
-const STATE = {
-  HIDDEN: "100%",
-  COLLAPSED: "50%", 
-  EXPANDED: "0%", 
-};
+const SHEET_STATES = Object.freeze({
+  HIDDEN: "hidden",
+  COLLAPSED: "collapsed",
+  EXPANDED: "expanded",
+});
+
+const MOBILE_SHEET_TRANSLATES = Object.freeze({
+  [SHEET_STATES.HIDDEN]: 100,
+  [SHEET_STATES.COLLAPSED]: 50,
+  [SHEET_STATES.EXPANDED]: 0,
+});
 
 const map = L.map("map", {
   zoomControl: false,
@@ -129,97 +135,135 @@ function updateAllMarkersIcon() {
 }
 
 let startY = 0;
-let currentY = 0;
 let isDragging = false;
-let currentTranslate = STATE.HIDDEN;
+let activeSheetState = SHEET_STATES.HIDDEN;
+let dragStartState = SHEET_STATES.HIDDEN;
+let dragStartPercent = MOBILE_SHEET_TRANSLATES[SHEET_STATES.HIDDEN];
+let activePointerId = null;
+let overlayHideTimer = null;
 
-function setSheetState(state, animate = true) {
-  const isMobile = window.innerWidth < 768;
+function isMobileViewport() {
+  return window.innerWidth < 768;
+}
 
-if (animate) {
-    detailPanel.classList.add("transitioning");
-  } else {
-    detailPanel.classList.remove("transitioning");
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function getSheetTranslatePercent(state = activeSheetState) {
+  return MOBILE_SHEET_TRANSLATES[state] ?? MOBILE_SHEET_TRANSLATES[SHEET_STATES.HIDDEN];
+}
+
+function applySheetTranslate(percent) {
+  detailPanel.style.setProperty("--sheet-translate", `${clamp(percent, 0, 100)}%`);
+}
+
+function getCurrentSheetPercent() {
+  const inlineValue = detailPanel.style.getPropertyValue("--sheet-translate");
+  const parsed = Number.parseFloat(inlineValue);
+  return Number.isFinite(parsed) ? parsed : getSheetTranslatePercent();
+}
+
+function setDetailPanelAccessibility(hidden) {
+  detailPanel.setAttribute("aria-hidden", hidden ? "true" : "false");
+  detailPanel.setAttribute("aria-modal", hidden ? "false" : "true");
+  detailPanel.toggleAttribute("inert", hidden);
+}
+
+function getFocusRestoreTarget() {
+  if (detailTrigger instanceof HTMLElement && document.contains(detailTrigger)) {
+    return detailTrigger;
   }
+  return map.getContainer();
+}
 
-if (isMobile) {
-    document.documentElement.style.setProperty("--sheet-translate", state);
-    currentTranslate = state;
-  } else {
-
-if (state === STATE.HIDDEN) {
-
-detailPanel.classList.add("md:-translate-x-full");
-      detailPanel.classList.remove("md:translate-x-0");
-    } else {
-
-detailPanel.classList.add("md:translate-x-0");
-      detailPanel.classList.remove("md:-translate-x-full");
-    }
+function restoreDetailFocus() {
+  const target = getFocusRestoreTarget();
+  detailTrigger = null;
+  if (target && typeof target.focus === "function") {
+    requestAnimationFrame(() => target.focus());
   }
 }
 
-dragHandle.addEventListener(
-  "touchstart",
-  (e) => {
-    startY = e.touches[0].clientY;
-    isDragging = true;
-    setSheetState(currentTranslate, false); 
-  },
-  { passive: true },
-);
+function setSheetState(state, { animate = true, restoreFocus = false } = {}) {
+  activeSheetState = state;
+  detailPanel.dataset.sheetState = state;
+  detailPanel.dataset.animate = animate ? "true" : "false";
+  detailPanel.dataset.dragging = "false";
+  if (isMobileViewport()) {
+    applySheetTranslate(getSheetTranslatePercent(state));
+  } else {
+    detailPanel.style.removeProperty("--sheet-translate");
+  }
+  const hidden = state === SHEET_STATES.HIDDEN;
+  setDetailPanelAccessibility(hidden);
+  if (hidden && restoreFocus) {
+    restoreDetailFocus();
+  }
+}
 
-dragHandle.addEventListener(
-  "touchmove",
-  (e) => {
-    if (!isDragging) return;
-    const y = e.touches[0].clientY;
-    const deltaY = y - startY;
+function clearOverlayHideTimer() {
+  if (overlayHideTimer) {
+    clearTimeout(overlayHideTimer);
+    overlayHideTimer = null;
+  }
+}
 
-let translateYStr;
-    const panelHeight = detailPanel.offsetHeight;
+function resolveSheetStateFromPercent(percent, startState = dragStartState) {
+  if (percent <= 20) return SHEET_STATES.EXPANDED;
+  if (percent <= 70) return SHEET_STATES.COLLAPSED;
+  if (startState === SHEET_STATES.EXPANDED && percent < 85) {
+    return SHEET_STATES.COLLAPSED;
+  }
+  return SHEET_STATES.HIDDEN;
+}
 
-if (currentTranslate === STATE.COLLAPSED) {
-
-const movePercent = (deltaY / window.innerHeight) * 100;
-      let newPercent = 50 + movePercent;
-
-newPercent = Math.max(0, Math.min(100, newPercent));
-      document.documentElement.style.setProperty(
-        "--sheet-translate",
-        `${newPercent}%`,
-      );
-    } else if (currentTranslate === STATE.EXPANDED) {
-      if (deltaY > 0) {
-
-const movePercent = (deltaY / window.innerHeight) * 100;
-        document.documentElement.style.setProperty(
-          "--sheet-translate",
-          `${Math.min(100, movePercent)}%`,
-        );
-      }
-    }
-  },
-  { passive: true },
-);
-
-dragHandle.addEventListener("touchend", (e) => {
+function endSheetDrag({ cancelled = false, restoreFocus = false } = {}) {
   if (!isDragging) return;
   isDragging = false;
+  if (activePointerId != null && dragHandle.hasPointerCapture?.(activePointerId)) {
+    dragHandle.releasePointerCapture(activePointerId);
+  }
+  const finalPercent = cancelled ? dragStartPercent : getCurrentSheetPercent();
+  activePointerId = null;
+  setSheetState(
+    cancelled ? dragStartState : resolveSheetStateFromPercent(finalPercent),
+    { animate: true, restoreFocus },
+  );
+}
 
-const endY = e.changedTouches[0].clientY;
-  const deltaY = endY - startY;
-  const threshold = 50; 
+dragHandle.addEventListener("pointerdown", (event) => {
+  if (!isMobileViewport() || activeSheetState === SHEET_STATES.HIDDEN) return;
+  if (event.pointerType === "mouse" && event.button !== 0) return;
+  startY = event.clientY;
+  dragStartState = activeSheetState;
+  dragStartPercent = getCurrentSheetPercent();
+  activePointerId = event.pointerId;
+  isDragging = true;
+  detailPanel.dataset.dragging = "true";
+  detailPanel.dataset.animate = "false";
+  dragHandle.setPointerCapture?.(event.pointerId);
+  event.preventDefault();
+});
 
-if (currentTranslate === STATE.COLLAPSED) {
-    if (deltaY < -threshold) setSheetState(STATE.EXPANDED);
-    else if (deltaY > threshold) {
-      setSheetState(STATE.HIDDEN);
-      closeDetailPanel(); 
-    } else setSheetState(STATE.COLLAPSED);
-  } else if (currentTranslate === STATE.EXPANDED) {
-    if (deltaY > threshold) setSheetState(STATE.COLLAPSED);
-    else setSheetState(STATE.EXPANDED);
+dragHandle.addEventListener("pointermove", (event) => {
+  if (!isDragging || event.pointerId !== activePointerId) return;
+  const deltaPercent = ((event.clientY - startY) / window.innerHeight) * 100;
+  applySheetTranslate(dragStartPercent + deltaPercent);
+});
+
+dragHandle.addEventListener("pointerup", (event) => {
+  if (!isDragging || event.pointerId !== activePointerId) return;
+  endSheetDrag({ restoreFocus: resolveSheetStateFromPercent(getCurrentSheetPercent()) === SHEET_STATES.HIDDEN });
+});
+
+dragHandle.addEventListener("pointercancel", () => {
+  endSheetDrag({ cancelled: true });
+});
+
+dragHandle.addEventListener("lostpointercapture", () => {
+  if (isDragging) {
+    endSheetDrag({ cancelled: true });
   }
 });
 
@@ -259,7 +303,7 @@ detailTitle.textContent = loc.name;
     detailImage.alt = 'Ảnh trụ sở';
     detailImage.loading = 'lazy';
     detailImage.referrerPolicy = 'no-referrer';
-    detailImage.classList.add('w-full', 'h-auto', 'rounded-lg', 'object-cover');
+    detailImage.className = 'w-full h-full object-cover opacity-90 transform-gpu';
   } else {
 
 detailImage.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(loc.name)}&background=random`;
@@ -321,10 +365,9 @@ if (loc._currentDistance != null) {
 actionDirections.href = `https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`;
 
 
-hideMobileSearch(); 
-  const isMobile = window.innerWidth < 768;
-  setSheetState(isMobile ? STATE.COLLAPSED : STATE.EXPANDED); 
-  detailPanel.setAttribute("aria-hidden", "false");
+hideMobileSearch({ restoreFocus: false });
+  const isMobile = isMobileViewport();
+  setSheetState(isMobile ? SHEET_STATES.COLLAPSED : SHEET_STATES.EXPANDED);
   requestAnimationFrame(() => backToListBtn.focus());
 
 if (isMobile) {
@@ -342,16 +385,16 @@ map.flyTo([loc.lat - 0.003, loc.lng], 15.5, {
 }
 
 function closeDetailPanel() {
+  if (isDragging) {
+    endSheetDrag({ cancelled: true });
+  }
   previousSelectedLocation = currentlySelectedLocation;
   currentlySelectedLocation = null;
 
 if (previousSelectedLocation && previousSelectedLocation.marker) {
     previousSelectedLocation.marker.setIcon(createCustomIcon(previousSelectedLocation));
   }
-  setSheetState(STATE.HIDDEN);
-  detailPanel.setAttribute("aria-hidden", "true");
-  detailTrigger?.focus();
-  detailTrigger = null;
+  setSheetState(SHEET_STATES.HIDDEN, { restoreFocus: true });
 }
 
 backToListBtn.addEventListener("click", () => {
@@ -534,19 +577,35 @@ document
   .addEventListener("change", filterAndRender);
 
 function showMobileSearch() {
-  closeDetailPanel();
+  clearOverlayHideTimer();
+  if (activeSheetState !== SHEET_STATES.HIDDEN) {
+    previousSelectedLocation = currentlySelectedLocation;
+    currentlySelectedLocation = null;
+    if (previousSelectedLocation?.marker) {
+      previousSelectedLocation.marker.setIcon(createCustomIcon(previousSelectedLocation));
+    }
+    detailTrigger = null;
+    setSheetState(SHEET_STATES.HIDDEN, { restoreFocus: false });
+  }
   searchPanel.classList.remove("-translate-y-[120%]", "opacity-0");
   searchPanel.classList.add("translate-y-0", "opacity-100");
   mobileOverlay.classList.remove("hidden");
-
-setTimeout(() => mobileOverlay.classList.remove("opacity-0"), 10);
+  requestAnimationFrame(() => mobileOverlay.classList.remove("opacity-0"));
+  requestAnimationFrame(() => searchInput.focus());
 }
 
-function hideMobileSearch() {
+function hideMobileSearch({ restoreFocus = true } = {}) {
+  clearOverlayHideTimer();
   searchPanel.classList.remove("translate-y-0", "opacity-100");
   searchPanel.classList.add("-translate-y-[120%]", "opacity-0");
   mobileOverlay.classList.add("opacity-0");
-  setTimeout(() => mobileOverlay.classList.add("hidden"), 300);
+  overlayHideTimer = setTimeout(() => {
+    mobileOverlay.classList.add("hidden");
+    overlayHideTimer = null;
+  }, 300);
+  if (restoreFocus && isMobileViewport()) {
+    requestAnimationFrame(() => mobileSearchBtn.focus());
+  }
 }
 
 mobileSearchBtn.addEventListener("click", showMobileSearch);
@@ -730,12 +789,31 @@ filterAndRender();
 
 document.addEventListener("keydown", event => {
   if (event.key !== "Escape") return;
-  if (detailPanel.getAttribute("aria-hidden") === "false") {
+  if (activeSheetState !== SHEET_STATES.HIDDEN) {
     closeDetailPanel();
   } else if (closeSearchBtn.offsetParent !== null) {
     // Mobile search panel đang mở (close button hiển thị)
     hideMobileSearch();
   }
 });
+
+function syncPanelsToViewport() {
+  if (isDragging) {
+    endSheetDrag({ cancelled: true });
+  }
+  if (activeSheetState === SHEET_STATES.HIDDEN) {
+    setSheetState(SHEET_STATES.HIDDEN, { animate: false });
+    return;
+  }
+  setSheetState(
+    isMobileViewport() ? SHEET_STATES.COLLAPSED : SHEET_STATES.EXPANDED,
+    { animate: false },
+  );
+}
+
+window.addEventListener("resize", debounce(syncPanelsToViewport, 120));
+window.addEventListener("orientationchange", syncPanelsToViewport);
+
+setSheetState(SHEET_STATES.HIDDEN, { animate: false });
 
 fetchHeadquarters();

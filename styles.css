@@ -34,23 +34,61 @@
 @media (max-width: 767px) {
     #detail-panel {
         height: var(--sheet-height) !important;
-        /* PERFORMANCE: translate3d ép GPU để tránh giật khi kéo bottom sheet */
         transform: translate3d(0, var(--sheet-translate), 0) !important;
         -webkit-transform: translate3d(0, var(--sheet-translate), 0) !important;
         border-top-left-radius: var(--radius-2xl) !important;
         border-top-right-radius: var(--radius-2xl) !important;
-        will-change: transform, contents;
         box-shadow: var(--shadow-sheet);
         background-color: var(--glass-fill-strong) !important;
         backdrop-filter: var(--blur-md) !important;
         -webkit-backdrop-filter: var(--blur-md) !important;
+        transition: transform var(--dur-slow) var(--ease-sheet), visibility 0s linear;
     }
-    #detail-panel.transitioning {
-        transition: transform var(--dur-slow) var(--ease-sheet);
+    #detail-panel[data-sheet-state="hidden"] {
+        pointer-events: none;
+        visibility: hidden;
+    }
+    #detail-panel[data-sheet-state="collapsed"],
+    #detail-panel[data-sheet-state="expanded"] {
+        pointer-events: auto;
+        visibility: visible;
+    }
+    #detail-panel[data-dragging="true"],
+    #detail-panel[data-animate="false"] {
+        transition: none !important;
+        will-change: transform;
     }
     #search-panel {
         transition: transform 0.3s var(--ease-smooth);
-        will-change: transform;
+    }
+    #drag-handle {
+        touch-action: none;
+        user-select: none;
+    }
+}
+
+@media (min-width: 768px) {
+    #detail-panel {
+        transition: transform var(--dur-slow) var(--ease-sheet), visibility 0s linear;
+    }
+    #detail-panel[data-sheet-state="hidden"] {
+        transform: translate3d(-100%, 0, 0) !important;
+        visibility: hidden;
+        pointer-events: none;
+    }
+    #detail-panel[data-sheet-state="collapsed"],
+    #detail-panel[data-sheet-state="expanded"] {
+        transform: translate3d(0, 0, 0) !important;
+        visibility: visible;
+        pointer-events: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #detail-panel,
+    #search-panel {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
     }
 }
 
