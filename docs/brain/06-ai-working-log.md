@@ -17,6 +17,62 @@
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
 
+## [2026-06-28] Tinh chỉnh vị trí launcher trên desktop + đổi đường dẫn assets
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - Dời `icon.png` và `logo.png` → `assets/`: cập nhật đường dẫn trong `index.html` (4 chỗ), `js/chatbot.js`, `scripts/build-static.js`, `docs/brain/01-architecture.md`.
+  - Desktop: thêm media query `min-width: 768px` và `min-width: 1024px` trong `styles.css` để đẩy `#ai-chat-launcher` và `#ai-chat-window` sang phải sidebar (`left: calc(400px + 16px)` / `calc(420px + 16px)`), tránh bị che khuất.
+- **File đã sửa:** `index.html`, `js/chatbot.js`, `scripts/build-static.js`, `styles.css`, `docs/brain/01-architecture.md`
+- **Lý do:** Sidebar chiếm 400–420px trái; launcher fixed `left: 16px` bị che hoàn toàn trên desktop.
+- **Kiểm tra:** `preview_eval` tại viewport 1345px → launcher `left: 436px`, chatWindow `left: 436px` (sidebar 420px + 16px margin). Không còn chồng lên sidebar ✓
+
+## [2026-06-28] Redesign mobile-first theo mockup Claude Design
+- **Agent:** Claude Code
+- **Thay đổi:** Bám sát mockup mobile-first người dùng build trên Claude Design
+  (tham chiếu `design/components/*`):
+  - **AI launcher**: đổi từ pill nhỏ góc phải sang **ChatLauncher nổi bật góc dưới-TRÁI** —
+    avatar tròn trắng (icon.png) + chấm online xanh, 2 dòng "Hỏi đáp AI" / "Trợ lý pháp luật · 24/7",
+    cao 64px (58px mobile), 2 vòng `ds-chat-pulse`. Bọc `#ai-chat-toggle-btn` trong
+    `#ai-chat-launcher` (giữ nguyên id nút cho `js/chatbot.js`). Cửa sổ chat dời sang bottom-left
+    cho đồng bộ.
+  - **Search trigger** (`#mobile-search-btn`): thay icon menu bằng **logo**, nút search đặt trong
+    vòng tròn `--blue-50` màu primary.
+  - **Result card** (`app.js renderResultsList`): icon Công an dùng `local_police` (FILL trắng trên
+    nền primary) thay ảnh logo; chip khoảng cách thành pill emerald có mũi tên `near_me`.
+- **File đã sửa:** `styles.css`, `index.html`, `app.js`, `output.css` (rebuild cho utility mới)
+- **Lý do:** Dự án chủ yếu dùng trên điện thoại → ưu tiên tối đa trải nghiệm mobile, khớp đúng
+  mockup design người dùng duyệt. Giữ layout responsive desktop-sidebar (vẫn hoạt động).
+- **Kiểm tra:** Preview 375px — inspect: launcher fixed left/bottom, nền primary, sub
+  rgba(255,255,255,0.82); search logo 34px; result icon-box nền rgb(29,78,216) bo 12px icon trắng,
+  chip khoảng cách emerald-100/emerald-700 inline-flex. Không console error.
+  (Screenshot preview treo do canvas Leaflet headless — xác minh bằng computed-style.)
+
+## [2026-06-28] Áp Design System vào giao diện (token-driven UI)
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - Tạo `tokens.css` self-contained chứa toàn bộ CSS variables của Design System
+    (colors, typography, spacing, effects) theo `DESIGN_SYSTEM.md` + `design/tokens/*`.
+    Không `@import` thư mục `design/` vì đó là kit, không deploy.
+  - Viết lại `styles.css` token-driven: thay toàn bộ hardcoded hex/px/shadow bằng
+    `var(--*)`; đổi font các block chat/marker/label từ `'Plus Jakarta Sans'` →
+    `var(--font-body)` (Be Vietnam Pro). Sửa luôn block CSS bị comment lỗi ở
+    `.result-item:focus-visible` (trước đây bị nuốt trong `/* ... */`).
+  - `tailwind.config.js`: đổi `fontFamily.body` từ Plus Jakarta Sans → **Be Vietnam Pro**
+    (DS yêu cầu 1 family duy nhất); chỉnh `textMain`→slate-800, `textMuted`→slate-500,
+    `secondary`→slate-900 cho khớp token semantic.
+  - `index.html`: bỏ tải font Plus Jakarta Sans; nạp `tokens.css` trước `output.css`/`styles.css`;
+    đổi inline hex của nút `find-location-btn` sang `var(--color-primary)` + `var(--shadow-fab)`.
+  - Rebuild `output.css` (`npm run build:css`) để class `font-body` map sang Be Vietnam Pro.
+- **File đã sửa:** `tokens.css` (mới), `styles.css`, `tailwind.config.js`, `index.html`, `output.css`
+- **Lý do:** App trước đây vi phạm Design System — dùng magic-number hex/px và sai font body.
+  Đưa UI về đúng token + đúng typography (Be Vietnam Pro) để mọi agent sau sửa giao diện
+  không phải đoán giá trị. Giữ nguyên 100% DOM id/class mà `app.js`/`js/chatbot.js` phụ thuộc.
+- **Kiểm tra:** Preview (port 3000) — `getComputedStyle`: body font = "Be Vietnam Pro",
+  `--color-primary` = #1d4ed8, 3 stylesheet nạp đủ; inspect nút AI nền rgb(29,78,216),
+  shadow-fab, cao 46px (--control-h); tiêu đề màu slate-800. Không còn `Plus Jakarta` trong
+  `output.css`. Không console error. (Ảnh screenshot preview bị đen do quirk canvas Leaflet headless,
+  computed-style xác nhận render đúng.)
+
 ## [2026-06-27] Viết lại system prompt chatbot + bỏ Edge Config
 - **Agent:** Claude Code
 - **Thay đổi:**

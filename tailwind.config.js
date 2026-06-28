@@ -4,17 +4,18 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: "#1d4ed8", // Sharp Blue 700
-        secondary: "#09090b", // Zinc 950
-        accent: "#2563eb", // Vibrant Blue 600
-        surface: "#ffffff",
-        background: "#f4f4f5", // Zinc 100
-        textMain: "#09090b", // Zinc 950
-        textMuted: "#71717a", // Zinc 500
+        primary: "#1d4ed8", // --color-primary (Blue 700)
+        secondary: "#0f172a", // --text-strong (Slate 900)
+        accent: "#2563eb", // --color-accent (Blue 600)
+        surface: "#ffffff", // --surface-card
+        background: "#f4f4f5", // --bg-app (Zinc 100)
+        textMain: "#1e293b", // --text-body (Slate 800)
+        textMuted: "#64748b", // --text-muted (Slate 500)
       },
       fontFamily: {
-        display: ["'Be Vietnam Pro'", "sans-serif"],
-        body: ["'Plus Jakarta Sans'", "sans-serif"],
+        // Design System: Be Vietnam Pro là family DUY NHẤT (display + body)
+        display: ["'Be Vietnam Pro'", "system-ui", "sans-serif"],
+        body: ["'Be Vietnam Pro'", "system-ui", "sans-serif"],
       },
       boxShadow: {
         glass: "0 8px 32px 0 rgba(0, 0, 0, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.5)",

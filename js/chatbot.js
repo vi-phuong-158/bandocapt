@@ -177,7 +177,7 @@ function appendAssistantShell() {
 
     const avatar = document.createElement('img');
     avatar.className = 'ai-chat-avatar';
-    avatar.src = 'icon.png';
+    avatar.src = 'assets/icon.png';
     avatar.alt = '';
 
     const bubble = document.createElement('div');

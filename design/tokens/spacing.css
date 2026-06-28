@@ -1,0 +1,33 @@
+/* ============================================================
+   SPACING, RADII, BORDERS — Soft UI rhythm.
+   Generous padding, fully-rounded pills, 12–20px card radii.
+   ============================================================ */
+
+:root {
+  /* Spacing scale (4px base) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+
+  /* Radii — Soft UI leans round */
+  --radius-sm: 8px;
+  --radius-md: 12px;   /* icon boxes */
+  --radius-lg: 16px;   /* cards, result items */
+  --radius-xl: 20px;   /* sheets, chat window */
+  --radius-2xl: 24px;
+  --radius-pill: 9999px; /* search bar, chips, FABs */
+
+  /* Control sizes */
+  --control-h: 46px;   /* inputs, send button */
+  --fab-size: 56px;    /* map action buttons */
+  --hit-min: 44px;     /* min touch target */
+
+  /* Layout */
+  --panel-w: 420px;    /* desktop search/detail panel */
+  --border-w: 1px;
+}

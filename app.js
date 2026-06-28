@@ -462,10 +462,10 @@ resultsList.innerHTML = results
             : `${loc._currentDistance.toFixed(1)}km`
           : "";
 
-const iconHTML = isPolice 
-        ? `<img src="logo.png" alt="Logo" class="w-6 h-6 object-contain">`
-        : `<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">badge</span>`;
-      const iconClass = isPolice ? "" : "bg-id";
+const iconHTML = isPolice
+        ? `<span class="material-symbols-outlined" style="font-size:22px;font-variation-settings:'FILL' 1;">local_police</span>`
+        : `<span class="material-symbols-outlined" style="font-size:22px;font-variation-settings:'FILL' 1;">badge</span>`;
+      const iconClass = isPolice ? "bg-police" : "bg-id";
 
       return `
           <li class="result-list-item">
@@ -477,7 +477,7 @@ const iconHTML = isPolice
                     <h3 class="result-title">${escapeHtml(loc.name)}</h3>
                     <p class="result-address">${escapeHtml(loc.address)}</p>
                 </div>
-                ${distStr ? `<div class="result-dist">${distStr}</div>` : ""}
+                ${distStr ? `<div class="result-dist"><span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1;">near_me</span>${distStr}</div>` : ""}
             </button>
           </li>
         `;

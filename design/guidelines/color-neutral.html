@@ -1,0 +1,27 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Neutral Ink & Slate" subtitle="Zinc ink + slate UI scale" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; font-family: var(--font-body); background: var(--surface-card); }
+  .row { display: flex; gap: 6px; padding: 20px; }
+  .sw { flex: 1; border-radius: var(--radius-sm); padding: 8px 6px; display: flex; flex-direction: column; justify-content: flex-end; height: 92px; }
+  .sw b { font-size: 11px; font-weight: 700; }
+  .sw span { font-size: 10px; opacity: .8; }
+  .on-dark { color: #fff; } .on-light { color: var(--slate-700); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw on-dark" style="background: var(--ink-950)"><b>ink-950</b><span>#09090b</span></div>
+    <div class="sw on-dark" style="background: var(--slate-900)"><b>900</b><span>#0f172a</span></div>
+    <div class="sw on-dark" style="background: var(--slate-700)"><b>700</b><span>#334155</span></div>
+    <div class="sw on-dark" style="background: var(--slate-500)"><b>500·muted</b><span>#64748b</span></div>
+    <div class="sw on-light" style="background: var(--slate-300)"><b>300</b><span>#cbd5e1</span></div>
+    <div class="sw on-light" style="background: var(--slate-100)"><b>100</b><span>#f1f5f9</span></div>
+    <div class="sw on-light" style="background: var(--zinc-100); border:1px solid var(--slate-200)"><b>app bg</b><span>#f4f4f5</span></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System — Bản đồ Công an số</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; box-sizing: border-box; }
+
+  @page { size: A4; margin: 0; }
+
+  :root {
+    --blue-700: #1d4ed8;
+    --blue-50:  #eff6ff;
+    --blue-100: #dbeafe;
+    --slate-900: #0f172a;
+    --slate-800: #1e293b;
+    --slate-700: #334155;
+    --slate-600: #475569;
+    --slate-500: #64748b;
+    --slate-300: #cbd5e1;
+    --slate-200: #e2e8f0;
+    --slate-100: #f1f5f9;
+    --slate-50:  #f8fafc;
+    --amber-600: #d97706;
+    --amber-50:  #fffbeb;
+    --emerald-700: #047857;
+    --emerald-50: #ecfdf5;
+    --white: #fff;
+  }
+
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'Be Vietnam Pro', system-ui, sans-serif;
+    font-size: 10pt;
+    line-height: 1.6;
+    color: var(--slate-800);
+    background: #fff;
+  }
+
+  body { padding: 14mm 16mm; }
+
+  /* ── Cover header ── */
+  .cover {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+    background: var(--blue-700);
+    border-radius: 10px;
+    margin-bottom: 28px;
+    color: #fff;
+    break-inside: avoid;
+  }
+  .cover-badge {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .cover h1 { margin: 0; font-size: 17pt; font-weight: 800; line-height: 1.2; }
+  .cover p  { margin: 4px 0 0; font-size: 9pt; opacity: 0.8; }
+
+  /* ── Sections ── */
+  h2 {
+    font-size: 12pt; font-weight: 800; color: var(--slate-900);
+    border-bottom: 2px solid var(--blue-700);
+    padding-bottom: 5px; margin: 24px 0 12px;
+    break-after: avoid;
+  }
+  h3 {
+    font-size: 10pt; font-weight: 700; color: var(--slate-700);
+    margin: 16px 0 8px;
+    break-after: avoid;
+  }
+  p { margin: 0 0 8px; }
+  strong { color: var(--slate-900); }
+
+  /* ── Note block ── */
+  .note {
+    background: var(--blue-50);
+    border-left: 3px solid var(--blue-700);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 14px;
+    font-size: 9pt;
+    color: var(--slate-700);
+    margin-bottom: 16px;
+    break-inside: avoid;
+  }
+
+  /* ── Token grid ── */
+  .token-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .token-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--slate-50);
+    border: 1px solid var(--slate-200);
+    border-radius: 7px;
+    padding: 8px 10px;
+    break-inside: avoid;
+  }
+  .token-swatch {
+    width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0;
+    border: 1px solid rgba(0,0,0,0.08);
+  }
+  .token-name  { font-family: 'JetBrains Mono', monospace; font-size: 8pt; color: var(--slate-600); }
+  .token-value { font-size: 8pt; color: var(--slate-500); }
+
+  /* ── Code block ── */
+  pre {
+    background: var(--slate-900);
+    color: #e2e8f0;
+    border-radius: 7px;
+    padding: 12px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5pt;
+    line-height: 1.6;
+    overflow: hidden;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 0 0 12px;
+    break-inside: avoid;
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8pt;
+    background: var(--slate-100);
+    color: var(--blue-700);
+    padding: 1px 5px; border-radius: 4px;
+  }
+  pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+
+  /* Comment color in code */
+  .cm { color: #94a3b8; }
+  .kw { color: #93c5fd; }
+  .vr { color: #6ee7b7; }
+  .st { color: #fca5a5; }
+
+  /* ── Table ── */
+  table {
+    width: 100%; border-collapse: collapse;
+    font-size: 8.5pt; margin-bottom: 14px;
+    break-inside: avoid;
+  }
+  th {
+    background: var(--slate-800); color: #fff;
+    text-align: left; padding: 7px 10px;
+    font-weight: 700; font-size: 8pt;
+  }
+  td { padding: 6px 10px; border-bottom: 1px solid var(--slate-200); vertical-align: top; }
+  tr:nth-child(even) td { background: var(--slate-50); }
+  td code { font-size: 7.5pt; }
+
+  /* ── Component row ── */
+  .comp-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .comp-item {
+    background: var(--slate-50);
+    border: 1px solid var(--slate-200);
+    border-radius: 7px;
+    padding: 10px 12px;
+    break-inside: avoid;
+  }
+  .comp-name { font-weight: 700; font-size: 9.5pt; color: var(--slate-900); margin-bottom: 3px; }
+  .comp-desc { font-size: 8pt; color: var(--slate-500); }
+
+  /* ── Marker swatches ── */
+  .marker-row { display: flex; gap: 12px; margin-bottom: 14px; }
+  .marker-item { display: flex; align-items: center; gap: 8px; font-size: 8.5pt; }
+  .marker-pin {
+    width: 16px; height: 20px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    flex-shrink: 0;
+  }
+
+  /* ── Rule list ── */
+  .rule-list { margin: 0 0 14px; padding: 0; list-style: none; }
+  .rule-list li {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--slate-200);
+    font-size: 8.5pt;
+  }
+  .rule-list li:last-child { border-bottom: none; }
+  .rule-num {
+    background: var(--blue-700); color: #fff;
+    font-weight: 800; font-size: 7.5pt;
+    min-width: 20px; height: 20px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ── Spacing scale ── */
+  .space-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .space-item { text-align: center; font-size: 7.5pt; color: var(--slate-600); }
+  .space-bar  { background: var(--blue-100); border-radius: 3px; margin-bottom: 3px; }
+
+  /* ── Footer ── */
+  .footer {
+    margin-top: 28px;
+    padding-top: 12px;
+    border-top: 1px solid var(--slate-200);
+    font-size: 8pt;
+    color: var(--slate-400);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  @media print {
+    body { padding: 12mm 14mm; }
+    *, *::before, *::after {
+      animation-delay: -99s !important; animation-duration: .001s !important;
+      transition-duration: 0s !important;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- Cover -->
+<div class="cover">
+  <div class="cover-badge">Design System</div>
+  <div>
+    <h1>Bản đồ Công an số — UI Kit</h1>
+    <p>Hướng dẫn tokens, components, và quy tắc sửa giao diện · Dành cho Claude Code / Codex</p>
+  </div>
+</div>
+
+<div class="note">
+  <strong>Đọc file này trước khi sửa bất kỳ giao diện nào</strong> trong
+  <code>index.html</code>, <code>app.js</code>, <code>js/chatbot.js</code>, hoặc file HTML/CSS bất kỳ.
+  Khi sửa UI, <strong>không tự chọn màu, font, kích thước, shadow</strong> — luôn dùng CSS variables từ design system.
+</div>
+
+<!-- Section 1 -->
+<h2>1. Components có sẵn</h2>
+<div class="comp-grid">
+  <div class="comp-item"><div class="comp-name">Button</div><div class="comp-desc">primary · secondary · ghost · amber · soft. Icon trái/phải.</div></div>
+  <div class="comp-item"><div class="comp-name">IconButton</div><div class="comp-desc">Nút tròn chỉ có icon. Dùng cho FAB, action phụ.</div></div>
+  <div class="comp-item"><div class="comp-name">SearchBar</div><div class="comp-desc">Input pill frosted với leading icon. Focus ring xanh.</div></div>
+  <div class="comp-item"><div class="comp-name">FilterTabs</div><div class="comp-desc">Multi-select filter pills. Công an / CCCD / Gần tôi.</div></div>
+  <div class="comp-item"><div class="comp-name">ResultCard</div><div class="comp-desc">Kết quả tìm kiếm: icon box + tiêu đề + địa chỉ + chip.</div></div>
+  <div class="comp-item"><div class="comp-name">Badge</div><div class="comp-desc">Nhãn loại đơn vị. tone: police · cccd · nearby · warn.</div></div>
+  <div class="comp-item"><div class="comp-name">Chip</div><div class="comp-desc">Filter pill, distance chip. Có trạng thái active.</div></div>
+  <div class="comp-item"><div class="comp-name">InfoRow</div><div class="comp-desc">Hàng thông tin trong detail sheet: icon + label + value.</div></div>
+  <div class="comp-item"><div class="comp-name">ChatBubble</div><div class="comp-desc">Bong bóng chat. role: user · assistant (có avatar).</div></div>
+  <div class="comp-item"><div class="comp-name">ChatLauncher</div><div class="comp-desc">Nút AI nổi với pulsing ring. Avatar mascot icon.png.</div></div>
+</div>
+
+<h3>Load bundle (nếu dùng React)</h3>
+<pre><span class="cm">// Trong &lt;head&gt;</span>
+&lt;link rel="stylesheet" href="path/to/design-system/styles.css"&gt;
+&lt;script src="path/to/design-system/_ds_bundle.js"&gt;&lt;/script&gt;
+
+<span class="cm">// Destructure components</span>
+<span class="kw">const</span> { Button, SearchBar, ResultCard, Badge, Chip,
+        InfoRow, FilterTabs, ChatBubble, ChatLauncher, IconButton }
+  = window.BNCNgAnSDesignSystem_c0346a;</pre>
+
+<!-- Section 2: Colors -->
+<h2>2. Màu sắc — CSS Tokens</h2>
+
+<h3>Brand & Semantic</h3>
+<div class="token-grid">
+  <div class="token-item">
+    <div class="token-swatch" style="background:#1d4ed8"></div>
+    <div><div class="token-name">--color-primary</div><div class="token-value">#1d4ed8 · button, link, active</div></div>
+  </div>
+  <div class="token-item">
+    <div class="token-swatch" style="background:#1e40af"></div>
+    <div><div class="token-name">--color-primary-hover</div><div class="token-value">#1e40af · hover state</div></div>
+  </div>
+  <div class="token-item">
+    <div class="token-swatch" style="background:#2563eb"></div>
+    <div><div class="token-name">--color-accent</div><div class="token-value">#2563eb · accent nhẹ hơn</div></div>
+  </div>
+  <div class="token-item">
+    <div class="token-swatch" style="background:#d97706"></div>
+    <div><div class="token-name">--color-cccd</div><div class="token-value">#d97706 · amber · điểm CCCD</div></div>
+  </div>
+  <div class="token-item">
+    <div class="token-swatch" style="background:#047857"></div>
+    <div><div class="token-name">--color-nearby</div><div class="token-value">#047857 · emerald · gần tôi</div></div>
+  </div>
+  <div class="token-item">
+    <div class="token-swatch" style="background:#f4f4f5; border:1px solid #e2e8f0"></div>
+    <div><div class="token-name">--bg-app</div><div class="token-value">#f4f4f5 · nền toàn app</div></div>
+  </div>
+</div>
+
+<h3>Text & Surfaces</h3>
+<div class="token-grid">
+  <div class="token-item">
+    <div class="token-swatch" style="background:#0f172a"></div>
+    <div><div class="token-name">--text-strong</div><div class="token-value">#0f172a · tiêu đề</div></div>
+  </div>
+  <div class="token-item">
+    <div class="token-swatch" style="background:#1e293b"></div>
+    <div><div class="token-name">--text-body</div><div class="token-value">#1e293b · body text</div></div>
+  </div>
+  <div class="token-item">
+    <div class="token-swatch" style="background:#64748b"></div>
+    <div><div class="token-name">--text-muted</div><div class="token-value">#64748b · phụ, địa chỉ</div></div>
+  </div>
+  <div class="token-item">
+    <div class="token-swatch" style="background:#ffffff; border:1px solid #e2e8f0"></div>
+    <div><div class="token-name">--surface-card</div><div class="token-value">#ffffff · nền card</div></div>
+  </div>
+  <div class="token-item">
+    <div class="token-swatch" style="background:rgba(255,255,255,0.70); border:1px solid #e2e8f0"></div>
+    <div><div class="token-name">--glass-fill</div><div class="token-value">rgba(255,255,255,0.70)</div></div>
+  </div>
+  <div class="token-item">
+    <div class="token-swatch" style="background:rgba(15,23,42,0.40)"></div>
+    <div><div class="token-name">--scrim</div><div class="token-value">rgba(15,23,42,0.40) · overlay</div></div>
+  </div>
+</div>
+
+<!-- Section 3: Typography -->
+<h2>3. Typography</h2>
+<table>
+  <tr><th>Token</th><th>Giá trị</th><th>Dùng cho</th></tr>
+  <tr><td><code>--font-display / --font-body</code></td><td>Be Vietnam Pro</td><td>Tất cả text</td></tr>
+  <tr><td><code>--font-icon</code></td><td>Material Symbols Outlined</td><td>Icon DUY NHẤT</td></tr>
+  <tr><td><code>--text-2xs</code></td><td>11px</td><td>chip status, eyebrow</td></tr>
+  <tr><td><code>--text-xs</code></td><td>12px</td><td>label, meta</td></tr>
+  <tr><td><code>--text-sm</code></td><td>13px</td><td>địa chỉ, text phụ</td></tr>
+  <tr><td><code>--text-base</code></td><td>15px</td><td>body, input</td></tr>
+  <tr><td><code>--text-md</code></td><td>16px</td><td>tiêu đề card</td></tr>
+  <tr><td><code>--text-lg</code></td><td>18px</td><td>tiêu đề panel</td></tr>
+  <tr><td><code>--text-2xl</code></td><td>26px</td><td>tiêu đề detail</td></tr>
+  <tr><td><code>--weight-bold / --weight-extrabold</code></td><td>700 / 800</td><td>tiêu đề</td></tr>
+</table>
+
+<!-- Section 4: Spacing -->
+<h2>4. Spacing & Radii</h2>
+<div class="space-row">
+  <div class="space-item"><div class="space-bar" style="width:4px;height:24px;"></div>--space-1<br>4px</div>
+  <div class="space-item"><div class="space-bar" style="width:8px;height:24px;"></div>--space-2<br>8px</div>
+  <div class="space-item"><div class="space-bar" style="width:12px;height:24px;"></div>--space-3<br>12px</div>
+  <div class="space-item"><div class="space-bar" style="width:16px;height:24px;"></div>--space-4<br>16px</div>
+  <div class="space-item"><div class="space-bar" style="width:20px;height:24px;"></div>--space-5<br>20px</div>
+  <div class="space-item"><div class="space-bar" style="width:24px;height:24px;"></div>--space-6<br>24px</div>
+  <div class="space-item"><div class="space-bar" style="width:28px;height:24px;"></div>--space-7<br>28px</div>
+  <div class="space-item"><div class="space-bar" style="width:32px;height:24px;"></div>--space-8<br>32px</div>
+</div>
+
+<table>
+  <tr><th>Token</th><th>Giá trị</th><th>Dùng cho</th></tr>
+  <tr><td><code>--radius-sm</code></td><td>8px</td><td>icon nhỏ</td></tr>
+  <tr><td><code>--radius-md</code></td><td>12px</td><td>icon box</td></tr>
+  <tr><td><code>--radius-lg</code></td><td>16px</td><td>card, result item</td></tr>
+  <tr><td><code>--radius-xl</code></td><td>20px</td><td>sheet, chat window</td></tr>
+  <tr><td><code>--radius-pill</code></td><td>9999px</td><td>search bar, chip, FAB, button</td></tr>
+  <tr><td><code>--control-h</code></td><td>46px</td><td>chiều cao input, button</td></tr>
+  <tr><td><code>--fab-size</code></td><td>56px</td><td>Floating Action Button</td></tr>
+  <tr><td><code>--hit-min</code></td><td>44px</td><td>touch target tối thiểu</td></tr>
+</table>
+
+<!-- Section 5: Icons -->
+<h2>5. Icons — Material Symbols Outlined</h2>
+<div class="note" style="background:var(--amber-50);border-color:var(--amber-600)">
+  <strong>Chỉ dùng Material Symbols Outlined.</strong> Không dùng Font Awesome, Heroicons, hoặc icon set khác.
+</div>
+<table>
+  <tr><th>Icon name</th><th>Dùng cho</th><th>Icon name</th><th>Dùng cho</th></tr>
+  <tr><td><code>local_police</code></td><td>Công an / trụ sở</td><td><code>directions</code></td><td>Chỉ đường</td></tr>
+  <tr><td><code>badge</code></td><td>Điểm CCCD</td><td><code>chat</code></td><td>Hỏi đáp AI</td></tr>
+  <tr><td><code>near_me</code></td><td>Gần tôi / khoảng cách</td><td><code>close</code></td><td>Đóng panel</td></tr>
+  <tr><td><code>search</code></td><td>Tìm kiếm</td><td><code>arrow_back</code></td><td>Quay lại</td></tr>
+  <tr><td><code>location_on</code></td><td>Địa chỉ</td><td><code>my_location</code></td><td>Vị trí tôi</td></tr>
+  <tr><td><code>phone</code></td><td>Điện thoại</td><td><code>send</code></td><td>Gửi tin</td></tr>
+  <tr><td><code>schedule</code></td><td>Giờ làm việc</td><td><code>smart_toy</code></td><td>AI / chatbot</td></tr>
+</table>
+
+<!-- Section 6: Map markers -->
+<h2>6. Map Markers</h2>
+<div class="marker-row">
+  <div class="marker-item">
+    <div class="marker-pin" style="background:#1d4ed8"></div>
+    <div><code>marker-police</code><br><span style="font-size:8pt;color:#64748b">--color-primary</span></div>
+  </div>
+  <div class="marker-item">
+    <div class="marker-pin" style="background:#d97706"></div>
+    <div><code>marker-cccd</code><br><span style="font-size:8pt;color:#64748b">--color-cccd</span></div>
+  </div>
+  <div class="marker-item">
+    <div class="marker-pin" style="background:#047857"></div>
+    <div><code>marker-me</code><br><span style="font-size:8pt;color:#64748b">--color-nearby</span></div>
+  </div>
+</div>
+<pre>L.divIcon({ className: 'marker marker-police', iconSize: [28, 36] })
+<span class="cm">/* CSS shape: border-radius: 50% 50% 50% 0; transform: rotate(-45deg) */</span></pre>
+
+<!-- Section 7: Tailwind map -->
+<h2>7. Tailwind → Design System Token (Vanilla JS)</h2>
+<table>
+  <tr><th>Tailwind (tránh dùng)</th><th>Thay bằng CSS variable</th></tr>
+  <tr><td><code>bg-blue-700</code></td><td><code>background: var(--color-primary)</code></td></tr>
+  <tr><td><code>text-slate-800</code></td><td><code>color: var(--text-body)</code></td></tr>
+  <tr><td><code>text-slate-500</code></td><td><code>color: var(--text-muted)</code></td></tr>
+  <tr><td><code>rounded-full</code></td><td><code>border-radius: var(--radius-pill)</code></td></tr>
+  <tr><td><code>rounded-2xl</code></td><td><code>border-radius: var(--radius-xl)</code></td></tr>
+  <tr><td><code>shadow-md</code></td><td><code>box-shadow: var(--shadow-card)</code></td></tr>
+  <tr><td><code>gap-4 / p-4</code></td><td><code>gap / padding: var(--space-4)</code></td></tr>
+  <tr><td><code>font-bold</code></td><td><code>font-weight: var(--weight-bold)</code></td></tr>
+</table>
+
+<!-- Section 8: Rules -->
+<h2>8. Quy tắc sửa UI</h2>
+<ul class="rule-list">
+  <li><div class="rule-num">1</div><div><strong>Màu:</strong> chỉ dùng CSS variables. Không dùng <code>#hex</code> trần trong code.</div></li>
+  <li><div class="rule-num">2</div><div><strong>Font:</strong> <code>Be Vietnam Pro</code> cho text · <code>Material Symbols Outlined</code> cho icon.</div></li>
+  <li><div class="rule-num">3</div><div><strong>Border-radius:</strong> dùng <code>--radius-*</code>. Không hardcode px.</div></li>
+  <li><div class="rule-num">4</div><div><strong>Shadow:</strong> dùng <code>--shadow-*</code>. Không tự viết <code>box-shadow</code>.</div></li>
+  <li><div class="rule-num">5</div><div><strong>Touch target:</strong> mọi element bấm được phải ≥ <code>var(--hit-min)</code> = 44px.</div></li>
+  <li><div class="rule-num">6</div><div><strong>Glass panels</strong> (overlay trên bản đồ): <code>background: var(--glass-fill); backdrop-filter: var(--blur-md)</code>.</div></li>
+  <li><div class="rule-num">7</div><div><strong>Animation:</strong> dùng <code>var(--dur-fast)</code> / <code>var(--dur-base)</code> + <code>var(--ease-smooth)</code>.</div></li>
+  <li><div class="rule-num">8</div><div><strong>Không thêm Tailwind class mới</strong> cho UI đã có. Nếu cần thêm style, dùng CSS inline hoặc custom property.</div></li>
+</ul>
+
+<!-- Footer -->
+<div class="footer">
+  <span>Bản đồ Công an số — Phú Thọ · Design System</span>
+  <span>Tham khảo UI Kit: <code>ui_kits/ban-do-cong-an/index.html</code></span>
+</div>
+
+<script>
+addEventListener('load', () => {
+  (async () => {
+    try { await document.fonts.ready; } catch(e) {}
+    setTimeout(() => window.print(), 500);
+  })();
+});
+</script>
+</body>
+</html>

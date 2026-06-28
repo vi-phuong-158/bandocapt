@@ -40,8 +40,9 @@ bandocapt/
 ├── test/                   # Node test runner: P0, location data, Google Sheet API, admin pipeline helpers
 ├── .github/workflows/ci.yml # CI test, build và audit trên push/PR
 ├── dist/                   # Artifact build local/Vercel (ignored)
-├── logo.png                # Logo ứng dụng
-├── icon.png                # Favicon
+├── assets/
+│   ├── logo.png            # Logo ứng dụng
+│   └── icon.png            # Favicon / mascot AI
 ├── vercel.json             # Cấu hình Vercel (outputDirectory, function timeout, headers)
 └── package.json            # deps: pinecone, firebase-admin (@vercel/edge-config còn cài nhưng không dùng)
 ```

@@ -73,3 +73,5 @@ schema database · luồng xử lý chính —
 - **Thay đổi phẫu thuật:** chỉ chạm phần cần thiết; không refactor lân cận; theo style hiện tại;
   dọn biến/import thừa do mình tạo.
 - **Theo mục tiêu:** biến task thành mục tiêu xác minh được — [Bước làm] → [Cách kiểm tra].
+## Design System
+Đọc `DESIGN_SYSTEM.md` trước khi sửa bất kỳ giao diện nào.

@@ -1,0 +1,76 @@
+/* ============================================================
+   COLORS — Bản đồ Công an số
+   Civic "Soft UI" palette: sharp public-security blue, neutral
+   zinc/slate ink, amber for CCCD points, emerald for "near me".
+   ============================================================ */
+
+:root {
+  /* ---- Brand: Public-security blue ---- */
+  --blue-900: #1e3a8a;
+  --blue-800: #1e40af;
+  --blue-700: #1d4ed8; /* primary */
+  --blue-600: #2563eb; /* accent  */
+  --blue-100: #dbeafe;
+  --blue-50:  #eff6ff;
+
+  /* ---- CCCD / ID points: amber ---- */
+  --amber-700: #b45309;
+  --amber-600: #d97706;
+  --amber-100: #fef3c7;
+  --amber-50:  #fffbeb;
+
+  /* ---- "Near me" / online: emerald ---- */
+  --emerald-700: #047857;
+  --emerald-600: #059669;
+  --emerald-500: #22c55e;
+  --emerald-100: #d1fae5;
+  --emerald-50:  #ecfdf5;
+
+  /* ---- Status: warning / danger ---- */
+  --warn-bg:   #fffbeb;
+  --warn-border: #fde68a;
+  --warn-fg:   #92400e;
+  --danger-100: #fee2e2;
+
+  /* ---- Neutral ink & surfaces (zinc + slate) ---- */
+  --ink-950: #09090b;  /* textMain / secondary */
+  --slate-900: #0f172a;
+  --slate-800: #1e293b;
+  --slate-700: #334155;
+  --slate-600: #475569;
+  --slate-500: #64748b;
+  --slate-400: #94a3b8;
+  --slate-300: #cbd5e1;
+  --slate-200: #e2e8f0;
+  --slate-100: #f1f5f9;
+  --slate-50:  #f8fafc;
+  --zinc-500:  #71717a;  /* textMuted */
+  --zinc-100:  #f4f4f5;  /* app background */
+  --white: #ffffff;
+
+  /* ============ Semantic aliases ============ */
+  --color-primary: var(--blue-700);
+  --color-primary-hover: var(--blue-800);
+  --color-accent: var(--blue-600);
+  --color-cccd: var(--amber-600);
+  --color-nearby: var(--emerald-700);
+
+  --bg-app: var(--zinc-100);
+  --surface-card: var(--white);
+  --surface-muted: var(--slate-50);
+  --surface-sunken: var(--slate-100);
+
+  --text-strong: var(--slate-900);
+  --text-body: var(--slate-800);
+  --text-muted: var(--slate-500);
+  --text-on-brand: var(--white);
+
+  --border-hairline: var(--slate-200);
+  --border-glass: rgba(255, 255, 255, 0.5);
+
+  /* Frosted-glass fills used across the Soft UI surface */
+  --glass-fill: rgba(255, 255, 255, 0.70);
+  --glass-fill-strong: rgba(255, 255, 255, 0.90);
+  --glass-stroke: rgba(255, 255, 255, 0.40);
+  --scrim: rgba(15, 23, 42, 0.40);
+}

@@ -71,3 +71,5 @@ schema database · luồng xử lý chính —
 - Tuân thủ style code hiện tại của dự án.
 - Dọn sạch biến/import thừa do mình tạo ra.
 - Không abstraction sớm — ba đoạn lặp vẫn tốt hơn một abstraction non.
+## Design System
+Đọc `DESIGN_SYSTEM.md` trước khi sửa bất kỳ giao diện nào.

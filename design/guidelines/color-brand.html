@@ -1,0 +1,26 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Brand Blue" subtitle="Public-security blue — primary & accent" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; font-family: var(--font-body); background: var(--surface-card); }
+  .row { display: flex; gap: 10px; padding: 20px; }
+  .sw { flex: 1; border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; justify-content: flex-end; height: 92px; box-shadow: var(--shadow-sm); }
+  .sw b { font-size: 12px; font-weight: 700; }
+  .sw span { font-size: 11px; opacity: .8; font-variant-numeric: tabular-nums; }
+  .on-dark { color: #fff; }
+  .on-light { color: var(--slate-800); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw on-dark" style="background: var(--blue-900)"><b>blue-900</b><span>#1e3a8a</span></div>
+    <div class="sw on-dark" style="background: var(--blue-700)"><b>primary · 700</b><span>#1d4ed8</span></div>
+    <div class="sw on-dark" style="background: var(--blue-600)"><b>accent · 600</b><span>#2563eb</span></div>
+    <div class="sw on-light" style="background: var(--blue-100)"><b>blue-100</b><span>#dbeafe</span></div>
+    <div class="sw on-light" style="background: var(--blue-50); border:1px solid var(--slate-200)"><b>blue-50</b><span>#eff6ff</span></div>
+  </div>
+</body>
+</html>

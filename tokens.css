@@ -1,0 +1,144 @@
+/* ============================================================
+   tokens.css — Design System tokens cho Bản đồ Công an số.
+   Nguồn: DESIGN_SYSTEM.md + design/tokens/*. Self-contained:
+   không @import thư mục design/ (chỉ là kit, không deploy).
+   Quy tắc: UI dùng các biến này, KHÔNG hardcode hex/px/shadow.
+   ============================================================ */
+
+:root {
+  /* ---- Palette gốc ---- */
+  --blue-900: #1e3a8a;
+  --blue-800: #1e40af;
+  --blue-700: #1d4ed8;
+  --blue-600: #2563eb;
+  --blue-100: #dbeafe;
+  --blue-50:  #eff6ff;
+
+  --amber-700: #b45309;
+  --amber-600: #d97706;
+  --amber-100: #fef3c7;
+  --amber-50:  #fffbeb;
+
+  --emerald-700: #047857;
+  --emerald-600: #059669;
+  --emerald-500: #22c55e;
+  --emerald-100: #d1fae5;
+  --emerald-50:  #ecfdf5;
+
+  --warn-bg: #fffbeb;
+  --warn-border: #fde68a;
+  --warn-fg: #92400e;
+  --danger-100: #fee2e2;
+
+  --slate-900: #0f172a;
+  --slate-800: #1e293b;
+  --slate-700: #334155;
+  --slate-600: #475569;
+  --slate-500: #64748b;
+  --slate-400: #94a3b8;
+  --slate-300: #cbd5e1;
+  --slate-200: #e2e8f0;
+  --slate-100: #f1f5f9;
+  --slate-50:  #f8fafc;
+  --zinc-500: #71717a;
+  --zinc-100: #f4f4f5;
+  --white: #ffffff;
+
+  /* ---- Semantic màu ---- */
+  --color-primary: var(--blue-700);
+  --color-primary-hover: var(--blue-800);
+  --color-accent: var(--blue-600);
+  --color-cccd: var(--amber-600);
+  --color-nearby: var(--emerald-700);
+
+  --bg-app: var(--zinc-100);
+  --surface-card: var(--white);
+  --surface-muted: var(--slate-50);
+  --surface-sunken: var(--slate-100);
+
+  --text-strong: var(--slate-900);
+  --text-body: var(--slate-800);
+  --text-muted: var(--slate-500);
+  --text-on-brand: var(--white);
+
+  --border-hairline: var(--slate-200);
+  --border-glass: rgba(255, 255, 255, 0.5);
+
+  --glass-fill: rgba(255, 255, 255, 0.70);
+  --glass-fill-strong: rgba(255, 255, 255, 0.90);
+  --glass-stroke: rgba(255, 255, 255, 0.40);
+  --scrim: rgba(15, 23, 42, 0.40);
+
+  /* ---- Typography ---- */
+  --font-display: 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-body:    'Be Vietnam Pro', system-ui, sans-serif;
+  --font-icon:    'Material Symbols Outlined';
+
+  --text-2xs: 11px;
+  --text-xs:  12px;
+  --text-sm:  13px;
+  --text-base: 15px;
+  --text-md:  16px;
+  --text-lg:  18px;
+  --text-xl:  22px;
+  --text-2xl: 26px;
+  --text-3xl: 32px;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-normal: 1.58;
+  --tracking-tight: -0.2px;
+  --tracking-eyebrow: 0.04em;
+
+  /* ---- Spacing & radii ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-pill: 9999px;
+
+  --control-h: 46px;
+  --fab-size: 56px;
+  --hit-min: 44px;
+  --panel-w: 420px;
+
+  /* ---- Effects ---- */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 4px 16px -4px rgba(0, 0, 0, 0.06);
+  --shadow-card-hover: 0 8px 24px -4px rgba(0, 0, 0, 0.08);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.05), inset 0 1px 1px 0 rgba(255, 255, 255, 0.5);
+  --shadow-sheet: 0 -8px 30px rgba(0, 0, 0, 0.08);
+  --shadow-pop: 0 24px 70px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.06);
+  --shadow-fab: 0 8px 24px rgba(29, 78, 216, 0.35);
+  --shadow-fab-amber: 0 8px 24px rgba(217, 119, 6, 0.30);
+
+  --ring-primary: 0 0 0 4px rgba(29, 78, 216, 0.12);
+  --ring-focus: 0 0 0 3px rgba(37, 99, 235, 0.40);
+
+  --blur-sm: blur(8px);
+  --blur-md: blur(12px);
+  --blur-lg: blur(16px);
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 0.15s;
+  --dur-base: 0.22s;
+  --dur-slow: 0.40s;
+}
