@@ -17,6 +17,17 @@
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
 
+## [2026-06-28] Xây dựng bộ thuyết trình với presentation-builder
+- **Agent:** Antigravity
+- **Thay đổi:** 
+  - Tạo thư mục `presentation/` và thiết lập `build_pptx.js`, `Ban-doc-thuyet-trinh.md` dùng `presentation-builder`.
+  - Cập nhật kịch bản sang hướng Storytelling: 8 slide lấy người dân địa phương làm trung tâm, nêu rõ nỗi đau, giải pháp RAG ("AI không bao giờ nói dối"), và sự đánh đổi chi phí.
+  - Bổ sung 2 layout slide mới vào `build_pptx.js`: `heroSlide` (câu chốt lớn toàn màn hình) và `quoteSlide` (trích dẫn tâm tư).
+  - Tự động sinh ra file `Ban-do-Cong-an-so-Phu-Tho.pptx`.
+- **File đã tạo:** `presentation/build_pptx.js`, `presentation/Ban-doc-thuyet-trinh.md`, `presentation/Ban-do-Cong-an-so-Phu-Tho.pptx`
+- **Lý do:** Đáp ứng yêu cầu tạo bộ slide sáng tạo, phá cách, mang tính thuyết phục cao trình bày trước lãnh đạo.
+- **Kiểm tra:** Đã chạy `node build_pptx.js` thành công và sinh file `.pptx` hoàn chỉnh.
+
 ## [2026-06-28] TASK-FIX-01: Dọn dẹp lỗi trong commit security (api/chat.js)
 - **Agent:** Antigravity
 - **Thay đổi:** 
