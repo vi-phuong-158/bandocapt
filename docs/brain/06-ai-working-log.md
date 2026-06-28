@@ -17,6 +17,16 @@
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
 
+## [2026-06-28] Hoàn thành kế hoạch kiểm thử và phát hành (E2E & CI)
+- **Agent:** Antigravity
+- **Thay đổi:** 
+  - Điều chỉnh khoảng cách kéo `handleBox` trong `test/e2e/detail-panel.spec.js` từ 260px lên 350px để đảm bảo vuốt qua ngưỡng đóng (`hidden`) của bottom-sheet.
+  - Cài đặt Playwright Chromium và chạy thử nghiệm `npm run test:e2e` thành công (pass 3/3 tests).
+  - Tách các thay đổi hiện tại thành 4 commit độc lập: vệ sinh dependency, sửa bottom-sheet, hardening API/privacy và bổ sung Playwright CI.
+- **File đã sửa:** `test/e2e/detail-panel.spec.js`
+- **Lý do:** Hoàn thiện và đóng gói các thay đổi còn dang dở của kế hoạch kiểm thử và phát hành để chuẩn bị deploy. Sửa lỗi test Playwright di chuyển chuột chưa đủ xa.
+- **Kiểm tra:** Lệnh `npm run test:e2e` pass hoàn toàn. Các commit đã được tạo cục bộ.
+
 ## [2026-06-28] Hiện tên trụ sở trên marker theo mức zoom
 - **Agent:** Claude Code
 - **Thay đổi:** Hiện nhãn tên mọi marker khi zoom ≥ 14 (toàn tỉnh chỉ thấy pin, zoom vào 1 khu vực
