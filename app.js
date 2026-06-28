@@ -65,6 +65,15 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
 }).addTo(map);
 
+// Hiện tên trụ sở khi zoom đủ gần (≥ LABEL_ZOOM) để nhãn không chồng chéo.
+// Toàn tỉnh (zoom thấp) chỉ thấy pin — giống Google Maps.
+const LABEL_ZOOM = 14;
+function updateMarkerLabels() {
+  map.getContainer().classList.toggle("show-marker-labels", map.getZoom() >= LABEL_ZOOM);
+}
+map.on("zoomend", updateMarkerLabels);
+updateMarkerLabels();
+
 document
   .getElementById("zoom-in-btn")
   .addEventListener("click", () => map.zoomIn());
