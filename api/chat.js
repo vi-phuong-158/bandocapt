@@ -1097,10 +1097,29 @@ module.exports = async function handler(req, res) {
     const userAgent = req.headers['user-agent'] || '';
 
     // --- [BẢO MẬT #6] Request Signing — HMAC-SHA256 chống casual scraping ---
-    // Tính năng này hiện chưa được frontend hỗ trợ (không gửi x-request-token)
-    // Nên tạm thời bỏ qua validation để tránh lỗi 403.
     const requestToken = req.headers['x-request-token'];
     const requestTime = req.headers['x-request-time'];
+    if (origin) {
+        if (!requestToken || !requestTime) {
+            return res.status(403).json({
+                error: 'MISSING_TOKEN',
+                detail: 'Thiếu request token.',
+            });
+        }
+
+        if (!verifyRequestSignature({
+            token: requestToken,
+            requestTime,
+            userMessage,
+            userAgent,
+            origin
+        })) {
+            return res.status(403).json({
+                error: 'INVALID_TOKEN',
+                detail: 'Request token không hợp lệ.',
+            });
+        }
+    }
 
     const isEvalCaptchaBypass = process.env.NODE_ENV !== 'production' &&
         process.env.EVAL_BYPASS_TOKEN &&

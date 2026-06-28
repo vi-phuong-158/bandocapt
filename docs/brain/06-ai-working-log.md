@@ -17,6 +17,13 @@
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
 
+## [2026-06-28] Fix request signing cho Chatbot RAG
+- **Agent:** Codex
+- **Thay đổi:** Đồng bộ lại thuật toán tạo `X-Request-Token` ở frontend với `verifyRequestSignature` của backend và bật lại kiểm tra chữ ký request cho các request từ trình duyệt trước bước Turnstile.
+- **File đã sửa:** `js/gemini.js`, `api/chat.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Chatbot trả 403 `INVALID_TOKEN` vì frontend ký request bằng công thức khác backend xác minh, trong khi backend/test/tài liệu đều kỳ vọng HMAC request signing hoạt động đúng.
+- **Kiểm tra:** `npm test`, `npm run build`
+
 ## [2026-06-28] Fix 403 Forbidden do lỗi logic Request Signing
 - **Agent:** Antigravity
 - **Thay đổi:** Gỡ bỏ hoàn toàn logic kiểm tra `Request Signing` (yêu cầu `x-request-token`) trong `api/chat.js`.

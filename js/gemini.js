@@ -114,10 +114,16 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk, 
         const ts = Date.now();
         const reqToken = await (async () => {
             try {
-                const signData = `${ts}:${navigator.userAgent.length}:${userMessage.length}`;
-                // Signing key derived từ nhiều yếu tố để tăng độ khó reverse-engineer
-                const keyMaterial = `xnc-phu-tho:${window.location.hostname}:${navigator.userAgent.substring(0, 16)}`;
                 const encoder = new TextEncoder();
+                const digestBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(userMessage));
+                const messageDigest = Array.from(new Uint8Array(digestBuffer))
+                    .map(b => b.toString(16).padStart(2, '0'))
+                    .join('')
+                    .substring(0, 32);
+                const originHost = window.location.hostname || 'localhost';
+                const signData = `${ts}:${originHost}:${navigator.userAgent.length}:${messageDigest}`;
+                // Signing key derived từ cùng công thức phía server để tránh false reject.
+                const keyMaterial = `xnc-phu-tho:${originHost}:${navigator.userAgent.substring(0, 16)}`;
                 const cryptoKey = await crypto.subtle.importKey(
                     'raw', encoder.encode(keyMaterial), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
                 );
