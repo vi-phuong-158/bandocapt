@@ -5,6 +5,24 @@
 
 ---
 
+## [2026-06-29] Khac phuc nhan dien dia danh va dia gioi hanh chinh 2025
+- **Agent:** Codex
+- **Thay doi:** Mo rong `Published_Locations`/`Location_Staging` voi cot tuy chon `search_aliases`, cap nhat Apps Script va runtime matcher de nhan `Thanh Mieu`, `Bach Hac` va cau khai bao noi o ngay o cau dau, nhung van chi tra ten don vi hien hanh. Bo sung rang buoc prompt de chatbot chi mo ta dia gioi hien hanh `tinh Phu Tho -> xa/phuong`.
+- **File da sua:** `js/location-data.js`, `lib/published-locations.js`, `api/chat.js`, `setup/apps-script.js`, `test/location-data.test.js`, `test/location-pipeline.test.js`, `test/published-locations.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Chatbot bo sot cac cau dau ngan chi la dia danh va de model suy dien sai theo dia gioi cu, trong khi nguoi dung can tra dung don vi hien hanh ngay tu lan hoi dau.
+- **Kiem tra:** `npm test`, `npm run build`
+
+---
+
+## [2026-06-29] Them logo app vao favicon va share preview
+- **Agent:** Codex
+- **Thay doi:** Gan `assets/logo.png` vao phan nhan dien app trong `index.html` qua `favicon`, `apple-touch-icon`, `og:image` va `twitter:image`.
+- **File da sua:** `index.html`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Logo da xuat hien trong giao dien nhung chua duoc dung o cap do app/tab browser, nen app chua co nhan dien nhat quan ben ngoai UI.
+- **Kiem tra:** Kiem tra markup `head` trong `index.html` co cac the icon/image moi tro toi `assets/logo.png`
+
+---
+
 ## [2026-06-28] Them hoi quy test Thanh Mieu cho chatbot
 - **Agent:** Codex
 - **Thay doi:** Bo sung ca test hoi quy cho kich ban hoi CCCD, bot hoi xa/phuong, user tra loi `Toi o phuong Thanh Mieu va 30 tuoi`, sau do hoi lai tru so thi van phai ra dung `Cong an Phuong Thanh Mieu` voi dia chi `So 1028 Duong Hung Vuong`.

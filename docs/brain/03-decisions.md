@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-06-29] Alias dia danh cho Published_Locations, nhung chi tra don vi hien hanh
+
+- **Quyet dinh:** Bo sung cot tuy chon `search_aliases` cho `Location_Staging` va `Published_Locations` de luu dia danh cu/viet tat phan cach bang `|`. Runtime chatbot chi hien thi `name` la ten don vi Cong an hien hanh, con alias chi dung de match.
+- **Ly do:** Sau thay doi dia gioi hanh chinh 2025, nguoi dan co the nhap dia danh cu nhu `Bach Hac`, `Tien Cat`, `Tho Son`, `Song Lo` hoac cau dau ngan chi la `Thanh Mieu`. Can map ve don vi hien hanh mot cach xac dinh ma khong de model suy dien tu tai lieu cu.
+- **Danh doi:** Pipeline Google Sheets va Apps Script phai mang theo them mot truong schema; matcher phai exact-normalized theo ranh gioi tu, khong fuzzy, va khi alias trung nhieu don vi thi chatbot bat buoc hoi lai thay vi tu chon.
+- **Nguoi quyet dinh:** user / Codex
+
+---
+
 ## [2026-06-28] Chatbot lay tru so chi tu Published_Locations
 
 - **Quyet dinh:** Runtime chatbot van dung Pinecone cho thu tuc/phap luat, nhung ten don vi, dia chi, so dien thoai, toa do va Google Maps chi duoc lay tu Google Sheet `Published_Locations` qua helper `lib/published-locations.js`. Vector Pinecone `tru_so` duoc giu lai de rollback nhung khong dua vao prompt/citation.

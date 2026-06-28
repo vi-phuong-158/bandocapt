@@ -51,10 +51,10 @@ bandocapt/
 | `index.html` | Shell UI, tai CSS/JS va DOM | Browser | `output.css`, `styles.css`, `app.js`, `js/chatbot.js`, `js/gemini.js` |
 | `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker | `index.html` | `js/location-data.js`, `api/google-sheet.js`, `data.js` |
 | `data.js` | Fallback tinh cho map khi Google Sheets loi | `app.js` | - |
-| `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check | `app.js`, `lib/published-locations.js`, test | - |
+| `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check, doc them `search_aliases` neu co | `app.js`, `lib/published-locations.js`, test | - |
 | `js/gemini.js` | Goi `POST /api/chat`, parse SSE stream | `js/chatbot.js` | `api/chat.js` |
 | `js/chatbot.js` | UI chat, toggle panel, render stream | `index.html` | `js/gemini.js` |
-| `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, match tru so theo hoi thoai | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
+| `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
 | `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone, stream model, inject `<verified_locations>` | `js/gemini.js` | Pinecone, Gemini API, Firebase, `lib/published-locations.js` |
 | `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets | Google Apps Script | SpreadsheetApp |
@@ -94,11 +94,11 @@ User nhap
    1. Verify CORS + Turnstile + HMAC
    2. Check rate limit Firebase
    3. Sanitize history
-   4. Detect nhu cau tra tru so tu current message + recent history
+   4. Detect nhu cau tra tru so tu current message + recent history, gom ca cau dau ngan chi la dia danh
    5. Skip FAQ cache neu cau hoi co dia diem/PII
    6. Tai Published_Locations qua helper cache 60s / stale 5m
    7. Dedupe ban ghi giong nhau, phat hien ban ghi mau thuan
-   8. Match ten tru so exact-normalized, khong fuzzy
+   8. Match ten tru so/alias exact-normalized theo uu tien: ten hien hanh day du -> bo `Cong an` -> ten xa/phuong hien hanh -> `search_aliases`
    9. Embed query -> Gemini Embedding 001
   10. Query Pinecone cho thu tuc/phap luat
   11. Loai runtime moi match `tru_so` khoi prompt va citation
@@ -172,8 +172,10 @@ GOOGLE_SHEET_ID
 - FAQ cache trong `api/chat.js` la in-memory theo tung serverless instance, khong shared giua cac instance.
 - Cau hoi co nhu cau tra dia diem/tru so khong duoc dung FAQ cache 1 gio de tranh dia chi cu sau khi Google Sheet cap nhat.
 - `Published_Locations` la nguon runtime duy nhat cho ten don vi, dia chi, so dien thoai, toa do va Google Maps cua chatbot.
+- `Location_Staging` va `Published_Locations` co the co cot tuy chon `search_aliases` (chuoi phan cach bang `|`) de luu dia danh cu/viet tat; runtime chi hien thi `name` la ten don vi hien hanh.
 - Helper `lib/published-locations.js` cache fresh 60 giay, cho phep dung stale toi da 5 phut neu Google Sheets loi.
-- Ban ghi trung hoan toan duoc gop. Ban ghi cung ten nhung khac dia chi/toa do thi chatbot khong tu chon, phai hoi lai user.
+- Ban ghi trung hoan toan duoc gop va hop nhat alias. Ban ghi cung ten nhung khac dia chi/toa do thi chatbot khong tu chon, phai hoi lai user.
+- Runtime mo ta dia gioi hien hanh theo mo hinh `tinh Phu Tho -> xa/phuong`; alias lich su chi duoc dung neu backend da match tu `search_aliases`.
 - Vector Pinecone `tru_so` van duoc giu trong index de rollback, nhung runtime `api/chat.js` loai bo khoi prompt va citation.
 - `Published_Locations` public khong doc `Form_Responses`; pipeline admin van di qua `Unit_Allowlist` -> `Location_Staging` -> `Published_Locations`.
 - Neu `DEEPSEEK_API_KEY` ton tai thi runtime chat chuyen sang DeepSeek thay Gemini.

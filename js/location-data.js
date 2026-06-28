@@ -20,6 +20,7 @@
         phone: ['phone', 'so dien thoai', 'dien thoai'],
         coordinates: ['coordinates', 'toa do', 'vi tri', 'google maps', 'link google maps'],
         imageUrl: ['image', 'image url', 'hinh anh', 'anh dai dien'],
+        searchAliases: ['search_aliases', 'search aliases', 'alias tim kiem', 'aliases', 'alias'],
         recordId: ['record id', 'record_id', 'ma ban ghi'],
         updatedAt: ['updated at', 'updated_at', 'cap nhat luc', 'ngay cap nhat'],
     });
@@ -126,6 +127,7 @@
                 phone: String(getCellValue(row, indexes.phone) || '').trim(),
                 coordinates: String(getCellValue(row, indexes.coordinates) || '').trim(),
                 imageUrl: String(getCellValue(row, indexes.imageUrl) || '').trim(),
+                searchAliases: String(getCellValue(row, indexes.searchAliases) || '').trim(),
                 updatedAt: String(getCellValue(row, indexes.updatedAt) || '').trim(),
                 lat: parsed.lat,
                 lng: parsed.lng,

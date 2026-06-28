@@ -52,6 +52,7 @@
             'phone',
             'coordinates',
             'image_url',
+            'search_aliases',
             'submitter_email',
             'status',
             'validation_error_codes',
@@ -70,6 +71,7 @@
             'phone',
             'coordinates',
             'image_url',
+            'search_aliases',
             'submitter_email',
             'status',
             'reviewed_by',
@@ -247,6 +249,7 @@
             phone: String(input.phone || '').trim(),
             coordinates: String(input.coordinates || '').trim(),
             imageUrl: String(input.imageUrl || '').trim(),
+            searchAliases: String(input.searchAliases || '').trim(),
         };
     }
 
@@ -313,6 +316,7 @@
             phone: normalized.phone,
             coordinates: normalized.coordinates,
             image_url: normalized.imageUrl,
+            search_aliases: normalized.searchAliases,
             submitter_email: normalized.submitterEmail,
             status,
             validation_error_codes: errors.join('|'),
@@ -334,6 +338,7 @@
             phone: stagingRecord.phone,
             coordinates: stagingRecord.coordinates,
             image_url: stagingRecord.image_url,
+            search_aliases: stagingRecord.search_aliases,
             submitter_email: stagingRecord.submitter_email,
             status: 'published',
             reviewed_by: reviewerEmail,
@@ -494,6 +499,7 @@
             phone: findNamedValue(namedValues, ['Số điện thoại trực ban / liên hệ', 'Số điện thoại', 'So dien thoai']),
             coordinates: findNamedValue(namedValues, ['Link vị trí trên Google Maps', 'Google Maps', 'Tọa độ', 'Toa do']),
             imageUrl: findNamedValue(namedValues, ['Hình ảnh đại diện Trụ sở / Nơi làm việc', 'Hình ảnh', 'Link ảnh', 'Link anh']),
+            searchAliases: findNamedValue(namedValues, ['Alias tìm kiếm', 'Search aliases', 'Search alias', 'Alias']),
         }, now);
     }
 

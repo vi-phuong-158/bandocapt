@@ -19,6 +19,7 @@ function buildPayload(rows) {
                 { label: 'Địa chỉ' },
                 { label: 'Số điện thoại' },
                 { label: 'Tọa độ' },
+                { label: 'search_aliases' },
             ],
             rows: rows.map(row => ({
                 c: [
@@ -28,6 +29,7 @@ function buildPayload(rows) {
                     { v: row.address },
                     { v: row.phone || '' },
                     { v: row.coordinates },
+                    { v: row.searchAliases || '' },
                 ],
             })),
         },
@@ -46,6 +48,7 @@ test('published locations dedupe identical rows and keep conflicting rows separa
             address: 'Địa chỉ A',
             phone: '0210',
             coordinates: '21.325,105.365',
+            searchAliases: 'Song Lo',
         },
         {
             id: '2',
@@ -53,6 +56,7 @@ test('published locations dedupe identical rows and keep conflicting rows separa
             address: 'Địa chỉ A',
             phone: '0210',
             coordinates: '21.325,105.365',
+            searchAliases: 'Bach Hac',
         },
         {
             id: '3',
@@ -78,6 +82,7 @@ test('published locations dedupe identical rows and keep conflicting rows separa
 
     assert.equal(result.locations.length, 1);
     assert.equal(result.locations[0].name, 'Công an xã Sông Lô');
+    assert.deepEqual(result.locations[0].aliases.approved, ['bach hac']);
     assert.equal(result.conflicts.length, 1);
     assert.equal(result.conflicts[0].records.length, 2);
 });
@@ -142,7 +147,12 @@ test('verified location matcher resolves Thanh Mieu exactly without fuzzy confus
                 lat: 21.304528,
                 lng: 105.415528,
                 googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=21.304528,105.415528',
-                aliases: ['cong an phuong thanh mieu', 'phuong thanh mieu', 'thanh mieu'],
+                aliases: {
+                    fullName: 'cong an phuong thanh mieu',
+                    withoutCongAn: 'phuong thanh mieu',
+                    bareName: 'thanh mieu',
+                    approved: ['bach hac', 'tien cat', 'tho son', 'song lo'],
+                },
             },
             {
                 name: 'Công an phường Văn Miếu',
@@ -151,7 +161,12 @@ test('verified location matcher resolves Thanh Mieu exactly without fuzzy confus
                 lat: 21.31,
                 lng: 105.42,
                 googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=21.31,105.42',
-                aliases: ['cong an phuong van mieu', 'phuong van mieu', 'van mieu'],
+                aliases: {
+                    fullName: 'cong an phuong van mieu',
+                    withoutCongAn: 'phuong van mieu',
+                    bareName: 'van mieu',
+                    approved: [],
+                },
             },
         ],
         conflicts: [],
@@ -159,14 +174,17 @@ test('verified location matcher resolves Thanh Mieu exactly without fuzzy confus
 
     const exact = findVerifiedLocationMatches('Công an phường thanh miếu ở đâu?', [], dataset);
     const accentless = findVerifiedLocationMatches('cong an PHUONG THANH MIEU', [], dataset);
+    const firstTurnShort = findVerifiedLocationMatches('Thanh Mieu', [], dataset);
     const followUp = findVerifiedLocationMatches('Thanh Mieu', [
         { role: 'model', parts: [{ text: 'Bạn ở xã/phường nào để mình chỉ đúng trụ sở Công an và đường đi nhé?' }] },
     ], dataset);
 
     assert.equal(exact.status, 'matched');
     assert.equal(accentless.status, 'matched');
+    assert.equal(firstTurnShort.status, 'matched');
     assert.equal(followUp.status, 'matched');
     assert.equal(exact.matches[0].address, 'Số 1028 Đường Hùng Vương');
+    assert.equal(firstTurnShort.matches[0].matchedAlias, 'thanh mieu');
     assert.equal(followUp.matches[0].name, 'Công an phường Thanh Miếu');
     assert.notEqual(exact.matches[0].name, 'Công an phường Văn Miếu');
 });
@@ -182,7 +200,12 @@ test('conversation regression: CCCD follow-up for Thanh Mieu resolves the verifi
                 lat: 21.304528,
                 lng: 105.415528,
                 googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=21.304528,105.415528',
-                aliases: ['cong an phuong thanh mieu', 'phuong thanh mieu', 'thanh mieu'],
+                aliases: {
+                    fullName: 'cong an phuong thanh mieu',
+                    withoutCongAn: 'phuong thanh mieu',
+                    bareName: 'thanh mieu',
+                    approved: ['bach hac', 'tien cat', 'tho son', 'song lo'],
+                },
             },
         ],
         conflicts: [],
@@ -193,6 +216,7 @@ test('conversation regression: CCCD follow-up for Thanh Mieu resolves the verifi
     ];
 
     const followUpMatch = findVerifiedLocationMatches('Tôi ở phường Thanh Miếu và 30 tuổi', history, dataset);
+    const firstTurnAlias = findVerifiedLocationMatches('Tôi ở Bạch Hạc và muốn làm căn cước công dân', [], dataset);
     const explicitRetryMatch = findVerifiedLocationMatches('Tìm lại trụ sở Công an phường Thanh Miếu', history, dataset);
 
     assert.equal(followUpMatch.lookupRequested, true);
@@ -204,6 +228,9 @@ test('conversation regression: CCCD follow-up for Thanh Mieu resolves the verifi
     assert.equal(explicitRetryMatch.lookupRequested, true);
     assert.equal(explicitRetryMatch.status, 'matched');
     assert.equal(explicitRetryMatch.matches[0].name, 'Công an Phường Thanh Miếu');
+    assert.equal(firstTurnAlias.status, 'matched');
+    assert.equal(firstTurnAlias.matches[0].name, 'Công an Phường Thanh Miếu');
+    assert.equal(firstTurnAlias.matches[0].matchedAlias, 'bach hac');
 });
 
 test('verified location prompt marks conflicting rows as ambiguous', () => {
@@ -238,4 +265,47 @@ test('verified location prompt marks conflicting rows as ambiguous', () => {
     assert.match(prompt, /STATUS: ambiguous_conflict/);
     assert.match(prompt, /CACHE_STATUS: stale/);
     assert.match(prompt, /Dia chi 1|Địa chỉ 1/);
+});
+
+test('approved alias shared by multiple records returns ambiguous_match instead of auto-picking', () => {
+    const dataset = {
+        cacheStatus: 'fresh',
+        locations: [
+            {
+                name: 'Công an phường Thanh Miếu',
+                address: 'Địa chỉ 1',
+                phone: '0210',
+                lat: 21.3,
+                lng: 105.3,
+                googleMapsUrl: 'https://maps.example/1',
+                aliases: {
+                    fullName: 'cong an phuong thanh mieu',
+                    withoutCongAn: 'phuong thanh mieu',
+                    bareName: 'thanh mieu',
+                    approved: ['bach hac'],
+                },
+            },
+            {
+                name: 'Công an phường Sông Lô',
+                address: 'Địa chỉ 2',
+                phone: '0211',
+                lat: 21.31,
+                lng: 105.31,
+                googleMapsUrl: 'https://maps.example/2',
+                aliases: {
+                    fullName: 'cong an phuong song lo',
+                    withoutCongAn: 'phuong song lo',
+                    bareName: 'song lo',
+                    approved: ['bach hac'],
+                },
+            },
+        ],
+        conflicts: [],
+    };
+
+    const result = findVerifiedLocationMatches('Tôi ở Bạch Hạc', [], dataset);
+
+    assert.equal(result.lookupRequested, true);
+    assert.equal(result.status, 'ambiguous_match');
+    assert.equal(result.matches.length, 2);
 });

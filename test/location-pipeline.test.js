@@ -29,6 +29,7 @@ function createSubmission(overrides = {}) {
         phone: '02103846114',
         coordinates: 'https://maps.google.com/?q=21.3225,105.4027',
         imageUrl: 'https://drive.google.com/file/d/abc/view',
+        searchAliases: 'Tien Cat|Gia Cam',
         ...overrides,
     };
 }
@@ -41,6 +42,7 @@ test('allowlist email creates pending staging record only for matching unit', ()
     assert.equal(record.validation_error_codes, '');
     assert.equal(record.unit_code, 'cong_an_phuong_tien_cat');
     assert.equal(record.reviewed_by, '');
+    assert.equal(record.search_aliases, 'Tien Cat|Gia Cam');
 });
 
 test('email outside allowlist is rejected before publication', () => {
@@ -74,6 +76,7 @@ test('valid submission stays out of published data until approved', () => {
     const approved = pipeline.applyApproval(state, stagingRecord.record_id, 'reviewer@example.gov.vn', 'looks good', new Date('2026-06-27T10:05:00.000Z'));
     assert.equal(approved.publishedRecords.length, 1);
     assert.equal(approved.publishedRecords[0].record_id, stagingRecord.record_id);
+    assert.equal(approved.publishedRecords[0].search_aliases, 'Tien Cat|Gia Cam');
     assert.equal(approved.stagingRecords[0].status, pipeline.STATUSES.approved);
 });
 

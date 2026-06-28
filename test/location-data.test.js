@@ -37,11 +37,12 @@ test('normalizePublishedLocations maps labeled columns and reports rejected rows
                 { label: 'Số điện thoại' },
                 { label: 'Tọa độ' },
                 { label: 'Hình ảnh' },
+                { label: 'search_aliases' },
             ],
             rows: [
-                { c: [{ v: 'PT-01' }, { v: 'Công an A' }, { v: 'Trụ sở' }, { v: 'Phú Thọ' }, { v: '0210' }, { v: '21.325,105.365' }, { v: '' }] },
-                { c: [{ v: 'PT-02' }, { v: 'Công an B' }, { v: 'Trụ sở' }, { v: 'Phú Thọ' }, { v: '0210' }, { v: '0,0' }, { v: '' }] },
-                { c: [{ v: 'PT-03' }, { v: '' }, { v: 'Trụ sở' }, { v: 'Phú Thọ' }, { v: '0210' }, { v: '21.3,105.3' }, { v: '' }] },
+                { c: [{ v: 'PT-01' }, { v: 'Công an A' }, { v: 'Trụ sở' }, { v: 'Phú Thọ' }, { v: '0210' }, { v: '21.325,105.365' }, { v: '' }, { v: 'A|B' }] },
+                { c: [{ v: 'PT-02' }, { v: 'Công an B' }, { v: 'Trụ sở' }, { v: 'Phú Thọ' }, { v: '0210' }, { v: '0,0' }, { v: '' }, { v: '' }] },
+                { c: [{ v: 'PT-03' }, { v: '' }, { v: 'Trụ sở' }, { v: 'Phú Thọ' }, { v: '0210' }, { v: '21.3,105.3' }, { v: '' }, { v: '' }] },
             ],
         },
     };
@@ -50,6 +51,7 @@ test('normalizePublishedLocations maps labeled columns and reports rejected rows
     assert.equal(result.locations.length, 1);
     assert.equal(result.locations[0].id, 'PT-01');
     assert.equal(result.locations[0].lat, 21.325);
+    assert.equal(result.locations[0].searchAliases, 'A|B');
     assert.deepEqual(result.rejected.map(item => item.error), [
         'COORDINATES_OUTSIDE_SERVICE_AREA',
         'NAME_MISSING',
