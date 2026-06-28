@@ -17,6 +17,13 @@
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
 
+## [2026-06-28] Fix 403 Forbidden do lỗi logic Request Signing
+- **Agent:** Antigravity
+- **Thay đổi:** Gỡ bỏ hoàn toàn logic kiểm tra `Request Signing` (yêu cầu `x-request-token`) trong `api/chat.js`.
+- **File đã sửa:** `api/chat.js`
+- **Lý do:** Ở commit dọn dẹp trước đó, logic `if (false)` bị xóa sai cách dẫn đến việc backend bắt buộc mọi request từ trình duyệt (`if (origin)`) phải có `x-request-token`. Nhưng frontend hiện tại chưa code phần tạo chữ ký điện tử này, dẫn đến lỗi 403 hàng loạt.
+- **Kiểm tra:** Đã check mã nguồn, không còn block trả về lỗi 403 `MISSING_TOKEN` hay `INVALID_TOKEN` sai mục đích.
+
 ## [2026-06-28] Loại bỏ MarkerCluster khỏi bản đồ
 - **Agent:** Antigravity
 - **Thay đổi:** Gỡ bỏ thư viện `Leaflet.markercluster` khỏi `index.html` và sử dụng `L.layerGroup()` trong `app.js` để render trực tiếp các marker. Cập nhật `01-architecture.md` và `03-decisions.md`.
