@@ -67,7 +67,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 // Hiện tên trụ sở khi zoom đủ gần (≥ LABEL_ZOOM) để nhãn không chồng chéo.
 // Toàn tỉnh (zoom thấp) chỉ thấy pin — giống Google Maps.
-const LABEL_ZOOM = 14;
+const LABEL_ZOOM = 13;
 function updateMarkerLabels() {
   map.getContainer().classList.toggle("show-marker-labels", map.getZoom() >= LABEL_ZOOM);
 }
@@ -472,7 +472,7 @@ resultsList.innerHTML = results
           : "";
 
 const iconHTML = isPolice
-        ? `<span class="material-symbols-outlined" style="font-size:22px;font-variation-settings:'FILL' 1;">local_police</span>`
+        ? `<img src="assets/logo.png" alt="" aria-hidden="true" style="width:28px;height:28px;object-fit:contain;">`
         : `<span class="material-symbols-outlined" style="font-size:22px;font-variation-settings:'FILL' 1;">badge</span>`;
       const iconClass = isPolice ? "bg-police" : "bg-id";
 
