@@ -8,6 +8,7 @@ const files = [
     'app.js',
     'data.js',
     'output.css',
+    'tokens.css',
     'styles.css',
     'assets/logo.png',
     'assets/icon.png',
