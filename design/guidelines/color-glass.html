@@ -1,0 +1,27 @@
+<!-- @dsCard group="Colors" viewport="700x180" name="Glass Surfaces" subtitle="Frosted fills over the live map" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; font-family: var(--font-body);
+    background: linear-gradient(120deg,#c7d2e8,#dfe7d6 45%,#a9c3e0); }
+  .wrap { display: flex; gap: 14px; padding: 24px; }
+  .pane { flex: 1; height: 116px; border-radius: var(--radius-lg); border: 1px solid var(--glass-stroke);
+    display: flex; flex-direction: column; justify-content: center; padding: 16px; }
+  .pane b { font-size: 13px; color: var(--slate-800); font-weight: 700; }
+  .pane span { font-size: 11px; color: var(--slate-600); margin-top: 2px; }
+  .g1 { background: var(--glass-fill); -webkit-backdrop-filter: var(--blur-md); backdrop-filter: var(--blur-md); box-shadow: var(--shadow-glass); }
+  .g2 { background: var(--glass-fill-strong); -webkit-backdrop-filter: var(--blur-lg); backdrop-filter: var(--blur-lg); box-shadow: var(--shadow-card); }
+  .g3 { background: var(--surface-card); box-shadow: var(--shadow-card); }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="pane g1"><b>glass-fill · 70%</b><span>blur(12px) · panels</span></div>
+    <div class="pane g2"><b>glass-fill-strong · 90%</b><span>blur(16px) · sheets</span></div>
+    <div class="pane g3"><b>surface-card</b><span>opaque white · cards</span></div>
+  </div>
+</body>
+</html>

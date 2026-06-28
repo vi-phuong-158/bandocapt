@@ -1,0 +1,43 @@
+/* ============================================================
+   TYPOGRAPHY — Bản đồ Công an số
+   Display: Be Vietnam Pro (700/800, tight). Body: Plus Jakarta
+   Sans (400–700). Tonal, Vietnamese-first, sentence case.
+   ============================================================ */
+
+:root {
+  /* Single Vietnamese family. Display = heavier weights, tight
+     tracking; body = the same family at 400–600. */
+  --font-display: 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-body: 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-icon: 'Material Symbols Outlined';
+
+  /* Type scale (px values used across the UI) */
+  --text-2xs: 11px;   /* eyebrow / status chips */
+  --text-xs:  12px;   /* labels, meta */
+  --text-sm:  13px;   /* secondary text, addresses */
+  --text-base: 15px;  /* body / inputs */
+  --text-md:  16px;   /* card titles */
+  --text-lg:  18px;   /* panel heading */
+  --text-xl:  22px;
+  --text-2xl: 26px;   /* detail title */
+  --text-3xl: 32px;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  --leading-tight: 1.15;
+  --leading-snug: 1.35;
+  --leading-normal: 1.58;
+
+  --tracking-tight: -0.2px;
+  --tracking-eyebrow: 0.04em;
+
+  /* Semantic roles */
+  --title-font: var(--font-display);
+  --title-weight: var(--weight-bold);
+  --body-font: var(--font-body);
+  --eyebrow-transform: uppercase; /* @kind other */
+}

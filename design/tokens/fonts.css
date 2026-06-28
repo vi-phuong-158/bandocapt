@@ -1,0 +1,12 @@
+/* ============================================================
+   FONTS — webfonts shipped with the system.
+   Be Vietnam Pro — a genuinely Vietnamese-designed typeface
+   (by Bê Trần) used as the SINGLE family across display + body.
+   Full Vềnamese diacritic coverage; modern, friendly, civic.
+   Loaded via the Google CSS API, weights 400–800.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
+
+/* Material Symbols Outlined — the app's only icon system. */
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap');

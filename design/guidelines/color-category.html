@@ -1,0 +1,26 @@
+<!-- @dsCard group="Colors" viewport="700x150" name="Category Colors" subtitle="Amber = CCCD points · Emerald = near me" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../styles.css">
+<style>
+  body { margin: 0; font-family: var(--font-body); background: var(--surface-card); }
+  .row { display: flex; gap: 10px; padding: 20px; }
+  .sw { flex: 1; border-radius: var(--radius-md); padding: 12px; display: flex; flex-direction: column; justify-content: flex-end; height: 92px; box-shadow: var(--shadow-sm); }
+  .sw b { font-size: 12px; font-weight: 700; }
+  .sw span { font-size: 11px; opacity: .85; font-variant-numeric: tabular-nums; }
+  .on-dark { color: #fff; }
+  .on-light { color: var(--slate-800); }
+</style>
+</head>
+<body>
+  <div class="row">
+    <div class="sw on-dark" style="background: var(--amber-600)"><b>CCCD · amber-600</b><span>#d97706</span></div>
+    <div class="sw on-light" style="background: var(--amber-100)"><b>amber-100</b><span>#fef3c7</span></div>
+    <div class="sw on-dark" style="background: var(--emerald-700)"><b>near me · 700</b><span>#047857</span></div>
+    <div class="sw on-dark" style="background: var(--emerald-500)"><b>online · 500</b><span>#22c55e</span></div>
+    <div class="sw on-light" style="background: var(--emerald-100)"><b>emerald-100</b><span>#d1fae5</span></div>
+  </div>
+</body>
+</html>

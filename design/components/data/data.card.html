@@ -1,0 +1,47 @@
+<!-- @dsCard group="Components" viewport="700x320" name="Result Card & Detail Rows" subtitle="Search results, badges, info rows" -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; font-family: var(--font-body); background: var(--surface-muted); padding: 24px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 12px; }
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+  .material-symbols-outlined { font-family: 'Material Symbols Outlined'; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="../../_ds_bundle.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+  const { ResultCard, InfoRow, Badge, Chip } = window.BNCNgAnSDesignSystem_c0346a;
+  function Demo() {
+    return (
+      <div className="grid">
+        <div className="col">
+          <ResultCard type="police" title="Công an phường Việt Trì" address="Số 12 Đại lộ Hùng Vương, Việt Trì" distance="1.2 km" />
+          <ResultCard type="cccd" title="Điểm cấp CCCD Thanh Miếu" address="45 Trần Phú, P. Thanh Miếu" />
+          <div className="badges">
+            <Badge tone="primary">Công an</Badge>
+            <Badge tone="amber" soft>Điểm CCCD</Badge>
+            <Chip tone="nearby" icon="near_me">1.2 km</Chip>
+          </div>
+        </div>
+        <div className="col" style={{ background: 'var(--surface-card)', borderRadius: 'var(--radius-lg)', padding: 18, boxShadow: 'var(--shadow-card)', gap: 20 }}>
+          <InfoRow icon="location_on" label="Địa chỉ" value="Số 12 Đại lộ Hùng Vương, Việt Trì" />
+          <InfoRow icon="phone" label="Số điện thoại" value="0210 3845 678" href="tel:02103845678" />
+          <InfoRow icon="schedule" label="Giờ làm việc" value="Thứ 2–Thứ 6: 7:30–17:00" />
+        </div>
+      </div>
+    );
+  }
+  ReactDOM.createRoot(document.getElementById('root')).render(<Demo />);
+</script>
+</body>
+</html>

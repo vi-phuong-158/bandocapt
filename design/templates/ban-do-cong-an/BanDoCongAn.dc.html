@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<!-- @template name="Bản đồ Công an số — Mobile App" description="Mobile-first civic map app: Leaflet map, search sheet, unit detail sheet, and prominent AI assistant." -->
+<helmet>
+<script src="./ds-base.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+<style>
+  html, body { margin: 0; height: 100%; }
+  .leaflet-container { background: #e8edf2; font-family: var(--font-body); }
+</style>
+</helmet>
+
+<div style="position:absolute; inset:0; overflow:hidden; background:var(--bg-app); font-family:var(--font-body);">
+
+  <div id="bdcs-map" style="position:absolute; inset:0; z-index:0;"></div>
+
+  <button onClick="{{ openSearch }}" style="position:absolute; top:16px; left:14px; right:14px; height:56px; z-index:30; display:flex; align-items:center; gap:12px; padding:0 8px 0 14px; background:var(--glass-fill-strong); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--glass-stroke); border-radius:9999px; box-shadow:var(--shadow-card); cursor:pointer;">
+    <img src="{{ logoUrl }}" alt="" style="width:34px; height:34px; object-fit:contain;" />
+    <span style="flex:1; text-align:left; font-size:15px; font-weight:600; color:var(--slate-500);">Khám phá đơn vị…</span>
+    <span style="width:38px; height:38px; border-radius:50%; background:var(--blue-50); display:flex; align-items:center; justify-content:center; color:var(--color-primary);">
+      <span class="material-symbols-outlined" style="font-size:20px;">search</span>
+    </span>
+  </button>
+
+  <div style="position:absolute; right:14px; bottom:110px; display:flex; flex-direction:column; gap:12px; z-index:20;">
+    <div style="display:flex; flex-direction:column; background:var(--glass-fill-strong); border-radius:9999px; box-shadow:var(--shadow-card); border:1px solid var(--glass-stroke); overflow:hidden; -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);">
+      <button aria-label="Phóng to" style="width:48px; height:48px; display:flex; align-items:center; justify-content:center; background:transparent; border:none; color:var(--slate-600); cursor:pointer;"><span class="material-symbols-outlined">add</span></button>
+      <button aria-label="Thu nhỏ" style="width:48px; height:48px; display:flex; align-items:center; justify-content:center; background:transparent; border:none; color:var(--slate-600); cursor:pointer;"><span class="material-symbols-outlined">remove</span></button>
+    </div>
+    <button aria-label="Tìm vị trí của tôi" style="width:56px; height:56px; display:flex; align-items:center; justify-content:center; background:var(--color-primary); color:#fff; border:1px solid rgba(255,255,255,0.1); border-radius:9999px; box-shadow:var(--shadow-fab); cursor:pointer;"><span class="material-symbols-outlined" style="font-size:26px; font-variation-settings:'FILL' 1;">my_location</span></button>
+  </div>
+
+  <sc-if value="{{ showLauncher }}" hint-placeholder-val="{{ true }}">
+    <div style="position:absolute; left:14px; bottom:22px; z-index:30;">
+      <x-import component-from-global-scope="BNCNgAnSDesignSystem_c0346a.ChatLauncher" dc-props="{{ launcherProps }}" hint-size="220px,64px"></x-import>
+    </div>
+  </sc-if>
+
+  <!-- Search sheet -->
+  <sc-if value="{{ searchOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeSearch }}" style="position:absolute; inset:0; z-index:40; background:var(--scrim);"></div>
+    <div style="position:absolute; top:0; left:0; right:0; z-index:41; max-height:88%; display:flex; flex-direction:column; background:var(--surface-card); border-bottom-left-radius:24px; border-bottom-right-radius:24px; box-shadow:0 16px 40px rgba(15,23,42,0.18);">
+    <div style="padding:20px 16px 14px;">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+        <img src="{{ logoUrl }}" alt="" style="width:40px; height:40px; object-fit:contain;" />
+        <div style="flex:1;">
+          <h1 style="margin:0; font-family:var(--font-display); font-size:17px; font-weight:800; color:var(--slate-800); line-height:1.1;">Bản đồ Công an số</h1>
+          <p style="margin:2px 0 0; font-size:12.5px; color:var(--text-muted);">Tỉnh Phú Thọ</p>
+        </div>
+        <button onClick="{{ closeSearch }}" aria-label="Đóng" style="width:44px; height:44px; border-radius:50%; background:var(--surface-sunken); border:none; color:var(--slate-500); display:flex; align-items:center; justify-content:center; cursor:pointer;"><span class="material-symbols-outlined" style="font-size:22px;">close</span></button>
+      </div>
+      <x-import component-from-global-scope="BNCNgAnSDesignSystem_c0346a.SearchBar" dc-props="{{ searchProps }}" hint-size="100%,46px"></x-import>
+      <div style="margin-top:14px;">
+        <x-import component-from-global-scope="BNCNgAnSDesignSystem_c0346a.FilterTabs" dc-props="{{ filterTabsProps }}" hint-size="100%,58px"></x-import>
+      </div>
+    </div>
+    <div style="overflow-y:auto; padding:4px 14px 18px; display:flex; flex-direction:column; gap:10px;">
+      <sc-if value="{{ empty }}" hint-placeholder-val="{{ false }}">
+        <div style="text-align:center; padding:48px 20px; color:var(--text-muted);">
+          <span class="material-symbols-outlined" style="font-size:52px; opacity:0.25;">search_off</span>
+          <p style="font-weight:600;">Không tìm thấy đơn vị phù hợp</p>
+        </div>
+      </sc-if>
+      <sc-for list="{{ filtered }}" as="item" hint-placeholder-count="4">
+        <x-import component-from-global-scope="BNCNgAnSDesignSystem_c0346a.ResultCard" dc-props="{{ item.cardProps }}" hint-size="100%,88px"></x-import>
+      </sc-for>
+    </div>
+    </div>
+  </sc-if>
+
+  <!-- Detail bottom sheet -->
+  <sc-if value="{{ hasSelected }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeDetail }}" style="position:absolute; inset:0; z-index:44; background:var(--scrim);"></div>
+    <div style="position:absolute; left:0; right:0; bottom:0; z-index:45; height:82%; display:flex; flex-direction:column; overflow:hidden; background:var(--surface-card); border-top-left-radius:24px; border-top-right-radius:24px; box-shadow:var(--shadow-sheet);">
+      <div style="position:relative; height:200px; flex-shrink:0; background:var(--slate-900);">
+        <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=900&q=70" alt="" style="width:100%; height:100%; object-fit:cover; opacity:0.85;" />
+        <div style="position:absolute; inset:0; background:linear-gradient(to top, rgba(15,23,42,1), rgba(15,23,42,0.3) 55%, transparent);"></div>
+        <div style="position:absolute; top:10px; left:50%; transform:translateX(-50%); width:44px; height:5px; border-radius:999px; background:rgba(255,255,255,0.6);"></div>
+        <button onClick="{{ closeDetail }}" aria-label="Đóng" style="position:absolute; top:14px; right:14px; width:44px; height:44px; border-radius:50%; background:rgba(15,23,42,0.30); -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); border:1px solid var(--glass-stroke); color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer;"><span class="material-symbols-outlined" style="font-size:22px;">close</span></button>
+        <div style="position:absolute; bottom:18px; left:18px; right:80px; color:#fff;">
+          <x-import component-from-global-scope="BNCNgAnSDesignSystem_c0346a.Badge" dc-props="{{ selBadgeProps }}" hint-size="120px,26px"></x-import>
+          <h1 style="margin:8px 0 0; font-family:var(--font-display); font-size:23px; font-weight:800; line-height:1.15; text-shadow:0 2px 8px rgba(0,0,0,0.4);">{{ sel.name }}</h1>
+        </div>
+        <div style="position:absolute; bottom:18px; right:18px;">
+          <x-import component-from-global-scope="BNCNgAnSDesignSystem_c0346a.Chip" dc-props="{{ selDistChip }}" hint-size="80px,28px">{{ sel.distance }}</x-import>
+        </div>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:22px 20px 32px;">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:26px;">
+          <a href="#" style="text-decoration:none; display:flex; align-items:center; justify-content:center; gap:9px; background:var(--blue-50); color:var(--color-primary); padding:14px 0; border-radius:12px; box-shadow:var(--shadow-sm); border:1px solid var(--border-glass); font-weight:700; font-size:14px;"><span class="material-symbols-outlined" style="font-size:22px; font-variation-settings:'FILL' 1;">directions</span>Chỉ đường</a>
+          <a href="{{ selTel }}" style="text-decoration:none; display:flex; align-items:center; justify-content:center; gap:9px; background:var(--surface-muted); color:var(--slate-700); padding:14px 0; border-radius:12px; box-shadow:var(--shadow-sm); border:1px solid var(--border-glass); font-weight:700; font-size:14px;"><span class="material-symbols-outlined" style="font-size:20px; font-variation-settings:'FILL' 1;">call</span>Gọi điện</a>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:22px;">
+          <x-import component-from-global-scope="BNCNgAnSDesignSystem_c0346a.InfoRow" dc-props="{{ rowAddress }}" hint-size="100%,52px"></x-import>
+          <x-import component-from-global-scope="BNCNgAnSDesignSystem_c0346a.InfoRow" dc-props="{{ rowPhone }}" hint-size="100%,52px"></x-import>
+          <x-import component-from-global-scope="BNCNgAnSDesignSystem_c0346a.InfoRow" dc-props="{{ rowHours }}" hint-size="100%,52px"></x-import>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <!-- Chat screen -->
+  <sc-if value="{{ chatOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute; inset:0; z-index:60; display:flex; flex-direction:column; background:#f8fbfa;">
+      <div style="display:flex; align-items:center; gap:12px; padding:14px; background:#fff; border-bottom:1px solid #eef2f7; flex-shrink:0;">
+        <div style="position:relative; width:44px; height:44px; display:flex; align-items:center; justify-content:center;">
+          <img src="{{ iconUrl }}" alt="" style="width:38px; height:38px; object-fit:contain; filter:drop-shadow(0 2px 4px rgba(15,23,42,0.16));" />
+          <span style="position:absolute; right:2px; bottom:4px; width:11px; height:11px; border-radius:999px; background:#22c55e; border:2px solid #fff;"></span>
+        </div>
+        <div style="flex:1; min-width:0;">
+          <div style="font-family:var(--font-display); font-weight:800; font-size:15px; color:var(--slate-900);">Trợ lý hỗ trợ pháp luật</div>
+          <div style="margin-top:2px; font-size:11px; font-weight:800; color:var(--color-primary); text-transform:uppercase; letter-spacing:0.04em;">Sẵn sàng hỗ trợ</div>
+        </div>
+        <button onClick="{{ closeChat }}" aria-label="Đóng" style="width:44px; height:44px; border-radius:50%; background:var(--surface-sunken); border:none; color:var(--slate-500); display:flex; align-items:center; justify-content:center; cursor:pointer;"><span class="material-symbols-outlined" style="font-size:22px;">close</span></button>
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:14px;">
+        <sc-for list="{{ messages }}" as="m" hint-placeholder-count="2">
+          <x-import component-from-global-scope="BNCNgAnSDesignSystem_c0346a.ChatBubble" dc-props="{{ m.bubbleProps }}" hint-size="100%,60px">{{ m.text }}</x-import>
+        </sc-for>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px; padding:12px 14px; border-top:1px solid #eef2f7; background:#fff; flex-shrink:0;">
+        <input value="{{ draft }}" onChange="{{ onDraft }}" onKeyDown="{{ onDraftKey }}" placeholder="Nhập câu hỏi của bạn..." style="flex:1; height:46px; padding:0 16px; border:1px solid var(--slate-200); border-radius:9999px; background:var(--surface-muted); font-family:var(--font-body); font-size:14px; outline:none;" />
+        <button onClick="{{ send }}" aria-label="Gửi" style="width:46px; height:46px; border:none; border-radius:50%; background:var(--color-primary); color:#fff; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-fab); cursor:pointer; flex-shrink:0;"><span class="material-symbols-outlined" style="font-size:23px;">send</span></button>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;: {&quot;width&quot;: 412, &quot;height&quot;: 820}}">
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.iconUrl = '../../assets/icon.png';
+    this.logoUrl = '../../assets/logo.png';
+    this.units = [
+      { id: 1, type: 'police', name: 'Công an phường Việt Trì', address: 'Số 12 Đại lộ Hùng Vương, P. Việt Trì', phone: '0210 3845 678', hours: 'Thứ 2 – Thứ 6: 7:30 – 17:00', lat: 21.3227, lng: 105.4019, distance: '0.8 km' },
+      { id: 2, type: 'cccd', name: 'Điểm cấp CCCD Thanh Miếu', address: '45 Trần Phú, P. Thanh Miếu', phone: '0210 3811 222', hours: 'Thứ 2 – Thứ 7: 8:00 – 16:30', lat: 21.2986, lng: 105.4072, distance: '1.4 km' },
+      { id: 3, type: 'police', name: 'Công an phường Nông Trang', address: '88 Nguyễn Tất Thành, P. Nông Trang', phone: '0210 3852 145', hours: 'Thứ 2 – Thứ 6: 7:30 – 17:00', lat: 21.3338, lng: 105.3949, distance: '2.1 km' },
+      { id: 4, type: 'police', name: 'Công an phường Gia Cẩm', address: '201 Hùng Vương, P. Gia Cẩm', phone: '0210 3846 900', hours: 'Thứ 2 – Thứ 6: 7:30 – 17:00', lat: 21.3155, lng: 105.4093, distance: '2.6 km' },
+      { id: 5, type: 'cccd', name: 'Điểm cấp CCCD Tiên Cát', address: '12 Châu Phong, P. Tiên Cát', phone: '0210 3818 334', hours: 'Thứ 2 – Thứ 7: 8:00 – 16:30', lat: 21.3089, lng: 105.3998, distance: '3.0 km' },
+      { id: 6, type: 'police', name: 'Công an xã Trưng Vương', address: 'QL2, xã Trưng Vương', phone: '0210 3860 071', hours: 'Thứ 2 – Thứ 6: 7:30 – 17:00', lat: 21.3402, lng: 105.4181, distance: '3.7 km' },
+    ];
+    this.state = {
+      searchOpen: false, chatOpen: false, selectedId: null,
+      filters: ['police', 'cccd'], query: '', draft: '',
+      messages: [{ role: 'assistant', text: 'Xin chào! Tôi là Trợ lý ảo tư vấn tự động các thủ tục hành chính. Tôi có thể giúp gì cho bạn hôm nay?', disclaimer: 'Nội dung tổng hợp bằng AI nên có thể có sai sót, vui lòng kiểm chứng lại thông tin.' }],
+    };
+  }
+
+  componentDidMount() { this._tryMap(0); }
+
+  _tryMap(n) {
+    if (window.L && document.getElementById('bdcs-map')) { this._initMap(); }
+    else if (n < 50) { setTimeout(() => this._tryMap(n + 1), 100); }
+  }
+
+  _markerHtml(type) {
+    const c = type === 'cccd' ? '#d97706' : '#1d4ed8';
+    const ic = type === 'cccd' ? 'badge' : 'local_police';
+    return '<div style="position:relative;width:40px;height:40px;display:flex;align-items:center;justify-content:center">'
+      + '<div style="width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;background:' + c + ';border:2px solid #fff;box-shadow:0 4px 12px rgba(0,0,0,.18)">'
+      + '<span class="material-symbols-outlined" style="transform:rotate(45deg);color:#fff;font-size:19px;font-variation-settings:\'FILL\' 1">' + ic + '</span></div></div>';
+  }
+
+  _initMap() {
+    const L = window.L;
+    const map = L.map('bdcs-map', { zoomControl: false, attributionControl: false }).setView([21.3227, 105.4019], 14);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    this.units.forEach((u) => {
+      L.marker([u.lat, u.lng], { icon: L.divIcon({ className: '', html: this._markerHtml(u.type), iconSize: [40, 40], iconAnchor: [20, 38] }) })
+        .addTo(map).on('click', () => this.select(u.id));
+    });
+  }
+
+  select(id) { this.setState({ selectedId: id, searchOpen: false }); }
+
+  toggleFilter(id) {
+    const f = this.state.filters;
+    this.setState({ filters: f.includes(id) ? f.filter((x) => x !== id) : [...f, id] });
+  }
+
+  send() {
+    const d = this.state.draft.trim();
+    if (!d) return;
+    this.setState({ messages: [...this.state.messages, { role: 'user', text: d }], draft: '' });
+    setTimeout(() => {
+      this.setState({ messages: [...this.state.messages, { role: 'assistant', text: 'Để làm thẻ CCCD, công dân cần mang theo: (1) Sổ hộ khẩu hoặc giấy xác nhận cư trú, (2) CMND/CCCD cũ nếu có. Lệ phí cấp mới là 30.000đ. Bạn có thể đến điểm cấp gần nhất trên bản đồ.', disclaimer: 'Nội dung tổng hợp bằng AI nên có thể có sai sót, vui lòng kiểm chứng lại thông tin.' }] });
+    }, 650);
+  }
+
+  renderVals() {
+    const s = this.state;
+    const sel = this.units.find((u) => u.id === s.selectedId) || null;
+    const showDist = s.filters.includes('nearby');
+    const q = s.query.trim().toLowerCase();
+    const filtered = this.units.filter((u) => {
+      const typeOk = (u.type === 'police' && s.filters.includes('police')) || (u.type === 'cccd' && s.filters.includes('cccd'));
+      const qOk = !q || u.name.toLowerCase().includes(q) || u.address.toLowerCase().includes(q);
+      return typeOk && qOk;
+    }).map((u) => ({
+      cardProps: { type: u.type, title: u.name, address: u.address, distance: showDist ? u.distance : undefined, onClick: () => this.select(u.id) },
+    }));
+
+    return {
+      logoUrl: this.logoUrl,
+      iconUrl: this.iconUrl,
+      searchOpen: s.searchOpen,
+      chatOpen: s.chatOpen,
+      hasSelected: !!sel,
+      sel: sel || {},
+      empty: filtered.length === 0,
+      filtered,
+      messages: s.messages.map((m) => ({ text: m.text, bubbleProps: { role: m.role, avatar: m.role === 'assistant' ? this.iconUrl : undefined, disclaimer: m.disclaimer } })),
+      draft: s.draft,
+      showLauncher: !s.chatOpen && !sel && !s.searchOpen,
+      selTel: sel ? 'tel:' + sel.phone.replace(/\s/g, '') : '#',
+      selBadgeProps: { tone: sel && sel.type === 'cccd' ? 'amber' : 'primary', children: sel ? (sel.type === 'cccd' ? 'Điểm cấp CCCD' : 'Trụ sở Công an') : '' },
+      selDistChip: { glass: true, icon: 'near_me' },
+      rowAddress: { icon: 'location_on', label: 'Địa chỉ', value: sel ? sel.address : '' },
+      rowPhone: { icon: 'phone', label: 'Số điện thoại', value: sel ? sel.phone : '', href: sel ? 'tel:' + sel.phone.replace(/\s/g, '') : undefined },
+      rowHours: { icon: 'schedule', label: 'Giờ làm việc', value: sel ? sel.hours : '' },
+      searchProps: { value: s.query, onChange: (e) => this.setState({ query: e.target.value }), placeholder: 'Nhập tên đơn vị, phường xã...' },
+      filterTabsProps: {
+        selected: s.filters,
+        onToggle: (id) => this.toggleFilter(id),
+        options: [
+          { id: 'police', label: 'Công an', icon: 'local_police' },
+          { id: 'cccd', label: 'Điểm CCCD', icon: 'badge', color: 'var(--color-cccd)' },
+          { id: 'nearby', label: 'Gần tôi', icon: 'near_me', color: 'var(--color-nearby)' },
+        ],
+      },
+      launcherProps: { avatar: this.iconUrl, onClick: () => this.setState({ chatOpen: true }) },
+      openSearch: () => this.setState({ searchOpen: true }),
+      closeSearch: () => this.setState({ searchOpen: false }),
+      closeDetail: () => this.setState({ selectedId: null }),
+      closeChat: () => this.setState({ chatOpen: false }),
+      onDraft: (e) => this.setState({ draft: e.target.value }),
+      onDraftKey: (e) => { if (e.key === 'Enter') this.send(); },
+      send: () => this.send(),
+    };
+  }
+}
+</script>
+</body>
+</html>
