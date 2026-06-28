@@ -17,6 +17,16 @@
 - **Kiểm tra:** <cách xác minh hoạt động đúng>
 ```
 
+## [2026-06-28] Hiện tên trụ sở trên marker theo mức zoom
+- **Agent:** Claude Code
+- **Thay đổi:** Hiện nhãn tên mọi marker khi zoom ≥ 14 (toàn tỉnh chỉ thấy pin, zoom vào 1 khu vực
+  thì tên tự hiện — giống Google Maps, tránh ~40 nhãn chồng chéo ở zoom tỉnh).
+  - `app.js`: thêm `LABEL_ZOOM = 14` + listener `zoomend` toggle class `show-marker-labels` trên map container.
+  - `styles.css`: rule `.show-marker-labels .marker-label { opacity: 1; }`. Nhãn `pointer-events: none` nên không cản chạm.
+- **File đã sửa:** `app.js`, `styles.css`
+- **Lý do:** Mobile không có hover → nhãn tên gần như luôn ẩn, khó chọn đúng trụ sở.
+- **Kiểm tra:** `preview_eval` set zoom 12/13 → không có class (chỉ pin); zoom 14/16 → có class (hiện tên). `node --check app.js` OK.
+
 ## [2026-06-28] Fix marker đen trên production — thiếu tokens.css trong build
 - **Agent:** Claude Code
 - **Thay đổi:** Thêm `tokens.css` vào danh sách copy của `scripts/build-static.js`.

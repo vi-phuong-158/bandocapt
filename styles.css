@@ -95,6 +95,8 @@
 }
 @media (hover: hover) { .marker-container:hover .marker-label { opacity: 1; transform: translate3d(-50%, -6px, 0); } }
 .marker-selected .marker-label { opacity: 1; transform: translate3d(-50%, -10px, 0); }
+/* Zoom đủ gần → hiện tên mọi trụ sở (toggle bằng JS theo mức zoom) */
+.show-marker-labels .marker-label { opacity: 1; transform: translate3d(-50%, -6px, 0); }
 
 /* Vị trí người dùng */
 .user-marker { background: var(--color-accent); border: 3px solid var(--white); border-radius: 50%; box-shadow: 0 0 16px rgba(37, 99, 235, 0.5); position: relative; }
