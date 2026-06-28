@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
 
     <!-- Content Security Policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com https://docs.google.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://challenges.cloudflare.com 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com https://unpkg.com 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.googleusercontent.com https://*.usercontent.google.com https://ui-avatars.com https://drive.google.com https://lh3.google.com https://accounts.google.com https://doc-*.googleusercontent.com; connect-src 'self' https://docs.google.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com https://docs.google.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://challenges.cloudflare.com; style-src 'self' https://fonts.googleapis.com https://unpkg.com 'unsafe-inline'; font-src https://fonts.gstatic.com; img-src 'self' data: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.googleusercontent.com https://*.usercontent.google.com https://ui-avatars.com https://drive.google.com https://lh3.google.com https://accounts.google.com https://doc-*.googleusercontent.com; connect-src 'self' https://docs.google.com https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com;">
     <title>Bản đồ Công an số</title>
     <meta name="description" content="Hệ thống Bản đồ Công an số và Điểm cấp CCCD tỉnh Phú Thọ. Soft UI Mod.">
 
@@ -38,7 +38,7 @@
 
 <div id="mobile-overlay" class="md:hidden absolute inset-0 bg-slate-900/40 z-20 hidden backdrop-blur-sm transition-opacity opacity-0 pointer-events-auto transform-gpu"></div>
 
-<div id="search-panel" class="pointer-events-auto absolute md:absolute top-0 left-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full flex flex-col transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform -translate-y-[120%] md:translate-y-0 md:translate-x-0 opacity-0 md:opacity-100 z-40 md:z-10 bg-white/70 md:bg-transparent backdrop-blur-xl shadow-glass border-white/40 md:backdrop-blur-none rounded-b-2xl md:rounded-none md:m-0 border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu will-change-transform overflow-hidden pb-4 md:pb-0">
+<div id="search-panel" class="pointer-events-auto absolute md:absolute top-0 left-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full flex flex-col transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform -translate-y-[120%] md:translate-y-0 md:translate-x-0 opacity-0 md:opacity-100 z-40 md:z-10 bg-white/70 md:bg-transparent backdrop-blur-xl shadow-glass border-white/40 md:backdrop-blur-none rounded-b-2xl md:rounded-none md:m-0 border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu overflow-hidden pb-4 md:pb-0">
 
 <div class="flex-none px-6 pt-7 pb-5 z-10">
                 <div class="flex justify-between items-start mb-6 md:mb-4">
@@ -108,9 +108,9 @@
 </ul>
         </div>
 
-<div id="detail-panel" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="detail-title" tabindex="-1" class="pointer-events-auto absolute md:absolute bottom-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full md:max-h-full flex flex-col transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] transform translate-y-full md:translate-y-0 md:-translate-x-full z-40 md:z-20 bg-surface/90 md:bg-surface backdrop-blur-md md:backdrop-blur-none rounded-t-2xl md:rounded-none border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu will-change-transform overflow-hidden">
+<div id="detail-panel" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="detail-title" tabindex="-1" data-sheet-state="hidden" data-animate="true" data-dragging="false" inert class="absolute md:absolute bottom-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full md:max-h-full flex flex-col z-40 md:z-20 bg-surface/90 md:bg-surface backdrop-blur-md md:backdrop-blur-none rounded-t-2xl md:rounded-none border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu overflow-hidden">
 
-<div id="drag-handle" class="md:hidden w-full h-8 flex items-center justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing absolute top-0 z-50 transform-gpu">
+<div id="drag-handle" class="md:hidden w-24 h-10 flex items-center justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing absolute left-1/2 -translate-x-1/2 top-0 z-20 transform-gpu">
                 <div class="w-12 h-1.5 bg-white/50 backdrop-blur rounded-full"></div>
             </div>
 
