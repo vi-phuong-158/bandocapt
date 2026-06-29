@@ -5,6 +5,17 @@
 
 ---
 
+## [2026-06-29] Chạy Regression Test và Fix Location Matcher (Thanh Miếu)
+- **Agent:** Antigravity
+- **Thay đổi:** 
+  - Chạy toàn bộ 30 câu regression test qua API thật và ghi nhận kết quả.
+  - Sửa lỗi trong `lib/published-locations.js` để lặp tức loại bỏ dấu câu (punctuation) khi nhận diện tên địa danh, giúp khớp đúng các `bare name` (tên rút gọn như "Thanh Miếu") ngay cả khi đi kèm dấu phẩy.
+  - Điều chỉnh `buildLookupTexts` để ưu tiên matching tên rút gọn khi phát hiện đây là câu hỏi tìm kiếm địa điểm (dựa vào `isLocationLookupRequested`).
+  - Xác nhận RAG trả về Nghị định 282 đúng như dữ liệu người dùng cung cấp (không hallucinate).
+- **File đã sửa:** `scripts/run-regression.js`, `lib/published-locations.js`, `api/chat.js`, `docs/brain/06-ai-working-log.md`, `docs/brain/04-current-tasks.md`
+- **Lý do:** Khắc phục lỗi báo thiếu trụ sở (ví dụ: Thanh Miếu) do matcher cũ xử lý dấu câu quá khắt khe, dẫn tới fail regression test. Đánh giá thành công khả năng truy xuất Nghị định 282 từ Pinecone. Bổ sung bộ lọc intent theo đúng loại thủ tục trong `classifyQuestion`, thắt chặt `SYSTEM_PROMPT_BASE` để chặn hoàn toàn AI bịa địa danh/địa giới cũ/mức phạt và fix lỗi undefined citation trong file báo cáo test.
+- **Kiểm tra:** Đã chạy thử nghiệm script debug bằng Node.js và xác nhận matching thành công "Thanh Miếu" từ raw message có chứa dấu phẩy. Mức độ chính xác RAG đạt kỳ vọng. Đã check file `api/chat.js` bằng `node --check`.
+
 ## [2026-06-29] Khac phuc nhan dien dia danh va dia gioi hanh chinh 2025
 - **Agent:** Codex
 - **Thay doi:** Mo rong `Published_Locations`/`Location_Staging` voi cot tuy chon `search_aliases`, cap nhat Apps Script va runtime matcher de nhan `Thanh Mieu`, `Bach Hac` va cau khai bao noi o ngay o cau dau, nhung van chi tra ten don vi hien hanh. Bo sung rang buoc prompt de chatbot chi mo ta dia gioi hien hanh `tinh Phu Tho -> xa/phuong`.

@@ -450,11 +450,13 @@ MỤC TIÊU CỐT LÕI: Sau mỗi câu trả lời, người dân phải biết 
 ## DỮ LIỆU & CHỐNG BỊA
 - Mọi số Điều/Khoản/mức phí/mẫu đơn PHẢI có trong <retrieved_documents>.
 - Mọi ĐỊA CHỈ/SĐT/TỌA ĐỘ/LINK MAPS PHẢI có trong <verified_locations>.
+- KHI <verified_locations> là no_match: TUYỆT ĐỐI KHÔNG tự viết tên đơn vị Công an theo địa danh người dùng nhập. KHÔNG ĐƯỢC tự thêm từ như "huyện", "thành phố", "thị xã". KHÔNG ĐƯỢC nói "Công an phường/xã [địa danh]" nếu tên đó không nằm trong verified_locations.name.
 - TUYỆT ĐỐI KHÔNG bịa địa chỉ, số điện thoại, tọa độ, mức phí. Không có dữ liệu xác minh → nói rõ trạng thái thiếu dữ liệu.
 - Quan hệ hành chính hiện hành phải mô tả theo mô hình: tỉnh Phú Thọ → xã/phường. Không mô tả xã/phường hiện hành là "thuộc thành phố", "thuộc huyện" hoặc "thuộc thị xã".
 - Nếu MATCHED_ALIAS trong <verified_locations> là địa danh cũ/địa danh hợp thành thì được phép giải thích ngắn rằng địa danh đó hiện do đơn vị hiện hành tiếp nhận, nhưng tên đơn vị hiển thị chính vẫn phải là tên hiện hành.
 - Tài liệu trụ sở (danh bạ): tên đơn vị, địa chỉ, SĐT, tọa độ/Google Maps.
 - Tài liệu thủ tục: tên thủ tục, thành phần hồ sơ, nơi nộp, thời gian, lệ phí, căn cứ.
+- LUẬT TRẢ LỜI NGHIÊM NGẶT (SỐ LIỆU/BIỂU MẪU): Với mức phạt, lệ phí, thời hạn, biểu mẫu, số ngày giải quyết: Chỉ trả khi <retrieved_documents> có đoạn chứa trực tiếp thông tin đó. Nếu citation/source không xác định được tên văn bản và điều/khoản, phải nói: "Mình chưa có căn cứ đủ chắc trong dữ liệu để kết luận con số này." Không được tự tổng hợp số tiền, số ngày, mẫu biểu từ kiến thức chung.
 
 ## CẤU TRÚC TRẢ LỜI
 
@@ -788,10 +790,19 @@ ${snippets}`;
 // =====================================================================
 function classifyQuestion(text) {
     const lower = text.toLowerCase();
+    
+    // 1. Phân loại ưu tiên cao nhất theo intent rõ ràng (map sang procedure_type nếu cần)
+    if (/thẻ tạm trú|temporary residence card|cấp thẻ|mất thẻ/.test(lower)) return 'the_tam_tru';
+    if (/gia hạn visa|visa hết hạn|gia hạn tạm trú|thi_thuc|thị thực/.test(lower)) return 'gia_han_tam_tru_thi_thuc';
+    if (/(mất hộ chiếu|lost passport).*người nước ngoài|người nước ngoài.*(mất hộ chiếu|lost passport)/.test(lower)) return 'lost_passport_foreigner_in_vietnam';
+    if (/(khai báo tạm trú|ở nhà tôi|khách nước ngoài|khách sạn|cơ sở lưu trú)/.test(lower)) return 'khai_bao_tam_tru_nguoi_nuoc_ngoai';
+
+    // 2. Fallback về lĩnh vực chung
     if (/phạt|xử phạt|mức phạt|vi phạm/.test(lower)) return 'xu_phat';
-    if (/visa|thị thực|nhập cảnh|xuất cảnh|quá cảnh|na5|na6|na8|gia hạn tạm trú|thẻ tạm trú|giấy phép lao động|người nước ngoài|doanh nghiệp bảo lãnh/.test(lower)) return 'xuat_nhap_canh';
+    if (/visa|nhập cảnh|xuất cảnh|quá cảnh|na5|na6|na8|giấy phép lao động|người nước ngoài|doanh nghiệp bảo lãnh/.test(lower)) return 'xuat_nhap_canh';
     if (/tạm trú|thường trú|cư trú|lưu trú/.test(lower)) return 'cu_tru';
     if (/hộ chiếu|passport|thông hành|vneid|cổng dịch vụ công/.test(lower)) return 'ho_chieu';
+    
     return null; // không filter
 }
 
