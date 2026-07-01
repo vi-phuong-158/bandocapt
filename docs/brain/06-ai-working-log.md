@@ -1,7 +1,114 @@
 # 06 — AI Working Log
 
-> Nhật ký các lần AI (Claude Code / Codex) sửa code. Mỗi agent PHẢI thêm entry sau mỗi lần
+> nhật ký các lần AI (Claude Code / Codex) sửa code. Mỗi agent PHẢI thêm entry sau mỗi lần
 > chạm vào code. Đọc ngược từ trên xuống để biết gần đây ai đã làm gì và vì sao.
+
+---
+
+## [2026-07-01] Baseline mới sau khi vá TL01/TT04 — kết quả 27/30 sạch, 2 soft-fail, 1 fail
+- **Agent:** Claude Code
+- **Thay đổi:** Chạy lại đủ 30 câu (`regression-run-2026-07-01_07-52-45.md` = `regression-latest.md`), viết phân tích đồng bộ tại `test/results/regression-analysis-2026-07-01_07-52-45.md`. Đánh dấu rõ `regression-run-1.md` và `regression-run-1-analysis.md` là LỖI THỜI/SUPERSEDED ngay đầu file (không xóa, giữ giá trị lịch sử) — khắc phục đúng vấn đề "2 file lệch phiên bản" mà reviewer độc lập chỉ ra. Sửa luôn `docs/brain/05-testing-and-deploy.md` từ "39 unit test" thành "57 unit test" (đúng số thật hiện tại).
+- **Kết quả:** 27/30 sạch (so với 20/30 lần gốc). TL01 và TT04 xác nhận đã vá đúng (xem entry trước). Phát hiện mới: **TR02** đưa SĐT chưa xác minh kèm cảnh báo "không nằm trong danh sách xác minh" — vẫn là vi phạm, cảnh báo không bù được. **LOC04** (tự chọn thay vì hỏi lại) và **EV07** (hallucination tiếng Trung) vẫn tồn đọng, chưa sửa trong đợt này.
+- **Sự cố trong lúc chạy (không phải hồi quy code):** 3 câu (LOC04, TYPO01, TYPO02) ban đầu lỗi `UNKNOWN_ERROR` do `PineconeConnectionError`/`ECONNRESET` và DNS không resolve được `api.deepseek.com` (do `DEEPSEEK_API_KEY` được cấu hình nên runtime ưu tiên DeepSeek) — gián đoạn mạng cục bộ tại đúng thời điểm chạy, retry logic đã chạy đúng nhưng mạng lỗi xuyên suốt cửa sổ retry. Đã retry riêng cả 3 câu ngay sau, kết quả sạch — dùng để chấm baseline.
+- **Đánh giá từ reviewer độc lập:** User đưa 1 bản review production-readiness từ nguồn khác, đánh giá khá đúng (test count sai, 2 file lệch phiên bản, LOC04/TT04/TL01/EV07 có vấn đề thật). Qua verify, xác nhận TT04 và TL01 là hồi quy MỚI do chính đợt vá Pinecone/QLXNC gây ra (đã sửa trong entry trước); LOC04/EV07 là gap đã biết từ trước. Khuyến nghị trọng tâm của reviewer ("output validator bằng code thay vì chỉ dựa prompt") được xác nhận là hướng đúng — TR02 (SĐT chưa xác minh lọt qua dù có luật prompt + cảnh báo) là bằng chứng cụ thể cho việc cần validator hậu kiểm.
+- **Việc còn tồn đọng:** Output validator code-level (ưu tiên cao nhất), xử lý LOC04, tiếp tục vá EV07, chạy thêm 2-3 lần để đo biến thiên trước khi coi đây là baseline ổn định.
+
+---
+
+## [2026-07-01] Sửa 2 hồi quy do reviewer ngoài phát hiện (TL01, TT04) + hết ghi đè lịch sử regression
+- **Agent:** Claude Code
+- **Bối cảnh:** User đưa 1 bản đánh giá production-readiness từ reviewer khác, chỉ ra `regression-run-1.md`/`regression-run-1-analysis.md` lệch phiên bản (đúng — do script ghi đè cùng tên file mỗi lần chạy), và 4 câu vẫn lỗi (LOC04, TT04, TL01, EV07). Tôi verify độc lập: LOC04 và EV07 là gap đã biết từ trước (đã ghi chú trong `-analysis.md` gốc), nhưng **TT04 và TL01 là hồi quy MỚI do chính tôi gây ra** ở các bước trước (TT04 vốn PASS sạch, TL01 vốn PASS sạch trong lần chấm gốc).
+- **Thay đổi:**
+  - `api/chat.js` (SYSTEM_PROMPT_BASE): (1) Mở rộng luật "không trộn thời hạn" thành 3 loại rõ ràng — hạn khai báo/nộp hồ sơ vs thời gian giải quyết/xử lý vs thời hạn giá trị giấy tờ — cấm dùng thay thế nhau (vá TL01). (2) Thêm luật mới "CẤM SUY DIỄN THỦ TỤC TƯƠNG TỰ" — khi dữ liệu chỉ có 1 biến thể (vd "cấp mới") nhưng người dùng hỏi biến thể khác (vd "cấp lại/mất"), cấm lấy hồ sơ/bước của biến thể có data trình bày như đáp án, phải nói rõ chưa có dữ liệu (vá TT04).
+  - Vá metadata Pinecone record `tthc_matt26265` (`ns.update()`, metadata-only): tách field "Thời hạn: 24 giờ đến 07 ngày" (vốn gây nhầm) thành 2 dòng rõ ràng — "Hạn khai báo (12h/24h, theo Điều 33 Luật XNC)" và "Thời hạn giải quyết (24h-07 ngày, thời gian hệ thống xử lý)" — nguyên nhân gốc của TL01 (tôi tự gây ra khi thêm record này ở bước trước, do không tách rõ 2 khái niệm thời hạn).
+  - `scripts/run-regression.js`: đổi tên file output từ cố định `regression-run-1.md` sang có timestamp (`regression-run-<ISO-timestamp>.md`) + luôn ghi thêm `regression-latest.md` làm con trỏ tới lần chạy mới nhất. Sửa nguyên nhân gốc khiến 2 file kết quả/phân tích lệch phiên bản.
+- **Kiểm tra:** `node -c api/chat.js` OK, `npm test` 57/57 pass. Đang chạy lại đủ 30 câu để tạo baseline mới đồng bộ (xem entry tiếp theo sau khi có kết quả).
+- **Việc còn tồn đọng:** LOC04 (tự chọn thay vì hỏi lại khi mơ hồ) và EV07 (bịa số liệu tiếng Trung) vẫn CHƯA sửa trong lượt này — sẽ đánh giá lại mức độ ưu tiên sau khi có baseline mới.
+
+## [2026-07-01] Thêm công cụ dashboard theo dõi vector Pinecone (Google Sheet)
+- **Agent:** Claude Code
+- **Thay đổi:** Tạo `setup/export-pinecone-dashboard.gs` — Apps Script gọi trực tiếp Pinecone REST API (`/indexes/{name}` resolve host, `/vectors/list`, `/vectors/fetch`) và đổ toàn bộ 530 vector của index `chatbot-tthc-xnc` vào 5 tab Google Sheet: `Tong_quan`, `TTHC` (39 record, có cột Trạng thái tự suy ra: OK / CẦN XÁC MINH / LỖI CŨ chưa vá), `Guide` (194), `Law` (152), `Truso_Legacy` (145, đánh dấu rõ KHÔNG dùng cho runtime). Có tùy chọn `setupDailyTrigger()` để tự refresh mỗi ngày.
+- **Lý do:** User (cán bộ quản lý nội dung, không phải dev) muốn theo dõi trực tiếp dữ liệu vector sau đợt vá phí/lệ phí — chọn phương án xuất Google Sheet (giống cách dự án đang quản lý `Published_Locations`) thay vì dùng console Pinecone hoặc build trang admin riêng.
+- **Bảo mật:** `PINECONE_API_KEY` lưu trong Apps Script Script Properties (không hardcode trong code, không đưa vào Sheet mà người xem thường thấy được).
+- **Kiểm tra:** Đã smoke-test bằng Node.js với ĐÚNG các endpoint/tham số y hệt script dùng (raw REST, không qua SDK) trước khi giao: resolve host (200 OK), list 530 ID qua 6 trang phân trang, fetch batch 90/90 record — khớp với số liệu `describeIndexStats` đã biết trước đó. Không tự chạy được Apps Script trực tiếp (không có quyền truy cập trình duyệt/Google account), nên user cần tự chạy theo hướng dẫn trong comment đầu file.
+- **File đã tạo:** `setup/export-pinecone-dashboard.gs`
+
+## [2026-07-01] Xóa bỏ thủ tục "Khai báo tạm trú bằng Phiếu giấy" khỏi Pinecone (lỗi thời)
+- **Agent:** Claude Code
+- **Thay đổi:** Xóa vector `guide_cap_xa_2025_a_02_quan_ly_xuat_nhap_canh_khai_bao_tam_tru_cho_nguoi_nuoc_ngoai_tai_viet_nam_bang_phieu_khai_bao_tam_tru_01_01` (`source_type: "guide"`, `van_ban: "Wiki thủ tục hành chính cấp xã 2025"`) khỏi index `chatbot-tthc-xnc` theo yêu cầu trực tiếp của user (cán bộ PA01 phụ trách lĩnh vực này): thủ tục khai báo tạm trú bằng Phiếu khai báo giấy (mẫu NA17, nộp tại Công an cấp xã, hạn 12h/24h) **đã lỗi thời, không còn giá trị** — thay bằng kênh online (xem entry "Thêm mới thủ tục Khai báo tạm trú online" bên dưới).
+- **Kiểm tra trước khi xóa:** Semantic search + list theo prefix xác nhận đây là RECORD DUY NHẤT khớp chủ đề này (không có chunk anh em khác). Đã backup đầy đủ metadata + vector (768 chiều) tại `data/pinecone-backups/2026-07-01-DELETED-guide-khai-bao-tam-tru-phieu-giay-01_01.json` trước khi xóa — có thể khôi phục bằng `ns.upsert([{id, values, metadata}])` nếu cần.
+- **Kiểm tra sau khi xóa:** Re-run trực tiếp qua `api/chat.js` với câu hỏi TR01 (từng trích dẫn RẤT nhiều lần chính record này trong `regression-run-1.md`) → bot chuyển hoàn toàn sang hướng dẫn kênh online (`tthc_matt26265`), không còn nhắc mẫu NA17/nộp giấy tại Công an cấp xã, không lỗi/không hồi quy.
+- **Lưu ý cho agent sau:** Record này từng là nguồn RAG chính cho rất nhiều câu hỏi "khai báo tạm trú" cơ bản trong bộ test regression (`test/cau-hoi/bo-test-regression-30-cau-nguoi-nuoc-ngoai-tthc.md`). Nếu chạy lại `scripts/run-regression.js`, các câu TR01/TR02/TR03/CS01/GD02/PI01/TR09/LOC02/DN02 sẽ có nội dung khác trước (đúng, vì phản ánh quy trình mới), không phải regression giả.
+
+## [2026-07-01] Thêm mới thủ tục "Khai báo tạm trú online" vào Pinecone
+- **Agent:** Claude Code
+- **Thay đổi:** KHÔNG sửa file repo. Upsert **1 vector mới** vào Pinecone index `chatbot-tthc-xnc` (namespace cùng tên): `tthc_matt26265` — thủ tục "Khai báo tạm trú cho người nước ngoài tại Việt Nam qua Trang thông tin điện tử" (nguồn: user cung cấp URL `dichvucong.bocongan.gov.vn/bocongan/bothutuc/tthc?matt=26265`, mã TTHC quốc gia 1.001437). Đây là record HOÀN TOÀN MỚI (chưa từng có trong index — đã kiểm tra bằng semantic search trước khi thêm), không phải sửa record cũ.
+- **Lý do:** Regression test ON01 ("Khai báo tạm trú online được không?") trước đó trả lời SAI "chưa có quy định trực tuyến" vì dữ liệu này chưa từng được ingest — user cung cấp nguồn để bổ sung.
+- **Chi tiết kỹ thuật quan trọng cho agent sau:**
+  - `loai_thu_tuc: "tam_tru"` — bắt buộc giữ giá trị này để khớp filter `RAG-03` (`classifyQuestion()` → category `tam_tru_khai_bao` → `getFilterCategoriesForQuestionCategory` → `['tam_tru', 'cu_tru']`, xem `api/chat.js` dòng ~840-883).
+  - **Lưu ý về xung đột heuristic rerank phụ** (`scoreSplitTempResidenceMatch`, `api/chat.js` dòng ~898-958): logic này giả định nhị phân "khai báo tạm trú = cấp xã" / "thẻ tạm trú = cấp tỉnh" để phân biệt 2 loại tài liệu, và trừ điểm (-3) nếu văn bản "tam_tru_khai_bao" chứa cụm "công an cấp tỉnh"/"phòng quản lý xuất nhập cảnh". Record mới này khai báo tạm trú NHƯNG xử lý ở **cấp tỉnh** (kênh online) — không khớp giả định nhị phân đó. Đã CỐ Ý giữ nguyên "Cơ quan xử lý: Công an Tỉnh" trong `text` (đúng sự thật theo nguồn), chấp nhận rủi ro bị heuristic trừ điểm nhẹ, thay vì bóp méo dữ liệu để "lách" bộ rerank. Đã verify thực tế: vẫn lọt top-3 sau rerank (`8 -> 3`) khi test câu hỏi ON01. Nếu sau này phát hiện record này bị loại khỏi kết quả cho câu hỏi liên quan, cần xem lại heuristic `scoreSplitTempResidenceMatch` (nới lỏng giả định nhị phú cấp xã/cấp tỉnh), không phải sửa lại dữ liệu record.
+  - `procedure_id: "matt26265"` — đặt theo mã tra cứu URL gốc (không theo dãy số `tinh-XX`/`5568-XX` đã dùng) để tránh trùng với ID mà một đợt ingest chính thức trong tương lai có thể cấp phát.
+- **Kiểm tra:** Semantic search trước khi thêm xác nhận chưa tồn tại (điểm gần nhất 0.778 là thủ tục giấy khác). Re-run trực tiếp qua `api/chat.js` với câu ON01 → bot đổi từ "chưa có quy định online" (sai) sang "Có, hoàn toàn có thể... trực tuyến" kèm đủ bước, thời hạn 24h-07 ngày, không bịa địa chỉ. Metadata lưu tại `data/pinecone-backups/2026-07-01-new-record-matt26265-khai-bao-tam-tru-online.json`.
+
+## [2026-07-01] Vá dữ liệu phí/lệ phí trong Pinecone (không phải sửa code repo)
+- **Agent:** Claude Code (điều phối 4 sub-agent nghiên cứu song song qua WebSearch/WebFetch)
+- **Thay đổi:** KHÔNG sửa file nào trong repo. Đã ghi đè metadata (`le_phi`, `phi`, `text`) trực tiếp trong Pinecone index `chatbot-tthc-xnc` (namespace cùng tên) cho 34 record `source_type: "tthc"` từng bị lỗi gộp `Phí/lệ phí:` (26 record vá số liệu thật đã đối chiếu Thông tư 28/2026/TT-BTC; 8 record đánh dấu `"Chưa xác minh"` vì không đủ nguồn tin cậy — xem chi tiết và danh sách đầy đủ ở `docs/brain/03-decisions.md` mục "[2026-07-01] Vá trực tiếp dữ liệu phí/lệ phí trong Pinecone").
+- **Lý do:** Codex chẩn đoán đúng gốc bug ở tầng ingest (không có trong repo); TT01/GV06 trả lời sai "miễn phí" là do dữ liệu RAG sai, không phải model/prompt.
+- **Kiểm tra:** Re-audit toàn bộ 38 record: `still_bad_merge count = 0`. Re-run trực tiếp qua `api/chat.js` với câu hỏi target đúng record đã vá (`5568-tw-11`/`5568-tinh-06`) → bot trả đúng "Phí: 10 USD/lần", có citation, không còn bịa "miễn phí". Đã backup metadata gốc của 34 record trước khi ghi đè.
+- **Việc còn tồn đọng:** 8 record "Chưa xác minh" cần người xác minh Thông tư 28/2026/TT-BTC bản gốc; toàn bộ 38 record vẫn ghi "Căn cứ pháp lý: Thông tư 25/2021/TT-BTC" (đã hết hiệu lực, số tiền không đổi nhưng số hiệu văn bản cần cập nhật).
+
+## [2026-06-30] Ghi alias vào Google Sheet Published_Locations thành công
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - Fix 3 bug trong `setup/bulk-update-aliases.gs`: (1) tên cột tiếng Việt không khớp `name`, (2) hàm `_norm` xóa nhầm chữ HOA trước `toLowerCase()`, (3) regex bỏ dấu dùng ký tự literal thay vì `̀-ͯ`.
+  - Script nay tự nhận diện cột `Tên Đơn vị`, tự tạo cột `search_aliases` nếu chưa có.
+  - Kết quả chạy trên Google Sheet: **140 dòng cập nhật**, 1 dòng bỏ qua (`Công an tỉnh Phú Thọ` — đúng, không cần alias).
+- **File đã sửa:** `setup/bulk-update-aliases.gs`
+- **Lý do:** Script cũ giả định tên cột tiếng Anh (`name`) trong khi sheet thực tế dùng tên cột Google Form tiếng Việt.
+- **Kiểm tra:** Log Apps Script "Da cap nhat: 140 dong, Bo qua: 1 dong". Cache server tự làm mới sau ≤60 giây.
+
+---
+
+## [2026-06-30] Hoàn thiện alias_draft.csv — 148 đơn vị đủ, thêm alias kép chống nhập nhằng
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - Xóa 5 dòng draft thừa/trùng ở đầu file `data/alias_draft.csv`.
+  - Bổ sung 4 đơn vị còn thiếu: xã Thanh Sơn, xã Tiền Phong, xã Thu Cúc, xã Trung Sơn (tổng đạt đúng 148 = 133 xã + 15 phường theo NQ 1676/NQ-UBTVQH15).
+  - Thêm alias kép (tên cũ + huyện) cho 12 đơn vị thuộc 7 nhóm xung đột: `hiền lương hạ hòa/đà bắc`, `tam sơn cẩm khê/sông lô`, `tân lập thanh sơn/sông lô/lạc sơn`, `tân minh thanh sơn/đà bắc`, `cao sơn đà bắc/lương sơn`, `đồng thịnh yên lập/sông lô`, `yên lập vĩnh tường`.
+  - Tạo `setup/bulk-update-aliases.gs` — script Apps Script chạy một lần trong Google Sheets để ghi cột `search_aliases` cho toàn bộ 148 đơn vị.
+- **File đã sửa:** `data/alias_draft.csv`, `setup/bulk-update-aliases.gs` (mới).
+- **Lý do:** Alias kép giúp `scoreLocationMatch` phân giải đúng đơn vị khi cùng tên địa danh cũ nằm ở nhiều huyện khác nhau (do sáp nhập 3 tỉnh Phú Thọ–Vĩnh Phúc–Hòa Bình), giảm `ambiguous_match` không cần thiết.
+- **Kiểm tra:** Paste `setup/bulk-update-aliases.gs` vào Apps Script của Google Sheet → chạy `bulkUpdateAliases()` → xem log xác nhận 148 dòng cập nhật. Cache tự làm mới sau ≤60 giây.
+
+---
+
+## [2026-06-30] Round 2 — sửa 5 lỗi sau regression-run-1 (collision Phú Thọ, ambiguous, no_match guard, W4, W7)
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - **#1 Collision tên tỉnh:** thêm `REGION_STOPWORDS` (`phu tho`, `tinh phu tho`, `viet tri`, `vinh phuc`, `hoa binh`) trong `lib/published-locations.js`; chặn match qua `bareName`/`approved` trần cho các tên này (vẫn match khi nói rõ "phường/xã X"). Gốc lỗi: bất kỳ câu nào nhắc tên tỉnh "Phú Thọ" đều match nhầm "Công an Phường Phú Thọ" → KC04/DN01 nêu nhầm trụ sở + bịa SĐT QLXNC.
+  - **#2 Tách `ambiguous_*` khỏi nhánh tất định** trong `api/chat.js`: deterministic chỉ chạy khi `isVietnamese && !hasProcedureIntent && (no_match|unavailable)`. Khôi phục LOC04 Sông Lô (ambiguous_conflict → để LLM trình option/hỏi lại) và tránh trả boilerplate tiếng Việt cho câu tiếng Anh.
+  - **#3** Khôi phục dòng prompt cấm bịa tên đơn vị khi `no_match`/`unavailable` (Round 1 đã xóa nhầm); **làm thật W4**: phân biệt mất hộ chiếu người nước ngoài vs công dân VN, hỏi lại quốc tịch khi mơ hồ.
+  - **#4 (W7)** prompt: chuẩn hóa thời hạn khai báo tạm trú "12 giờ/24 giờ vùng sâu xa", cấm tự bịa "30/60 ngày" công dân VN, sửa intent TYPO01 (tạm trú chung ≠ cấp thẻ).
+  - **#5** Làm lại `data/alias_draft.csv`: ngăn cách bằng `|` (đúng `parseSearchAliases`), bỏ "bạch hạc" trùng ở Sông Lô, đúng tên đơn vị live, đánh dấu hàng cần user xác nhận.
+- **File đã sửa:** `api/chat.js`, `lib/published-locations.js`, `test/published-locations.test.js`, `data/alias_draft.csv`.
+- **Lý do:** Round 1 (Antigravity) sửa được W1/W2/W5/W6 nhưng tạo regression (LOC04) + lộ bug collision diện rộng, và W4/W7 thực tế chưa được implement đầy đủ.
+- **Kiểm tra:** `node --check` sạch; `node --test` 38/38 pass (thêm test collision Phú Thọ). Verify trên data Google Sheet thật: KC04/DN01 → `no_match` (hết match nhầm Phú Thọ); Sông Lô → `ambiguous_conflict`; "phường Phú Thọ" rõ ràng → vẫn `matched`; Thanh Miếu tiếng Anh → `matched`. Cần chạy lại `regression-run-2` qua API để xác nhận đầu ra LLM.
+
+---
+
+## [2026-06-29] P0 Regression Fixes (W1, W2, W3, W4, W5, W6, W7)
+- **Agent:** Antigravity
+- **Thay đổi:**
+  - Khóa chặt prompt AI chỉ dùng tiếng Việt (W1).
+  - Bổ sung regex nhận diện tiếng Anh trong `lib/published-locations.js` (W2).
+  - Trả về tin nhắn tĩnh nếu fallback không tìm thấy địa danh (W3).
+  - Cập nhật prompt với luồng xử lý người nước ngoài báo mất hộ chiếu (W4).
+  - Chuẩn hóa hàm `classifyQuestion` để luôn trả về 1 trong 6 nhãn hợp lệ, tránh lỗi retry RAG (W5).
+  - Chuyển limit rate limit thành biến môi trường `RATE_LIMIT_MONTHLY` thay vì hardcode (W6).
+  - Cải thiện prompt để gỡ bỏ lỗi văn phong pháp lý và bịa địa danh, không chào hỏi, v.v. (W7).
+- **File đã sửa:** `api/chat.js`, `lib/published-locations.js`, `test/published-locations.test.js`, `test/p0-fixes.test.js`, `task.md`.
+- **Lý do:** Khắc phục triệt để các lỗi P0 và P1 sau lần đánh giá `regression-run-1`, chuẩn bị cho `regression-run-2`.
+- **Kiểm tra:** Đã pass toàn bộ 53/53 bài kiểm tra với `npm test`. Chạy `npm run check:syntax` và `node scripts/run-regression.js` thành công.
 
 ---
 
@@ -356,3 +463,50 @@
 - **Lý do:** Thiết lập ngữ cảnh và quy tắc dùng chung để mọi agent đọc trước khi code.
   Dự án đã đủ phức tạp (RAG, bảo mật nhiều lớp, Firebase, Pinecone) để cần tài liệu sống.
 - **Kiểm tra:** Các file tồn tại trong `docs/brain/`, nội dung phản ánh đúng codebase tại 2026-06-27.
+
+## [2026-06-30] Cập nhật danh sách alias từ bài báo sáp nhập
+- **Agent:** Codex
+- **Thay đổi:** Thêm 144 dòng dữ liệu sáp nhập xã/phường vào file alias_draft.csv.
+- **File đã sửa:** data/alias_draft.csv
+- **Lý do:** Người dùng yêu cầu bổ sung dữ liệu xã phường mới sau khi sáp nhập để hỗ trợ tìm kiếm trên bản đồ.
+- **Kiểm tra:** Đã xem lại các dòng cuối của file alias_draft.csv để đảm bảo dữ liệu ghi đúng định dạng.
+
+## [2026-06-30] Bơm dữ liệu Phòng QLXNC + vá retry lỗi mạng (sau regression)
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - Chạy `scripts/run-regression.js` (30 câu NNN/TTHC). Phát hiện lỗi nặng: bot **bịa địa chỉ/SĐT Phòng QLXNC** (EV04, GV06) vì `Published_Locations` chưa có đơn vị cấp tỉnh; và VP01 crash `ECONNRESET`.
+  - `fetchWithRetry`: bọc `try/catch`, retry cả lỗi mạng dạng throw (ECONNRESET/ETIMEDOUT/fetch failed/abort), không chỉ HTTP 429/503.
+  - Thêm hằng `XNC_RECEPTION_VERIFIED_BLOCK` (3 điểm tiếp dân Phòng QLXNC, hiệu lực 13/4/2026, chỉ địa chỉ + SĐT, chưa có tọa độ) + hàm `detectXncAuthorityIntent()`; bơm khối này vào `<verified_locations>` khi câu hỏi thuộc thẩm quyền XNC (thị thực/gia hạn/thẻ tạm trú/e-visa/NNN mất hộ chiếu) — độc lập matcher từ khóa.
+  - SYSTEM_PROMPT_BASE: thêm luật định tuyến thẩm quyền XNC (không đẩy về xã/phường), cách dùng khối `THONG_TIN_DON_VI_CAP_TINH` (định tuyến 3 điểm theo địa bàn tỉnh cũ, KHONG_TOA_DO → không tạo link Maps), và cấm bịa địa chỉ/SĐT đơn vị cấp tỉnh không có trong verified.
+- **File đã sửa:** `api/chat.js`; thêm `test/results/regression-run-1-analysis.md`, `docs/brain/de-xuat-phong-qlxnc.md`.
+- **Lý do:** Bịa địa chỉ/SĐT trụ sở là lỗi nghiêm trọng nhất với app tra cứu trụ sở. Có dữ liệu thật từ chỉ đạo BGĐ nên bơm trực tiếp, diệt lớp lỗi này thay vì để model "lấp chỗ trống".
+- **Kiểm tra:** `node -c api/chat.js` OK. Chạy lại regression: EV04/GV06 hết bịa (dùng đúng 3 điểm thật, định tuyến đúng địa bàn), VP01 không còn crash. Còn lưu ý P1 (chống bịa số liệu lệ phí/đa ngôn ngữ) — chưa trong phạm vi lần này. Lưu ý dữ liệu: alias `sông lô` đang gán nhầm cho phường Thanh Miếu trong `data/alias_draft.csv` (nên bỏ trước khi push). Tọa độ 3 điểm: chờ user bổ sung.
+
+## [2026-07-01] P1: siết chống bịa số liệu/đa ngôn ngữ + dọn va chạm alias (điều phối đa agent)
+- **Agent:** Claude Code (lead) điều phối 2 sub-agent (general-purpose) + tự review/hợp nhất.
+- **Thay đổi:**
+  - **Prompt hardening** (sub-agent A, `api/chat.js`/`SYSTEM_PROMPT_BASE`): thêm 3 luật cứng trong "DỮ LIỆU & CHỐNG BỊA" — (1) không khẳng định "miễn phí/không phí" trừ khi tài liệu ghi rõ (vá TT01); (2) không trộn "thời hạn giá trị giấy tờ" với "thời gian giải quyết hồ sơ" (vá GV06); (3) không viện dẫn số hiệu văn bản không có trong `<retrieved_documents>` (vá HS02). Thêm mục "ÁP DỤNG ĐA NGÔN NGỮ" + câu nhắc chống bịa trong 3 nhánh `languageLockContext` zh/ko/en (vá EV07 — guardrail lỏng khi trả lời ngôn ngữ khác).
+  - **Lead polish:** siết dòng template "Lệ phí" (mục CẤU TRÚC TRẢ LỜI) — chỉ ghi "Miễn phí" khi tài liệu nêu rõ, không thì ghi "chưa có thông tin lệ phí trong dữ liệu".
+  - **Dọn alias** (sub-agent B, `data/alias_draft.csv` + `setup/bulk-update-aliases.gs`): bỏ alias trần `sông lô` khỏi phường Thanh Miếu ở cả 2 file (nó là tên xã Sông Lô riêng → tránh ambiguous). Hai file đã đồng bộ.
+- **File đã sửa:** `api/chat.js`, `data/alias_draft.csv`, `setup/bulk-update-aliases.gs`.
+- **Lý do:** Đóng nhóm lỗi P1 còn lại sau lần bơm QLXNC; ngăn alias trần va chạm khi đẩy lên `Published_Locations`.
+- **Kiểm tra:** `node -c api/chat.js` OK; `npm test` 54/54 pass; chạy lại regression hợp nhất để đối chiếu P1 (TT01/GV06/HS02/EV07) và không hồi quy.
+- **TODO bàn giao user:** (a) Tọa độ 3 điểm QLXNC. (b) Duyệt 22 va chạm alias trần khác do sub-agent B phát hiện (16 trùng chính xác + 6 trùng-sau-chuẩn-hóa) — chưa sửa, cần người nắm thực địa quyết từng dòng.
+## [2026-07-01] Tach intent tam tru retrieval de chan nham le phi
+- **Agent:** Codex
+- **Thay doi:** Tach bucket runtime `tam_tru` thanh `tam_tru_khai_bao` va `tam_tru_the` trong `api/chat.js`; map 2 nhanh nay ve metadata Pinecone hien co roi post-filter theo `title/text` de uu tien chunk `NA17/Cong an cap xa` cho khai bao tam tru va `NA6-NA8/Cong an cap tinh` cho the tam tru. Bo sung unit test cho phan loai intent va loc chunk; cap nhat architecture/decision log.
+- **File da sua:** `api/chat.js`, `test/p0-fixes.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Query `Foreign guest stays at my house...` dang keo nham chunk `Cap the tam tru ... Phi/le phi: Khong phi` tu Pinecone vi KB gom chung nhan `tam_tru`, dan den bot tra `No fee` sai ngu canh.
+- **Kiem tra:** `npm test`; query local voi key trong `.env` cho 2 cau `TR09` va `TT01` de xac nhan chunk `the tam tru` khong con lot vao nhanh `khai bao tam tru`.
+## [2026-07-01] Output validator fail-closed va sua LOC04
+- **Agent:** Codex
+- **Thay doi:** Them validator ban tra loi cuoi cho du lieu lien he va so lieu phap ly; wiring truoc SSE `done`; ghi metric so luong/loai violation; hoi lai y dinh khi nguoi dung chi nhap dia danh trong nhu `Song Lo`.
+- **File da sua:** `lib/output-validator.js`, `api/chat.js`, `lib/published-locations.js`, `test/output-validator.test.js`, `test/published-locations.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Chan fail-closed SDT/Maps/toa do/phi/ma mau/can cu/thoi han bi model bia va khong tu dong lo thong tin tru so khi y dinh LOC04 chua ro.
+- **Kiem tra:** `node -c api/chat.js`; `node -c lib/output-validator.js`; `npm test`; `npm run build`.
+## [2026-07-01] Sua false-positive legal reference cua output validator
+- **Agent:** Codex
+- **Thay doi:** Doi legal-reference matching sang so hieu loi `NN/YYYY`, bat tron `QH13`, mo rong whitelist XNC/cu tru, bat tien Trung/Han, chuyen duration sang log-only va them regression test cho cac ca that.
+- **File da sua:** `lib/output-validator.js`, `api/chat.js`, `test/output-validator.test.js`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Hard-redact Tier 2 da xoa nham Thong tu dung va cat nat `Luat so 47/2014/QH13` trong chay that.
+- **Kiem tra:** `node -c lib/output-validator.js`; `node -c api/chat.js`; `npm test`; `npm run build`; targeted/full regression neu moi truong API cho phep.

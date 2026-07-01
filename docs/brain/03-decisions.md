@@ -5,6 +5,40 @@
 
 ---
 
+## [2026-07-01] Output validator fail-closed tren ban tra loi cuoi
+
+- **Quyet dinh:** Giu streaming thô de bao toan UX, nhung truoc event `done` phai chay `lib/output-validator.js` va redact tai cho SDT, link Maps, toa do, muc phi, ma mau, so hieu van ban va thoi han khong ton tai trong `verified_locations`, tai lieu RAG hoac danh sach hang so prompt da duyet.
+- **Ly do:** Prompt khong chan duoc hoan toan hallucination; regression TR02 va EV07 van lo SDT, ma mau va so lieu khong co nguon.
+- **Danh doi:** Text thô co the thoang hien trong luc stream, sau do client render lai ban canonical da lam sach. Regex fail-closed can duoc duy tri bang unit test de tranh false-positive.
+- **Nguoi quyet dinh:** user / Codex
+
+---
+
+## [2026-07-01] So khop can cu theo so hieu loi, duration log-only
+
+- **Quyet dinh:** Legal reference duoc doi chieu bang so hieu loi `NN/YYYY` thay vi ca chuoi de khong nhay cam voi chu `so`; regex bat tron hau to co chu so nhu `QH13`. Duration tam thoi chi ghi violation, khong redact.
+- **Ly do:** Regression that cho thay cac can cu dung bi xoa khi corpus va answer khac dinh dang, dong thoi `QH13` bi cat con `13`. Duration co rui ro false-positive cao khi dinh dang so khac nhau.
+- **Danh doi:** Whitelist van can duoc duy tri khi khung phap ly thay doi; duration chua duoc hard-block cho toi khi co matcher tot hon.
+- **Nguoi quyet dinh:** user / Codex
+
+---
+
+## [2026-07-01] Tach intent `tam_tru` thanh 2 nhanh retrieval
+
+- **Quyet dinh:** Tach bucket intent runtime thanh `tam_tru_khai_bao` (NA17, Cong an cap xa, co so luu tru) va `tam_tru_the` (NA6/NA7/NA8, Cong an cap tinh, giay phep lao dong). Luc query van map ve metadata Pinecone hien co (`tam_tru`, `cu_tru`), sau do post-filter theo `title`/`text` de loai chunk khac nhanh.
+- **Ly do:** Pinecone hien dang dung chung nhan `tam_tru` cho ca khai bao tam tru va the tam tru. Vi vay cau hoi khai bao tam tru co the keo nham chunk `Cap the tam tru ... Phí/lệ phí: Không phí`, dan den bot tra `No fee` sai ngu canh.
+- **Danh doi:** Tang them mot lop heuristics trong runtime va bo test unit canh goc retrieval. Khong giai quyet triệt để neu KB metadata sau nay tiep tuc gom nhieu thu tuc khac nhau vao cung mot nhan, nhung du de chan hoi quy TR09/TT01 trong hien trang.
+- **Nguoi quyet dinh:** user / Codex
+
+---
+
+## [2026-06-29] Đưa giới hạn Rate Limit vào biến môi trường
+
+- **Quyết định:** Chuyển các giới hạn `monthlyLimit` và `dailyIpLimit` từ hardcode sang cấu hình thông qua biến môi trường `CHAT_MONTHLY_LIMIT` và `CHAT_DAILY_IP_LIMIT` (mặc định tương ứng 10.000 và 50).
+- **Lý do:** Đáp ứng tính linh hoạt trong quá trình demo và vận hành thực tế, tránh sửa code mỗi lần muốn đổi giới hạn quota.
+- **Đánh đổi:** Cần cấu hình thêm 2 biến môi trường trên Vercel.
+- **Người quyết định:** user / Antigravity
+
 ## [2026-06-29] Alias dia danh cho Published_Locations, nhung chi tra don vi hien hanh
 
 - **Quyet dinh:** Bo sung cot tuy chon `search_aliases` cho `Location_Staging` va `Published_Locations` de luu dia danh cu/viet tat phan cach bang `|`. Runtime chatbot chi hien thi `name` la ten don vi Cong an hien hanh, con alias chi dung de match.
@@ -183,6 +217,46 @@
 - **Lý do:** Khi zoom khu vực rộng, marker bị gộp lại thành các con số (cluster) khiến người dùng không thể nhìn thấy trực tiếp vị trí các trụ sở. Người dùng muốn xem tất cả vị trí mọi lúc.
 - **Đánh đổi:** Nếu số lượng trụ sở tăng lên rất lớn (hàng nghìn), bản đồ có thể bị chậm do phải render quá nhiều DOM node cùng lúc trên Leaflet.
 - **Người quyết định:** user / Antigravity
+
+---
+
+## [2026-06-30] Stopword tên tỉnh + giới hạn nhánh trả lời tất định (location matcher)
+
+- **Quyết định:** (1) Tên cấp tỉnh/khu vực trùng `bareName` đơn vị (`phu tho`, `tinh phu tho`, `viet tri`, `vinh phuc`, `hoa binh`) bị cấm match qua bareName/approved trần — chỉ match khi người dùng nói rõ "phường/xã <tên>". (2) Nhánh trả lời tất định (bỏ qua LLM) chỉ áp dụng khi `isVietnamese && !hasProcedureIntent && status ∈ {no_match, unavailable}`; `ambiguous_*` luôn đi qua LLM để trình option/hỏi lại.
+- **Lý do:** Người dùng nhắc tên tỉnh như ngữ cảnh vùng, không phải tên đơn vị → match trần gây sai trụ sở diện rộng (KC04/DN01). Câu mơ hồ nhiều đơn vị (ambiguous) cần hỏi lại chứ không phải "không có dữ liệu"; câu khác ngôn ngữ không được nhận boilerplate tiếng Việt.
+- **Đánh đổi:** Người dùng muốn tra đúng phường Phú Thọ/Việt Trì phải gõ kèm "phường/xã"; nếu sau này có địa danh hợp lệ trùng stopword phải thêm alias rõ ràng trong sheet.
+- **Người quyết định:** user / Claude Code
+
+---
+
+## [2026-06-30] Bơm tĩnh dữ liệu Phòng QLXNC theo intent + retry lỗi mạng
+
+- **Quyết định:** (1) Dữ liệu trụ sở Phòng QLXNC (3 điểm tiếp dân, hiệu lực 13/4/2026) được nhúng **tĩnh trong `api/chat.js`** (`XNC_RECEPTION_VERIFIED_BLOCK`) và bơm vào `<verified_locations>` khi `detectXncAuthorityIntent()` đúng — KHÔNG đi qua sheet `Published_Locations` vì chưa có tọa độ chính thức (sheet bắt buộc tọa độ, thiếu thì bị loại). Chỉ nêu địa chỉ + SĐT, không tạo link Maps tới khi có tọa độ. (2) `fetchWithRetry` retry cả lỗi mạng dạng throw, không chỉ HTTP 429/503.
+- **Lý do:** Matcher trụ sở là so khớp từ khóa, không hiểu thẩm quyền → câu visa/XNC không match được đơn vị cấp tỉnh nên model bịa địa chỉ/SĐT (EV04, GV06). Bơm theo intent đảm bảo model luôn có dữ liệu thật, độc lập matcher (kể cả khi matcher khớp nhầm một phường). Retry lỗi mạng để VP01-style ECONNRESET không làm rỗng câu trả lời.
+- **Đánh đổi:** Dữ liệu QLXNC nằm trong code thay vì sheet → khi đổi địa chỉ phải sửa code + deploy (chấp nhận vì đơn vị cấp tỉnh ít, tĩnh). Khi có tọa độ chính thức nên cân nhắc chuyển sang `Published_Locations` để hiển thị trên bản đồ + tạo link Maps. Retry lỗi mạng có thể tăng độ trễ tối đa khi mạng chập chờn (vẫn trong ngân sách <10s/lần fetch).
+- **Người quyết định:** user (chọn phương án B, chưa cấp tọa độ) / Claude Code
+
+---
+
+## [2026-07-01] Vá trực tiếp dữ liệu phí/lệ phí trong Pinecone (source_type=tthc) — không phải sửa code
+
+- **Bối cảnh:** Codex phát hiện bug ở tầng ingest (không nằm trong repo này): khi dựng `metadata.text` cho các bản ghi `source_type: "tthc"`, hai trường `Lệ phí` và `Phí` bị gộp thành 1 dòng `Phí/lệ phí: <giá trị>`, khiến giá trị `Phí` (vd phí thẻ tạm trú 145/155/165 USD) bị `Lệ phí` (thường là "Không") nuốt mất. Đây chính là nguyên nhân TT01/GV06 trả lời sai "miễn phí" trong `regression-run-1.md`, KHÔNG phải lỗi model hay lỗi prompt.
+- **Quyết định:** Vì không có script ingest nào trong repo để sửa tận gốc, đã **trực tiếp vá metadata trong Pinecone** (namespace `chatbot-tthc-xnc`, 38 record `tthc_*`) qua `ns.update()` (metadata-only, giữ nguyên vector):
+  - 4 record đã được user tự sửa trước (`5568-tinh-05`, `5568-tw-10`, `5568-tw-08`, `5568-tinh-04`).
+  - 26 record được Claude Code vá với số liệu **đã tra cứu và đối chiếu với Thông tư 28/2026/TT-BTC** (hiệu lực từ 01/4/2026, thay thế Thông tư 25/2021/TT-BTC) qua 4 sub-agent nghiên cứu song song + WebFetch trực tiếp.
+  - 8 record KHÔNG có nguồn đủ tin cậy (mâu thuẫn giữa các nguồn, hoặc không tìm thấy số cụ thể) — chủ động ghi `le_phi`/`phi` = **"Chưa xác minh"** kèm ghi chú trong `text`, thay vì để nguyên giá trị bịa cũ hoặc tự đoán số mới. Danh sách: `5568-tinh-11` (giấy phép khu vực cấm), `5568-tw-01`/`5568-tinh-01` (hộ chiếu phổ thông — phí mâu thuẫn giữa các Thông tư theo từng giai đoạn), `5568-tinh-08` (thẻ thường trú cấp mới), `tinh-02`/`xa-02` (giấy thông hành VN-Lào — chưa rõ áp dụng TT nào), `5568-tinh-09` (cấp đổi thẻ thường trú), `5568-tw-09` (xét duyệt nhân sự cấp phép nhập cảnh).
+  - Đã sao lưu toàn bộ metadata gốc của 34 record trước khi ghi đè, lưu tại `data/pinecone-backups/` (không track git, xem `.gitignore`/thêm nếu cần):
+    - `2026-07-01-pre-update-backup-original-metadata.json` — metadata gốc của 34 record trước khi sửa (dùng để khôi phục nếu cần).
+    - `2026-07-01-fee-corrections-map-applied.json` — mapping `le_phi`/`phi` đã áp dụng cho từng `procedure_id` (nhóm `write` vs `uncertain`).
+    - `2026-07-01-apply-log.json` — log kết quả ghi từng record (UPDATED / UPDATED_AS_UNCERTAIN).
+    - `2026-07-01-audit-after-fix.json` — snapshot toàn bộ 38 record sau khi vá (để so sánh khi audit lại sau này).
+- **Lý do:** Không được lặp lại đúng lớp lỗi đang cố diệt (bịa số liệu pháp lý) khi "sửa" dữ liệu — nếu không chắc chắn, phải nói rõ "chưa xác minh" để prompt chống-bịa (đã thêm ở P1) xử lý đúng, thay vì tự tổng hợp số liệu từ suy luận.
+- **Đánh đổi:** 8 record vẫn thiếu số liệu phí cụ thể — bot sẽ nói "chưa có thông tin/cần liên hệ trực tiếp" cho các thủ tục đó cho tới khi ai đó xác minh và cập nhật. Toàn bộ 38 record vẫn còn ghi "Căn cứ pháp lý: ... Thông tư số 25/2021/TT-BTC" (đã hết hiệu lực) trong phần cuối `text` — CHƯA cập nhật số hiệu thông tư mới vì phạm vi lần vá này chỉ nhắm vào dòng phí/lệ phí; cần dọn lại citation này ở lượt sau.
+- **Việc còn tồn đọng cho agent sau:**
+  1. Xác minh 8 record "Chưa xác minh" ở trên (tra Thông tư 28/2026/TT-BTC bản gốc hoặc gọi trực tiếp cơ quan) rồi vá tiếp bằng cùng cơ chế `ns.update()`.
+  2. Cập nhật lại phần "Căn cứ pháp lý" trong `text` của toàn bộ 38 record từ "Thông tư 25/2021/TT-BTC" sang "Thông tư 28/2026/TT-BTC" (số tiền không đổi, chỉ đổi số hiệu văn bản).
+  3. Ingest pipeline gốc (không có trong repo) vẫn còn bug gộp `Phí`/`Lệ phí` — nếu có đợt ingest mới/khác trong tương lai (thêm thủ tục mới, category khác `source_type`), rất có thể lặp lại đúng lỗi này; nên kiểm tra khi thấy `text` chứa chuỗi `"Phí/lệ phí:"`.
+- **Người quyết định:** user (yêu cầu "khắc phục luôn") / Claude Code, dựa trên chẩn đoán gốc của Codex
 
 ---
 

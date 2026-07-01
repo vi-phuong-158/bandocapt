@@ -55,6 +55,7 @@ bandocapt/
 | `js/gemini.js` | Goi `POST /api/chat`, parse SSE stream | `js/chatbot.js` | `api/chat.js` |
 | `js/chatbot.js` | UI chat, toggle panel, render stream | `index.html` | `js/gemini.js` |
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
+| `lib/output-validator.js` | Fail-closed output guard: doi chieu va redact SDT/Maps/toa do/so lieu phap ly khong co trong nguon xac minh | `api/chat.js`, test | - |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
 | `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone, stream model, inject `<verified_locations>` | `js/gemini.js` | Pinecone, Gemini API, Firebase, `lib/published-locations.js` |
 | `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets | Google Apps Script | SpreadsheetApp |
@@ -100,11 +101,13 @@ User nhap
    7. Dedupe ban ghi giong nhau, phat hien ban ghi mau thuan
    8. Match ten tru so/alias exact-normalized theo uu tien: ten hien hanh day du -> bo `Cong an` -> ten xa/phuong hien hanh -> `search_aliases`
    9. Embed query -> Gemini Embedding 001
-  10. Query Pinecone cho thu tuc/phap luat
+  10. Query Pinecone cho thu tuc/phap luat; tach intent `tam_tru_khai_bao` va `tam_tru_the`, map ve metadata Pinecone chung roi post-filter theo title/text de tranh tron `NA17` voi `NA6/NA8`
   11. Loai runtime moi match `tru_so` khoi prompt va citation
+  11b. Neu `detectXncAuthorityIntent` dung (thi thuc/gia han/the tam tru/e-visa/NNN mat ho chieu): bom tinh `XNC_RECEPTION_VERIFIED_BLOCK` (3 diem tiep dan Phong QLXNC, chi dia chi + SDT, chua co toa do) vao `<verified_locations>`, doc lap matcher
   12. Inject `<verified_locations>` + `<retrieved_documents>` vao system prompt
   13. Stream Gemini 2.5 Flash / DeepSeek
-  14. Ghi telemetry toi thieu
+  14. Validate ban cuoi: redact token lien he/phap ly khong co trong nguon xac minh
+  15. Ghi telemetry toi thieu, gom so luong/loai violation cua output validator
 -> SSE ve client
 ```
 
@@ -164,6 +167,8 @@ DEEPSEEK_API_KEY
 DEEPSEEK_MODEL
 EVAL_BYPASS_TOKEN
 GOOGLE_SHEET_ID
+RATE_LIMIT_MONTHLY
+RATE_LIMIT_DAILY_IP
 ```
 
 ## Luu y kien truc quan trong

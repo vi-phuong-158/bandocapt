@@ -139,10 +139,13 @@ async function main() {
         await new Promise(r => setTimeout(r, 2000));
     }
 
-    const reportPath = path.resolve(__dirname, '../test/results/regression-run-1.md');
+    const now = new Date();
+    const stamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '_');
+    const reportPath = path.resolve(__dirname, `../test/results/regression-run-${stamp}.md`);
+    const latestPath = path.resolve(__dirname, '../test/results/regression-latest.md');
     fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-    
-    let reportMd = `# Báo cáo Regression Run 1\n\n`;
+
+    let reportMd = `# Báo cáo Regression Run (${now.toISOString()})\n\n`;
     for (const r of results) {
         reportMd += `## [${r.id}] ${r.question}\n`;
         reportMd += `- **Kỳ vọng:** ${r.expectation}\n`;
@@ -164,7 +167,9 @@ async function main() {
     }
 
     fs.writeFileSync(reportPath, reportMd, 'utf-8');
+    fs.writeFileSync(latestPath, reportMd, 'utf-8');
     console.log(`\nRegression run complete. Report saved to ${reportPath}`);
+    console.log(`Also updated pointer file: ${latestPath}`);
 }
 
 main().catch(console.error);
