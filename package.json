@@ -34,6 +34,7 @@
   "homepage": "https://github.com/vi-phuong-158/bandocapt#readme",
   "dependencies": {
     "@pinecone-database/pinecone": "^2.2.2",
+    "dotenv": "^17.4.2",
     "firebase-admin": "^13.10.0",
     "jszip": "^3.10.1",
     "pptxgenjs": "^4.0.1",

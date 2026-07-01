@@ -557,3 +557,93 @@ test('chatbot mobile modal and close-abort guards remain in source', () => {
     assert.match(css, /body\.ai-chat-modal-open\s*\{\s*overflow:\s*hidden;/);
     assert.match(css, /@media \(max-width: 768px\)[\s\S]*#ai-chat-window[\s\S]*100dvh/);
 });
+
+test('classifyQuestion returns valid Pinecone metadata (W5)', () => {
+    const { classifyQuestion } = require('../api/chat');
+
+    // Các metadata hợp lệ được khai báo
+    const VALID_CATEGORIES = new Set([
+        'tam_tru_khai_bao', 'tam_tru_the', 'thi_thuc', 'ho_chieu', 'xu_phat', 'xuat_nhap_canh', 'cu_tru'
+    ]);
+
+    const testCases = [
+        'làm thẻ tạm trú',
+        'gia hạn visa',
+        'người nước ngoài mất hộ chiếu',
+        'khách sạn khai báo tạm trú',
+        'xử phạt vi phạm',
+        'cổng dịch vụ công'
+    ];
+
+    for (const text of testCases) {
+        const result = classifyQuestion(text);
+        if (result) {
+            assert.equal(VALID_CATEGORIES.has(result), true, `Invalid category: ${result} for text: ${text}`);
+        }
+    }
+});
+
+test('classifyQuestion splits temporary residence declaration and residence card intents', () => {
+    const { classifyQuestion } = require('../api/chat');
+
+    assert.equal(
+        classifyQuestion('Foreign guest stays at my house in Thanh Mieu. Where do I declare temporary residence?'),
+        'tam_tru_khai_bao'
+    );
+    assert.equal(
+        classifyQuestion('Người nước ngoài làm việc tại công ty ở Phú Thọ muốn làm thẻ tạm trú cần gì?'),
+        'tam_tru_the'
+    );
+});
+
+test('filterMatchesByQuestionCategory removes residence card chunks from declaration queries', () => {
+    const { filterMatchesByQuestionCategory } = require('../api/chat');
+
+    const matches = [
+        {
+            score: 0.716,
+            metadata: {
+                title: 'Khai báo tạm trú cho người nước ngoài tại Việt Nam bằng Phiếu khai báo tạm trú',
+                text: 'Mẫu NA17. Công an cấp xã tiếp nhận Phiếu khai báo tạm trú cho người nước ngoài.'
+            }
+        },
+        {
+            score: 0.690,
+            metadata: {
+                title: 'Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam tại Công an cấp tỉnh',
+                text: 'Phí/lệ phí: Không phí. Mẫu NA8, giấy phép lao động, Công an cấp tỉnh.'
+            }
+        }
+    ];
+
+    const filtered = filterMatchesByQuestionCategory(matches, 'tam_tru_khai_bao');
+
+    assert.equal(filtered.length, 1);
+    assert.match(filtered[0].metadata.title, /Khai báo tạm trú/i);
+});
+
+test('filterMatchesByQuestionCategory removes declaration chunks from residence card queries', () => {
+    const { filterMatchesByQuestionCategory } = require('../api/chat');
+
+    const matches = [
+        {
+            score: 0.709,
+            metadata: {
+                title: 'Hướng dẫn lưu ý thủ tục thị thực, gia hạn tạm trú và thẻ tạm trú cho người nước ngoài',
+                text: 'Cấp thẻ tạm trú cho người nước ngoài tại Công an cấp tỉnh. Mẫu NA6, NA8, giấy phép lao động.'
+            }
+        },
+        {
+            score: 0.676,
+            metadata: {
+                title: 'Khai báo tạm trú cho người nước ngoài tại Việt Nam bằng Phiếu khai báo tạm trú',
+                text: 'Phiếu khai báo tạm trú mẫu NA17 nộp tại Công an cấp xã.'
+            }
+        }
+    ];
+
+    const filtered = filterMatchesByQuestionCategory(matches, 'tam_tru_the');
+
+    assert.equal(filtered.length, 1);
+    assert.match(filtered[0].metadata.text, /NA6|NA8/i);
+});

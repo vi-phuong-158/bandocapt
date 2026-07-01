@@ -64,6 +64,8 @@ _(trống)_
 
 ## Đã hoàn thành gần đây
 
+- [2026-06-29] Sửa dứt điểm các lỗi P0 sau Regression Run 1 (fix citation `undefined`, lọc intent chính xác, thêm luật cấm hallucinate mức phạt/địa danh vào `SYSTEM_PROMPT_BASE`)
+- [2026-06-29] Chạy Regression Test (30 câu) và Fix thuật toán nhận diện địa danh `Published_Locations` (nhận diện đúng các tên rút gọn có chứa dấu câu)
 - [2026-06-27] Tích hợp chatbot/gemini vào UI; thay FAQ tĩnh cũ bằng chatbot RAG streaming
 - [2026-06-27] Runtime chỉ đọc Published_Locations; validation tọa độ và data-quality report
 - [2026-06-27] Pipeline staging/approval Google Sheets: allowlist, approve/reject/revoke, audit và rollback path

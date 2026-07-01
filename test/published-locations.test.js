@@ -6,8 +6,16 @@ const {
     findVerifiedLocationMatches,
     formatVerifiedLocationsPrompt,
     getPublishedLocations,
+    isBarePlaceNameQuery,
     resetPublishedLocationsCache,
 } = require('../lib/published-locations');
+
+test('bare place name requires intent clarification (LOC04)', () => {
+    assert.equal(isBarePlaceNameQuery('Sông Lô'), true);
+    assert.equal(isBarePlaceNameQuery('Sông Lô ở đâu'), false);
+    assert.equal(isBarePlaceNameQuery('trụ sở Sông Lô'), false);
+    assert.equal(isBarePlaceNameQuery('Công an Sông Lô'), false);
+});
 
 function buildPayload(rows) {
     return {
@@ -308,4 +316,65 @@ test('approved alias shared by multiple records returns ambiguous_match instead 
     assert.equal(result.lookupRequested, true);
     assert.equal(result.status, 'ambiguous_match');
     assert.equal(result.matches.length, 2);
+});
+
+test('verified location matcher resolves english location queries (W2)', () => {
+    const dataset = {
+        cacheStatus: 'fresh',
+        locations: [
+            {
+                name: 'Công an Phường Thanh Miếu',
+                address: 'Số 1028 Đường Hùng Vương',
+                phone: '02103863928',
+                lat: 21.304528,
+                lng: 105.415528,
+                googleMapsUrl: 'https://maps.example/1',
+                aliases: {
+                    fullName: 'cong an phuong thanh mieu',
+                    withoutCongAn: 'phuong thanh mieu',
+                    bareName: 'thanh mieu',
+                    approved: [],
+                },
+            },
+        ],
+        conflicts: [],
+    };
+
+    const englishMatch = findVerifiedLocationMatches('Give me police station for Thanh Mieu', [], dataset);
+
+    assert.equal(englishMatch.lookupRequested, true);
+    assert.equal(englishMatch.status, 'matched');
+    assert.equal(englishMatch.matches[0].name, 'Công an Phường Thanh Miếu');
+});
+
+test('province name does not falsely match ward bareName (Phu Tho collision, #1)', () => {
+    const dataset = {
+        cacheStatus: 'fresh',
+        locations: [
+            {
+                name: 'Công an Phường Phú Thọ',
+                address: 'Khu An Ninh Trung, phường Phú Thọ, tỉnh Phú Thọ',
+                phone: '02106288588',
+                lat: 21.5455,
+                lng: 105.2494,
+                googleMapsUrl: 'https://maps.example/pt',
+                aliases: {
+                    fullName: 'cong an phuong phu tho',
+                    withoutCongAn: 'phuong phu tho',
+                    bareName: 'phu tho',
+                    approved: [],
+                },
+            },
+        ],
+        conflicts: [],
+    };
+
+    // Câu chỉ nhắc tên TỈNH "Phú Thọ" → KHÔNG được match nhầm sang phường Phú Thọ.
+    const provinceMention = findVerifiedLocationMatches('Lost passport in Phu Tho, where should I go?', [], dataset);
+    assert.equal(provinceMention.status, 'no_match');
+
+    // Hỏi rõ "phường Phú Thọ" → vẫn match được qua withoutCongAn.
+    const explicitWard = findVerifiedLocationMatches('Công an phường Phú Thọ ở đâu?', [], dataset);
+    assert.equal(explicitWard.status, 'matched');
+    assert.equal(explicitWard.matches[0].name, 'Công an Phường Phú Thọ');
 });

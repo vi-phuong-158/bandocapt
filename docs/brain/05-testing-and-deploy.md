@@ -33,6 +33,8 @@ TURNSTILE_SECRET_KEY=
 GOOGLE_SHEET_ID=
 EVAL_BYPASS_TOKEN=test-bypass-token
 NODE_ENV=development
+RATE_LIMIT_MONTHLY=10000
+RATE_LIMIT_DAILY_IP=50
 ```
 
 ## Chạy local (dev)
@@ -71,7 +73,7 @@ git add output.css
 ## Test
 
 ```bash
-npm test                 # 39 unit/contract test hiện tại
+npm test                 # 57 unit/contract test hiện tại (2026-07-01; tăng dần theo thời gian — kiểm tra lại số thật bằng `npm test` nếu nghi ngờ)
 npm run ci               # test + build + production dependency audit mức High
 npm run prune:telemetry  # xóa log RTDB fallback đã quá hạn theo expires_at
 ```
