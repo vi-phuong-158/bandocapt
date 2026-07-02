@@ -5,6 +5,22 @@
 
 ---
 
+## [2026-07-02] P0.5: Baseline chuẩn production — 3/3 lần chạy regression sạch, vá 3 lỗ hổng validator phát hiện qua thực nghiệm
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Sau P0.1-P0.4, chạy chuỗi 3 lần liên tiếp bộ regression 30 câu bằng API thật để chốt baseline theo tiêu chí đã thống nhất (0 lỗi Tier-1, 0 LEGAL_HALLUCINATION). Quá trình chạy phát hiện thêm 3 lỗ hổng thật trong `lib/output-validator.js`/`api/chat.js` mà unit test cũ không phủ tới — mỗi lần phát hiện đều dừng lại vá + viết test + chạy lại **từ đầu chuỗi 3 lần** (đúng quy trình đã thống nhất trong plan).
+- **3 lỗ hổng phát hiện qua thực nghiệm (không phải qua đọc code tĩnh):**
+  1. **EV07 (tiếng Trung) bịa thông số ảnh "4×6cm/JPEG/≤2MB"** — không pattern nào trong validator phủ tới loại claim "thông số vật lý" (kích thước/dung lượng file). Thêm `MEASUREMENT_PATTERN` (bắt cm/mm/px/MB/KB/GB và cả đơn vị chữ Hán 厘米/毫米/公分).
+  2. **Validator garble câu do bare `đ` (ký hiệu VNĐ viết tắt) dính liền chữ cái tiếng Việt tiếp theo** (vd "gọi 113 để" → cắt cụt thành "113 (...)ể") — nguyên nhân gốc: `(?<!\w)`/`(?!\w)` chỉ hiểu ASCII, không coi các chữ cái có dấu tiếng Việt là word-char, nên biên kiểm tra bị xuyên thủng. Vá phạm vi hẹp: chỉ thêm negative lookahead Latin/Việt riêng cho token `đ` bare, KHÔNG đổi biên `\w` chung (vì tiếng Trung cần biên rộng — số dính liền chữ Hán không dấu cách, đổi biên chung sẽ làm mù hoàn toàn phát hiện tiền tệ tiếng Trung — đã phát hiện và sửa lại đúng sau 1 lần thử sai).
+  3. **TR09 (tiếng Anh) bị redact oan "12 hours"/"24 hours"** — hồi quy do chính P0.2 gây ra: DURATION_PATTERN giờ redact thật, nhưng `allowedConstants` truyền vào validator chỉ có bản tiếng Việt "12 giờ"/"24 giờ", không nhận diện được bản dịch của **đúng 1 sự thật đã xác minh** khi bot trả lời EN/ZH/KO — làm hỏng tính đa ngôn ngữ, một yêu cầu cốt lõi của dự án. Thêm các bản dịch cố định của 2 hằng số này (`12 hours/24 hours/12小时/24小时/12시간/24시간`) vào `allowedConstants`, không mở rộng sang số khác.
+  4. **Money range "X đến Y đồng" chỉ bảo vệ được số Y** (số X đứng trước không có đơn vị đi kèm ngay nên MONEY_PATTERN đơn lẻ bỏ sót) — thêm `MONEY_RANGE_PATTERN` bắt cả cụm.
+- **Phát hiện quan trọng khi điều tra nghi vấn hallucination VP01/EV07/GV06/HS02/TT01:** Đã trực tiếp query Pinecone (`idx.fetch`) để xác minh — **toàn bộ con số "đáng ngờ"** (25/50 USD e-visa, 145/155/165 USD thẻ tạm trú, 10 USD/lần gia hạn, 4×6cm/JPEG/≤2MB, 3 ngày làm việc, 500.000-2.000.000 đồng phạt) **đều là dữ liệu thật trong KB** (record `tthc_5568-tw-06/07/08`, `5568-tinh-05` etc.), KHÔNG phải hallucination. Sai lệch số liệu quan sát được giữa các lần chạy trước đó (vd VP01 ra "500k-2tr" rồi "3tr-5tr" ở 2 lần chạy khác nhau) là do **retrieval trả về chunk khác nhau** giữa các lần gọi (biến thiên tự nhiên của embedding search), không phải model tự bịa — validator đã hoạt động đúng thiết kế: redact khi chunk liên quan không được truy xuất, giữ nguyên khi có.
+- **Kết quả 3 lần chạy cuối (baseline chính thức):** `regression-run-2026-07-02_06-13-26.md`, `regression-run-2026-07-02_06-24-57.md`, `regression-run-2026-07-02_06-39-56.md`. Cả 3: **0 lỗi Tier-1 (SĐT/địa chỉ/Maps bịa), 0 LEGAL_HALLUCINATION xác nhận.** 2 câu bị `BLOCKED_CONTENT` (F01 lần 2, DN01 lần 2) do Gemini safety filter transient — retry riêng đều sạch, không phải hồi quy code.
+- **Kiểm tra:** `node --check` sạch, `node --test test/*.test.js` → 71/71 pass (thêm 4 test mới cho 4 vá trên).
+- **Việc còn tồn đọng (không chặn P0, chuyển sang backlog):**
+  - VP01 ở 1 lần chạy (đã fix) bị cắt giữa câu do `MAX_TOKENS` (3072) — UX issue khi liệt kê nhiều thông tin, không phải an toàn/hallucination.
+  - Duration tiếng Trung dùng lượng từ "个" (vd "3个工作日") không khớp `DURATION_PATTERN` (chỉ bắt `\d+\s*工作日`, không xử lý "个" chen giữa) — biết là gap nhưng chấp nhận được vì số liệu vẫn đúng (verified qua Pinecone), chỉ là chưa có lớp bảo vệ kép.
+  - Duration dùng "ngày" trần (không phải "ngày làm việc") không được validator phủ (tránh false-positive vì "ngày" quá phổ biến trong tiếng Việt) — quyết định phạm vi có chủ đích, không phải bug.
+
 ## [2026-07-02] P0.1-P0.4: Diệt gốc hallucination — bỏ fallback dưới ngưỡng, redact duration, structured facts
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** User yêu cầu review toàn diện dự án tập trung độ chính xác chatbot RAG, sau đó duyệt kế hoạch 3 phase (P0 diệt gốc hallucination → P1 retrieval/bảo mật/hiệu năng → P2 UI). Đây là entry cho P0.1-P0.4, làm trên nhánh `fix/p0-anti-hallucination`.

@@ -46,6 +46,20 @@
 
 ---
 
+## [2026-07-02] P0.5: Baseline production da dat, 3 lo hong validator vs them vao qua thuc nghiem
+
+- **Quyet dinh:** Baseline chinh thuc la 3 file `regression-run-2026-07-02_06-13-26.md`, `_06-24-57.md`, `_06-39-56.md` — ca 3 chay lien tiep khong loi Tier-1, khong LEGAL_HALLUCINATION xac nhan. Dieu kien "dat chuan production" (entry truoc) coi la DA DAT cho vong P0.
+- **3 lo hong vaidator vs them trong qua trinh chay (khong phat hien duoc qua doc code tinh, chi lo ra khi chay that nhieu lan):**
+  1. `MEASUREMENT_PATTERN` moi — bat thong so vat ly (cm/mm/px/MB/KB/GB, ca don vi chu Han 厘米/毫米/公分) — vd EV07 bia "4×6cm/JPEG/≤2MB" khong pattern nao cu phu toi.
+  2. Sua bien `(?<!\w)`/`(?!\w)` trong MONEY_PATTERN chi ap dung rieng cho token `đ` bare (khong doi bien chung — da thu doi bien chung `\w` -> `\p{L}\p{N}` mot lan va lam mu hoan toan phat hien tien te tieng Trung do so dinh lien chu Han khong dau cach; revert va chi sua hep pham vi token `đ`).
+  3. `allowedConstants` trong `api/chat.js` them ban dich EN/ZH/KO cua dung 2 hang so "12 gio"/"24 gio" (`12 hours/24 hours/12小时/24小时/12시간/24시간`) — hoi quy do P0.2 (duration tu log-only sang redact that) lam hong cau tra loi da ngon ngu: dich "12 gio" sang "12 hours" khong con khop legalCorpus tieng Viet nen bi xoa oan.
+  4. `MONEY_RANGE_PATTERN` moi — cum "X den Y dong" chi co don vi o cuoi, MONEY_PATTERN don le chi bao ve duoc so Y.
+- **Phat hien quan trong (khong phai quyet dinh, nhung anh huong cach doc ket qua sau nay):** Da query truc tiep Pinecone de xac minh — cac con so "nghi van hallucination" trong EV07/GV06/HS02/TT01/VP01 (25/50 USD e-visa, 145/155/165 USD the tam tru, 10 USD/lan gia han, 4x6cm/JPEG/≤2MB, 3 ngay lam viec) **DEU la du lieu that trong Pinecone** (record `tthc_5568-tw-06/07/08` etc.), khong phai model bia. Sai lech giua cac lan chay la do retrieval tra ve chunk khac nhau (bien thien tu nhien cua embedding search), khong phai loi validator hay loi model — validator dang hoat dong dung thiet ke (redact khi khong co chunk lien quan, giu khi co).
+- **Danh doi:** Sua o pham vi hep (chi token `đ`, chi 2 hang so thoi han) de tranh pha vo cac phat hien dung khac (tieng Trung, cac gia tri khac). Con lai 2 gap da biet nhung chap nhan duoc: duration tieng Trung dung luong tu "个" (vd "3个工作日") khong khop pattern; duration dung "ngay" tran (khong phai "ngay lam viec") khong duoc phu de tranh false-positive qua rong.
+- **Nguoi quyet dinh:** user / Claude Code (Sonnet 5)
+
+---
+
 ## [2026-07-01] Tach intent `tam_tru` thanh 2 nhanh retrieval
 
 - **Quyet dinh:** Tach bucket intent runtime thanh `tam_tru_khai_bao` (NA17, Cong an cap xa, co so luu tru) va `tam_tru_the` (NA6/NA7/NA8, Cong an cap tinh, giay phep lao dong). Luc query van map ve metadata Pinecone hien co (`tam_tru`, `cu_tru`), sau do post-filter theo `title`/`text` de loai chunk khac nhanh.

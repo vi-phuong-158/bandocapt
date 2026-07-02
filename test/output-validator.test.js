@@ -80,6 +80,39 @@ test('redacts unsourced durations but keeps ones present in the legal corpus', (
     assert.equal(kept.violations.length, 0);
 });
 
+test('redacts unsourced physical measurements (photo size/file limit) but keeps sourced ones', () => {
+    const result = validateAnswer('尺寸4×6cm，JPEG格式，≤2 MB。', allowed({ legalCorpus: '' }));
+    assert.doesNotMatch(result.sanitizedText, /4×6cm|2 MB/);
+    assert.equal(result.violations.filter(v => v.type === 'measurement').length, 2);
+
+    const kept = validateAnswer('Kích thước 4x6cm.', allowed({ legalCorpus: 'Ảnh cỡ 4x6cm nền trắng.' }));
+    assert.match(kept.sanitizedText, /4x6cm/);
+    assert.equal(kept.violations.length, 0);
+});
+
+test('does not mangle "để" (Vietnamese word) after a bare number as if it were a money unit', () => {
+    const result = validateAnswer('Gọi số 113 để được hỗ trợ. Tổng đài 1900 6142 để biết thêm.', allowed({ legalCorpus: '' }));
+    assert.equal(result.sanitizedText, 'Gọi số 113 để được hỗ trợ. Tổng đài 1900 6142 để biết thêm.');
+    assert.equal(result.violations.length, 0);
+});
+
+test('redacts an unsourced money range even though only the trailing number has a unit', () => {
+    const result = validateAnswer('Phạt từ 3.000.000 đến 5.000.000 đồng.', allowed({ legalCorpus: '' }));
+    assert.doesNotMatch(result.sanitizedText, /3\.000\.000|5\.000\.000/);
+    assert.equal(result.violations.filter(v => v.type === 'money').length, 1);
+
+    const kept = validateAnswer('Phạt từ 3.000.000 đến 5.000.000 đồng.', allowed({
+        legalCorpus: 'Phạt tiền từ 3.000.000 đến 5.000.000 đồng đối với hành vi...',
+    }));
+    assert.match(kept.sanitizedText, /3\.000\.000 đến 5\.000\.000 đồng/);
+});
+
+test('redacts unsourced measurements written with Chinese units (厘米/毫米)', () => {
+    const result = validateAnswer('尺寸4×6厘米，白底照片。', allowed({ legalCorpus: '' }));
+    assert.doesNotMatch(result.sanitizedText, /4×6厘米/);
+    assert.equal(result.violations.filter(v => v.type === 'measurement').length, 1);
+});
+
 test('redaction preserves surrounding Markdown and works in English and Chinese', () => {
     const result = validateAnswer('# Contact\n- **Phone:** 0210.384.3639\n- 费用 200 USD，表格 NA1a\n[Official](https://example.gov.vn)', allowed());
     assert.match(result.sanitizedText, /^# Contact/m);
