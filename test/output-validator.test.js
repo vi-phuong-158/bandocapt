@@ -122,3 +122,50 @@ test('redaction preserves surrounding Markdown and works in English and Chinese'
     assert.match(result.sanitizedText, /\[Official\]\(https:\/\/example\.gov\.vn\)/);
     assert.doesNotMatch(result.sanitizedText, /0210\.384\.3639|200 USD|NA1a/);
 });
+
+test('trimToSentenceBoundary cuts a mid-sentence tail back to the last complete sentence', () => {
+    const { trimToSentenceBoundary } = require('../lib/output-validator');
+    const input = 'Bạn phải khai báo tạm trú trong 12 giờ. Hồ sơ gồm hộ chiếu và giấy tờ liên quan. Ngoài ra bạn cần chuẩn bị thê';
+    assert.equal(
+        trimToSentenceBoundary(input),
+        'Bạn phải khai báo tạm trú trong 12 giờ. Hồ sơ gồm hộ chiếu và giấy tờ liên quan.'
+    );
+});
+
+test('trimToSentenceBoundary keeps text that already ends at a sentence boundary', () => {
+    const { trimToSentenceBoundary } = require('../lib/output-validator');
+    const input = 'The declaration must be submitted within 12 hours.';
+    assert.equal(trimToSentenceBoundary(input), input);
+    const zh = '您必须在12小时内申报。然后等待系统确认！';
+    assert.equal(trimToSentenceBoundary(zh), zh);
+});
+
+test('trimToSentenceBoundary drops an incomplete trailing bullet but keeps complete lines', () => {
+    const { trimToSentenceBoundary } = require('../lib/output-validator');
+    const input = '**📋 Hồ sơ cần chuẩn bị**\n- Hộ chiếu (bản chính)\n- Tờ khai mẫu NA5\n- Giấy tờ chứng minh mục đí';
+    assert.equal(
+        trimToSentenceBoundary(input),
+        '**📋 Hồ sơ cần chuẩn bị**\n- Hộ chiếu (bản chính)\n- Tờ khai mẫu NA5'
+    );
+});
+
+test('trimToSentenceBoundary does not mistake dots in URLs or decimals for sentence ends', () => {
+    const { trimToSentenceBoundary } = require('../lib/output-validator');
+    const input = 'Khai báo tại dichvucong.gov.vn nhé. Tọa độ 21.304528,105.415528 nằm trong link chỉ đườ';
+    assert.equal(trimToSentenceBoundary(input), 'Khai báo tại dichvucong.gov.vn nhé.');
+});
+
+test('trimToSentenceBoundary returns a single unfinished sentence unchanged (no boundary to cut at)', () => {
+    const { trimToSentenceBoundary } = require('../lib/output-validator');
+    const input = 'Bạn cần chuẩn bị hộ chiếu và các giấy tờ liên qu';
+    assert.equal(trimToSentenceBoundary(input), input);
+});
+
+test('getTruncationNotice localizes vi/zh/ko and falls back to English', () => {
+    const { getTruncationNotice } = require('../lib/output-validator');
+    assert.match(getTruncationNotice('vi'), /rút gọn do giới hạn độ dài/);
+    assert.match(getTruncationNotice('zh'), /长度限制/);
+    assert.match(getTruncationNotice('ko'), /길이 제한/);
+    assert.match(getTruncationNotice('en'), /length limit/);
+    assert.match(getTruncationNotice('fr'), /length limit/);
+});
