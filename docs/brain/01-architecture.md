@@ -93,21 +93,26 @@ User nhap
 -> POST /api/chat
 -> api/chat.js
    1. Verify CORS + Turnstile + HMAC
-   2. Check rate limit Firebase
+   2. Check rate limit Firebase (P1.4.1: reserve IP/ngay va thang chay SONG SONG qua Promise.all,
+      rollback ben thanh cong neu ben kia fail — xem RATE_LIMIT_MAX_RETRIES)
    3. Sanitize history
    4. Detect nhu cau tra tru so tu current message + recent history, gom ca cau dau ngan chi la dia danh
    5. Skip FAQ cache neu cau hoi co dia diem/PII
    6. Tai Published_Locations qua helper cache 60s / stale 5m
    7. Dedupe ban ghi giong nhau, phat hien ban ghi mau thuan
    8. Match ten tru so/alias exact-normalized theo uu tien: ten hien hanh day du -> bo `Cong an` -> ten xa/phuong hien hanh -> `search_aliases`
-   9. Embed query -> Gemini Embedding 001
-  10. Query Pinecone cho thu tuc/phap luat; tach intent `tam_tru_khai_bao` va `tam_tru_the`, map ve metadata Pinecone chung roi post-filter theo title/text de tranh tron `NA17` voi `NA6/NA8`
+   9. (P1.1.3) Ghep ngu canh cau truoc vao query embedding CHI KHI cau hien tai < 8 tu (follow-up ngan); cau du dai dung doc lap. Embed query -> Gemini Embedding 001
+  10. Query Pinecone cho thu tuc/phap luat trong DUNG 1 namespace pin tu `PINECONE_NAMESPACE` (P1.1.1: bo vong thu nhieu namespace); van giu 1 fallback bo metadata filter neu co category ma 0 match. Tach intent `tam_tru_khai_bao` va `tam_tru_the`, map ve metadata Pinecone chung roi post-filter theo title/text de tranh tron `NA17` voi `NA6/NA8`
   11. Loai runtime moi match `tru_so` khoi prompt va citation
   11b. Neu `detectXncAuthorityIntent` dung (thi thuc/gia han/the tam tru/e-visa/NNN mat ho chieu): bom tinh `XNC_RECEPTION_VERIFIED_BLOCK` (3 diem tiep dan Phong QLXNC, chi dia chi + SDT, chua co toa do) vao `<verified_locations>`, doc lap matcher
+  11c. (P1.1.2) Rerank Gemini co dieu kien: bo qua (`shouldSkipRerank`) khi top-1 > 0.75 diem VA cach top-2 >= 0.05 — chi rerank khi con map mo
   12. Inject `<verified_locations>` + `<retrieved_documents>` vao system prompt
   13. Stream Gemini 2.5 Flash / DeepSeek
   14. Validate ban cuoi: redact token lien he/phap ly khong co trong nguon xac minh
   15. Ghi telemetry toi thieu, gom so luong/loai violation cua output validator
+  16. (P1.2.1) Fire-and-forget SAU res.end(): neu answer co so lieu, goi `checkGroundednessAsync`
+      (Gemini Flash) doi chieu voi legalCorpus, ghi `groundedness_checks/<date>` vao Firebase — chi
+      canh bao, khong chan response
 -> SSE ve client
 ```
 
@@ -173,6 +178,16 @@ RATE_LIMIT_DAILY_IP
 
 ## Luu y kien truc quan trong
 
+- **CSP header** (P1.3.4): Content-Security-Policy KHONG con o meta tag trong `index.html` nua —
+  chuyen sang header that trong `vercel.json` (route `/(.*)`), kem `X-Content-Type-Options: nosniff`
+  va `Referrer-Policy: strict-origin-when-cross-origin`. 1 nguon su that duy nhat; sua CSP phai sua
+  `vercel.json`, khong sua `index.html`. `frame-ancestors 'none'` chi hoat dong qua header (meta tag
+  khong ho tro directive nay).
+- **CORS** (P1.3.1-3): khong con gui `Access-Control-Allow-Credentials` (app khong dung cookie).
+  `isAllowedOrigin` chi cho fallback so `x-forwarded-host` khi `process.env.VERCEL` ton tai (platform
+  tu set header nay, client khong gia mao duoc); ngoai Vercel thi fallback bi tat. IP client cho rate
+  limit uu tien `x-vercel-forwarded-for` -> `x-real-ip` -> `x-forwarded-for` (XFF client co the tu chen
+  gia tri gia vao dau chuoi).
 - `output.css` duoc commit va `npm run build` se tai tao lai file nay truoc khi tao `dist/`.
 - FAQ cache trong `api/chat.js` la in-memory theo tung serverless instance, khong shared giua cac instance.
 - Cau hoi co nhu cau tra dia diem/tru so khong duoc dung FAQ cache 1 gio de tranh dia chi cu sau khi Google Sheet cap nhat.
