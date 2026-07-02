@@ -32,7 +32,9 @@ bandocapt/
 |  |- gemini.js
 |  `- location-data.js
 |- lib/
-|  `- published-locations.js
+|  |- output-validator.js
+|  |- published-locations.js
+|  `- regression-metrics.js
 |- api/
 |  |- chat.js
 |  `- google-sheet.js
@@ -56,6 +58,7 @@ bandocapt/
 | `js/chatbot.js` | UI chat, toggle panel, render stream | `index.html` | `js/gemini.js` |
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
 | `lib/output-validator.js` | Fail-closed output guard: doi chieu va redact SDT/Maps/toa do/so lieu phap ly khong co trong nguon xac minh | `api/chat.js`, test | - |
+| `lib/regression-metrics.js` | Dem tu Unicode-safe va giu ngan sach verbosity 120/250 dong bo voi prompt answer-first | `scripts/run-regression.js`, test | `Intl.Segmenter` Node 20 |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
 | `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone, stream model, inject `<verified_locations>`, dang ky groundedness background task | `js/gemini.js` | Pinecone, Gemini API, Firebase, `@vercel/functions`, `lib/published-locations.js` |
 | `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets | Google Apps Script | SpreadsheetApp |

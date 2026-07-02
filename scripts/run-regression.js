@@ -8,6 +8,11 @@ if (!process.env.CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE) process.env.CHAT_DIAGNOSTIC_LO
 
 const fs = require('fs');
 const chatHandler = require('../api/chat');
+const {
+    countWords,
+    VERBOSITY_LIMIT_NARROW,
+    VERBOSITY_LIMIT_FULL,
+} = require('../lib/regression-metrics');
 
 function createRequest(body = {}, headers = {}) {
     return {
@@ -22,11 +27,21 @@ function createRequest(body = {}, headers = {}) {
     };
 }
 
+// Câu hỏi HẸP (hỏi 1 chi tiết: có/không, mức phạt, thời hạn, nơi nộp, mẫu đơn, ai thực hiện) —
+// ngân sách độ dài chặt hơn câu hỏi trọn thủ tục. Đối chiếu cột "Câu hỏi test" trong
+// test/cau-hoi/bo-test-regression-30-cau-nguoi-nuoc-ngoai-tthc.md khi thêm/bớt câu.
+const NARROW_QUESTION_IDS = new Set([
+    'TR01', 'TR05', 'GV01', 'GV06', 'TT04', 'VP01', 'VP06', 'DN02', 'HS02', 'TL01',
+    'CS01', 'GD02', 'ON01', 'TYPO02', 'LOC02', 'LOC04', 'LOC07', 'KC04', 'PI01',
+]);
+// Soft-fail VERBOSITY: vượt ngưỡng không tính là fail cứng, nhưng phải hiện rõ trong báo cáo.
 function runChat(userMessage) {
     return new Promise((resolve, reject) => {
         let fullResponse = '';
         let sources = [];
         let error = null;
+        let truncated = false;
+        let finishReason = '';
         let streamBuffer = '';
 
         const res = {
@@ -41,7 +56,7 @@ function runChat(userMessage) {
             },
             json(payload) {
                 if (payload.error) error = payload.error;
-                resolve({ text: fullResponse, sources, error });
+                resolve({ text: fullResponse, sources, error, truncated, finishReason });
                 return this;
             },
             writeHead(code, headers = {}) {
@@ -63,6 +78,8 @@ function runChat(userMessage) {
                             if (data.fullText) fullResponse = data.fullText;
                             if (data.sources) sources = data.sources;
                             if (data.error) error = data.error;
+                            if (data.truncated) truncated = true;
+                            if (data.finishReason) finishReason = data.finishReason;
                         } catch (e) {
                             // ignore parse errors
                         }
@@ -71,7 +88,7 @@ function runChat(userMessage) {
                 return true;
             },
             end(payload) {
-                resolve({ text: fullResponse, sources, error });
+                resolve({ text: fullResponse, sources, error, truncated, finishReason });
                 return this;
             },
         };
@@ -123,13 +140,20 @@ async function main() {
         console.log(`[${i+1}/${questions.length}] Running ID: ${q.id} - ${q.question}`);
         try {
             const result = await runChat(q.question);
+            const wordCount = countWords(result.text);
+            const verbosityLimit = NARROW_QUESTION_IDS.has(q.id) ? VERBOSITY_LIMIT_NARROW : VERBOSITY_LIMIT_FULL;
             results.push({
                 ...q,
                 response: result.text,
                 sources: result.sources,
-                error: result.error
+                error: result.error,
+                truncated: result.truncated,
+                finishReason: result.finishReason,
+                wordCount,
+                verbosity: wordCount > verbosityLimit,
+                verbosityLimit,
             });
-            console.log(`  -> Response length: ${result.text ? result.text.length : 0} chars`);
+            console.log(`  -> Response length: ${result.text ? result.text.length : 0} chars, ${wordCount} words${wordCount > verbosityLimit ? ' [VERBOSITY]' : ''}${result.truncated ? ' [TRUNCATED]' : ''}`);
             if (result.error) {
                 console.log(`  -> Error: ${result.error}`);
             }
@@ -146,10 +170,25 @@ async function main() {
     fs.mkdirSync(path.dirname(reportPath), { recursive: true });
 
     let reportMd = `# Báo cáo Regression Run (${now.toISOString()})\n\n`;
+
+    // Bảng tổng hợp độ dài/ngắt câu — để so sánh trước–sau khi sửa prompt mà không phải đọc từng câu.
+    const wordCounts = results.map(r => r.wordCount).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
+    const avgWords = wordCounts.length ? Math.round(wordCounts.reduce((s, n) => s + n, 0) / wordCounts.length) : 0;
+    const medianWords = wordCounts.length ? wordCounts[Math.floor(wordCounts.length / 2)] : 0;
+    reportMd += `## Tổng hợp\n\n`;
+    reportMd += `- Số câu: ${results.length} — TB: **${avgWords} từ**, median: **${medianWords} từ**\n`;
+    reportMd += `- VERBOSITY (vượt ngân sách từ): ${results.filter(r => r.verbosity).length} — TRUNCATED (chạm trần token): ${results.filter(r => r.truncated).length} — ERROR: ${results.filter(r => r.error).length}\n\n`;
+    reportMd += `| ID | Số từ | Ngân sách | VERBOSITY | TRUNCATED | ERROR |\n|---|---:|---:|---|---|---|\n`;
+    for (const r of results) {
+        reportMd += `| ${r.id} | ${r.wordCount} | ${r.verbosityLimit} | ${r.verbosity ? '⚠️' : ''} | ${r.truncated ? '❌' : ''} | ${r.error || ''} |\n`;
+    }
+    reportMd += `\n---\n\n`;
+
     for (const r of results) {
         reportMd += `## [${r.id}] ${r.question}\n`;
         reportMd += `- **Kỳ vọng:** ${r.expectation}\n`;
-        reportMd += `- **Lỗi cần bắt:** \`${r.errorToCatch}\`\n\n`;
+        reportMd += `- **Lỗi cần bắt:** \`${r.errorToCatch}\`\n`;
+        reportMd += `- **Độ dài:** ${r.wordCount} từ / ngân sách ${r.verbosityLimit}${r.verbosity ? ' — ⚠️ VERBOSITY' : ''}${r.truncated ? ` — ❌ TRUNCATED (${r.finishReason})` : ''}\n\n`;
         if (r.error) {
             reportMd += `**[ERROR]** ${r.error}\n\n`;
         }

@@ -73,7 +73,7 @@ git add output.css
 ## Test
 
 ```bash
-npm test                 # 57 unit/contract test hiện tại (2026-07-01; tăng dần theo thời gian — kiểm tra lại số thật bằng `npm test` nếu nghi ngờ)
+npm test                 # 87 unit/contract test hiện tại (2026-07-02; tăng dần theo thời gian — kiểm tra lại số thật bằng `npm test` nếu nghi ngờ)
 npm run ci               # test + build + production dependency audit mức High
 npm run prune:telemetry  # xóa log RTDB fallback đã quá hạn theo expires_at
 ```

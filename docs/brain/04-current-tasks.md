@@ -6,7 +6,7 @@
 
 ## Đang làm
 
-_(trống)_
+*(Không có)*
 
 ---
 
@@ -78,6 +78,7 @@ _(trống)_
 
 ## Đã hoàn thành gần đây
 
+- [2026-07-02] TASK-UX-01: Answer-first + chống ngắt giữa câu (Đồng bộ ngân sách 120/250, Unicode-safe word count. Hoàn thành 3 run regression cloud sạch liên tiếp: Run 2, Run 3, Run 5 với TRUNCATED=0, ERROR=0. Median giảm sâu từ 334 từ xuống còn 93 từ).
 - [2026-06-29] Sửa dứt điểm các lỗi P0 sau Regression Run 1 (fix citation `undefined`, lọc intent chính xác, thêm luật cấm hallucinate mức phạt/địa danh vào `SYSTEM_PROMPT_BASE`)
 - [2026-06-29] Chạy Regression Test (30 câu) và Fix thuật toán nhận diện địa danh `Published_Locations` (nhận diện đúng các tên rút gọn có chứa dấu câu)
 - [2026-06-27] Tích hợp chatbot/gemini vào UI; thay FAQ tĩnh cũ bằng chatbot RAG streaming

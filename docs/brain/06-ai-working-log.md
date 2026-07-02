@@ -5,6 +5,41 @@
 
 ---
 
+## [2026-07-02] Bàn giao PR #15: Hoàn thành Regression Cloud & dọn dẹp
+- **Agent:** Antigravity
+- **Thay đổi:** 
+  - Xác nhận chạy thành công 3 run cloud regression sạch liên tiếp (Run 2, Run 3, Run 5) với `TRUNCATED=0`, `ERROR=0`.
+  - Cập nhật `test/results/regression-latest.md` bằng báo cáo sạch hoàn toàn (Run 3: median 93 từ).
+  - Xóa harness cloud tạm `scripts/run-regression-cloud.js` và khôi phục `vercel.json` về trạng thái build production sạch ban đầu (`buildCommand: "npm run build"`).
+  - Xóa file nháp báo cáo local fail `test/results/regression-run-2026-07-02_14-41-09.md` để tránh commit nhầm.
+  - Cập nhật tài liệu `docs/brain/04-current-tasks.md` đánh dấu hoàn thành `TASK-UX-01`.
+- **Lý do:** Đạt mục tiêu kiểm định baseline sản xuất với 3 run regression sạch liên tiếp qua Vercel Cloud Build (môi trường đầy đủ secret), khôi phục và dọn dẹp repo trước khi bàn giao.
+- **Kiểm tra:** `npm test` 87/87 pass, `npm run build` pass, cấu trúc git status sạch không thừa file rác.
+
+---
+
+## [2026-07-02] Sửa review PR #15 trước regression answer-first
+- **Agent:** Codex
+- **Thay đổi:** Không cache response chạm trần token; bỏ fragment nếu không có ranh giới câu an toàn; dùng notice canonical từ backend để tránh UI hiển thị trùng/sai ngôn ngữ; tách metric regression Unicode-safe bằng `Intl.Segmenter` và đồng bộ ngưỡng 120/250 với prompt; thêm test và cập nhật Code Graph/syntax gate.
+- **File đã sửa:** `api/chat.js`, `js/chatbot.js`, `lib/output-validator.js`, `lib/regression-metrics.js`, `scripts/run-regression.js`, `test/output-validator.test.js`, `test/p0-fixes.test.js`, `test/regression-runner.test.js`, `package.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Khóa 4 finding review: cache câu thiếu, vẫn giữ câu đứt khi không có boundary, notice trùng và regression không đo đúng ngân sách/tiếng Trung.
+- **Kiểm tra:** `npm test` 87/87 pass; `npm run build` pass. Regression API thật 3 lần đang chờ credential hợp lệ vì máy không có `.env`, GitHub không có Actions secrets và Vercel CLI token đã hết hạn.
+
+---
+
+## [2026-07-02] Answer-first: rút gọn câu trả lời + chống ngắt giữa câu
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - `api/chat.js` (`SYSTEM_PROMPT_BASE`): đổi mục tiêu cốt lõi từ "sau mỗi câu trả lời" sang "sau khi hội thoại kết thúc"; thêm section "ANSWER-FIRST & ĐỘ DÀI" (câu đầu là đáp án trực tiếp, cấm chào hỏi/xã giao, tối đa 1 follow-up, 2 chế độ HẸP < 120 từ / TRỌN THỦ TỤC < 250 từ, mỗi điểm tiếp dân 1 dòng, không lặp thông tin); cấu trúc A chỉ áp cho câu hỏi trọn thủ tục, bỏ lặp nơi nộp trong "Trình tự". KHÔNG chạm khối "DỮ LIỆU & CHỐNG BỊA".
+  - `api/chat.js` + `lib/output-validator.js`: thêm `trimToSentenceBoundary()` + `getTruncationNotice()` — khi finishReason là `MAX_TOKENS` (Gemini) hoặc `length` (DeepSeek), cắt `fullText` lùi về ranh giới câu hoàn chỉnh (dấu kết câu + khoảng trắng, hoặc hết dòng trọn vẹn; không nhận nhầm dấu chấm trong URL/số thập phân) rồi nối câu chốt theo ngôn ngữ vi/en/zh/ko, chạy TRƯỚC `validateAnswer`. Cờ `truncated` (SSE + telemetry) giờ phủ cả DeepSeek `length` (trước chỉ bắt `MAX_TOKENS`).
+  - `scripts/run-regression.js`: đếm số từ mỗi câu trả lời, gắn nhãn soft-fail `VERBOSITY` (câu hẹp theo `NARROW_QUESTION_IDS` > 250 từ, câu đầy đủ > 400 từ) và `TRUNCATED` (đọc từ SSE event cuối); thêm bảng tổng hợp + thống kê TB/median đầu báo cáo để so sánh trước–sau.
+  - `test/output-validator.test.js`: 6 test mới cho trim/notice (cắt giữa câu vi, giữ nguyên khi đã trọn câu en/zh, bỏ bullet đứt, không nhầm dấu chấm URL/tọa độ, giữ nguyên khi không có ranh giới, localize notice).
+- **File đã sửa:** `api/chat.js`, `lib/output-validator.js`, `scripts/run-regression.js`, `test/output-validator.test.js`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Đo regression-latest: TB 306 từ/câu, median 334, 6/30 câu > 500 từ — người dân không nắm được thông tin cần biết trên mobile; câu dài còn gây chạm trần token đứt giữa câu (VP01/EV01). User yêu cầu answer-first + tuyệt đối không để AI ngắt giữa câu.
+- **Kiểm tra:** `node --check` sạch cho 3 file; `npm test` 83/83 pass (77 cũ + 6 mới); smoke-test `trimToSentenceBoundary` trên chính đoạn đứt thật của EV01 → dòng đứt "Hệ thống sẽ c" bị loại, kết thúc trọn vẹn + câu chốt. **CHƯA chạy 3× regression API thật** (môi trường không có API key) — bắt buộc chạy `node scripts/run-regression.js` × 3 ở môi trường có key, kiểm 0 Tier-1 / 0 LEGAL_HALLUCINATION / 0 TRUNCATED + so median từ trước–sau, rồi mới chốt baseline mới.
+
+---
+
 ## [2026-07-02] Sửa review P1 quota rollback và groundedness lifecycle
 - **Agent:** Codex
 - **Thay đổi:** Đổi reserve/rollback quota song song sang `Promise.allSettled` để không rò counter khi một nhánh throw; thêm test lỗi mạng từng phía; đăng ký groundedness check bằng Vercel `waitUntil`; cập nhật dependency và tài liệu kiến trúc/quyết định.
