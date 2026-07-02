@@ -1101,8 +1101,11 @@ function isVerifiedFactValue(value) {
 
 function buildVerifiedFactsLine(metadata = {}) {
     const facts = [];
-    if (isVerifiedFactValue(metadata.le_phi ?? metadata.phi)) {
-        facts.push(`LE_PHI=${String(metadata.le_phi ?? metadata.phi).trim()}`);
+    if (isVerifiedFactValue(metadata.le_phi)) {
+        facts.push(`LE_PHI=${String(metadata.le_phi).trim()}`);
+    }
+    if (isVerifiedFactValue(metadata.phi)) {
+        facts.push(`PHI=${String(metadata.phi).trim()}`);
     }
     if (isVerifiedFactValue(metadata.thoi_han)) {
         facts.push(`THOI_GIAN_GIAI_QUYET=${String(metadata.thoi_han).trim()}`);
@@ -2171,6 +2174,7 @@ module.exports.shouldSkipFaqCache = shouldSkipFaqCache;
 module.exports.verifyRequestSignature = verifyRequestSignature;
 module.exports.validateChatRequestBody = validateChatRequestBody;
 module.exports.isChatLogSaltConfigured = isChatLogSaltConfigured;
+module.exports.buildVerifiedFactsLine = buildVerifiedFactsLine;
 module.exports.checkGroundednessAsync = checkGroundednessAsync;
 module.exports.resolveClientIp = resolveClientIp;
 module.exports.isAllowedOrigin = isAllowedOrigin;

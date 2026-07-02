@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-07-02] Sửa review P0 structured facts và duration đa ngôn ngữ
+- **Agent:** Codex
+- **Thay đổi:** Tách riêng `le_phi` và `phi` khi tạo `[FACTS ĐÃ XÁC MINH]`; thay word boundary ASCII của duration bằng boundary Unicode-safe; bổ sung regression test cho phí song song và thời hạn vi/en/zh/ko.
+- **File đã sửa:** `api/chat.js`, `lib/output-validator.js`, `test/p0-fixes.test.js`, `test/output-validator.test.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Ngăn `le_phi=Không` che mất `phi` thực tế và bảo đảm validator thật sự redact thời hạn không có nguồn bằng tiếng Việt, Trung, Hàn.
+- **Kiểm tra:** `npm test`; `npm run build`.
+
 ## [2026-07-02] P1: Retrieval, giám sát, bảo mật, hiệu năng — theo kế hoạch P1 sau P0
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** Sau khi P0 chốt baseline production (3/3 lần regression sạch), thực hiện P1 theo kế hoạch đã duyệt trên nhánh `feat/p1-retrieval-hardening` (nhánh từ `fix/p0-anti-hallucination`, chưa merge vào `main`).
