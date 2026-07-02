@@ -596,6 +596,18 @@ test('classifyQuestion splits temporary residence declaration and residence card
     );
 });
 
+test('structured facts keep fee and charge fields independent', () => {
+    const facts = handler.buildVerifiedFactsLine({
+        le_phi: 'Không',
+        phi: '10 USD/lần',
+        thoi_han: '03 ngày làm việc',
+    });
+
+    assert.match(facts, /LE_PHI=Không/);
+    assert.match(facts, /PHI=10 USD\/lần/);
+    assert.match(facts, /THOI_GIAN_GIAI_QUYET=03 ngày làm việc/);
+});
+
 test('filterMatchesByQuestionCategory removes residence card chunks from declaration queries', () => {
     const { filterMatchesByQuestionCategory } = require('../api/chat');
 

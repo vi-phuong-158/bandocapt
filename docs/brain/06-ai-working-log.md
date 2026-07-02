@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-07-02] Sửa review P0 structured facts và duration đa ngôn ngữ
+- **Agent:** Codex
+- **Thay đổi:** Tách riêng `le_phi` và `phi` khi tạo `[FACTS ĐÃ XÁC MINH]`; thay word boundary ASCII của duration bằng boundary Unicode-safe; bổ sung regression test cho phí song song và thời hạn vi/en/zh/ko.
+- **File đã sửa:** `api/chat.js`, `lib/output-validator.js`, `test/p0-fixes.test.js`, `test/output-validator.test.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Ngăn `le_phi=Không` che mất `phi` thực tế và bảo đảm validator thật sự redact thời hạn không có nguồn bằng tiếng Việt, Trung, Hàn.
+- **Kiểm tra:** `npm test`; `npm run build`.
+
 ## [2026-07-02] P0.5: Baseline chuẩn production — 3/3 lần chạy regression sạch, vá 3 lỗ hổng validator phát hiện qua thực nghiệm
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** Sau P0.1-P0.4, chạy chuỗi 3 lần liên tiếp bộ regression 30 câu bằng API thật để chốt baseline theo tiêu chí đã thống nhất (0 lỗi Tier-1, 0 LEGAL_HALLUCINATION). Quá trình chạy phát hiện thêm 3 lỗ hổng thật trong `lib/output-validator.js`/`api/chat.js` mà unit test cũ không phủ tới — mỗi lần phát hiện đều dừng lại vá + viết test + chạy lại **từ đầu chuỗi 3 lần** (đúng quy trình đã thống nhất trong plan).

@@ -70,13 +70,16 @@ test('redacts unsupported Chinese currency and form while keeping sourced USD', 
 });
 
 test('redacts unsourced durations but keeps ones present in the legal corpus', () => {
-    const result = validateAnswer('Thời gian là 05 ngày làm việc.', allowed({ legalCorpus: '' }));
-    assert.doesNotMatch(result.sanitizedText, /05 ngày làm việc/);
-    assert.equal(result.violations[0].type, 'duration');
-    assert.equal(result.violations[0].action, 'redact');
+    const result = validateAnswer('Thời gian là 05 ngày làm việc, 99 giờ, 3小时 và 4시간.', allowed({ legalCorpus: '', allowedConstants: [] }));
+    assert.doesNotMatch(result.sanitizedText, /05 ngày làm việc|99 giờ|3小时|4시간/);
+    assert.equal(result.violations.filter(item => item.type === 'duration').length, 4);
+    assert.equal(result.violations.every(item => item.action === 'redact'), true);
 
-    const kept = validateAnswer('Trong 12 giờ.', allowed());
-    assert.match(kept.sanitizedText, /12 giờ/);
+    const kept = validateAnswer('Trong 12 giờ, 12 hours, 12小时 và 12시간.', allowed({
+        legalCorpus: 'Thời hạn: 12 giờ. English: 12 hours. 中文：12小时。한국어: 12시간.',
+        allowedConstants: [],
+    }));
+    assert.match(kept.sanitizedText, /12 giờ.*12 hours.*12小时.*12시간/);
     assert.equal(kept.violations.length, 0);
 });
 
