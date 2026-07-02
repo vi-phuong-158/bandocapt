@@ -23,6 +23,43 @@
 
 ---
 
+## [2026-07-02] Tieu chi "dat chuan dua vao thuc te" cho chatbot RAG
+
+- **Quyet dinh:** Chatbot chi duoc coi la san sang production khi dat ca 4 dieu kien: (1) 3 lan chay lien tiep bo regression 30 cau khong co loi Tier-1 (SDT/dia chi/Maps bia) va khong co LEGAL_HALLUCINATION; (2) telemetry co canh bao khi ty le `output_validator_violation` vuot nguong; (3) disclaimer AI hien thi cho nguoi dung (da co); (4) quy trinh cap nhat van ban phap luat moi vao Pinecone co nguoi duyet (tuong tu pipeline staging da co cho tru so).
+- **Ly do:** Bao cao review 2026-07-02 xac nhan baseline 27/30 (1 hallucination that EV07, 1 soft-fail TR02) chua du de nhan danh co quan Cong an tra loi tu dong; can tieu chi do luong ro rang thay vi danh gia cam tinh.
+- **Danh doi:** Se ton them thoi gian/API quota de chay regression nhieu lan truoc moi lan coi la "baseline moi"; doi lai giam manh rui ro dua thong tin sai ra cong khai.
+- **Nguoi quyet dinh:** user / Claude Code (Sonnet 5)
+
+---
+
+## [2026-07-02] P0: Bo fallback duoi nguong, redact duration, allowedConstants chi con hang so loi, structured facts tu metadata
+
+- **Quyet dinh:**
+  1. **Bo fallback lay top-3 khi khong co match vuot nguong 0.62** (`api/chat.js`, RAG-03 block) — truoc day khi khong co match nao du diem, code van lay 3 match yeu nhat lam `matchedDocs`, tao nguyen lieu cho model "lap cho trong". Gio khi duoi nguong, `matchedDocs` de rong, di vao nhanh "khong tim thay tai lieu phu hop" da co san trong prompt.
+  2. **DURATION_PATTERN chuyen tu `log_only` sang `redact`** (`lib/output-validator.js`) — dung chung co che `redact()` nhu MONEY/FORM, doi chieu voi `legalCorpus` + `allowedConstants`.
+  3. **`allowedConstants` trong validator chi con hang so phap ly loi bat bien** (`'12 gio', '24 gio', 'Dieu 33'`) — cac so hieu van ban cu the (47/2014, 51/2019...) bi xoa khoi hardcode vi da nam trong `legalCorpus` (matchedDocs) khi tai lieu tuong ung thuc su duoc Pinecone tra ve; neu van ban khong duoc truy xuat ma model van neu so hieu thi DUNG y do la phai bi redact (fail-closed), tranh no bao tri khi them van ban moi ma quen sua code.
+  4. **Structured facts tu metadata Pinecone** — them `buildVerifiedFactsLine()` doc field `le_phi`/`phi` (va `thoi_han`/`mau_don` khi co du lieu trong tuong lai) tu metadata, bom thanh dong `[FACTS DA XAC MINH]` ngay duoi tung tai lieu trong `matchedDocs`. System prompt duoc them 1 dong chi dao uu tien dong FACTS thay vi tu dien giai tu van ban thuong.
+- **Ly do:** Diet goc 3 nguon hallucination chinh ma bao cao review chi ra: tai lieu yeu duoc dua vao prompt, duration khong duoc chan (chi log), whitelist so hieu van ban la nguon that su xa roi Pinecone that.
+- **Phat hien khi khao sat du lieu (quan trong cho TASK-P0-04-EXT):** Kiem tra truc tiep `data/pinecone-backups/2026-07-01-*.json` cho thay metadata Pinecone GOC (38 record) KHONG co field `thoi_han` hay `mau_don` nao ca — chi co `le_phi`/`phi` duoc chuan hoa cho 34/38 record trong dot va phi ngay 2026-07-01. Code `buildVerifiedFactsLine` da viet san de doc ca 3 field nhung 2 field con lai se khong bao gio kich hoat cho toi khi du lieu Pinecone duoc backfill (xem TASK-P0-04-EXT trong `04-current-tasks.md`).
+- **Danh doi:** Cau tra loi co the tro nen "it thong tin hon" o mot so cau ma truoc day dua vao tai lieu yeu de tra loi (dung y do thiet ke, khong phai loi); can chay lai regression de do tac dong thuc te.
+- **Nguoi quyet dinh:** user / Claude Code (Sonnet 5)
+
+---
+
+## [2026-07-02] P0.5: Baseline production da dat, 3 lo hong validator vs them vao qua thuc nghiem
+
+- **Quyet dinh:** Baseline chinh thuc la 3 file `regression-run-2026-07-02_06-13-26.md`, `_06-24-57.md`, `_06-39-56.md` — ca 3 chay lien tiep khong loi Tier-1, khong LEGAL_HALLUCINATION xac nhan. Dieu kien "dat chuan production" (entry truoc) coi la DA DAT cho vong P0.
+- **3 lo hong vaidator vs them trong qua trinh chay (khong phat hien duoc qua doc code tinh, chi lo ra khi chay that nhieu lan):**
+  1. `MEASUREMENT_PATTERN` moi — bat thong so vat ly (cm/mm/px/MB/KB/GB, ca don vi chu Han 厘米/毫米/公分) — vd EV07 bia "4×6cm/JPEG/≤2MB" khong pattern nao cu phu toi.
+  2. Sua bien `(?<!\w)`/`(?!\w)` trong MONEY_PATTERN chi ap dung rieng cho token `đ` bare (khong doi bien chung — da thu doi bien chung `\w` -> `\p{L}\p{N}` mot lan va lam mu hoan toan phat hien tien te tieng Trung do so dinh lien chu Han khong dau cach; revert va chi sua hep pham vi token `đ`).
+  3. `allowedConstants` trong `api/chat.js` them ban dich EN/ZH/KO cua dung 2 hang so "12 gio"/"24 gio" (`12 hours/24 hours/12小时/24小时/12시간/24시간`) — hoi quy do P0.2 (duration tu log-only sang redact that) lam hong cau tra loi da ngon ngu: dich "12 gio" sang "12 hours" khong con khop legalCorpus tieng Viet nen bi xoa oan.
+  4. `MONEY_RANGE_PATTERN` moi — cum "X den Y dong" chi co don vi o cuoi, MONEY_PATTERN don le chi bao ve duoc so Y.
+- **Phat hien quan trong (khong phai quyet dinh, nhung anh huong cach doc ket qua sau nay):** Da query truc tiep Pinecone de xac minh — cac con so "nghi van hallucination" trong EV07/GV06/HS02/TT01/VP01 (25/50 USD e-visa, 145/155/165 USD the tam tru, 10 USD/lan gia han, 4x6cm/JPEG/≤2MB, 3 ngay lam viec) **DEU la du lieu that trong Pinecone** (record `tthc_5568-tw-06/07/08` etc.), khong phai model bia. Sai lech giua cac lan chay la do retrieval tra ve chunk khac nhau (bien thien tu nhien cua embedding search), khong phai loi validator hay loi model — validator dang hoat dong dung thiet ke (redact khi khong co chunk lien quan, giu khi co).
+- **Danh doi:** Sua o pham vi hep (chi token `đ`, chi 2 hang so thoi han) de tranh pha vo cac phat hien dung khac (tieng Trung, cac gia tri khac). Con lai 2 gap da biet nhung chap nhan duoc: duration tieng Trung dung luong tu "个" (vd "3个工作日") khong khop pattern; duration dung "ngay" tran (khong phai "ngay lam viec") khong duoc phu de tranh false-positive qua rong.
+- **Nguoi quyet dinh:** user / Claude Code (Sonnet 5)
+
+---
+
 ## [2026-07-01] Tach intent `tam_tru` thanh 2 nhanh retrieval
 
 - **Quyet dinh:** Tach bucket intent runtime thanh `tam_tru_khai_bao` (NA17, Cong an cap xa, co so luu tru) va `tam_tru_the` (NA6/NA7/NA8, Cong an cap tinh, giay phep lao dong). Luc query van map ve metadata Pinecone hien co (`tam_tru`, `cu_tru`), sau do post-filter theo `title`/`text` de loai chunk khac nhanh.

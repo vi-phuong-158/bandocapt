@@ -69,15 +69,51 @@ test('redacts unsupported Chinese currency and form while keeping sourced USD', 
     assert.match(result.sanitizedText, /145 USD/);
 });
 
-test('duration violations are log-only', () => {
-    const result = validateAnswer('Thời gian là 05 ngày làm việc.', allowed({ legalCorpus: '' }));
-    assert.equal(result.sanitizedText, 'Thời gian là 05 ngày làm việc.');
-    assert.deepEqual(result.violations, [{
-        tier: 2,
-        type: 'duration',
-        value: '05 ngày làm việc',
-        action: 'log_only',
-    }]);
+test('redacts unsourced durations but keeps ones present in the legal corpus', () => {
+    const result = validateAnswer('Thời gian là 05 ngày làm việc, 99 giờ, 3小时 và 4시간.', allowed({ legalCorpus: '', allowedConstants: [] }));
+    assert.doesNotMatch(result.sanitizedText, /05 ngày làm việc|99 giờ|3小时|4시간/);
+    assert.equal(result.violations.filter(item => item.type === 'duration').length, 4);
+    assert.equal(result.violations.every(item => item.action === 'redact'), true);
+
+    const kept = validateAnswer('Trong 12 giờ, 12 hours, 12小时 và 12시간.', allowed({
+        legalCorpus: 'Thời hạn: 12 giờ. English: 12 hours. 中文：12小时。한국어: 12시간.',
+        allowedConstants: [],
+    }));
+    assert.match(kept.sanitizedText, /12 giờ.*12 hours.*12小时.*12시간/);
+    assert.equal(kept.violations.length, 0);
+});
+
+test('redacts unsourced physical measurements (photo size/file limit) but keeps sourced ones', () => {
+    const result = validateAnswer('尺寸4×6cm，JPEG格式，≤2 MB。', allowed({ legalCorpus: '' }));
+    assert.doesNotMatch(result.sanitizedText, /4×6cm|2 MB/);
+    assert.equal(result.violations.filter(v => v.type === 'measurement').length, 2);
+
+    const kept = validateAnswer('Kích thước 4x6cm.', allowed({ legalCorpus: 'Ảnh cỡ 4x6cm nền trắng.' }));
+    assert.match(kept.sanitizedText, /4x6cm/);
+    assert.equal(kept.violations.length, 0);
+});
+
+test('does not mangle "để" (Vietnamese word) after a bare number as if it were a money unit', () => {
+    const result = validateAnswer('Gọi số 113 để được hỗ trợ. Tổng đài 1900 6142 để biết thêm.', allowed({ legalCorpus: '' }));
+    assert.equal(result.sanitizedText, 'Gọi số 113 để được hỗ trợ. Tổng đài 1900 6142 để biết thêm.');
+    assert.equal(result.violations.length, 0);
+});
+
+test('redacts an unsourced money range even though only the trailing number has a unit', () => {
+    const result = validateAnswer('Phạt từ 3.000.000 đến 5.000.000 đồng.', allowed({ legalCorpus: '' }));
+    assert.doesNotMatch(result.sanitizedText, /3\.000\.000|5\.000\.000/);
+    assert.equal(result.violations.filter(v => v.type === 'money').length, 1);
+
+    const kept = validateAnswer('Phạt từ 3.000.000 đến 5.000.000 đồng.', allowed({
+        legalCorpus: 'Phạt tiền từ 3.000.000 đến 5.000.000 đồng đối với hành vi...',
+    }));
+    assert.match(kept.sanitizedText, /3\.000\.000 đến 5\.000\.000 đồng/);
+});
+
+test('redacts unsourced measurements written with Chinese units (厘米/毫米)', () => {
+    const result = validateAnswer('尺寸4×6厘米，白底照片。', allowed({ legalCorpus: '' }));
+    assert.doesNotMatch(result.sanitizedText, /4×6厘米/);
+    assert.equal(result.violations.filter(v => v.type === 'measurement').length, 1);
 });
 
 test('redaction preserves surrounding Markdown and works in English and Chinese', () => {

@@ -17,7 +17,8 @@
       "Bash(gh pr:*)",
       "Bash(node -c api/chat.js)",
       "Bash(node -c lib/output-validator.js)",
-      "Bash(node -c lib/published-locations.js)"
+      "Bash(node -c lib/published-locations.js)",
+      "Bash(git checkout *)"
     ]
   }
 }
