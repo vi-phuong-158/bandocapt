@@ -69,15 +69,15 @@ test('redacts unsupported Chinese currency and form while keeping sourced USD', 
     assert.match(result.sanitizedText, /145 USD/);
 });
 
-test('duration violations are log-only', () => {
+test('redacts unsourced durations but keeps ones present in the legal corpus', () => {
     const result = validateAnswer('Thời gian là 05 ngày làm việc.', allowed({ legalCorpus: '' }));
-    assert.equal(result.sanitizedText, 'Thời gian là 05 ngày làm việc.');
-    assert.deepEqual(result.violations, [{
-        tier: 2,
-        type: 'duration',
-        value: '05 ngày làm việc',
-        action: 'log_only',
-    }]);
+    assert.doesNotMatch(result.sanitizedText, /05 ngày làm việc/);
+    assert.equal(result.violations[0].type, 'duration');
+    assert.equal(result.violations[0].action, 'redact');
+
+    const kept = validateAnswer('Trong 12 giờ.', allowed());
+    assert.match(kept.sanitizedText, /12 giờ/);
+    assert.equal(kept.violations.length, 0);
 });
 
 test('redaction preserves surrounding Markdown and works in English and Chinese', () => {

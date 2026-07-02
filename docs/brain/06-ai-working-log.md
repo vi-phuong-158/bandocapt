@@ -5,6 +5,21 @@
 
 ---
 
+## [2026-07-02] P0.1-P0.4: Diệt gốc hallucination — bỏ fallback dưới ngưỡng, redact duration, structured facts
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** User yêu cầu review toàn diện dự án tập trung độ chính xác chatbot RAG, sau đó duyệt kế hoạch 3 phase (P0 diệt gốc hallucination → P1 retrieval/bảo mật/hiệu năng → P2 UI). Đây là entry cho P0.1-P0.4, làm trên nhánh `fix/p0-anti-hallucination`.
+- **Thay đổi:**
+  - `api/chat.js`: (P0.1) Bỏ fallback `relevantMatches = branchFilteredMatches.slice(0, 3)` khi không có match nào vượt ngưỡng 0.62 — dưới ngưỡng giờ để `matchedDocs` rỗng thay vì dùng tài liệu điểm thấp. (P0.3) `allowedConstants` truyền vào `validateAnswer` rút gọn từ 13 hằng số xuống còn 3 (`12 giờ`, `24 giờ`, `Điều 33`) — số hiệu văn bản cụ thể không hardcode nữa, dựa hoàn toàn vào `legalCorpus` lấy từ tài liệu Pinecone thực sự truy xuất được. (P0.4) Thêm `buildVerifiedFactsLine()` đọc field `le_phi`/`phi`/`thoi_han`/`mau_don` từ metadata Pinecone, bơm dòng `[FACTS ĐÃ XÁC MINH]` vào cuối mỗi tài liệu trong `matchedDocs`; thêm 1 dòng chỉ đạo vào `SYSTEM_PROMPT_BASE` yêu cầu model ưu tiên dòng FACTS.
+  - `lib/output-validator.js`: (P0.2) `DURATION_PATTERN` chuyển từ `log_only` sang dùng chung cơ chế `redact()` — thời hạn không có trong `legalCorpus` giờ bị thay bằng placeholder thay vì chỉ ghi violation.
+  - `test/output-validator.test.js`: Cập nhật test `duration violations are log-only` thành `redacts unsourced durations but keeps ones present in the legal corpus`, xác nhận cả hành vi redact và hành vi giữ nguyên khi có trong corpus.
+  - `docs/brain/04-current-tasks.md`: Thêm `TASK-P0-04-EXT` ghi nhận phát hiện khảo sát dữ liệu (chỉ `le_phi` tồn tại thật trong Pinecone, `thoi_han`/`mau_don` chưa có field nào — cần backfill).
+  - `docs/brain/03-decisions.md`: Thêm 2 entry — tiêu chí "đạt chuẩn đưa vào thực tế" (4 điều kiện) và quyết định kỹ thuật P0 kèm phát hiện khảo sát metadata.
+- **Lý do:** Diệt 3 nguồn hallucination chính mà báo cáo review 2026-07-02 chỉ ra: tài liệu điểm thấp vẫn được đưa vào prompt, duration không bị chặn thật sự, whitelist số hiệu văn bản là nguồn sự thật tách rời khỏi Pinecone thật (dễ lệch khi thêm văn bản mới).
+- **Kiểm tra:** `node --check api/chat.js` OK, `node --check lib/output-validator.js` OK, `node --test test/*.test.js` → 67/67 pass.
+- **Việc còn tồn đọng:** Chưa chạy regression 30 câu bằng API thật để đo tác động thực tế của P0.1 (một số câu trước "đạt" nhờ fallback dưới ngưỡng có thể chuyển sang "chưa có căn cứ" — cần xác nhận đây là thay đổi đúng ý đồ, không phải thoái lui). Bước tiếp theo: P0.5 (chạy regression 3 lần liên tiếp để chốt baseline).
+
+---
+
 ## [2026-07-01] Baseline mới sau khi vá TL01/TT04 — kết quả 27/30 sạch, 2 soft-fail, 1 fail
 - **Agent:** Claude Code
 - **Thay đổi:** Chạy lại đủ 30 câu (`regression-run-2026-07-01_07-52-45.md` = `regression-latest.md`), viết phân tích đồng bộ tại `test/results/regression-analysis-2026-07-01_07-52-45.md`. Đánh dấu rõ `regression-run-1.md` và `regression-run-1-analysis.md` là LỖI THỜI/SUPERSEDED ngay đầu file (không xóa, giữ giá trị lịch sử) — khắc phục đúng vấn đề "2 file lệch phiên bản" mà reviewer độc lập chỉ ra. Sửa luôn `docs/brain/05-testing-and-deploy.md` từ "39 unit test" thành "57 unit test" (đúng số thật hiện tại).

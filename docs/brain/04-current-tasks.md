@@ -47,6 +47,11 @@ _(trống)_
 - **Liên quan:** `api/chat.js` (PINECONE_NAMESPACE, indexing script trong setup/)
 - **Ưu tiên:** Trung bình
 
+### TASK-P0-04-EXT: Backfill metadata `thoi_han` và `mau_don` cho toàn bộ record Pinecone
+- **Mô tả:** P0.4 đã thêm cơ chế đọc field `le_phi`/`phi` từ metadata Pinecone và bơm thành khối `[FACTS ĐÃ XÁC MINH]` vào prompt (xem `buildVerifiedFactsLine` trong `api/chat.js`). Khảo sát backup `data/pinecone-backups/2026-07-01-*.json` cho thấy: chỉ có `le_phi`/`phi` được chuẩn hóa cho 34/38 record (đợt vá phí ngày 2026-07-01); KHÔNG có field `thoi_han` (thời gian giải quyết) hay `mau_don` (mã mẫu đơn) nào trong metadata gốc. Code đã sẵn sàng đọc 2 field này nếu được bổ sung, nhưng cần backfill dữ liệu thật vào Pinecone trước.
+- **Liên quan:** `setup/` (script upsert Pinecone), `api/chat.js` (`buildVerifiedFactsLine`)
+- **Ưu tiên:** Trung bình — giảm rủi ro hallucination cho "thời gian giải quyết" và "mẫu đơn", 2 loại lỗi đã ghi nhận trong regression (TYPO01, GV01, HS02).
+
 ### TASK-P1-02: Mở rộng test chatbot và trình duyệt
 - **Mô tả:** Bổ sung CORS/injection/SSE parser và E2E desktop-mobile-keyboard ngoài 39 unit test hiện có.
 - **Liên quan:** `api/chat.js`, `js/gemini.js`, `js/chatbot.js`, `test/`
