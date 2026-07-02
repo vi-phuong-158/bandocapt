@@ -24,8 +24,7 @@ const CHATBOT_TEXT = {
     typing: 'Đang suy nghĩ...',
     copied: 'Đã chép',
     copy: 'Sao chép',
-    interrupted: 'Phản hồi bị gián đoạn trước khi hoàn tất. Nội dung phía trên có thể chưa đầy đủ.',
-    truncated: 'Phản hồi đã chạm giới hạn độ dài. Hãy hỏi tiếp "phần còn lại" hoặc yêu cầu tóm tắt ngắn hơn.'
+    interrupted: 'Phản hồi bị gián đoạn trước khi hoàn tất. Nội dung phía trên có thể chưa đầy đủ.'
 };
 
 const CHATBOT_ERROR_MESSAGES = {
@@ -376,7 +375,6 @@ async function handleChatSend() {
             renderMarkdown(result.fullText || rawText, content);
             appendActionBar(bubble, result.fullText || rawText);
             appendSources(bubble, result.sources);
-            if (result.truncated) appendNotice(bubble, CHATBOT_TEXT.truncated);
         } else {
             bubble.classList.add('ai-chat-bubble--error');
             if (result.partialText) {

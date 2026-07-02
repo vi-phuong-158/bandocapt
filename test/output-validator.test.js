@@ -155,10 +155,10 @@ test('trimToSentenceBoundary does not mistake dots in URLs or decimals for sente
     assert.equal(trimToSentenceBoundary(input), 'Khai báo tại dichvucong.gov.vn nhé.');
 });
 
-test('trimToSentenceBoundary returns a single unfinished sentence unchanged (no boundary to cut at)', () => {
+test('trimToSentenceBoundary drops a single unfinished sentence when no safe boundary exists', () => {
     const { trimToSentenceBoundary } = require('../lib/output-validator');
     const input = 'Bạn cần chuẩn bị hộ chiếu và các giấy tờ liên qu';
-    assert.equal(trimToSentenceBoundary(input), input);
+    assert.equal(trimToSentenceBoundary(input), '');
 });
 
 test('getTruncationNotice localizes vi/zh/ko and falls back to English', () => {

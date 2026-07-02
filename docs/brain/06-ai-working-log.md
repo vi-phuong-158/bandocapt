@@ -5,6 +5,28 @@
 
 ---
 
+## [2026-07-02] Bàn giao PR #15: Hoàn thành Regression Cloud & dọn dẹp
+- **Agent:** Antigravity
+- **Thay đổi:** 
+  - Xác nhận chạy thành công 3 run cloud regression sạch liên tiếp (Run 2, Run 3, Run 5) với `TRUNCATED=0`, `ERROR=0`.
+  - Cập nhật `test/results/regression-latest.md` bằng báo cáo sạch hoàn toàn (Run 3: median 93 từ).
+  - Xóa harness cloud tạm `scripts/run-regression-cloud.js` và khôi phục `vercel.json` về trạng thái build production sạch ban đầu (`buildCommand: "npm run build"`).
+  - Xóa file nháp báo cáo local fail `test/results/regression-run-2026-07-02_14-41-09.md` để tránh commit nhầm.
+  - Cập nhật tài liệu `docs/brain/04-current-tasks.md` đánh dấu hoàn thành `TASK-UX-01`.
+- **Lý do:** Đạt mục tiêu kiểm định baseline sản xuất với 3 run regression sạch liên tiếp qua Vercel Cloud Build (môi trường đầy đủ secret), khôi phục và dọn dẹp repo trước khi bàn giao.
+- **Kiểm tra:** `npm test` 87/87 pass, `npm run build` pass, cấu trúc git status sạch không thừa file rác.
+
+---
+
+## [2026-07-02] Sửa review PR #15 trước regression answer-first
+- **Agent:** Codex
+- **Thay đổi:** Không cache response chạm trần token; bỏ fragment nếu không có ranh giới câu an toàn; dùng notice canonical từ backend để tránh UI hiển thị trùng/sai ngôn ngữ; tách metric regression Unicode-safe bằng `Intl.Segmenter` và đồng bộ ngưỡng 120/250 với prompt; thêm test và cập nhật Code Graph/syntax gate.
+- **File đã sửa:** `api/chat.js`, `js/chatbot.js`, `lib/output-validator.js`, `lib/regression-metrics.js`, `scripts/run-regression.js`, `test/output-validator.test.js`, `test/p0-fixes.test.js`, `test/regression-runner.test.js`, `package.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Khóa 4 finding review: cache câu thiếu, vẫn giữ câu đứt khi không có boundary, notice trùng và regression không đo đúng ngân sách/tiếng Trung.
+- **Kiểm tra:** `npm test` 87/87 pass; `npm run build` pass. Regression API thật 3 lần đang chờ credential hợp lệ vì máy không có `.env`, GitHub không có Actions secrets và Vercel CLI token đã hết hạn.
+
+---
+
 ## [2026-07-02] Answer-first: rút gọn câu trả lời + chống ngắt giữa câu
 - **Agent:** Claude Code
 - **Thay đổi:**

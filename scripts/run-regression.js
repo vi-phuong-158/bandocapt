@@ -8,6 +8,11 @@ if (!process.env.CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE) process.env.CHAT_DIAGNOSTIC_LO
 
 const fs = require('fs');
 const chatHandler = require('../api/chat');
+const {
+    countWords,
+    VERBOSITY_LIMIT_NARROW,
+    VERBOSITY_LIMIT_FULL,
+} = require('../lib/regression-metrics');
 
 function createRequest(body = {}, headers = {}) {
     return {
@@ -30,13 +35,6 @@ const NARROW_QUESTION_IDS = new Set([
     'CS01', 'GD02', 'ON01', 'TYPO02', 'LOC02', 'LOC04', 'LOC07', 'KC04', 'PI01',
 ]);
 // Soft-fail VERBOSITY: vượt ngưỡng không tính là fail cứng, nhưng phải hiện rõ trong báo cáo.
-const VERBOSITY_LIMIT_NARROW = 250;
-const VERBOSITY_LIMIT_FULL = 400;
-
-function countWords(text) {
-    return String(text || '').split(/\s+/).filter(Boolean).length;
-}
-
 function runChat(userMessage) {
     return new Promise((resolve, reject) => {
         let fullResponse = '';
