@@ -57,6 +57,10 @@ _(trống)_
 - **Liên quan:** `setup/` (script upsert Pinecone), `api/chat.js` (`buildVerifiedFactsLine`)
 - **Ưu tiên:** Trung bình — giảm rủi ro hallucination cho "thời gian giải quyết" và "mẫu đơn", 2 loại lỗi đã ghi nhận trong regression (TYPO01, GV01, HS02).
 
+### [KHẢO SÁT XONG — P1.1.4] Title/van_ban trong metadata Pinecone
+- **Kết quả:** Kiểm tra `data/pinecone-backups/2026-07-01-pre-update-backup-original-metadata.json` (34 record `tthc_*` đã vá phí) — **0/34 thiếu `title`**; không record nào có field `van_ban` riêng, nhưng citation fallback trong `api/chat.js` (`m.metadata?.van_ban || m.metadata?.source_file || m.metadata?.source || m.metadata?.source_decision`) đã tự rơi về `source_decision` (vd `"5568/QD-BCA"`) nên không phải gap thực sự — không cần backfill thêm ở phase này. Chưa khảo sát các record ngoài batch phí (nếu có record `tru_so` hoặc category khác thiếu title, cần khảo sát riêng khi động tới).
+- **Ưu tiên:** Thấp — không hành động thêm, chỉ ghi nhận.
+
 ### TASK-P1-02: Mở rộng test chatbot và trình duyệt
 - **Mô tả:** Bổ sung CORS/injection/SSE parser và E2E desktop-mobile-keyboard ngoài 39 unit test hiện có.
 - **Liên quan:** `api/chat.js`, `js/gemini.js`, `js/chatbot.js`, `test/`

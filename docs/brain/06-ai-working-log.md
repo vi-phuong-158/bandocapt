@@ -5,12 +5,44 @@
 
 ---
 
+## [2026-07-02] Sửa review P1 quota rollback và groundedness lifecycle
+- **Agent:** Codex
+- **Thay đổi:** Đổi reserve/rollback quota song song sang `Promise.allSettled` để không rò counter khi một nhánh throw; thêm test lỗi mạng từng phía; đăng ký groundedness check bằng Vercel `waitUntil`; cập nhật dependency và tài liệu kiến trúc/quyết định.
+- **File đã sửa:** `api/chat.js`, `test/p0-fixes.test.js`, `package.json`, `package-lock.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Bảo toàn quota khi Firebase lỗi cục bộ và bảo đảm tác vụ giám sát sau response không bị Vercel đóng băng giữa chừng.
+- **Kiểm tra:** `npm test`; `npm run build`; `npm run ci`.
+
 ## [2026-07-02] Sửa review P0 structured facts và duration đa ngôn ngữ
 - **Agent:** Codex
 - **Thay đổi:** Tách riêng `le_phi` và `phi` khi tạo `[FACTS ĐÃ XÁC MINH]`; thay word boundary ASCII của duration bằng boundary Unicode-safe; bổ sung regression test cho phí song song và thời hạn vi/en/zh/ko.
 - **File đã sửa:** `api/chat.js`, `lib/output-validator.js`, `test/p0-fixes.test.js`, `test/output-validator.test.js`, `docs/brain/06-ai-working-log.md`
 - **Lý do:** Ngăn `le_phi=Không` che mất `phi` thực tế và bảo đảm validator thật sự redact thời hạn không có nguồn bằng tiếng Việt, Trung, Hàn.
 - **Kiểm tra:** `npm test`; `npm run build`.
+
+## [2026-07-02] P1: Retrieval, giám sát, bảo mật, hiệu năng — theo kế hoạch P1 sau P0
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Sau khi P0 chốt baseline production (3/3 lần regression sạch), thực hiện P1 theo kế hoạch đã duyệt trên nhánh `feat/p1-retrieval-hardening` (nhánh từ `fix/p0-anti-hallucination`, chưa merge vào `main`).
+- **Thay đổi (`api/chat.js`):**
+  - **P1.1.1 Retrieval:** Bỏ vòng thử 4 namespace Pinecone (`namespacesToTry`) — pin đúng 1 namespace từ `PINECONE_NAMESPACE`, giữ nguyên 1 fallback bỏ metadata filter khi có category mà 0 match (đã có sẵn).
+  - **P1.1.2:** Thêm `shouldSkipRerank(matches)` — bỏ qua `rerankWithGemini` khi top-1 > 0.75 điểm VÀ cách top-2 ≥ 0.05 (kết quả đã rõ ràng, không mập mờ). Tiết kiệm 1 LLM call cho đa số câu hỏi có match mạnh.
+  - **P1.1.3:** Chỉ ghép ngữ cảnh câu trước vào query embedding khi câu hiện tại < 8 từ (follow-up ngắn); câu đủ dài (≥ 8 từ) đứng độc lập.
+  - **P1.2.1 Giám sát:** Thêm `checkGroundednessAsync()` — fire-and-forget SAU `res.end()` (không tăng latency), gọi Gemini Flash đối chiếu số liệu trong answer với `legalCorpus`, ghi kết quả vào Firebase `groundedness_checks/<date_key>`. Đây là lớp giám sát THÊM, không thay `lib/output-validator.js` (vẫn fail-closed như cũ).
+  - **P1.3.1-3 Bảo mật:** Bỏ header `Access-Control-Allow-Credentials` (app không dùng cookie). `isAllowedOrigin` chỉ tin fallback `x-forwarded-host` khi `process.env.VERCEL` tồn tại (tách thành hàm riêng, có comment giải thích). IP rate-limit đổi từ chỉ `x-forwarded-for` sang ưu tiên `x-vercel-forwarded-for` → `x-real-ip` → `x-forwarded-for` (tách thành `resolveClientIp()` để unit test được).
+  - **P1.4.1 Hiệu năng:** `reserveRateLimitQuota` đổi từ tuần tự (IP/ngày rồi thang) sang **song song** qua `Promise.all`, rollback bên đã reserve thành công nếu bên kia fail (logic rollback giữ nguyên).
+  - **P1.4.2:** Thêm comment xác nhận timeout DeepSeek 50s hợp lệ vì `vercel.json` có `maxDuration: 60`.
+  - **Phát hiện quan trọng (ảnh hưởng RATE_LIMIT_MAX_RETRIES):** Test harness 50-concurrent cho thấy chạy song song 2 reservation + rollback tạo ra worst-case ~2N-1 (không phải N) lượt ghi CAS tuần tự cần thành công trên CÙNG 1 counter IP (rollback IP của các request bị chặn ở tầng tháng cạnh tranh thêm với các reservation IP còn đang retry). `RATE_LIMIT_MAX_RETRIES=64` không đủ trong kịch bản này (14/50 bị `store_error` sai — xác nhận bằng script debug độc lập). Đã nâng lên **150**, xác minh lại sạch bằng 3 lần chạy độc lập.
+- **File khác:**
+  - `vercel.json`: Thêm route `/(.*)` với header `Content-Security-Policy` (chuyển từ meta tag, thêm `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`.
+  - `index.html`: Xóa meta tag CSP (1 nguồn sự thật duy nhất là `vercel.json`).
+  - `scripts/check-violations.js` (mới — P1.2.2): Đọc RTDB fallback `chat_logs_metrics/<date_key>`, in báo cáo tỉ lệ `output_validator_violation` theo ngày. Chạy tay/cron sau, không dựng hạ tầng alert mới.
+  - `test/p0-fixes.test.js`: Thêm 5 test mới cho `shouldSkipRerank`, `resolveClientIp`, `isAllowedOrigin` (gating theo `VERCEL`), và `reserveRateLimitQuota` song song (rollback đúng khi 1 bên fail). Cập nhật 2 test đếm số lời gọi Firebase (1→2, 2→4) vì giờ IP/tháng đọc/ghi song song thay vì tuần tự.
+  - `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`: cập nhật luồng xử lý, quyết định P1, khảo sát P1.1.4 (title/van_ban trong Pinecone metadata — không cần backfill thêm).
+- **Kiểm tra:**
+  - `node --check api/chat.js lib/output-validator.js scripts/check-violations.js` sạch.
+  - `node --test test/*.test.js` → **75/75 pass**.
+  - `node scripts/run-regression.js` chạy 1 lần (report `test/results/regression-run-2026-07-02_08-06-56.md`) xác nhận **không thoái lui** so với baseline P0: 0 lỗi Tier-1, 0 LEGAL_HALLUCINATION xác nhận. EV07 (tiếng Trung) — thông số ảnh/phí không có trong corpus được validator redact đúng thành `(thông số/mức phí chưa xác minh trong dữ liệu)`. TR02 dùng đúng dữ liệu trụ sở Thanh Miếu đã xác minh, không bịa SĐT. 2/30 câu (EV01, EV04) bị `UNKNOWN_ERROR` trong lần chạy — đã tái hiện độc lập bằng script gọi handler trực tiếp và cả 2 đều chạy thành công sạch sẽ (không lỗi, không hallucination) → xác nhận là lỗi mạng/API thoáng qua (transient), không phải hồi quy do code P1.
+  - **Lưu ý vận hành:** `node scripts/run-regression.js` chạy nền lần này log stdout bị buffer bởi Node khi output bị pipe ra file (không flush theo dòng) — output capture chỉ thấy phần đuôi log dù script chạy đúng và report `.md` được ghi đủ 30 câu qua `fs.writeFileSync` ở cuối. Khi debug regression chạy nền, ưu tiên đọc report `.md` trong `test/results/` làm nguồn sự thật, không dựa vào file `.output` của tiến trình nền.
+- **Việc còn tồn đọng:** Chưa deploy preview để `curl` xác minh CSP header thực tế trên Vercel (chỉ xác minh cấu hình JSON hợp lệ ở local) — cần làm khi có deploy preview.
 
 ## [2026-07-02] P0.5: Baseline chuẩn production — 3/3 lần chạy regression sạch, vá 3 lỗ hổng validator phát hiện qua thực nghiệm
 - **Agent:** Claude Code (Sonnet 5)

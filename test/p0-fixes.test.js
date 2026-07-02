@@ -174,7 +174,8 @@ for (const failure of [401, 403, 429, 500, 'network']) {
 
         assert.equal(res.statusCode, 503);
         assert.equal(res.body.error, 'RATE_LIMIT_UNAVAILABLE');
-        assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 1);
+        // P1.4.1: reserve IP/ngày và tháng chạy song song — cả 2 counter đều bị đọc trước khi lỗi.
+        assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 2);
         assert.equal(urls.some(url => /pinecone|generativelanguage|openai|cohere/i.test(url)), false);
     });
 }
@@ -199,7 +200,8 @@ test('rate-limit write failure returns 503 before any provider call', async () =
 
     assert.equal(res.statusCode, 503);
     assert.equal(res.body.error, 'RATE_LIMIT_UNAVAILABLE');
-    assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 2);
+    // P1.4.1: IP/ngày và tháng ghi song song, mỗi counter là 1 read + 1 write fail = 4 lời gọi.
+    assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 4);
     assert.equal(urls.some(url => /pinecone|generativelanguage|openai|cohere/i.test(url)), false);
 });
 
@@ -658,4 +660,116 @@ test('filterMatchesByQuestionCategory removes declaration chunks from residence 
 
     assert.equal(filtered.length, 1);
     assert.match(filtered[0].metadata.text, /NA6|NA8/i);
+});
+
+test('P1.1.2: shouldSkipRerank skips only when top match is confidently ahead', () => {
+    const { shouldSkipRerank } = require('../api/chat');
+
+    assert.equal(shouldSkipRerank([]), false, 'no matches -> nothing to skip');
+    assert.equal(shouldSkipRerank([{ score: 0.8 }]), true, 'single confident match -> skip');
+    assert.equal(shouldSkipRerank([{ score: 0.7 }]), false, 'below 0.75 threshold -> rerank');
+    assert.equal(
+        shouldSkipRerank([{ score: 0.8 }, { score: 0.76 }]),
+        false,
+        'gap to top-2 < 0.05 -> still ambiguous, rerank'
+    );
+    assert.equal(
+        shouldSkipRerank([{ score: 0.85 }, { score: 0.79 }]),
+        true,
+        'top-1 > 0.75 and gap >= 0.05 -> skip'
+    );
+});
+
+test('P1.3.3: resolveClientIp prefers x-vercel-forwarded-for, then x-real-ip, then XFF', () => {
+    const { resolveClientIp } = require('../api/chat');
+
+    assert.equal(
+        resolveClientIp({ headers: { 'x-vercel-forwarded-for': '198.51.100.1', 'x-real-ip': '203.0.113.9', 'x-forwarded-for': '10.0.0.1' }, socket: {} }),
+        '198.51.100.1'
+    );
+    assert.equal(
+        resolveClientIp({ headers: { 'x-real-ip': '203.0.113.9', 'x-forwarded-for': '10.0.0.1' }, socket: {} }),
+        '203.0.113.9'
+    );
+    assert.equal(
+        resolveClientIp({ headers: { 'x-forwarded-for': '10.0.0.1, 10.0.0.2' }, socket: {} }),
+        '10.0.0.1'
+    );
+    assert.equal(
+        resolveClientIp({ headers: {}, socket: { remoteAddress: '127.0.0.1' } }),
+        '127.0.0.1'
+    );
+    assert.equal(resolveClientIp({ headers: {}, socket: {} }), 'unknown');
+});
+
+test('P1.3.2: isAllowedOrigin only trusts x-forwarded-host fallback on Vercel platform', () => {
+    const { isAllowedOrigin } = require('../api/chat');
+    const req = { headers: { 'x-forwarded-host': 'preview-abc.vercel.app' } };
+
+    delete process.env.VERCEL;
+    assert.equal(
+        isAllowedOrigin('https://preview-abc.vercel.app', req),
+        false,
+        'non-Vercel platform must not trust client-controllable x-forwarded-host'
+    );
+
+    process.env.VERCEL = '1';
+    assert.equal(
+        isAllowedOrigin('https://preview-abc.vercel.app', req),
+        true,
+        'on Vercel, platform-set x-forwarded-host may back the origin match'
+    );
+    delete process.env.VERCEL;
+});
+
+test('P1.4.1: reserveRateLimitQuota rolls back the succeeding counter when the other fails, running in parallel', async () => {
+    const { reserveRateLimitQuota } = require('../api/chat');
+    const harness = createAtomicQuotaHarness({ ip: { count: 20, last_access: null } });
+    const lastAccess = '2026-07-02T10:00:00+07:00';
+
+    const result = await reserveRateLimitQuota({
+        fetchImpl: harness.fetch,
+        usageUrl: 'https://quota.example.test/usage/2026_07.json',
+        ipUsageUrl: 'https://quota.example.test/usage_ips/2026_07_02/hash.json',
+        monthlyLimit: 3500,
+        dailyIpLimit: 20,
+        lastAccess,
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'limit_exceeded');
+    assert.equal(result.scope, 'daily_ip');
+    // Monthly counter phải được rollback về 0 vì IP-daily đã fail (chạy song song nên monthly
+    // reserve có thể đã thành công trước khi biết ip fail).
+    assert.equal(harness.state.usage.value, 0);
+});
+
+test('P1.4.1: partial network failures roll back the counter that reserved successfully', async () => {
+    const { reserveRateLimitQuota } = require('../api/chat');
+    const lastAccess = '2026-07-02T10:00:00+07:00';
+
+    for (const failingScope of ['ip', 'usage']) {
+        const harness = createAtomicQuotaHarness();
+        const fetchImpl = async (url, options) => {
+            const isIpUrl = String(url).includes('/usage_ips/');
+            if ((failingScope === 'ip' && isIpUrl) || (failingScope === 'usage' && !isIpUrl)) {
+                throw new Error(`${failingScope} store unavailable`);
+            }
+            return harness.fetch(url, options);
+        };
+
+        const result = await reserveRateLimitQuota({
+            fetchImpl,
+            usageUrl: 'https://quota.example.test/usage/2026_07.json',
+            ipUsageUrl: 'https://quota.example.test/usage_ips/2026_07_02/hash.json',
+            monthlyLimit: 3500,
+            dailyIpLimit: 20,
+            lastAccess,
+        });
+
+        assert.equal(result.ok, false);
+        assert.equal(result.reason, 'store_error');
+        assert.equal(harness.state.usage.value, 0, `monthly quota leaked when ${failingScope} failed`);
+        assert.equal(harness.state.ip.value.count, 0, `daily quota leaked when ${failingScope} failed`);
+    }
 });

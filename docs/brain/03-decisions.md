@@ -297,6 +297,24 @@
 
 ---
 
+## [2026-07-02] P1: Retrieval, giam sat, bao mat, hieu nang
+
+- **Quyet dinh:**
+  1. **Bo vong thu 4 namespace Pinecone** (`api/chat.js`) — pin dung 1 namespace tu `PINECONE_NAMESPACE`, chi giu lai 1 fallback bo metadata filter khi co category ma 0 match (van co san truoc do). Giam worst-case tu 4 query tuan tu xuong 1-2.
+  2. **Rerank co dieu kien** — them `shouldSkipRerank(matches)`: bo qua `rerankWithGemini` khi top-1 > 0.75 diem VA cach top-2 >= 0.05 (ket qua da ro rang, khong map mo). Tiet kiem 1 LLM call + 0.5-2s cho da so cau hoi co match manh.
+  3. **Query rewriting nhe** — chi ghep tu khoa cau truoc vao query embedding khi cau hien tai < 8 tu (follow-up ngan); cau du dai (>= 8 tu) da tu du nghia, dung doc lap giu embedding sach.
+  4. **Groundedness check (canh bao, khong chan)** — them `checkGroundednessAsync()`, dang ky bang Vercel `waitUntil` SAU `res.end()` (khong tang latency nguoi dung thay, van bao dam invocation song toi khi task xong hoặc function timeout). Neu answer chua so lieu co don vi, goi Gemini Flash doi chieu voi legalCorpus, ghi ket qua vao Firebase `groundedness_checks/<date_key>`. Day la lop giam sat THEM, khong thay the `lib/output-validator.js` (van fail-closed nhu cu).
+  5. **`scripts/check-violations.js`** — script doc tay/cron sau, tong hop ty le `output_validator_violation` theo ngay tu RTDB fallback `chat_logs_metrics`. Khong dung ha tang alert moi trong phase nay.
+  6. **Bao mat:** bo `Access-Control-Allow-Credentials` (app khong dung cookie); `isAllowedOrigin` chi tin fallback `x-forwarded-host` khi `process.env.VERCEL` ton tai; IP rate-limit uu tien `x-vercel-forwarded-for` -> `x-real-ip` -> `x-forwarded-for`; CSP chuyen tu meta tag (`index.html`) sang header that (`vercel.json`, route `/(.*)`), them `frame-ancestors 'none'`, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin`.
+  7. **Hieu nang:** `reserveRateLimitQuota` doi tu tuan tu (IP/ngay roi thang) sang **song song** qua `Promise.allSettled` — ke ca khi mot request throw, ket qua ben con lai van duoc thu thap de rollback neu da reserve thanh cong. DeepSeek timeout 50s xac nhan hop le vi `vercel.json` co `maxDuration: 60` (chi them comment).
+  8. **Vong doi background task:** Groundedness check sau SSE response phai dang ky bang `@vercel/functions` `waitUntil`; Promise fire-and-forget sau `res.end()` khong duoc Vercel bao dam hoan tat.
+- **Phat hien quan trong khi lam P1.4.1 (anh huong toi RATE_LIMIT_MAX_RETRIES):** Chay song song 2 reservation + rollback tao ra toi da ~2N-1 (khong phai N) luot ghi CAS tuan tu can thanh cong tren CUNG 1 counter IP khi nhieu request tu CUNG 1 IP dong thoi bi chan o tang thang (rollback IP cho cac request that bai them 1 vong CAS nua canh tranh voi cac reservation IP con dang retry). Test harness 50-concurrent xac nhan `RATE_LIMIT_MAX_RETRIES=64` khong du trong kich ban nay (14/50 bi `store_error` sai); da nang len **150** va xac minh lai bang script doc lap (xem lich su chay trong phien nay) — khong con `store_error` sai o 50 concurrent.
+- **Ly do:** Giam latency retrieval (namespace pin + rerank co dieu kien + query rewriting), them lop giam sat mem cho hallucination con lot qua validator regex-based, giam bang tan cong CORS/rate-limit khong can thiet, va giam round-trip Firebase cho rate limit ma khong pha vo bat bien "khong vuot quota duoi tai dong thoi" da chot tu truoc.
+- **Danh doi:** `RATE_LIMIT_MAX_RETRIES=150` co the keo dai worst-case latency mot chut duoi tai cuc doan (hiem, chi khi rat nhieu request tu CUNG 1 IP dong thoi va gan cham quota thang); chap nhan duoc vi RTDB read/write re va bat bien dung quota quan trong hon vai chuc ms. Groundedness check them 1 Gemini Flash call moi khi answer co so lieu (chi phi API va thoi gian invocation qua `waitUntil`, khong chan response nguoi dung).
+- **Nguoi quyet dinh:** user / Claude Code (Sonnet 5)
+
+---
+
 ## Template cho entry mới
 
 ```
