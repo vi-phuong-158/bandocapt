@@ -14,7 +14,10 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(node --check D:/Code/bandocapt/app.js)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(node -c api/chat.js)",
+      "Bash(node -c lib/output-validator.js)",
+      "Bash(node -c lib/published-locations.js)"
     ]
   }
 }
