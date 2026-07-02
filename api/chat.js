@@ -7,6 +7,7 @@
  */
 
 const { Pinecone } = require('@pinecone-database/pinecone');
+const { waitUntil } = require('@vercel/functions');
 const crypto = require('crypto');
 const {
     getPublishedLocations,
@@ -399,7 +400,7 @@ async function reserveRateLimitQuota({
     // P1.4.1: Reserve IP/ngày và toàn cục/tháng SONG SONG (2 counter độc lập, mỗi counter tự
     // atomic qua CAS/etag) thay vì tuần tự — giảm round-trip Firebase. Nếu 1 bên fail mà bên kia
     // đã reserve thành công thì rollback bên đó (logic rollback giữ nguyên như bản tuần tự cũ).
-    const [ipReservation, usageReservation] = await Promise.all([
+    const [ipResult, usageResult] = await Promise.allSettled([
         reserveRateLimitCounter({
             fetchImpl,
             url: ipUsageUrl,
@@ -413,6 +414,12 @@ async function reserveRateLimitQuota({
             buildValue: count => count + 1
         })
     ]);
+    const ipReservation = ipResult.status === 'fulfilled'
+        ? ipResult.value
+        : { ok: false, reason: 'store_error' };
+    const usageReservation = usageResult.status === 'fulfilled'
+        ? usageResult.value
+        : { ok: false, reason: 'store_error' };
 
     if (ipReservation.ok && usageReservation.ok) {
         return { ok: true };
@@ -435,12 +442,12 @@ async function reserveRateLimitQuota({
     }
 
     if (rollbacks.length > 0) {
-        const rollbackResults = await Promise.all(rollbacks);
-        if (rollbackResults.some(succeeded => !succeeded)) {
+        const rollbackResults = await Promise.allSettled(rollbacks);
+        if (rollbackResults.some(result => result.status === 'rejected' || !result.value)) {
             return {
                 ok: false,
                 reason: 'store_error',
-                scope: !ipReservation.ok ? 'daily_ip_rollback' : 'monthly_rollback'
+                scope: ipReservation.ok ? 'daily_ip_rollback' : 'monthly_rollback'
             };
         }
     }
@@ -2084,15 +2091,15 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
         stageTimings.generation_ms = Date.now() - generationStartedAt;
         stageTimings.total_ms = Date.now() - _startTime;
 
-        // P1.2.1: Fire-and-forget, chạy sau res.end() nên không ảnh hưởng latency response.
-        checkGroundednessAsync({
+        // P1.2.1: waitUntil giữ invocation sống cho tác vụ hậu kiểm sau khi response đã kết thúc.
+        waitUntil(checkGroundednessAsync({
             answerText: fullText,
             legalCorpus: `${matchedDocs}\n${verifiedLocationPrompt}`,
             apiKey,
             dbUrl: FIREBASE_DB_URL,
             dbAuth: FIREBASE_AUTH,
             dateKey: currentDate
-        }).catch(() => {});
+        }));
 
         logChatToFirestore({
             question: userMessage,

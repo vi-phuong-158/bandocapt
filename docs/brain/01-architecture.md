@@ -8,7 +8,7 @@
 | Ban do | Leaflet.js 1.9.4 + OpenStreetMap tiles |
 | LLM / Chat | Gemini 2.5 Flash (streaming SSE), fallback DeepSeek |
 | Embedding / RAG | Gemini Embedding 001 + Pinecone vector DB |
-| Backend API | Vercel Serverless Functions (Node.js 20, CommonJS) |
+| Backend API | Vercel Serverless Functions (Node.js 20, CommonJS) + `@vercel/functions` `waitUntil` |
 | System prompt | Hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`) |
 | Du lieu tru so | Google Sheets `Published_Locations` qua helper + proxy |
 | Telemetry | Firebase Firestore + Firebase Realtime DB fallback |
@@ -57,7 +57,7 @@ bandocapt/
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
 | `lib/output-validator.js` | Fail-closed output guard: doi chieu va redact SDT/Maps/toa do/so lieu phap ly khong co trong nguon xac minh | `api/chat.js`, test | - |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
-| `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone, stream model, inject `<verified_locations>` | `js/gemini.js` | Pinecone, Gemini API, Firebase, `lib/published-locations.js` |
+| `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone, stream model, inject `<verified_locations>`, dang ky groundedness background task | `js/gemini.js` | Pinecone, Gemini API, Firebase, `@vercel/functions`, `lib/published-locations.js` |
 | `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets | Google Apps Script | SpreadsheetApp |
 
 ## Luong xu ly chinh
@@ -93,7 +93,7 @@ User nhap
 -> POST /api/chat
 -> api/chat.js
    1. Verify CORS + Turnstile + HMAC
-   2. Check rate limit Firebase (P1.4.1: reserve IP/ngay va thang chay SONG SONG qua Promise.all,
+   2. Check rate limit Firebase (P1.4.1: reserve IP/ngay va thang chay SONG SONG qua Promise.allSettled,
       rollback ben thanh cong neu ben kia fail — xem RATE_LIMIT_MAX_RETRIES)
    3. Sanitize history
    4. Detect nhu cau tra tru so tu current message + recent history, gom ca cau dau ngan chi la dia danh
@@ -109,10 +109,10 @@ User nhap
   12. Inject `<verified_locations>` + `<retrieved_documents>` vao system prompt
   13. Stream Gemini 2.5 Flash / DeepSeek
   14. Validate ban cuoi: redact token lien he/phap ly khong co trong nguon xac minh
-  15. Ghi telemetry toi thieu, gom so luong/loai violation cua output validator
-  16. (P1.2.1) Fire-and-forget SAU res.end(): neu answer co so lieu, goi `checkGroundednessAsync`
-      (Gemini Flash) doi chieu voi legalCorpus, ghi `groundedness_checks/<date>` vao Firebase — chi
-      canh bao, khong chan response
+  15. Ghi telemetry toi thieu, gom so luong/loai violation cua output validator; groundedness check chay sau response qua Vercel `waitUntil`
+  16. (P1.2.1) Sau `res.end()`, dang ky `checkGroundednessAsync` bang Vercel `waitUntil`: neu answer
+      co so lieu, Gemini Flash doi chieu voi legalCorpus va ghi `groundedness_checks/<date>` vao
+      Firebase — chi canh bao, khong chan response
 -> SSE ve client
 ```
 

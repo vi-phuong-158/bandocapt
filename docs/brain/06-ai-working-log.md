@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-07-02] Sửa review P1 quota rollback và groundedness lifecycle
+- **Agent:** Codex
+- **Thay đổi:** Đổi reserve/rollback quota song song sang `Promise.allSettled` để không rò counter khi một nhánh throw; thêm test lỗi mạng từng phía; đăng ký groundedness check bằng Vercel `waitUntil`; cập nhật dependency và tài liệu kiến trúc/quyết định.
+- **File đã sửa:** `api/chat.js`, `test/p0-fixes.test.js`, `package.json`, `package-lock.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Bảo toàn quota khi Firebase lỗi cục bộ và bảo đảm tác vụ giám sát sau response không bị Vercel đóng băng giữa chừng.
+- **Kiểm tra:** `npm test`; `npm run build`; `npm run ci`.
+
 ## [2026-07-02] Sửa review P0 structured facts và duration đa ngôn ngữ
 - **Agent:** Codex
 - **Thay đổi:** Tách riêng `le_phi` và `phi` khi tạo `[FACTS ĐÃ XÁC MINH]`; thay word boundary ASCII của duration bằng boundary Unicode-safe; bổ sung regression test cho phí song song và thời hạn vi/en/zh/ko.

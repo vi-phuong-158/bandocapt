@@ -743,3 +743,33 @@ test('P1.4.1: reserveRateLimitQuota rolls back the succeeding counter when the o
     // reserve có thể đã thành công trước khi biết ip fail).
     assert.equal(harness.state.usage.value, 0);
 });
+
+test('P1.4.1: partial network failures roll back the counter that reserved successfully', async () => {
+    const { reserveRateLimitQuota } = require('../api/chat');
+    const lastAccess = '2026-07-02T10:00:00+07:00';
+
+    for (const failingScope of ['ip', 'usage']) {
+        const harness = createAtomicQuotaHarness();
+        const fetchImpl = async (url, options) => {
+            const isIpUrl = String(url).includes('/usage_ips/');
+            if ((failingScope === 'ip' && isIpUrl) || (failingScope === 'usage' && !isIpUrl)) {
+                throw new Error(`${failingScope} store unavailable`);
+            }
+            return harness.fetch(url, options);
+        };
+
+        const result = await reserveRateLimitQuota({
+            fetchImpl,
+            usageUrl: 'https://quota.example.test/usage/2026_07.json',
+            ipUsageUrl: 'https://quota.example.test/usage_ips/2026_07_02/hash.json',
+            monthlyLimit: 3500,
+            dailyIpLimit: 20,
+            lastAccess,
+        });
+
+        assert.equal(result.ok, false);
+        assert.equal(result.reason, 'store_error');
+        assert.equal(harness.state.usage.value, 0, `monthly quota leaked when ${failingScope} failed`);
+        assert.equal(harness.state.ip.value.count, 0, `daily quota leaked when ${failingScope} failed`);
+    }
+});
