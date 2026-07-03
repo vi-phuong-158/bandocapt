@@ -42,6 +42,14 @@
 
 - **Xác minh tổng:** `node --check api/chat.js` + `npm test` xanh. Sau khi xong, thêm entry vào `06-ai-working-log.md`.
 
+### TASK-UX-01-EXT: Bổ sung bằng chứng 2 run regression + theo dõi 2 quan sát answer-first
+- **Mô tả:** Review PR #15 (2026-07-02) phát hiện 3 điểm cần theo dõi sau khi merge answer-first:
+  1. **Bằng chứng baseline chưa đủ:** working log ghi "3 run cloud sạch (Run 2, Run 3, Run 5)" nhưng chỉ 1 file báo cáo (Run 3 = `regression-latest.md`) được commit vào `test/results/`. Chuẩn P0.5 trước đây commit đủ 3 file. Cần bổ sung 2 báo cáo Run 2 + Run 5 (nếu còn giữ) hoặc chạy thêm 2 lần sạch nữa và commit — trước khi coi baseline answer-first là chính thức ngang chuẩn P0.5.
+  2. **VP01 mất câu hedge:** bản answer-first khẳng định visa thuộc "giấy tờ cư trú" khi nêu mức phạt 500k–2tr (Nghị định 282/2025 Điều 21 nói về chứng nhận tạm trú/thẻ tạm trú; bản dài cũ có câu "không thể khẳng định chắc chắn 100%"). Số tiền + căn cứ đúng nguồn; chỉ cần theo dõi xem có nên thêm lại 1 câu hedge phạm vi áp dụng.
+  3. **TR02 không nêu trụ sở Thanh Miếu đã xác minh:** kỳ vọng test là "Match Thanh Miếu, trả nơi nộp/trụ sở nếu có dữ liệu xác minh" — bản mới chỉ hướng online + QLXNC, bỏ qua điểm hỗ trợ trực tiếp Công an Phường Thanh Miếu dù dữ liệu xác minh có sẵn. An toàn nhưng dưới kỳ vọng LOCATION; cân nhắc nới prompt cho phép nêu trụ sở xã/phường như điểm hỗ trợ khi <verified_locations> có match.
+- **Liên quan:** `test/results/`, `api/chat.js` (SYSTEM_PROMPT_BASE), bộ test `bo-test-regression-30-cau-*.md` (kỳ vọng TR02)
+- **Ưu tiên:** Trung bình (mục 1 nên đóng trước khi công bố baseline; mục 2-3 gom vào vòng regression kế tiếp)
+
 ### TASK-02: Cập nhật dữ liệu Pinecone
 - **Mô tả:** Bổ sung/cập nhật văn bản pháp luật mới vào Pinecone index khi có Nghị định/Thông tư mới.
 - **Liên quan:** `api/chat.js` (PINECONE_NAMESPACE, indexing script trong setup/)

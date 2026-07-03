@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-07-02] Review PR #15 sau commit bàn giao — xác nhận kết quả, ghi 3 mục theo dõi
+- **Agent:** Claude Code
+- **Thay đổi:** Chỉ sửa tài liệu, không sửa code. Thêm `TASK-UX-01-EXT` vào `04-current-tasks.md` ghi 3 phát hiện từ review độc lập PR #15: (1) chỉ 1/3 file báo cáo run cloud được commit (thiếu Run 2, Run 5 — chuẩn P0.5 yêu cầu đủ 3 file làm bằng chứng); (2) VP01 mất câu hedge phạm vi áp dụng mức phạt cho visa; (3) TR02 không nêu trụ sở Thanh Miếu đã xác minh dù kỳ vọng test yêu cầu.
+- **File đã sửa:** `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** User yêu cầu review lại PR #15 và kết quả test. Kết quả xác nhận tốt: CI xanh 87/87, run cam kết (Run 3) đạt TB 109 từ / median 93 từ (giảm từ 306/334), 0 TRUNCATED, 0 ERROR, các câu nhạy cảm giữ chuẩn chống bịa; 4 sửa đổi review trong commit `2102e0d` đều hợp lệ. Ba mục trên là tồn đọng cần theo dõi, không chặn merge (riêng mục 1 nên đóng trước khi công bố baseline chính thức).
+- **Kiểm tra:** `git pull` đồng bộ `2102e0d`; `npm test` 87/87 pass trên local sau pull; đối chiếu `regression-latest.md` mới với bản 08:06 cũ bằng bảng tổng hợp.
+
+---
+
 ## [2026-07-02] Bàn giao PR #15: Hoàn thành Regression Cloud & dọn dẹp
 - **Agent:** Antigravity
 - **Thay đổi:** 
