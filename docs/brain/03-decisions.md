@@ -5,6 +5,24 @@
 
 ---
 
+## [2026-07-03] Progressive disclosure UI — quick-reply chips + accordion (chỉ client, không đổi API)
+
+- **Quyết định:** (1) `js/chatbot.js` thêm `detectQuickReplies(fullText)` — hàm thuần nhận diện 3 loại follow-up có tập lựa chọn hữu hạn bằng regex khớp NGUYÊN VĂN phrasing cố định trong `SYSTEM_PROMPT_BASE`/`XNC_RECEPTION_VERIFIED_BLOCK` (api/chat.js): hỏi khu vực cũ (Phú Thọ/Vĩnh Phúc/Hòa Bình) → 3 chip; hỏi quốc tịch khi mất hộ chiếu chưa rõ đối tượng → 2 chip vi/en; câu mời "hướng dẫn đầy đủ hồ sơ" (chế độ HẸP) → 1 chip. Click chip = điền `input.value` rồi gọi lại `handleChatSend()` (tái dùng nguyên luồng gửi, kể cả guard Turnstile). Chip bị dọn (`clearQuickReplies`) mỗi khi gửi tin mới. (2) `applyProgressiveDisclosure(content)` — sau khi render markdown, gom 2 khối `📋 Hồ sơ`/`📝 Trình tự` (nếu CẢ HAI cùng xuất hiện — tức câu trả lời trọn thủ tục) vào `<details>` đóng mặc định; `📍 Nơi nộp`, `📚 Căn cứ` và đáp án mở đầu luôn hiển thị. Câu hỏi hẹp (chỉ 1 marker hoặc 0) giữ nguyên phẳng.
+- **Lý do:** Tiếp nối answer-first (xem entry 2026-07-02 ngay dưới) — bot đã trả lời ngắn hơn và kết bằng đúng 1 câu hỏi follow-up, nhưng người dân vẫn phải đọc và gõ lại thủ công (dễ gõ mơ hồ, chậm trên mobile). Chip hóa các follow-up có tập lựa chọn hữu hạn giúp rút ngắn hội thoại mà không đổi nội dung câu trả lời.
+- **Đánh đổi:** Chip phụ thuộc CHẶT vào phrasing đúng nguyên văn trong prompt — đã thêm comment cross-reference tại 3 vị trí trong `api/chat.js` (dòng cạnh câu hỏi mất hộ chiếu, câu mời hướng dẫn đầy đủ, và đầu `XNC_RECEPTION_VERIFIED_BLOCK`) nhắc agent sau phải sửa đồng bộ. Không có test nào tự động phát hiện lệch pha giữa prompt và regex — nếu đổi phrasing mà quên sửa `detectQuickReplies`, chip chỉ lặng lẽ ngừng hiện (không lỗi, không crash) — người dân vẫn dùng được bằng cách gõ tay như trước, chỉ mất phần tiện ích. Vì đây là thay đổi thuần client (không đụng `api/chat.js` logic/response, chỉ thêm 3 dòng comment), KHÔNG cần chạy lại 3× regression baseline.
+- **Người quyết định:** user / Claude Code
+
+---
+
+## [2026-07-02] Answer-first + ngân sách độ dài + lưới chống ngắt giữa câu
+
+- **Quyết định:** (1) `SYSTEM_PROMPT_BASE` chuyển sang answer-first: câu đầu tiên phải là đáp án trực tiếp; tách 2 chế độ trả lời — câu hỏi HẸP (1 chi tiết, mục tiêu < 120 từ, không dump hồ sơ/trình tự) và câu hỏi TRỌN THỦ TỤC (cấu trúc A, mục tiêu < 250 từ); cấm chào hỏi/xã giao, tối đa 1 câu hỏi follow-up, không lặp thông tin 2 chỗ, mỗi điểm tiếp dân 1 dòng. Chỉ sửa phần mục tiêu/cấu trúc/văn phong — khối "DỮ LIỆU & CHỐNG BỊA" giữ nguyên 100%. (2) Khi chạm trần token (Gemini `MAX_TOKENS` hoặc DeepSeek `length`): `trimToSentenceBoundary()` trong `lib/output-validator.js` cắt lùi về ranh giới câu hoàn chỉnh và nối câu chốt theo ngôn ngữ (`getTruncationNotice`), chạy TRƯỚC `validateAnswer` — người dân không bao giờ thấy văn bản đứt giữa câu. Nếu không có ranh giới an toàn thì bỏ fragment; response truncated không được lưu FAQ cache; notice canonical chỉ nằm trong `fullText`. Giữ `maxOutputTokens: 3072`. (3) `scripts/run-regression.js` đếm từ Unicode bằng `Intl.Segmenter`, gắn soft-fail `VERBOSITY` đúng ngân sách prompt (câu hẹp > 120 từ, câu đầy đủ > 250 từ) và `TRUNCATED`, thêm bảng tổng hợp đầu báo cáo.
+- **Lý do:** Đo trên `regression-latest.md` (2026-07-02): trung bình 306 từ/câu, median 334, 6/30 câu > 500 từ (~8-10 màn hình cuộn mobile); câu hỏi có/không như HS02 bị trả 507 từ. Nguyên nhân gốc là prompt cũ ép "sau MỖI câu trả lời phải đủ giấy tờ + nơi nộp" và áp cấu trúc A cho mọi câu. Câu dài cũng là nguyên nhân chạm `MAX_TOKENS` gây đứt giữa câu (VP01/EV01). User yêu cầu rõ: không được để AI ngắt giữa câu.
+- **Đánh đổi:** Sửa prompt bắt buộc chạy lại 3 lần regression 30 câu sạch (0 Tier-1, 0 LEGAL_HALLUCINATION, 0 TRUNCATED) trước khi coi là baseline mới — chưa chạy được trong môi trường thiếu API key, phải chạy ở môi trường có key. Rủi ro rút gọn làm mất câu tự khai "chưa có dữ liệu xác minh" được giám sát bằng chính 3 lần chạy đó; lớp bảo vệ chính (output-validator code-level) không phụ thuộc prompt nên không bị ảnh hưởng. VERBOSITY là soft-fail (cảnh báo trong báo cáo), không chặn cứng.
+- **Người quyết định:** user / Claude Code
+
+---
+
 ## [2026-07-01] Output validator fail-closed tren ban tra loi cuoi
 
 - **Quyet dinh:** Giu streaming thô de bao toan UX, nhung truoc event `done` phai chay `lib/output-validator.js` va redact tai cho SDT, link Maps, toa do, muc phi, ma mau, so hieu van ban va thoi han khong ton tai trong `verified_locations`, tai lieu RAG hoac danh sach hang so prompt da duyet.

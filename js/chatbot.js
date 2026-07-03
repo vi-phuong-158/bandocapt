@@ -24,8 +24,7 @@ const CHATBOT_TEXT = {
     typing: 'Đang suy nghĩ...',
     copied: 'Đã chép',
     copy: 'Sao chép',
-    interrupted: 'Phản hồi bị gián đoạn trước khi hoàn tất. Nội dung phía trên có thể chưa đầy đủ.',
-    truncated: 'Phản hồi đã chạm giới hạn độ dài. Hãy hỏi tiếp "phần còn lại" hoặc yêu cầu tóm tắt ngắn hơn.'
+    interrupted: 'Phản hồi bị gián đoạn trước khi hoàn tất. Nội dung phía trên có thể chưa đầy đủ.'
 };
 
 const CHATBOT_ERROR_MESSAGES = {
@@ -297,6 +296,115 @@ function appendNotice(bubble, text) {
     bubble.appendChild(notice);
 }
 
+// Quick-reply chips: chỉ nhận diện các câu follow-up có PHRASING CỐ ĐỊNH trong SYSTEM_PROMPT_BASE
+// (api/chat.js — hỏi khu vực cũ, mời hướng dẫn đầy đủ, hỏi quốc tịch khi mất hộ chiếu).
+// Nếu đổi phrasing trong prompt thì PHẢI cập nhật regex ở đây (xem docs/brain/03-decisions.md).
+function endsWithQuestion(text) {
+    return /[?？]/.test(String(text || '').trim().slice(-120));
+}
+
+function detectQuickReplies(fullText) {
+    const text = String(fullText || '');
+    if (!text.trim()) return [];
+
+    // 1. Hỏi khu vực hành chính cũ (3 điểm tiếp dân Phòng QLXNC)
+    if (/Phú Thọ cũ[\s\S]*Vĩnh Phúc cũ[\s\S]*Hòa Bình cũ/i.test(text) && endsWithQuestion(text)) {
+        return [
+            { label: 'Phú Thọ cũ', send: 'Tôi ở khu vực Phú Thọ cũ' },
+            { label: 'Vĩnh Phúc cũ', send: 'Tôi ở khu vực Vĩnh Phúc cũ' },
+            { label: 'Hòa Bình cũ', send: 'Tôi ở khu vực Hòa Bình cũ' }
+        ];
+    }
+
+    // 2. Hỏi quốc tịch (mất hộ chiếu chưa rõ đối tượng) — phrasing cố định vi/en trong prompt
+    if (/foreign national or a Vietnamese citizen/i.test(text)) {
+        return [
+            { label: 'Foreign national', send: 'I am a foreign national' },
+            { label: 'Vietnamese citizen', send: 'I am a Vietnamese citizen' }
+        ];
+    }
+    if (/người nước ngoài hay công dân Việt Nam/i.test(text)) {
+        return [
+            { label: 'Người nước ngoài', send: 'Tôi là người nước ngoài' },
+            { label: 'Công dân Việt Nam', send: 'Tôi là công dân Việt Nam' }
+        ];
+    }
+
+    // 3. Chế độ HẸP mời xem chi tiết — phrasing cố định trong prompt
+    if (/hướng dẫn đầy đủ hồ sơ và cách thực hiện/i.test(text) && endsWithQuestion(text)) {
+        return [
+            { label: '📋 Hướng dẫn đầy đủ hồ sơ', send: 'Hướng dẫn đầy đủ hồ sơ và cách thực hiện giúp tôi' }
+        ];
+    }
+
+    return [];
+}
+
+function clearQuickReplies() {
+    document.querySelectorAll('.ai-chat-quick-replies').forEach(el => el.remove());
+}
+
+function appendQuickReplies(row, fullText) {
+    if (!row) return;
+    const replies = detectQuickReplies(fullText);
+    if (replies.length === 0) return;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'ai-chat-quick-replies';
+    replies.forEach(reply => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ai-chat-quick-reply';
+        btn.textContent = reply.label;
+        btn.addEventListener('click', () => {
+            const { input } = getChatElements();
+            if (!input || input.disabled) return;
+            input.value = reply.send;
+            handleChatSend();
+        });
+        wrap.appendChild(btn);
+    });
+    row.appendChild(wrap);
+    scrollChatToBottom();
+}
+
+// Progressive disclosure: gom khối "📋 Hồ sơ" và "📝 Trình tự" vào <details> thu gọn —
+// đáp án mở đầu, "📍 Nơi nộp" và "📚 Căn cứ" luôn hiển thị. Chỉ áp dụng khi có đủ CẢ 2
+// marker (câu trả lời trọn thủ tục); câu hẹp giữ nguyên. Thao tác trên DOM đã sanitize.
+const DISCLOSURE_START_EMOJI = ['📋', '📝'];
+const DISCLOSURE_STOP_EMOJI = ['📋', '📝', '📍', '📚'];
+
+function startsWithEmoji(el, emojis) {
+    const text = (el.textContent || '').trim();
+    return emojis.some(emoji => text.startsWith(emoji));
+}
+
+function applyProgressiveDisclosure(content) {
+    if (!content) return;
+    const markers = Array.from(content.children).filter(el => startsWithEmoji(el, DISCLOSURE_START_EMOJI));
+    if (markers.length < 2) return;
+
+    markers.forEach(marker => {
+        const details = document.createElement('details');
+        details.className = 'ai-chat-details';
+        const summary = document.createElement('summary');
+        summary.textContent = (marker.textContent || '').trim();
+        details.appendChild(summary);
+        const body = document.createElement('div');
+        body.className = 'ai-chat-details-body';
+        details.appendChild(body);
+
+        content.insertBefore(details, marker);
+        let node = marker.nextElementSibling;
+        marker.remove();
+        while (node && node.tagName !== 'HR' && !startsWithEmoji(node, DISCLOSURE_STOP_EMOJI) && !node.classList.contains('ai-chat-details')) {
+            const next = node.nextElementSibling;
+            body.appendChild(node);
+            node = next;
+        }
+    });
+}
+
 function getChatErrorMessage(errorCode) {
     const normalized = errorCode === 'RATE_LIMIT_EXCEEDED' ? 'RATE_LIMIT_EXCEEDED' : errorCode;
     if (CHATBOT_ERROR_MESSAGES[normalized]) return CHATBOT_ERROR_MESSAGES[normalized];
@@ -331,6 +439,7 @@ async function handleChatSend() {
     isChatSending = true;
     activeCancelController = new AbortController();
     activeAbortMode = null;
+    clearQuickReplies();
     appendUserMessage(text);
     input.value = '';
     input.disabled = true;
@@ -374,9 +483,10 @@ async function handleChatSend() {
         if (result.ok) {
             chatHistory = result.history || chatHistory;
             renderMarkdown(result.fullText || rawText, content);
+            applyProgressiveDisclosure(content);
             appendActionBar(bubble, result.fullText || rawText);
             appendSources(bubble, result.sources);
-            if (result.truncated) appendNotice(bubble, CHATBOT_TEXT.truncated);
+            appendQuickReplies(row, result.fullText || rawText);
         } else {
             bubble.classList.add('ai-chat-bubble--error');
             if (result.partialText) {
@@ -557,7 +667,8 @@ if (typeof module !== 'undefined' && module.exports) {
         CHAT_MODAL_BREAKPOINT,
         formatSourceDate,
         isChatModalViewport,
-        syncChatWindowPresentation
+        syncChatWindowPresentation,
+        detectQuickReplies
     };
 }
 

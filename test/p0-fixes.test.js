@@ -416,6 +416,26 @@ test('faq cache keys are hashed and obvious PII is excluded from caching', () =>
     assert.equal(handler.shouldSkipFaqCache('Thu tuc cap ho chieu cho tre em'), false);
 });
 
+test('truncated answers are never stored in the FAQ cache', () => {
+    assert.equal(handler.shouldCacheFaqResponse('Thủ tục cấp hộ chiếu?', {
+        truncated: true,
+        historyLength: 0,
+        responseLength: 500,
+        locationLookupRequested: false,
+    }), false);
+    assert.equal(handler.shouldCacheFaqResponse('Thủ tục cấp hộ chiếu?', {
+        truncated: false,
+        historyLength: 0,
+        responseLength: 500,
+        locationLookupRequested: false,
+    }), true);
+});
+
+test('truncation notice has a single canonical source in the server response', () => {
+    const chatSource = fs.readFileSync(path.join(ROOT, 'js/chatbot.js'), 'utf8');
+    assert.doesNotMatch(chatSource, /CHATBOT_TEXT\.truncated|result\.truncated\)\s*appendNotice/);
+});
+
 test('telemetry retention helpers identify expired records', () => {
     const now = new Date('2026-06-27T12:00:00.000Z');
     const entries = {

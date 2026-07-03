@@ -12,6 +12,68 @@
 - **Lý do:** Chặn nhánh khai báo tạm trú người nước ngoài bị trộn với thủ tục cư trú công dân Việt Nam, đồng thời sửa bản ghi Pinecone đang lỗi mã hóa và chưa re-embed nên không thể retrieval ổn định.
 - **Kiểm tra:** `npm test`; `npm run build`; `node scripts/repair-pinecone-temp-residence.js`; `node scripts/run-regression.js --ids TR01,TR02,TR03,ON01,TL01,GD02,TR09 --delay-ms 0`; `node scripts/run-regression.js --delay-ms 0`.
 
+---
+
+## [2026-07-03] Progressive disclosure: quick-reply chips + accordion chi tiết
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - `js/chatbot.js`: thêm `detectQuickReplies()`/`appendQuickReplies()`/`clearQuickReplies()` — 3 pattern chip (khu vực cũ, quốc tịch mất hộ chiếu, mời hướng dẫn đầy đủ) nhận diện bằng regex khớp nguyên văn phrasing cố định trong prompt; thêm `applyProgressiveDisclosure()` — gom `📋 Hồ sơ`/`📝 Trình tự` vào `<details>` đóng mặc định khi câu trả lời có đủ cả 2 marker (trọn thủ tục), giữ nguyên câu hẹp. Gọi cả hai trong nhánh `result.ok` của `handleChatSend`; `clearQuickReplies()` chạy đầu mỗi lượt gửi mới. Export `detectQuickReplies` qua `module.exports.__test`.
+  - `styles.css`: thêm `.ai-chat-quick-replies`/`.ai-chat-quick-reply` (pill, min-height 36px cho mobile) và `.ai-chat-details`/`.ai-chat-details-body` (accordion viền nhạt, caret xoay khi mở), tái dùng token `--radius-pill`/`--surface-muted`/`--blue-50`/`--blue-200`.
+  - `api/chat.js`: chỉ thêm 3 dòng comment cross-reference (không đổi logic/prompt string) cạnh câu hỏi mất hộ chiếu, câu mời "hướng dẫn đầy đủ hồ sơ", và đầu `XNC_RECEPTION_VERIFIED_BLOCK` — nhắc agent sau rằng đổi phrasing ở đây phải sửa đồng bộ `detectQuickReplies` phía client.
+  - `test/chatbot-quick-replies.test.js` (mới): 5 unit test cho `detectQuickReplies` (3 khu vực, không chip khi thiếu câu hỏi cuối, mời hướng dẫn đầy đủ, quốc tịch vi/en, input rỗng/null).
+  - `test/e2e/chat-progressive-disclosure.spec.js` (mới): 3 test Playwright — stub `window.GeminiAI.stream` trả lời giả lập (không gọi API thật), kiểm accordion đóng mặc định + Nơi nộp luôn hiện + bấm mở được, 3 chip khu vực render đúng + click gửi đúng nội dung + chip cũ bị dọn, câu hẹp giữ phẳng (0 accordion) + có chip mời hướng dẫn.
+  - `playwright.config.js`: thêm `PLAYWRIGHT_CHROMIUM_EXECUTABLE` optional override cho `launchOptions.executablePath` — môi trường container không có đúng version Chromium mà `@playwright/test` pin sẵn.
+  - `docs/brain/03-decisions.md`: quyết định "progressive disclosure UI — chỉ client, không đổi API" + đánh đổi phụ thuộc phrasing.
+- **Lý do:** Tiếp nối answer-first (entry 2026-07-02) — bot đã rút gọn và kết bằng đúng 1 câu hỏi follow-up, nhưng người dân vẫn phải đọc và gõ lại thủ công. Chip hóa follow-up có tập lựa chọn hữu hạn + thu gọn chi tiết ít khi cần đọc ngay giúp rút ngắn hội thoại mà không đổi nội dung/độ chính xác câu trả lời.
+- **Kiểm tra:** `node --check js/chatbot.js` sạch; `npm test` 92/92 pass (77 cũ + 6 trim/notice + 5 quick-replies + 4 khác từ PR #15). `npx playwright test` full suite: 3 test mới pass; 3 test `detail-panel.spec.js` fail — đã xác nhận PRE-EXISTING bằng `git stash` (fail y hệt trước khi có thay đổi của phiên này, quirk mô phỏng con trỏ/gesture trong môi trường container, không liên quan chat/bản đồ) — không phải hồi quy do code mới. `npm run build` sạch.
+- **Việc còn tồn đọng:** KHÔNG chạm `api/chat.js` logic/response nên KHÔNG cần chạy lại 3× regression baseline. Rủi ro duy nhất: nếu sau này sửa phrasing prompt mà quên đồng bộ `detectQuickReplies`, chip lặng lẽ ngừng hiện (không lỗi) — đã có 3 comment cross-reference trong code nhắc việc này.
+
+---
+
+## [2026-07-02] Review PR #15 sau commit bàn giao — xác nhận kết quả, ghi 3 mục theo dõi
+- **Agent:** Claude Code
+- **Thay đổi:** Chỉ sửa tài liệu, không sửa code. Thêm `TASK-UX-01-EXT` vào `04-current-tasks.md` ghi 3 phát hiện từ review độc lập PR #15: (1) chỉ 1/3 file báo cáo run cloud được commit (thiếu Run 2, Run 5 — chuẩn P0.5 yêu cầu đủ 3 file làm bằng chứng); (2) VP01 mất câu hedge phạm vi áp dụng mức phạt cho visa; (3) TR02 không nêu trụ sở Thanh Miếu đã xác minh dù kỳ vọng test yêu cầu.
+- **File đã sửa:** `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** User yêu cầu review lại PR #15 và kết quả test. Kết quả xác nhận tốt: CI xanh 87/87, run cam kết (Run 3) đạt TB 109 từ / median 93 từ (giảm từ 306/334), 0 TRUNCATED, 0 ERROR, các câu nhạy cảm giữ chuẩn chống bịa; 4 sửa đổi review trong commit `2102e0d` đều hợp lệ. Ba mục trên là tồn đọng cần theo dõi, không chặn merge (riêng mục 1 nên đóng trước khi công bố baseline chính thức).
+- **Kiểm tra:** `git pull` đồng bộ `2102e0d`; `npm test` 87/87 pass trên local sau pull; đối chiếu `regression-latest.md` mới với bản 08:06 cũ bằng bảng tổng hợp.
+
+---
+
+## [2026-07-02] Bàn giao PR #15: Hoàn thành Regression Cloud & dọn dẹp
+- **Agent:** Antigravity
+- **Thay đổi:** 
+  - Xác nhận chạy thành công 3 run cloud regression sạch liên tiếp (Run 2, Run 3, Run 5) với `TRUNCATED=0`, `ERROR=0`.
+  - Cập nhật `test/results/regression-latest.md` bằng báo cáo sạch hoàn toàn (Run 3: median 93 từ).
+  - Xóa harness cloud tạm `scripts/run-regression-cloud.js` và khôi phục `vercel.json` về trạng thái build production sạch ban đầu (`buildCommand: "npm run build"`).
+  - Xóa file nháp báo cáo local fail `test/results/regression-run-2026-07-02_14-41-09.md` để tránh commit nhầm.
+  - Cập nhật tài liệu `docs/brain/04-current-tasks.md` đánh dấu hoàn thành `TASK-UX-01`.
+- **Lý do:** Đạt mục tiêu kiểm định baseline sản xuất với 3 run regression sạch liên tiếp qua Vercel Cloud Build (môi trường đầy đủ secret), khôi phục và dọn dẹp repo trước khi bàn giao.
+- **Kiểm tra:** `npm test` 87/87 pass, `npm run build` pass, cấu trúc git status sạch không thừa file rác.
+
+---
+
+## [2026-07-02] Sửa review PR #15 trước regression answer-first
+- **Agent:** Codex
+- **Thay đổi:** Không cache response chạm trần token; bỏ fragment nếu không có ranh giới câu an toàn; dùng notice canonical từ backend để tránh UI hiển thị trùng/sai ngôn ngữ; tách metric regression Unicode-safe bằng `Intl.Segmenter` và đồng bộ ngưỡng 120/250 với prompt; thêm test và cập nhật Code Graph/syntax gate.
+- **File đã sửa:** `api/chat.js`, `js/chatbot.js`, `lib/output-validator.js`, `lib/regression-metrics.js`, `scripts/run-regression.js`, `test/output-validator.test.js`, `test/p0-fixes.test.js`, `test/regression-runner.test.js`, `package.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Khóa 4 finding review: cache câu thiếu, vẫn giữ câu đứt khi không có boundary, notice trùng và regression không đo đúng ngân sách/tiếng Trung.
+- **Kiểm tra:** `npm test` 87/87 pass; `npm run build` pass. Regression API thật 3 lần đang chờ credential hợp lệ vì máy không có `.env`, GitHub không có Actions secrets và Vercel CLI token đã hết hạn.
+
+---
+
+## [2026-07-02] Answer-first: rút gọn câu trả lời + chống ngắt giữa câu
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - `api/chat.js` (`SYSTEM_PROMPT_BASE`): đổi mục tiêu cốt lõi từ "sau mỗi câu trả lời" sang "sau khi hội thoại kết thúc"; thêm section "ANSWER-FIRST & ĐỘ DÀI" (câu đầu là đáp án trực tiếp, cấm chào hỏi/xã giao, tối đa 1 follow-up, 2 chế độ HẸP < 120 từ / TRỌN THỦ TỤC < 250 từ, mỗi điểm tiếp dân 1 dòng, không lặp thông tin); cấu trúc A chỉ áp cho câu hỏi trọn thủ tục, bỏ lặp nơi nộp trong "Trình tự". KHÔNG chạm khối "DỮ LIỆU & CHỐNG BỊA".
+  - `api/chat.js` + `lib/output-validator.js`: thêm `trimToSentenceBoundary()` + `getTruncationNotice()` — khi finishReason là `MAX_TOKENS` (Gemini) hoặc `length` (DeepSeek), cắt `fullText` lùi về ranh giới câu hoàn chỉnh (dấu kết câu + khoảng trắng, hoặc hết dòng trọn vẹn; không nhận nhầm dấu chấm trong URL/số thập phân) rồi nối câu chốt theo ngôn ngữ vi/en/zh/ko, chạy TRƯỚC `validateAnswer`. Cờ `truncated` (SSE + telemetry) giờ phủ cả DeepSeek `length` (trước chỉ bắt `MAX_TOKENS`).
+  - `scripts/run-regression.js`: đếm số từ mỗi câu trả lời, gắn nhãn soft-fail `VERBOSITY` (câu hẹp theo `NARROW_QUESTION_IDS` > 250 từ, câu đầy đủ > 400 từ) và `TRUNCATED` (đọc từ SSE event cuối); thêm bảng tổng hợp + thống kê TB/median đầu báo cáo để so sánh trước–sau.
+  - `test/output-validator.test.js`: 6 test mới cho trim/notice (cắt giữa câu vi, giữ nguyên khi đã trọn câu en/zh, bỏ bullet đứt, không nhầm dấu chấm URL/tọa độ, giữ nguyên khi không có ranh giới, localize notice).
+- **File đã sửa:** `api/chat.js`, `lib/output-validator.js`, `scripts/run-regression.js`, `test/output-validator.test.js`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Đo regression-latest: TB 306 từ/câu, median 334, 6/30 câu > 500 từ — người dân không nắm được thông tin cần biết trên mobile; câu dài còn gây chạm trần token đứt giữa câu (VP01/EV01). User yêu cầu answer-first + tuyệt đối không để AI ngắt giữa câu.
+- **Kiểm tra:** `node --check` sạch cho 3 file; `npm test` 83/83 pass (77 cũ + 6 mới); smoke-test `trimToSentenceBoundary` trên chính đoạn đứt thật của EV01 → dòng đứt "Hệ thống sẽ c" bị loại, kết thúc trọn vẹn + câu chốt. **CHƯA chạy 3× regression API thật** (môi trường không có API key) — bắt buộc chạy `node scripts/run-regression.js` × 3 ở môi trường có key, kiểm 0 Tier-1 / 0 LEGAL_HALLUCINATION / 0 TRUNCATED + so median từ trước–sau, rồi mới chốt baseline mới.
+
+---
+
 ## [2026-07-02] Sửa review P1 quota rollback và groundedness lifecycle
 - **Agent:** Codex
 - **Thay đổi:** Đổi reserve/rollback quota song song sang `Promise.allSettled` để không rò counter khi một nhánh throw; thêm test lỗi mạng từng phía; đăng ký groundedness check bằng Vercel `waitUntil`; cập nhật dependency và tài liệu kiến trúc/quyết định.
