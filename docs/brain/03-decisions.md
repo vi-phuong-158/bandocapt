@@ -325,3 +325,20 @@
 - **Đánh đổi:** <cái gì bị đánh đổi>
 - **Người quyết định:** <user / Claude / Codex>
 ```
+## [2026-07-03] Va record `tthc_matt26265` theo tai lieu KBTT co so luu tru chinh thong
+
+- **Quyet dinh:** Cap nhat truc tiep metadata Pinecone cua vector `tthc_matt26265` trong namespace `chatbot-tthc-xnc` theo tai lieu `KBTT_HD_Trang_CSLT_v2.0.pdf` cua Cuc Quan ly xuat nhap canh. Giu ten thu tuc cu de bao toan kha nang retrieval, nhung sua cac fact sai: bo mo ta `Cap Tinh`, bo `Thoi han: 24 gio den 07 ngay`, doi lai thanh luong khai bao online danh cho co so luu tru tai `https://kbtt.xuatnhapcanh.gov.vn`, gan tham quyen voi Cong an cap xa noi co so luu tru, va backfill metadata `thoi_han` + `mau_don`.
+- **Ly do:** Record cu tron lan giua huong dan su dung he thong va TTHC chung, dan den chatbot co nguy co tra sai tham quyen tiep nhan va sai cach thuc khai bao. PDF chinh thong cho thay day la luong thao tac cua co so luu tru tren he thong KBTT, khong phai quy trinh `Cap Tinh` nhu metadata cu.
+- **Danh doi:** Day la metadata-only update, giu nguyen vector embedding cu de tranh phu thuoc vao pipeline ingest moi; vi vay retrieval van dua tren embedding cua noi dung gan cu. Chap nhan duoc vi semantic chinh van la `khai bao tam tru nguoi nuoc ngoai online`, nhung neu sau nay co pipeline ingest chuan thi nen re-embed record nay tu noi dung da sua.
+- **Nguoi quyet dinh:** user / Codex
+
+---
+
+## [2026-07-03] Fail-closed nhanh `tam_tru_khai_bao` va re-embed record KBTT
+
+- **Quyet dinh:** Dong bo sua ca runtime va du lieu cho nhanh `tam_tru_khai_bao`: (1) `api/chat.js` chi chap nhan tai lieu co `retrieval_intent=tam_tru_khai_bao_nguoi_nuoc_ngoai` hoac tin hieu manh `NA17`/`KBTT`/nguoi nuoc ngoai/co so luu tru`; loai bo tai lieu cu tru cong dan Viet Nam co dau hieu `Thong bao luu tru`, `Dang ky tam tru`, `Luat Cu tru`, `VNeID`, moc 23h/08h; va khi khong con tai lieu hop le thi tra `[]` thay vi fail-open. (2) Record Pinecone `tthc_matt26265` khong sua metadata-only nua ma phai **re-embed** sau khi sua text UTF-8 sach, cap nhat `content_hash`, them `retrieval_intent` + `subject_scope`, backup truoc/sau va verify query mau `khai bao tam tru nguoi nuoc ngoai online cho co so luu tru` tra dung record nay top-1.
+- **Ly do:** Dot va ngay 2026-07-03 truoc do da de lai 2 gap nghiem trong: metadata Pinecone bi `?` lam mat het tin hieu tieng Viet, va branch filter `tam_tru_khai_bao` van fail-open khi khong tim duoc positive match nen keo lai tai lieu cu tru cong dan Viet Nam.
+- **Danh doi:** Runtime se it "co gang tra loi bang moi gia" hon cho nhanh nay; khi KB khong co can cu dung branch, chatbot phai noi thieu can cu thay vi tu mo rong sang thu tuc khac. Regression tich hop phai chay rieng bang API that (`npm run test:regression:tam-tru`, `node scripts/run-regression.js`) thay vi dua vao unit test mac dinh.
+- **Nguoi quyet dinh:** user / Codex
+
+---

@@ -662,6 +662,90 @@ test('filterMatchesByQuestionCategory removes declaration chunks from residence 
     assert.match(filtered[0].metadata.text, /NA6|NA8/i);
 });
 
+test('filterMatchesByQuestionCategory rejects citizen residence documents for declaration queries', () => {
+    const { filterMatchesByQuestionCategory } = require('../api/chat');
+
+    const filtered = filterMatchesByQuestionCategory([
+        {
+            score: 0.91,
+            metadata: {
+                title: 'Thông báo lưu trú qua VNeID',
+                text: 'Thông báo lưu trú, đăng ký tạm trú theo Luật Cư trú. Thời hạn trước 23 giờ, sau 23 giờ thì trước 08 giờ sáng hôm sau.'
+            }
+        }
+    ], 'tam_tru_khai_bao');
+
+    assert.deepEqual(filtered, []);
+});
+
+test('filterMatchesByQuestionCategory is fail-closed when no foreign temporary residence signal exists', () => {
+    const { filterMatchesByQuestionCategory } = require('../api/chat');
+
+    const filtered = filterMatchesByQuestionCategory([
+        {
+            score: 0.88,
+            metadata: {
+                title: 'Hướng dẫn cư trú',
+                text: 'Công an cấp xã tiếp nhận thông tin cư trú.'
+            }
+        }
+    ], 'tam_tru_khai_bao');
+
+    assert.deepEqual(filtered, []);
+});
+
+test('filterMatchesByQuestionCategory keeps exact metadata intent for declaration branch', () => {
+    const { filterMatchesByQuestionCategory } = require('../api/chat');
+
+    const filtered = filterMatchesByQuestionCategory([
+        {
+            score: 0.65,
+            metadata: {
+                retrieval_intent: 'tam_tru_khai_bao_nguoi_nuoc_ngoai',
+                title: 'Bản ghi KBTT',
+                text: 'Noise text without accent match.'
+            }
+        },
+        {
+            score: 0.9,
+            metadata: {
+                title: 'Thông báo lưu trú qua VNeID',
+                text: 'Thông báo lưu trú cho công dân Việt Nam theo Luật Cư trú.'
+            }
+        }
+    ], 'tam_tru_khai_bao');
+
+    assert.equal(filtered.length, 1);
+    assert.equal(filtered[0].metadata.retrieval_intent, 'tam_tru_khai_bao_nguoi_nuoc_ngoai');
+});
+
+test('filterMatchesByQuestionCategory keeps residence card branch for exact tam tru the intent', () => {
+    const { filterMatchesByQuestionCategory } = require('../api/chat');
+
+    const filtered = filterMatchesByQuestionCategory([
+        {
+            score: 0.7,
+            metadata: {
+                retrieval_intent: 'tam_tru_the_nguoi_nuoc_ngoai',
+                title: 'Cấp thẻ tạm trú',
+                text: 'Mẫu NA6, NA8, giấy phép lao động.'
+            }
+        },
+        {
+            score: 0.8,
+            metadata: {
+                retrieval_intent: 'tam_tru_khai_bao_nguoi_nuoc_ngoai',
+                title: 'Khai báo tạm trú',
+                text: 'Mẫu NA17 cho cơ sở lưu trú.'
+            }
+        }
+    ], 'tam_tru_the');
+
+    assert.equal(filtered.length, 1);
+    assert.equal(filtered[0].metadata.retrieval_intent, 'tam_tru_the_nguoi_nuoc_ngoai');
+    assert.match(filtered[0].metadata.text, /NA6|NA8/i);
+});
+
 test('P1.1.2: shouldSkipRerank skips only when top match is confidently ahead', () => {
     const { shouldSkipRerank } = require('../api/chat');
 

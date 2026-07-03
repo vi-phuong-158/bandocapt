@@ -953,6 +953,11 @@ async function checkGroundednessAsync({ answerText, legalCorpus, apiKey, fetchIm
 // RAG-03: Metadata filter — classify câu hỏi theo lĩnh vực
 // =====================================================================
 const SPLIT_TEMP_RESIDENCE_CATEGORIES = new Set(['tam_tru_khai_bao', 'tam_tru_the']);
+const SPLIT_TEMP_RESIDENCE_INTENTS = {
+    tam_tru_khai_bao: 'tam_tru_khai_bao_nguoi_nuoc_ngoai',
+    tam_tru_the: 'tam_tru_the_nguoi_nuoc_ngoai'
+};
+const CITIZEN_RESIDENCE_PATTERN = /thông báo lưu trú|thong bao luu tru|đăng ký tạm trú|dang ky tam tru|luật cư trú|luat cu tru|\bvneid\b|23 giờ|23 gio|08 giờ|08 gio|8 giờ sáng|8 gio sang|công dân việt nam|cong dan viet nam/i;
 
 function getQuestionTextForMatching(text = '') {
     return String(text || '').toLowerCase();
@@ -999,6 +1004,8 @@ function getFilterCategoriesForQuestionCategory(category) {
 
 function getMetadataRetrievalText(metadata = {}) {
     return [
+        metadata.retrieval_intent,
+        metadata.subject_scope,
         metadata.title,
         metadata.van_ban,
         metadata.source_file,
@@ -1010,23 +1017,35 @@ function getMetadataRetrievalText(metadata = {}) {
     ].filter(Boolean).join('\n').toLowerCase();
 }
 
+function getMetadataIntent(metadata = {}) {
+    return String(metadata.retrieval_intent || metadata.intent || '').trim().toLowerCase();
+}
+
 function scoreSplitTempResidenceMatch(metadata = {}, category) {
     if (!SPLIT_TEMP_RESIDENCE_CATEGORIES.has(category)) return 0;
 
-    const text = getMetadataRetrievalText(metadata);
+    const metadataIntent = getMetadataIntent(metadata);
+    if (metadataIntent) {
+        if (metadataIntent === SPLIT_TEMP_RESIDENCE_INTENTS[category]) return 100;
+        if (Object.values(SPLIT_TEMP_RESIDENCE_INTENTS).includes(metadataIntent)) return -100;
+    }
 
+    const text = getMetadataRetrievalText(metadata);
     if (!text) return 0;
+    if (CITIZEN_RESIDENCE_PATTERN.test(text)) return -50;
 
     const patterns = category === 'tam_tru_khai_bao'
         ? {
             positive: [
-                /khai báo tạm trú|khai bao tam tru/,
+                /khai báo tạm trú.{0,80}(người nước ngoài|nguoi nuoc ngoai)|foreign(er)? temporary residence declaration/,
                 /phiếu khai báo tạm trú|phieu khai bao tam tru/,
                 /mẫu na17|mau na17/,
-                /công an cấp xã|cong an cap xa/,
-                /cơ sở lưu trú|co so luu tru/,
+                /khách nước ngoài|khach nuoc ngoai|foreign guest/,
+                /cơ sở lưu trú|co so luu tru|accommodation facilit(y|ies)|hotel/,
+                /kbtt\.xuatnhapcanh\.gov\.vn/,
                 /temporary residence declaration/,
-                /declare temporary residence/
+                /declare temporary residence/,
+                /12 giờ|12 gio|24 giờ|24 gio/
             ],
             negative: [
                 /thẻ tạm trú|the tam tru/,
@@ -1036,7 +1055,8 @@ function scoreSplitTempResidenceMatch(metadata = {}, category) {
                 /mẫu na8|mau na8/,
                 /giấy phép lao động|giay phep lao dong/,
                 /công an cấp tỉnh|cong an cap tinh/,
-                /phòng quản lý xuất nhập cảnh|phong quan ly xuat nhap canh/
+                /phòng quản lý xuất nhập cảnh|phong quan ly xuat nhap canh/,
+                /thẻ thường trú|the thuong tru/
             ]
         }
         : {
@@ -1084,7 +1104,7 @@ function filterMatchesByQuestionCategory(matches = [], category) {
         .filter(item => item.intentScore > 0)
         .sort((a, b) => b.intentScore - a.intentScore || b.match.score - a.match.score);
 
-    if (positiveMatches.length === 0) return matches;
+    if (positiveMatches.length === 0) return [];
 
     return positiveMatches.map(item => item.match);
 }
