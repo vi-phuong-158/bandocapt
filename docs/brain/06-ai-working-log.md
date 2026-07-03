@@ -5,6 +5,22 @@
 
 ---
 
+## [2026-07-03] Progressive disclosure: quick-reply chips + accordion chi tiết
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - `js/chatbot.js`: thêm `detectQuickReplies()`/`appendQuickReplies()`/`clearQuickReplies()` — 3 pattern chip (khu vực cũ, quốc tịch mất hộ chiếu, mời hướng dẫn đầy đủ) nhận diện bằng regex khớp nguyên văn phrasing cố định trong prompt; thêm `applyProgressiveDisclosure()` — gom `📋 Hồ sơ`/`📝 Trình tự` vào `<details>` đóng mặc định khi câu trả lời có đủ cả 2 marker (trọn thủ tục), giữ nguyên câu hẹp. Gọi cả hai trong nhánh `result.ok` của `handleChatSend`; `clearQuickReplies()` chạy đầu mỗi lượt gửi mới. Export `detectQuickReplies` qua `module.exports.__test`.
+  - `styles.css`: thêm `.ai-chat-quick-replies`/`.ai-chat-quick-reply` (pill, min-height 36px cho mobile) và `.ai-chat-details`/`.ai-chat-details-body` (accordion viền nhạt, caret xoay khi mở), tái dùng token `--radius-pill`/`--surface-muted`/`--blue-50`/`--blue-200`.
+  - `api/chat.js`: chỉ thêm 3 dòng comment cross-reference (không đổi logic/prompt string) cạnh câu hỏi mất hộ chiếu, câu mời "hướng dẫn đầy đủ hồ sơ", và đầu `XNC_RECEPTION_VERIFIED_BLOCK` — nhắc agent sau rằng đổi phrasing ở đây phải sửa đồng bộ `detectQuickReplies` phía client.
+  - `test/chatbot-quick-replies.test.js` (mới): 5 unit test cho `detectQuickReplies` (3 khu vực, không chip khi thiếu câu hỏi cuối, mời hướng dẫn đầy đủ, quốc tịch vi/en, input rỗng/null).
+  - `test/e2e/chat-progressive-disclosure.spec.js` (mới): 3 test Playwright — stub `window.GeminiAI.stream` trả lời giả lập (không gọi API thật), kiểm accordion đóng mặc định + Nơi nộp luôn hiện + bấm mở được, 3 chip khu vực render đúng + click gửi đúng nội dung + chip cũ bị dọn, câu hẹp giữ phẳng (0 accordion) + có chip mời hướng dẫn.
+  - `playwright.config.js`: thêm `PLAYWRIGHT_CHROMIUM_EXECUTABLE` optional override cho `launchOptions.executablePath` — môi trường container không có đúng version Chromium mà `@playwright/test` pin sẵn.
+  - `docs/brain/03-decisions.md`: quyết định "progressive disclosure UI — chỉ client, không đổi API" + đánh đổi phụ thuộc phrasing.
+- **Lý do:** Tiếp nối answer-first (entry 2026-07-02) — bot đã rút gọn và kết bằng đúng 1 câu hỏi follow-up, nhưng người dân vẫn phải đọc và gõ lại thủ công. Chip hóa follow-up có tập lựa chọn hữu hạn + thu gọn chi tiết ít khi cần đọc ngay giúp rút ngắn hội thoại mà không đổi nội dung/độ chính xác câu trả lời.
+- **Kiểm tra:** `node --check js/chatbot.js` sạch; `npm test` 92/92 pass (77 cũ + 6 trim/notice + 5 quick-replies + 4 khác từ PR #15). `npx playwright test` full suite: 3 test mới pass; 3 test `detail-panel.spec.js` fail — đã xác nhận PRE-EXISTING bằng `git stash` (fail y hệt trước khi có thay đổi của phiên này, quirk mô phỏng con trỏ/gesture trong môi trường container, không liên quan chat/bản đồ) — không phải hồi quy do code mới. `npm run build` sạch.
+- **Việc còn tồn đọng:** KHÔNG chạm `api/chat.js` logic/response nên KHÔNG cần chạy lại 3× regression baseline. Rủi ro duy nhất: nếu sau này sửa phrasing prompt mà quên đồng bộ `detectQuickReplies`, chip lặng lẽ ngừng hiện (không lỗi) — đã có 3 comment cross-reference trong code nhắc việc này.
+
+---
+
 ## [2026-07-02] Review PR #15 sau commit bàn giao — xác nhận kết quả, ghi 3 mục theo dõi
 - **Agent:** Claude Code
 - **Thay đổi:** Chỉ sửa tài liệu, không sửa code. Thêm `TASK-UX-01-EXT` vào `04-current-tasks.md` ghi 3 phát hiện từ review độc lập PR #15: (1) chỉ 1/3 file báo cáo run cloud được commit (thiếu Run 2, Run 5 — chuẩn P0.5 yêu cầu đủ 3 file làm bằng chứng); (2) VP01 mất câu hedge phạm vi áp dụng mức phạt cho visa; (3) TR02 không nêu trụ sở Thanh Miếu đã xác minh dù kỳ vọng test yêu cầu.
