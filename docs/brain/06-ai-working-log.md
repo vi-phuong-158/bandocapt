@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-07-03] Cải thiện chất lượng nhánh khai báo tạm trú người nước ngoài
+- **Agent:** Codex
+- **Thay đổi:** Siết `api/chat.js` cho nhánh `tam_tru_khai_bao` theo hướng fail-closed, chỉ giữ tài liệu có tín hiệu rõ về người nước ngoài/NA17/KBTT hoặc metadata intent chính xác; loại các tài liệu cư trú công dân Việt Nam và bỏ fallback trả toàn bộ match. Mở rộng `scripts/run-regression.js` để lọc theo ID và tự chấm 7 ca trọng yếu, thêm lệnh `npm run test:regression:tam-tru`. Viết `scripts/repair-pinecone-temp-residence.js` để backup, re-embed, upsert UTF-8 sạch cho `tthc_matt26265`, cập nhật `content_hash`/`retrieval_intent`/`subject_scope` và xác minh top-1 retrieval.
+- **File đã sửa:** `api/chat.js`, `test/p0-fixes.test.js`, `scripts/run-regression.js`, `scripts/repair-pinecone-temp-residence.js`, `package.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`, `data/pinecone-backups/2026-07-03_08-30-05-pre-repair-tthc_matt26265.json`, `data/pinecone-backups/2026-07-03_08-30-05-post-repair-tthc_matt26265.json`, `test/results/regression-run-2026-07-03_08-35-02.md`, `test/results/regression-run-2026-07-03_08-44-19.md`, `test/results/regression-latest.md`
+- **Lý do:** Chặn nhánh khai báo tạm trú người nước ngoài bị trộn với thủ tục cư trú công dân Việt Nam, đồng thời sửa bản ghi Pinecone đang lỗi mã hóa và chưa re-embed nên không thể retrieval ổn định.
+- **Kiểm tra:** `npm test`; `npm run build`; `node scripts/repair-pinecone-temp-residence.js`; `node scripts/run-regression.js --ids TR01,TR02,TR03,ON01,TL01,GD02,TR09 --delay-ms 0`; `node scripts/run-regression.js --delay-ms 0`.
+
+---
+
 ## [2026-07-03] Progressive disclosure: quick-reply chips + accordion chi tiết
 - **Agent:** Claude Code
 - **Thay đổi:**
@@ -640,3 +649,9 @@
 - **File da sua:** `lib/output-validator.js`, `api/chat.js`, `test/output-validator.test.js`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** Hard-redact Tier 2 da xoa nham Thong tu dung va cat nat `Luat so 47/2014/QH13` trong chay that.
 - **Kiem tra:** `node -c lib/output-validator.js`; `node -c api/chat.js`; `npm test`; `npm run build`; targeted/full regression neu moi truong API cho phep.
+## [2026-07-03] Cap nhat thu tuc khai bao tam tru NNN tren Pinecone theo PDF KBTT co so luu tru
+- **Agent:** Codex
+- **Thay doi:** Doc PDF chinh thong `KBTT_HD_Trang_CSLT_v2.0.pdf`, doi chieu voi record Pinecone `tthc_matt26265`, sau do cap nhat truc tiep metadata record nay: sua `cap` tu `tinh` ve `xa`, bo thong tin sai `24 gio den 07 ngay`, thay bang huong dan thao tac online tren `kbtt.xuatnhapcanh.gov.vn`, bo sung `official_url`, `thoi_han`, `mau_don`; dong thoi sao luu metadata truoc/sau update vao `data/pinecone-backups/` va ghi lai technical decision.
+- **File da sua:** `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`, `data/pinecone-backups/2026-07-03-pre-update-tthc_matt26265.json`, `data/pinecone-backups/2026-07-03-post-update-tthc_matt26265.json`
+- **Ly do:** Record cu mo ta sai ban chat thu tuc online danh cho co so luu tru, co the khien chatbot tra sai tham quyen tiep nhan va sai cach thuc khai bao.
+- **Kiem tra:** Fetch truc tiep vector `tthc_matt26265` sau update de xac nhan `cap=xa`, `official_url=https://kbtt.xuatnhapcanh.gov.vn`, `thoi_han`/`mau_don` da co; query embedding voi cau `Khai bao tam tru nguoi nuoc ngoai online cho co so luu tru` tra lai chinh record nay top-1.

@@ -15,6 +15,7 @@
     "dev": "node ./node_modules/tailwindcss/lib/cli.js -i ./input.css -o ./output.css --watch",
     "preview": "node scripts/preview-server.js",
     "prune:telemetry": "node setup/prune-telemetry.js",
+    "test:regression:tam-tru": "node scripts/run-regression.js --ids TR01,TR02,TR03,ON01,TL01,GD02,TR09",
     "test:e2e": "npm run build && playwright test",
     "test": "node --test test/*.test.js"
   },
