@@ -8,6 +8,10 @@
 
 *(Không có)*
 
+## Đã hoàn thành gần đây (bổ sung)
+
+- [2026-07-03] Progressive disclosure UI: quick-reply chips (khu vực cũ, quốc tịch mất hộ chiếu, mời hướng dẫn đầy đủ) + accordion thu gọn Hồ sơ/Trình tự trong `js/chatbot.js`. Chỉ client, không đổi `api/chat.js` logic — không cần chạy lại regression baseline. Chi tiết: `docs/brain/03-decisions.md` (2026-07-03) và `06-ai-working-log.md`.
+
 ---
 
 ## Chờ làm (backlog)
