@@ -23,6 +23,24 @@
 
 ---
 
+## [2026-07-03] Progressive disclosure UI — quick-reply chips + accordion (chỉ client, không đổi API)
+
+- **Quyết định:** (1) `js/chatbot.js` thêm `detectQuickReplies(fullText)` — hàm thuần nhận diện 3 loại follow-up có tập lựa chọn hữu hạn bằng regex khớp NGUYÊN VĂN phrasing cố định trong `SYSTEM_PROMPT_BASE`/`XNC_RECEPTION_VERIFIED_BLOCK` (api/chat.js): hỏi khu vực cũ (Phú Thọ/Vĩnh Phúc/Hòa Bình) → 3 chip; hỏi quốc tịch khi mất hộ chiếu chưa rõ đối tượng → 2 chip vi/en; câu mời "hướng dẫn đầy đủ hồ sơ" (chế độ HẸP) → 1 chip. Click chip = điền `input.value` rồi gọi lại `handleChatSend()` (tái dùng nguyên luồng gửi, kể cả guard Turnstile). Chip bị dọn (`clearQuickReplies`) mỗi khi gửi tin mới. (2) `applyProgressiveDisclosure(content)` — sau khi render markdown, gom 2 khối `📋 Hồ sơ`/`📝 Trình tự` (nếu CẢ HAI cùng xuất hiện — tức câu trả lời trọn thủ tục) vào `<details>` đóng mặc định; `📍 Nơi nộp`, `📚 Căn cứ` và đáp án mở đầu luôn hiển thị. Câu hỏi hẹp (chỉ 1 marker hoặc 0) giữ nguyên phẳng.
+- **Lý do:** Tiếp nối answer-first (xem entry 2026-07-02 ngay dưới) — bot đã trả lời ngắn hơn và kết bằng đúng 1 câu hỏi follow-up, nhưng người dân vẫn phải đọc và gõ lại thủ công (dễ gõ mơ hồ, chậm trên mobile). Chip hóa các follow-up có tập lựa chọn hữu hạn giúp rút ngắn hội thoại mà không đổi nội dung câu trả lời.
+- **Đánh đổi:** Chip phụ thuộc CHẶT vào phrasing đúng nguyên văn trong prompt — đã thêm comment cross-reference tại 3 vị trí trong `api/chat.js` (dòng cạnh câu hỏi mất hộ chiếu, câu mời hướng dẫn đầy đủ, và đầu `XNC_RECEPTION_VERIFIED_BLOCK`) nhắc agent sau phải sửa đồng bộ. Không có test nào tự động phát hiện lệch pha giữa prompt và regex — nếu đổi phrasing mà quên sửa `detectQuickReplies`, chip chỉ lặng lẽ ngừng hiện (không lỗi, không crash) — người dân vẫn dùng được bằng cách gõ tay như trước, chỉ mất phần tiện ích. Vì đây là thay đổi thuần client (không đụng `api/chat.js` logic/response, chỉ thêm 3 dòng comment), KHÔNG cần chạy lại 3× regression baseline.
+- **Người quyết định:** user / Claude Code
+
+---
+
+## [2026-07-02] Answer-first + ngân sách độ dài + lưới chống ngắt giữa câu
+
+- **Quyết định:** (1) `SYSTEM_PROMPT_BASE` chuyển sang answer-first: câu đầu tiên phải là đáp án trực tiếp; tách 2 chế độ trả lời — câu hỏi HẸP (1 chi tiết, mục tiêu < 120 từ, không dump hồ sơ/trình tự) và câu hỏi TRỌN THỦ TỤC (cấu trúc A, mục tiêu < 250 từ); cấm chào hỏi/xã giao, tối đa 1 câu hỏi follow-up, không lặp thông tin 2 chỗ, mỗi điểm tiếp dân 1 dòng. Chỉ sửa phần mục tiêu/cấu trúc/văn phong — khối "DỮ LIỆU & CHỐNG BỊA" giữ nguyên 100%. (2) Khi chạm trần token (Gemini `MAX_TOKENS` hoặc DeepSeek `length`): `trimToSentenceBoundary()` trong `lib/output-validator.js` cắt lùi về ranh giới câu hoàn chỉnh và nối câu chốt theo ngôn ngữ (`getTruncationNotice`), chạy TRƯỚC `validateAnswer` — người dân không bao giờ thấy văn bản đứt giữa câu. Nếu không có ranh giới an toàn thì bỏ fragment; response truncated không được lưu FAQ cache; notice canonical chỉ nằm trong `fullText`. Giữ `maxOutputTokens: 3072`. (3) `scripts/run-regression.js` đếm từ Unicode bằng `Intl.Segmenter`, gắn soft-fail `VERBOSITY` đúng ngân sách prompt (câu hẹp > 120 từ, câu đầy đủ > 250 từ) và `TRUNCATED`, thêm bảng tổng hợp đầu báo cáo.
+- **Lý do:** Đo trên `regression-latest.md` (2026-07-02): trung bình 306 từ/câu, median 334, 6/30 câu > 500 từ (~8-10 màn hình cuộn mobile); câu hỏi có/không như HS02 bị trả 507 từ. Nguyên nhân gốc là prompt cũ ép "sau MỖI câu trả lời phải đủ giấy tờ + nơi nộp" và áp cấu trúc A cho mọi câu. Câu dài cũng là nguyên nhân chạm `MAX_TOKENS` gây đứt giữa câu (VP01/EV01). User yêu cầu rõ: không được để AI ngắt giữa câu.
+- **Đánh đổi:** Sửa prompt bắt buộc chạy lại 3 lần regression 30 câu sạch (0 Tier-1, 0 LEGAL_HALLUCINATION, 0 TRUNCATED) trước khi coi là baseline mới — chưa chạy được trong môi trường thiếu API key, phải chạy ở môi trường có key. Rủi ro rút gọn làm mất câu tự khai "chưa có dữ liệu xác minh" được giám sát bằng chính 3 lần chạy đó; lớp bảo vệ chính (output-validator code-level) không phụ thuộc prompt nên không bị ảnh hưởng. VERBOSITY là soft-fail (cảnh báo trong báo cáo), không chặn cứng.
+- **Người quyết định:** user / Claude Code
+
+---
+
 ## [2026-07-01] Output validator fail-closed tren ban tra loi cuoi
 
 - **Quyet dinh:** Giu streaming thô de bao toan UX, nhung truoc event `done` phai chay `lib/output-validator.js` va redact tai cho SDT, link Maps, toa do, muc phi, ma mau, so hieu van ban va thoi han khong ton tai trong `verified_locations`, tai lieu RAG hoac danh sach hang so prompt da duyet.
@@ -343,3 +361,20 @@
 - **Đánh đổi:** <cái gì bị đánh đổi>
 - **Người quyết định:** <user / Claude / Codex>
 ```
+## [2026-07-03] Va record `tthc_matt26265` theo tai lieu KBTT co so luu tru chinh thong
+
+- **Quyet dinh:** Cap nhat truc tiep metadata Pinecone cua vector `tthc_matt26265` trong namespace `chatbot-tthc-xnc` theo tai lieu `KBTT_HD_Trang_CSLT_v2.0.pdf` cua Cuc Quan ly xuat nhap canh. Giu ten thu tuc cu de bao toan kha nang retrieval, nhung sua cac fact sai: bo mo ta `Cap Tinh`, bo `Thoi han: 24 gio den 07 ngay`, doi lai thanh luong khai bao online danh cho co so luu tru tai `https://kbtt.xuatnhapcanh.gov.vn`, gan tham quyen voi Cong an cap xa noi co so luu tru, va backfill metadata `thoi_han` + `mau_don`.
+- **Ly do:** Record cu tron lan giua huong dan su dung he thong va TTHC chung, dan den chatbot co nguy co tra sai tham quyen tiep nhan va sai cach thuc khai bao. PDF chinh thong cho thay day la luong thao tac cua co so luu tru tren he thong KBTT, khong phai quy trinh `Cap Tinh` nhu metadata cu.
+- **Danh doi:** Day la metadata-only update, giu nguyen vector embedding cu de tranh phu thuoc vao pipeline ingest moi; vi vay retrieval van dua tren embedding cua noi dung gan cu. Chap nhan duoc vi semantic chinh van la `khai bao tam tru nguoi nuoc ngoai online`, nhung neu sau nay co pipeline ingest chuan thi nen re-embed record nay tu noi dung da sua.
+- **Nguoi quyet dinh:** user / Codex
+
+---
+
+## [2026-07-03] Fail-closed nhanh `tam_tru_khai_bao` va re-embed record KBTT
+
+- **Quyet dinh:** Dong bo sua ca runtime va du lieu cho nhanh `tam_tru_khai_bao`: (1) `api/chat.js` chi chap nhan tai lieu co `retrieval_intent=tam_tru_khai_bao_nguoi_nuoc_ngoai` hoac tin hieu manh `NA17`/`KBTT`/nguoi nuoc ngoai/co so luu tru`; loai bo tai lieu cu tru cong dan Viet Nam co dau hieu `Thong bao luu tru`, `Dang ky tam tru`, `Luat Cu tru`, `VNeID`, moc 23h/08h; va khi khong con tai lieu hop le thi tra `[]` thay vi fail-open. (2) Record Pinecone `tthc_matt26265` khong sua metadata-only nua ma phai **re-embed** sau khi sua text UTF-8 sach, cap nhat `content_hash`, them `retrieval_intent` + `subject_scope`, backup truoc/sau va verify query mau `khai bao tam tru nguoi nuoc ngoai online cho co so luu tru` tra dung record nay top-1.
+- **Ly do:** Dot va ngay 2026-07-03 truoc do da de lai 2 gap nghiem trong: metadata Pinecone bi `?` lam mat het tin hieu tieng Viet, va branch filter `tam_tru_khai_bao` van fail-open khi khong tim duoc positive match nen keo lai tai lieu cu tru cong dan Viet Nam.
+- **Danh doi:** Runtime se it "co gang tra loi bang moi gia" hon cho nhanh nay; khi KB khong co can cu dung branch, chatbot phai noi thieu can cu thay vi tu mo rong sang thu tuc khac. Regression tich hop phai chay rieng bang API that (`npm run test:regression:tam-tru`, `node scripts/run-regression.js`) thay vi dua vao unit test mac dinh.
+- **Nguoi quyet dinh:** user / Codex
+
+---
