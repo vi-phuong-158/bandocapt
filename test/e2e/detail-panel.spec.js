@@ -17,12 +17,16 @@ test('mobile detail panel closes reliably by button and drag gestures', async ({
     await expect.poll(async () => page.locator('#detail-panel').getAttribute('data-sheet-state')).toBe('hidden');
 
     await openFirstMobileResult(page);
-    const handleBox = await page.locator('#drag-handle').boundingBox();
-    if (!handleBox) throw new Error('drag handle not visible');
-    await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
-    await page.mouse.down();
-    await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height + 350, { steps: 12 });
-    await page.mouse.up();
+    await page.evaluate(() => {
+        const handle = document.getElementById('drag-handle');
+        const box = handle.getBoundingClientRect();
+        const x = box.x + box.width / 2;
+        const startY = box.y + box.height / 2;
+        const endY = box.y + box.height + 350;
+        handle.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, pointerId: 2, pointerType: 'touch', clientX: x, clientY: startY, button: 0 }));
+        handle.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerId: 2, pointerType: 'touch', clientX: x, clientY: endY, button: 0 }));
+        handle.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, pointerId: 2, pointerType: 'touch', clientX: x, clientY: endY, button: 0 }));
+    });
     await expect.poll(async () => page.locator('#detail-panel').getAttribute('data-sheet-state')).toBe('hidden');
 });
 

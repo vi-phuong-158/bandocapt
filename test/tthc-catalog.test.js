@@ -16,6 +16,7 @@ const {
     sortProcedures,
     buildCategorySummary,
     hasNonEmptyValue,
+    parseArgs,
     parseGuideProcedureRecord,
     readEnvAssignments,
 } = require('../scripts/generate-tthc-catalog');
@@ -224,6 +225,27 @@ test('buildGuideProcedures loại mục nội dung nội bộ chatbot (nguyên t
     assert.equal(procedures.length, 0);
 });
 
+test('buildGuideProcedures bỏ chunk guide không có nội dung để tránh detail rỗng', () => {
+    const procedures = buildGuideProcedures([
+        {
+            id: 'guide_empty_01',
+            metadata: {
+                loai_thu_tuc: 'ho_chieu',
+                source_file: 'A. HO CHIEU.docx',
+                text: [
+                    'Lĩnh vực: Hộ chiếu phổ thông',
+                    'Cấp xử lý: Cấp Xã',
+                    'Thủ tục: 10. Lệ phí cấp hộ chiếu năm 2026',
+                    'Mục wiki: 10. Lệ phí cấp hộ chiếu năm 2026',
+                    'Nội dung wiki:',
+                ].join('\n'),
+            },
+        },
+    ]);
+
+    assert.equal(procedures.length, 0);
+});
+
 test('buildGuideProcedures bỏ guide trùng tên với thủ tục tthc đã có', () => {
     const procedures = buildGuideProcedures([
         {
@@ -305,16 +327,22 @@ test('hasNonEmptyValue coi chuỗi rỗng và khoảng trắng là không hợp 
     assert.equal(hasNonEmptyValue('value'), true);
 });
 
+test('parseArgs mặc định sinh catalog đầy đủ có guide và cho phép tắt bằng --exclude-guides', () => {
+    assert.equal(parseArgs([]).includeGuides, true);
+    assert.equal(parseArgs(['--source=live']).includeGuides, true);
+    assert.equal(parseArgs(['--source=live', '--exclude-guides']).includeGuides, false);
+});
+
 test('data/tthc-catalog.json đã commit: gồm cả TTHC thật và guide, không trùng lặp', () => {
     const catalogPath = path.resolve(__dirname, '..', 'data', 'tthc-catalog.json');
     const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
 
     assert.equal(catalog.sourceMode, 'live');
     assert.equal(catalog.includeGuides, true, 'catalog commit gồm cả guide để phủ đủ lĩnh vực');
-    // Bộ đầy đủ (tthc + guide) ~145; chặn cả trường hợp thiếu và phình bất thường.
+    // Bộ đầy đủ sau khi lọc guide rỗng: 35 TTHC thật + ~57 guide có nội dung.
     assert.ok(
-        catalog.procedures.length >= 100 && catalog.procedures.length <= 200,
-        `Kỳ vọng ~145 thủ tục (tthc + guide), có ${catalog.procedures.length}`
+        catalog.procedures.length >= 80 && catalog.procedures.length <= 160,
+        `Kỳ vọng ~90 thủ tục (tthc + guide có nội dung), có ${catalog.procedures.length}`
     );
 
     // Phải có cả thủ tục thật (tthc) lẫn guide — không mất nhóm nào
@@ -342,6 +370,17 @@ test('data/tthc-catalog.json đã commit: gồm cả TTHC thật và guide, khô
     const internalPattern = /(nguyên tắc trả lời|quản trị viên|chatbot|^người dùng\s*:)/i;
     const leaked = catalog.procedures.filter(p => internalPattern.test(p.title));
     assert.equal(leaked.length, 0, `catalog lộ nội dung nội bộ: ${leaked.map(p => p.title).join(' | ')}`);
+
+    const emptyGuideDetails = catalog.procedures.filter(p => {
+        if (!String(p.procedureId).startsWith('guide:')) return false;
+        const body = String(p.text).split(/\n\n/).slice(1).join('\n\n').trim();
+        return body.length < 50 || /^[^\n]+:\s*$/.test(body);
+    });
+    assert.equal(
+        emptyGuideDetails.length,
+        0,
+        `catalog có guide detail rỗng: ${emptyGuideDetails.map(p => p.procedureId).join(' | ')}`
+    );
 
     const categoryCountSum = catalog.categories.reduce((sum, c) => sum + c.count, 0);
     assert.equal(categoryCountSum, catalog.procedures.length);

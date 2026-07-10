@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-07-10] Fix catalog guide rong va dong bo lenh sinh catalog day du
+
+- **Quyet dinh:** `npm run gen:catalog` nay chay `scripts/generate-tthc-catalog.js --include-guides`; CLI mac dinh `includeGuides=true` va co `--exclude-guides` de audit rieng tap `source_type='tthc'`. Generator bo cac chunk guide khong co `Noi dung wiki`/`Nội dung wiki` that, khong con tao detail chi la `<title>:`; `extractGuideFee` chi tom tat phi tu body muc phi/le phi, khong suy phi tu tieu de. Snapshot `data/tthc-catalog.json` sau regenerate = 92 muc (35 tthc that + 57 guide co noi dung), van du 17 linh vuc.
+- **Ly do:** Review commit `0f84233` phat hien 46/102 guide trong snapshot 137 muc gan nhu rong khi mo chi tiet, va `npm run gen:catalog` co the tai sinh sai mode neu khong truyen `--include-guides`. Hai loi nay lam danh muc kho dung trong UI va lam snapshot khong reproducible.
+- **Danh doi:** So muc catalog giam tu 137 xuong 92 vi loai guide chi co tieu de/section rong; mot so FAQ/heading ho chieu khong con hien neu KB Pinecone chua co than noi dung. Chap nhan vi card cong khai phai co noi dung doi chieu that. Deep-link tu chatbot van chi cham 35 tthc that nhu truoc.
+- **Nguoi quyet dinh:** user / Codex
+
+---
+
 ## [2026-07-10] Dao huong 1: catalog gom ca guide, chi loc noi dung noi bo chatbot
 
 - **Quyet dinh:** `data/tthc-catalog.json` da commit gio sinh bang `--include-guides` (137 thu tuc = 35 tthc that + 102 guide). Them `INTERNAL_GUIDE_TITLE_PATTERN` trong `scripts/generate-tthc-catalog.js` de LOAI cac muc guide thuc chat la noi dung noi bo chatbot (title khop `nguyên tắc trả lời | quản trị viên | chatbot | ^người dùng:`) — 8 muc bi loai. Test `data/tthc-catalog.json da commit` doi ky vong sang `includeGuides=true`, ~100–200 muc, phai co ca entry guide lan tthc, va assert 0 muc lo noi dung noi bo.

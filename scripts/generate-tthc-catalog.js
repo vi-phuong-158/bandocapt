@@ -3,12 +3,13 @@
 // Sinh data/tthc-catalog.json cho panel doi chieu TTHC.
 // Nguon uu tien: Pinecone live (neu co env hop le) de khong bi lech scope.
 // Fallback: backup trong repo de van build duoc offline.
-// Mac dinh CHI xuat thu tuc hanh chinh that (source_type='tthc'); kho guide (wiki/FAQ/
-// huong dan noi bo chatbot) chi gop khi bat --include-guides.
+// Mac dinh xuat catalog day du (source_type='tthc' + guide da loc noi dung rong/noi bo).
+// Dung --exclude-guides khi can snapshot chi TTHC that de audit.
 // Chay:
 //   node scripts/generate-tthc-catalog.js
 //   node scripts/generate-tthc-catalog.js --source=live
 //   node scripts/generate-tthc-catalog.js --source=live --include-guides
+//   node scripts/generate-tthc-catalog.js --source=live --exclude-guides
 //   node scripts/generate-tthc-catalog.js --source=backups
 //   node scripts/generate-tthc-catalog.js --fetch-missing   (legacy backup mode)
 
@@ -325,7 +326,6 @@ function buildGuideSectionText(section) {
     const body = section.sectionBody || '';
 
     if (!title && body) return body;
-    if (!body) return `${title}:`;
     if (slugify(title) === 'toan-van-thu-tuc') return `Nội dung:\n${body}`;
     return `${title}:\n${body}`;
 }
@@ -361,9 +361,6 @@ function extractGuideFee(sections) {
 
         const bodyFee = summarizeGuideFee(section.sectionBody);
         if (bodyFee) return bodyFee;
-
-        const titleFee = summarizeGuideFee(sectionTitle);
-        if (titleFee) return titleFee;
     }
 
     return UNVERIFIED_FEE;
@@ -406,6 +403,7 @@ function buildGuideProcedures(guideRecords, tthcProcedures = []) {
 
         if (!normalizedTitle || takenTitles.has(normalizedTitle)) continue;
         if (INTERNAL_GUIDE_TITLE_PATTERN.test(parsed.title)) continue;
+        if (!parsed.sectionBody) continue;
 
         const key = `${parsed.category}|${parsed.cap}|${normalizedTitle}`;
         const existing = grouped.get(key) || {
@@ -520,9 +518,8 @@ function dedupeProcedures(procedures) {
     return { procedures: [...byKey.values()], dropped };
 }
 
-// Hướng 1: mặc định catalog CHỈ chứa thủ tục hành chính thật (source_type='tthc').
-// Kho "guide" (wiki/FAQ/hướng dẫn nội bộ chatbot) chỉ được gộp vào khi bật --include-guides,
-// tránh làm lộ nội dung nội bộ và giữ danh mục đúng nghĩa để đối sánh.
+// Catalog san pham gom ca TTHC that va guide da loc; --exclude-guides chi dung khi can
+// audit rieng tap source_type='tthc'.
 function buildCatalogFromLiveRecords({ tthcRecords, guideRecords, audit, generatedAt, includeGuides = false }) {
     const feeIndex = buildFeeIndex(audit);
     const tthcProcedures = tthcRecords.map(record => toProcedure(record.id, record.metadata, feeIndex));
@@ -644,7 +641,7 @@ function parseArgs(argv) {
     return {
         source,
         fetchMissing: argv.includes('--fetch-missing'),
-        includeGuides: argv.includes('--include-guides'),
+        includeGuides: argv.includes('--exclude-guides') ? false : true,
     };
 }
 
@@ -711,6 +708,7 @@ module.exports = {
     hasNonEmptyValue,
     loadEnvFilesPreferNonEmpty,
     normalizeProcedureTitle,
+    parseArgs,
     parseGuideProcedureRecord,
     readEnvAssignments,
     resolveFee,

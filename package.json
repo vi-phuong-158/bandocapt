@@ -13,7 +13,7 @@
     "check:syntax": "node --check app.js && node --check api/chat.js && node --check api/google-sheet.js && node --check js/chatbot.js && node --check js/gemini.js && node --check js/location-data.js && node --check js/tthc-catalog.js && node --check lib/published-locations.js && node --check lib/output-validator.js && node --check lib/regression-metrics.js && node --check scripts/generate-tthc-catalog.js && node --check scripts/run-regression.js && node --check setup/prune-telemetry.js && node --check setup/apps-script.js",
     "ci": "npm test && npm run build && npm audit --omit=dev --audit-level=high",
     "dev": "node ./node_modules/tailwindcss/lib/cli.js -i ./input.css -o ./output.css --watch",
-    "gen:catalog": "node scripts/generate-tthc-catalog.js",
+    "gen:catalog": "node scripts/generate-tthc-catalog.js --include-guides",
     "preview": "node scripts/preview-server.js",
     "prune:telemetry": "node setup/prune-telemetry.js",
     "test:regression:tam-tru": "node scripts/run-regression.js --ids TR01,TR02,TR03,ON01,TL01,GD02,TR09",
