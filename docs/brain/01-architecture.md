@@ -40,10 +40,12 @@ bandocapt/
 |  `- regression-metrics.js
 |- api/
 |  |- chat.js
+|  |- feedback.js
 |  `- google-sheet.js
 |- setup/
 |- scripts/
-|  `- generate-tthc-catalog.js
+|  |- generate-tthc-catalog.js
+|  `- read-feedback.js
 |- test/
 |- assets/
 |- vercel.json
@@ -58,13 +60,15 @@ bandocapt/
 | `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker | `index.html` | `js/location-data.js`, `api/google-sheet.js`, `data.js` |
 | `data.js` | Fallback tinh cho map khi Google Sheets loi | `app.js` | - |
 | `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check, doc them `search_aliases` neu co | `app.js`, `lib/published-locations.js`, test | - |
-| `js/gemini.js` | Goi `POST /api/chat`, parse SSE stream | `js/chatbot.js` | `api/chat.js` |
-| `js/chatbot.js` | UI chat, toggle panel, render stream va nut doi chieu TTHC khi source co `procedure_id` | `index.html` | `js/gemini.js`, `window.TthcCatalog` neu co |
+| `js/gemini.js` | Goi `POST /api/chat` (parse SSE stream) va `POST /api/feedback` (`sendFeedback`); ky HMAC dung chung qua `signRequestToken` | `js/chatbot.js` | `api/chat.js`, `api/feedback.js` |
+| `js/chatbot.js` | UI chat, toggle panel, render stream, nut doi chieu TTHC khi source co `procedure_id`, va action bar 👍/👎 + form bao cao (sinh `turn_id` client, goi `GeminiAI.sendFeedback`) | `index.html` | `js/gemini.js`, `window.TthcCatalog` neu co |
 | `js/tthc-catalog.js` | UI danh muc TTHC tinh: load JSON, loc/tim kiem, xem chi tiet, public API `window.TthcCatalog` | `index.html`, `js/chatbot.js` | `data/tthc-catalog.json` |
 | `data/tthc-catalog.json` | Catalog TTHC tinh de nguoi dung doi chieu cau tra loi AI | `js/tthc-catalog.js` | sinh tu Pinecone live + audit phi, fallback backup khi local khong co key |
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
 | `lib/output-validator.js` | Fail-closed output guard: doi chieu va redact SDT/Maps/toa do/so lieu phap ly khong co trong nguon xac minh | `api/chat.js`, test | - |
 | `lib/regression-metrics.js` | Dem tu Unicode-safe va giu ngan sach verbosity 120/250 dong bo voi prompt answer-first | `scripts/run-regression.js`, test | `Intl.Segmenter` Node 20 |
+| `api/feedback.js` | Serverless nhan bao cao/phan hoi nguoi dung ve cau tra loi chatbot; tai dung CORS/HMAC/sanitize tu `api/chat.js`; rate limit best-effort IP/ngay + ghi `chat_feedback/<date_key>` tren RTDB voi TTL | `js/gemini.js` | `api/chat.js` (require cheo helper), Firebase RTDB |
+| `scripts/read-feedback.js` | Doc `chat_feedback/<date_key>` tu RTDB, in bao cao theo ngay (loc `--down`) de admin ra soat | Developer / cron | Firebase RTDB, `.env` |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
 | `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone, split intent `tam_tru_khai_bao`/`tam_tru_the`, fail-closed branch filter, stream model, inject `<verified_locations>`, `buildCitationSource` tra them `procedure_id`/`title` cho nut doi chieu TTHC, dang ky groundedness background task | `js/gemini.js` | Pinecone, Gemini API, Firebase, `@vercel/functions`, `lib/published-locations.js` |
 | `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live, mac dinh gom `tthc_*` + `guide_*` co noi dung (loc guide rong/noi bo), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
@@ -174,6 +178,26 @@ SSE response events:
 - `{ "done": true, "fullText": "...", "history": [...], "sources": [...] }`
 - `{ "error": "..." }`
 
+### `POST /api/feedback`
+
+Nhan bao cao/phan hoi cua nguoi dung ve mot luot tra loi cua chatbot. Headers bat buoc khi co Origin:
+`X-Request-Token`, `X-Request-Time` (HMAC ky tren chuoi `${turn_id}:${rating}`, cung cong thuc voi `/api/chat`).
+
+```json
+{
+  "turn_id": "t_<ts>_<n>_<rand>",
+  "rating": "up | down",
+  "category": "sai_thong_tin | thieu_thong_tin | khong_lien_quan | ngon_tu | khac (tuy chon)",
+  "comment": "string (<=1000, tuy chon)",
+  "contact": "string (<=200, tuy chon)",
+  "question": "string (<=4000, tuy chon)",
+  "answer": "string (<=4000, tuy chon)",
+  "sources": "[{ file, article, url, procedure_id }] (toi da 8)"
+}
+```
+
+Response: `200 { ok: true }` · `400` (body/rating/turn_id/category sai) · `403` (origin/token) · `429` (rate limit IP/ngay) · `503` (khong ghi duoc). Luu vao RTDB `chat_feedback/<date_key>` (giờ VN), IP HMAC-hash, noi dung sanitize PII, co TTL `expires_at`. Ngoai le privacy co kiem soat: CO luu Q/A vi nguoi dung chu dong opt-in (xem 03-decisions).
+
 ### `GET /api/google-sheet`
 
 Tra ve payload GViz da parse cua sheet `Published_Locations`. Public contract giu nguyen.
@@ -214,6 +238,8 @@ EVAL_BYPASS_TOKEN
 GOOGLE_SHEET_ID
 RATE_LIMIT_MONTHLY
 RATE_LIMIT_DAILY_IP
+FEEDBACK_DAILY_IP_LIMIT
+FEEDBACK_RETENTION_DAYS
 ```
 
 ## Luu y kien truc quan trong

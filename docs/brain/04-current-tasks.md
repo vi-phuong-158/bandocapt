@@ -119,6 +119,7 @@
 - **Kiem tra:** `npm run gen:catalog`; `npm test`; xac nhan `missingFromBackups` giam khi bo sung backup va catalog van build duoc o mode backup.
 
 ### Hoan thanh gan day
+- [2026-07-10] TASK-FEEDBACK-01: Tinh nang Bao cao Chatbot. Them `api/feedback.js` (nhan vote 👍/👎 + form bao cao chi tiet), `js/gemini.js` `sendFeedback`, noi 2 nut co san trong `js/chatbot.js` + form + `turn_id` client, `scripts/read-feedback.js` de admin doc bao cao theo ngay. Luu RTDB `chat_feedback/<date_key>`, sanitize PII, TTL 90 ngay. `npm test` 144/144. Chi tiet: `03-decisions.md` (2026-07-10) va `06-ai-working-log.md`. Ton dong (tuy chon): (1) neu muon dashboard/query manh hon co the chuyen luu sang Firestore collection thay RTDB; (2) neu muon thong bao tuc thoi co the them webhook email/Telegram.
 - [2026-07-10] Fix catalog guide rong + dong bo `npm run gen:catalog`: generator mac dinh sinh catalog day du co guide, nhung bo guide khong co noi dung wiki va khong suy phi tu tieu de. Snapshot con 92 muc (35 tthc + 57 guide co noi dung), van du 17 linh vuc. `npm test` 121/121.
 - [2026-07-10] Dao Huong 1: catalog commit gom ca guide = 137 muc (35 tthc + 102 guide), phu du 17 linh vuc. Them bo loc `INTERNAL_GUIDE_TITLE_PATTERN` loai 8 muc noi dung noi bo chatbot. `npm test` 119/119, build sach. Ton dong: guide `procedure_id=guide:*` chua direct-link tu nut doi sanh trong chat.
 - [2026-07-09] Hoan thien Goi A cho catalog TTHC: preview server tra MIME JSON, architecture/decision/current-tasks ghi nhan luong catalog tinh va backlog backfill.

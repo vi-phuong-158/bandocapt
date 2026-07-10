@@ -620,6 +620,101 @@
     background: var(--emerald-50);
 }
 
+/* Form báo cáo câu trả lời (hiện khi bấm 👎) */
+.ai-chat-feedback-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px;
+    border: 1px solid var(--slate-200);
+    border-radius: 10px;
+    background: var(--surface-muted);
+}
+
+.ai-chat-feedback-title {
+    margin: 0;
+    color: var(--slate-800);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+}
+
+.ai-chat-feedback-select,
+.ai-chat-feedback-textarea,
+.ai-chat-feedback-contact {
+    width: 100%;
+    padding: 7px 9px;
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius-sm);
+    background: var(--surface, #fff);
+    color: var(--slate-800);
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+}
+
+.ai-chat-feedback-textarea {
+    resize: vertical;
+    min-height: 44px;
+}
+
+.ai-chat-feedback-select:focus-visible,
+.ai-chat-feedback-textarea:focus-visible,
+.ai-chat-feedback-contact:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 1px;
+}
+
+.ai-chat-feedback-form-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.ai-chat-feedback-submit {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 6px 14px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: var(--color-primary);
+    color: #fff;
+    font-family: var(--font-display);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    cursor: pointer;
+}
+
+.ai-chat-feedback-submit:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.ai-chat-feedback-skip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 0;
+    border-radius: var(--radius-pill);
+    background: transparent;
+    color: var(--text-muted);
+    font-family: var(--font-display);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    cursor: pointer;
+}
+
+.ai-chat-feedback-skip:hover {
+    background: var(--slate-100);
+}
+
+.ai-chat-feedback-status {
+    margin: 9px 0 0;
+    color: var(--color-primary);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+}
+
 .ai-chat-sources {
     display: flex;
     flex-wrap: wrap;

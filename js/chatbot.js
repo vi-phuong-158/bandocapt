@@ -24,8 +24,34 @@ const CHATBOT_TEXT = {
     typing: 'Đang suy nghĩ...',
     copied: 'Đã chép',
     copy: 'Sao chép',
-    interrupted: 'Phản hồi bị gián đoạn trước khi hoàn tất. Nội dung phía trên có thể chưa đầy đủ.'
+    interrupted: 'Phản hồi bị gián đoạn trước khi hoàn tất. Nội dung phía trên có thể chưa đầy đủ.',
+    feedbackGood: 'Phản hồi hữu ích',
+    feedbackBad: 'Báo cáo câu trả lời',
+    feedbackThanks: 'Cảm ơn phản hồi của bạn!',
+    feedbackError: 'Không gửi được phản hồi. Vui lòng thử lại.',
+    reportTitle: 'Báo cáo câu trả lời này có vấn đề gì?',
+    reportCategoryLabel: 'Loại vấn đề',
+    reportCommentPlaceholder: 'Mô tả chi tiết (không bắt buộc)…',
+    reportContactPlaceholder: 'Email/SĐT để phản hồi lại (không bắt buộc)',
+    reportSubmit: 'Gửi báo cáo',
+    reportSkip: 'Bỏ qua'
 };
+
+// Giá trị khớp VALID_CATEGORIES trong api/feedback.js — đổi ở đây phải đổi đồng bộ bên server.
+const FEEDBACK_CATEGORIES = [
+    { value: 'sai_thong_tin', label: 'Sai thông tin' },
+    { value: 'thieu_thong_tin', label: 'Thiếu thông tin' },
+    { value: 'khong_lien_quan', label: 'Không liên quan' },
+    { value: 'ngon_tu', label: 'Ngôn từ không phù hợp' },
+    { value: 'khac', label: 'Khác' }
+];
+
+let feedbackTurnCounter = 0;
+function newTurnId() {
+    feedbackTurnCounter += 1;
+    const rand = Math.random().toString(36).slice(2, 8);
+    return `t_${Date.now()}_${feedbackTurnCounter}_${rand}`;
+}
 
 const CHATBOT_ERROR_MESSAGES = {
     NO_KEY: 'Chưa có API Key. Vui lòng cấu hình GEMINI_API_KEY trên server.',
@@ -205,7 +231,105 @@ function appendAssistantShell() {
     return { row, bubble, content };
 }
 
-function appendActionBar(bubble, answerText) {
+// Gửi 1 phản hồi cho lượt trả lời (turnMeta) kèm dữ liệu bổ sung (rating, category, comment, contact).
+// Best-effort: hiện lời cảm ơn khi thành công, hiện lỗi nếu gửi hỏng.
+async function submitFeedback(bubble, turnMeta, extra) {
+    if (!window.GeminiAI?.sendFeedback) return;
+    const payload = {
+        turn_id: turnMeta.turnId,
+        question: turnMeta.question,
+        answer: turnMeta.answer,
+        sources: turnMeta.sources,
+        ...extra
+    };
+    const result = await window.GeminiAI.sendFeedback(payload);
+    showFeedbackResult(bubble, result?.ok !== false);
+}
+
+function showFeedbackResult(bubble, ok) {
+    bubble.querySelector('.ai-chat-feedback-form')?.remove();
+    const existing = bubble.querySelector('.ai-chat-feedback-status');
+    const status = existing || document.createElement('p');
+    status.className = 'ai-chat-feedback-status';
+    status.textContent = ok ? CHATBOT_TEXT.feedbackThanks : CHATBOT_TEXT.feedbackError;
+    if (!existing) bubble.appendChild(status);
+}
+
+// Form báo cáo chi tiết khi người dùng bấm 👎: chọn loại vấn đề + mô tả + liên hệ (tùy chọn).
+function openReportForm(bubble, turnMeta) {
+    if (bubble.querySelector('.ai-chat-feedback-form')) return;
+
+    const form = document.createElement('form');
+    form.className = 'ai-chat-feedback-form';
+
+    const title = document.createElement('p');
+    title.className = 'ai-chat-feedback-title';
+    title.textContent = CHATBOT_TEXT.reportTitle;
+
+    const select = document.createElement('select');
+    select.className = 'ai-chat-feedback-select';
+    select.setAttribute('aria-label', CHATBOT_TEXT.reportCategoryLabel);
+    FEEDBACK_CATEGORIES.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.value;
+        opt.textContent = cat.label;
+        select.appendChild(opt);
+    });
+
+    const comment = document.createElement('textarea');
+    comment.className = 'ai-chat-feedback-textarea';
+    comment.rows = 2;
+    comment.maxLength = 1000;
+    comment.placeholder = CHATBOT_TEXT.reportCommentPlaceholder;
+
+    const contact = document.createElement('input');
+    contact.type = 'text';
+    contact.className = 'ai-chat-feedback-contact';
+    contact.maxLength = 200;
+    contact.placeholder = CHATBOT_TEXT.reportContactPlaceholder;
+
+    const actions = document.createElement('div');
+    actions.className = 'ai-chat-feedback-form-actions';
+
+    const submitBtn = document.createElement('button');
+    submitBtn.type = 'submit';
+    submitBtn.className = 'ai-chat-feedback-submit';
+    submitBtn.textContent = CHATBOT_TEXT.reportSubmit;
+
+    const skipBtn = document.createElement('button');
+    skipBtn.type = 'button';
+    skipBtn.className = 'ai-chat-feedback-skip';
+    skipBtn.textContent = CHATBOT_TEXT.reportSkip;
+
+    actions.append(submitBtn, skipBtn);
+    form.append(title, select, comment, contact, actions);
+    bubble.appendChild(form);
+    scrollChatToBottom();
+
+    form.addEventListener('submit', event => {
+        event.preventDefault();
+        submitBtn.disabled = true;
+        skipBtn.disabled = true;
+        submitFeedback(bubble, turnMeta, {
+            rating: 'down',
+            category: select.value,
+            comment: comment.value.trim(),
+            contact: contact.value.trim()
+        });
+    });
+
+    // Bỏ qua chi tiết nhưng vẫn ghi nhận 1 phiếu 👎 để không mất tín hiệu tiêu cực.
+    skipBtn.addEventListener('click', () => {
+        submitBtn.disabled = true;
+        skipBtn.disabled = true;
+        submitFeedback(bubble, turnMeta, { rating: 'down' });
+    });
+
+    setTimeout(() => select.focus(), 50);
+}
+
+function appendActionBar(bubble, turnMeta) {
+    const answerText = turnMeta.answer;
     const actionBar = document.createElement('div');
     actionBar.className = 'ai-chat-actions';
 
@@ -226,13 +350,13 @@ function appendActionBar(bubble, answerText) {
     const goodBtn = document.createElement('button');
     goodBtn.type = 'button';
     goodBtn.className = 'ai-chat-action-btn ai-chat-action-btn--icon';
-    goodBtn.setAttribute('aria-label', 'Phản hồi hữu ích');
+    goodBtn.setAttribute('aria-label', CHATBOT_TEXT.feedbackGood);
     goodBtn.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">thumb_up</span>';
 
     const badBtn = document.createElement('button');
     badBtn.type = 'button';
     badBtn.className = 'ai-chat-action-btn ai-chat-action-btn--icon';
-    badBtn.setAttribute('aria-label', 'Phản hồi chưa hữu ích');
+    badBtn.setAttribute('aria-label', CHATBOT_TEXT.feedbackBad);
     badBtn.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">thumb_down</span>';
 
     function lockFeedback(activeBtn) {
@@ -241,8 +365,14 @@ function appendActionBar(bubble, answerText) {
         activeBtn.classList.add('is-selected');
     }
 
-    goodBtn.addEventListener('click', () => lockFeedback(goodBtn));
-    badBtn.addEventListener('click', () => lockFeedback(badBtn));
+    goodBtn.addEventListener('click', () => {
+        lockFeedback(goodBtn);
+        submitFeedback(bubble, turnMeta, { rating: 'up' });
+    });
+    badBtn.addEventListener('click', () => {
+        lockFeedback(badBtn);
+        openReportForm(bubble, turnMeta);
+    });
 
     actionBar.append(copyBtn, goodBtn, badBtn);
     bubble.appendChild(actionBar);
@@ -495,9 +625,15 @@ async function handleChatSend() {
 
         if (result.ok) {
             chatHistory = result.history || chatHistory;
-            renderMarkdown(result.fullText || rawText, content);
+            const answerText = result.fullText || rawText;
+            renderMarkdown(answerText, content);
             applyProgressiveDisclosure(content);
-            appendActionBar(bubble, result.fullText || rawText);
+            appendActionBar(bubble, {
+                turnId: newTurnId(),
+                question: text,
+                answer: answerText,
+                sources: result.sources
+            });
             appendSources(bubble, result.sources);
             appendQuickReplies(row, result.fullText || rawText);
         } else {
