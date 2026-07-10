@@ -817,7 +817,7 @@
 
 ## [2026-07-11] Them cau tra loi chatbot vao Telegram feedback alert
 - **Agent:** Codex
-- **Thay doi:** Alert Telegram cho bao cao thumbs-down gio kem them truong `Cau tra loi chatbot`, ben canh cau hoi va mo ta; tach helper tao message va them test bao ve hanh vi nay.
-- **File da sua:** `api/feedback.js`, `test/feedback.test.js`, `docs/brain/06-ai-working-log.md`
-- **Ly do:** Admin can thay ngay cau tra loi bi bao cao trong Telegram, khong chi thay cau hoi/mo ta.
-- **Kiem tra:** `npm test -- test/feedback.test.js`; `npm run check:syntax`; `npm run build`.
+- **Thay doi:** Alert Telegram cho bao cao thumbs-down gio kem them truong `Cau tra loi chatbot`, ben canh cau hoi va mo ta; tach helper tao message va them test bao ve hanh vi nay. Tang timeout mac dinh cua Telegram alert len 8s de giam loi timeout khi Vercel goi Telegram cham.
+- **File da sua:** `api/chat.js`, `api/feedback.js`, `test/feedback.test.js`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Admin can thay ngay cau tra loi bi bao cao trong Telegram, khong chi thay cau hoi/mo ta; log production cho thay alert cu co the timeout sau 2.5s.
+- **Kiem tra:** `npm test -- test/feedback.test.js test/telegram-alert.test.js`; `npm run check:syntax`; `npm run build`.

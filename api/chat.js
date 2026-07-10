@@ -1002,7 +1002,7 @@ ${snippets}`;
 // TELEGRAM_CHAT_ID. Fire-and-forget, không bao giờ throw ra caller. Dùng cho
 // groundedness-fail và feedback 👎 để admin biết ngay khi bot có dấu hiệu sai.
 // =====================================================================
-async function sendTelegramAlert(text, fetchImpl = fetch, timeoutMs = 2500) {
+async function sendTelegramAlert(text, fetchImpl = fetch, timeoutMs = 8000) {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (!token || !chatId) return;
