@@ -813,3 +813,11 @@
 - **File da sua:** `index.html`, `vercel.json`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** PR #21 can doi base sang `main` va merge sach sau khi hai PR nen da vao production branch.
 - **Kiem tra:** Chay lai `npm test -- test/telegram-alert.test.js`, `npm run check:syntax`, `npm run build` sau khi resolve.
+---
+
+## [2026-07-11] Them cau tra loi chatbot vao Telegram feedback alert
+- **Agent:** Codex
+- **Thay doi:** Alert Telegram cho bao cao thumbs-down gio kem them truong `Cau tra loi chatbot`, ben canh cau hoi va mo ta; tach helper tao message va them test bao ve hanh vi nay.
+- **File da sua:** `api/feedback.js`, `test/feedback.test.js`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Admin can thay ngay cau tra loi bi bao cao trong Telegram, khong chi thay cau hoi/mo ta.
+- **Kiem tra:** `npm test -- test/feedback.test.js`; `npm run check:syntax`; `npm run build`.

@@ -8,6 +8,7 @@ const handler = require('../api/feedback');
 const {
     validateFeedbackBody,
     buildFeedbackRecord,
+    buildTelegramFeedbackAlert,
     sanitizeFeedbackSources,
     getVnDateKey,
 } = handler;
@@ -119,6 +120,20 @@ test('buildFeedbackRecord sets hashed ip, date_key and TTL', () => {
     assert.equal(record.rating, 'up');
     assert.match(record.ip_bucket_hash, /^[0-9a-f]{32}$/);
     assert.ok(record.expires_at > record.created_at);
+});
+
+test('buildTelegramFeedbackAlert includes chatbot answer', () => {
+    const alert = buildTelegramFeedbackAlert({
+        category: 'sai_thong_tin',
+        question: 'Hoi ve ho chieu?',
+        answer: 'Day la cau tra loi chatbot da tra ve.',
+        comment: 'Sai can sua',
+    });
+
+    assert.match(alert, /Bao cao chatbot moi \[sai_thong_tin\]/);
+    assert.match(alert, /Cau hoi: Hoi ve ho chieu\?/);
+    assert.match(alert, /Cau tra loi chatbot: Day la cau tra loi chatbot da tra ve\./);
+    assert.match(alert, /Mo ta: Sai can sua/);
 });
 
 test('getVnDateKey rolls to next day after 17:00 UTC', () => {

@@ -141,6 +141,22 @@ function buildFeedbackRecord(value, meta, now = new Date()) {
     };
 }
 
+function formatAlertField(value, fallback = '(khong kem)', maxLength = 1200) {
+    const text = String(value || '').trim();
+    if (!text) return fallback;
+    return text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+}
+
+function buildTelegramFeedbackAlert(value) {
+    const catLabel = value.category ? ` [${value.category}]` : '';
+    return [
+        `Bao cao chatbot moi${catLabel}`,
+        `Cau hoi: ${formatAlertField(value.question)}`,
+        `Cau tra loi chatbot: ${formatAlertField(value.answer)}`,
+        `Mo ta: ${formatAlertField(value.comment, '(khong co)')}`,
+    ].join('\n');
+}
+
 function getRtdbConfig() {
     const dbUrl = process.env.FIREBASE_DB_URL || '';
     if (!dbUrl) return null;
@@ -240,8 +256,7 @@ module.exports = async function handler(req, res) {
         }
         // P3.4: cảnh báo Telegram khi có báo cáo 👎 mới (opt-in; no-op nếu thiếu env).
         if (value.rating === 'down' && typeof sendTelegramAlert === 'function') {
-            const catLabel = value.category ? ` [${value.category}]` : '';
-            waitUntil(sendTelegramAlert(`👎 Báo cáo chatbot mới${catLabel}\nCâu hỏi: ${value.question || '(không kèm)'}\nMô tả: ${value.comment || '(không có)'}`));
+            waitUntil(sendTelegramAlert(buildTelegramFeedbackAlert(value)));
         }
     } else {
         // Chưa cấu hình FIREBASE_DB_URL (thường là local dev) — không lưu được nhưng không phá UX.
@@ -253,6 +268,7 @@ module.exports = async function handler(req, res) {
 
 module.exports.validateFeedbackBody = validateFeedbackBody;
 module.exports.buildFeedbackRecord = buildFeedbackRecord;
+module.exports.buildTelegramFeedbackAlert = buildTelegramFeedbackAlert;
 module.exports.sanitizeFeedbackSources = sanitizeFeedbackSources;
 module.exports.getVnDateKey = getVnDateKey;
 module.exports.VALID_CATEGORIES = VALID_CATEGORIES;
