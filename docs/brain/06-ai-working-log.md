@@ -789,3 +789,19 @@
 - **Ly do:** User yeu cau kiem tra tai sao GV02 hay loi trong 3 run truoc.
 - **Ket qua:** Xac dinh la bien thien sampling Gemini o temperature 0.2 ket hop chu de von dai (nhieu mau don/phi/buoc), khong lien quan cac thay doi retrieval Giai doan 2. Khong tai hien duoc BLOCKED_CONTENT de bat log category cu the — ghi nhan la ton dong uu tien thap, log chan doan da san sang cho lan sau.
 - **Kiem tra:** `npm test` 154/154, `node --check api/chat.js` OK.
+---
+
+## [2026-07-11] Fix review PR #20 exact-token va env local cho script
+- **Agent:** Codex
+- **Thay doi:** Chuan hoa exact-token theo dang khong dau de `QĐ/QD`, `NĐ/ND` khop nhau khi extract va khi so voi metadata; them test cho case user go `QĐ` nhung metadata luu `QD`. Hai script maintenance moi doc ca `.env` va `.env.local`, bo qua gia tri rong.
+- **File da sua:** `api/chat.js`, `test/exact-token-boost.test.js`, `setup/backfill-tthc-metadata.js`, `setup/reembed-corpus.js`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Review PR #20 phat hien boost bo sot so hieu van ban ASCII dang duoc repo hien thi (`5568/QD-BCA`) va script moi lech voi workflow env local cua du an.
+- **Kiem tra:** `npm test -- test/exact-token-boost.test.js`; `npm run check:syntax`.
+---
+
+## [2026-07-11] Fix review PR #21 Telegram alert khong chan feedback
+- **Agent:** Codex
+- **Thay doi:** Them timeout ngan cho `sendTelegramAlert`; doi luong feedback tu `await sendTelegramAlert` sang `waitUntil(sendTelegramAlert(...))` de tra response sau khi luu RTDB, khong doi nguoi dung cho Telegram. Bo sung test timeout cho Telegram helper.
+- **File da sua:** `api/chat.js`, `api/feedback.js`, `test/telegram-alert.test.js`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Sau khi bat Telegram bot, alert khong con la no-op; neu Telegram cham thi co the lam treo request feedback cua nguoi dung.
+- **Kiem tra:** `npm test -- test/telegram-alert.test.js`; `npm run check:syntax`.

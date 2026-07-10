@@ -43,3 +43,13 @@ test('sendTelegramAlert: nuốt lỗi fetch, không throw', async () => {
     delete process.env.TELEGRAM_BOT_TOKEN;
     delete process.env.TELEGRAM_CHAT_ID;
 });
+
+test('sendTelegramAlert: timeout fetch chậm và không throw', async () => {
+    process.env.TELEGRAM_BOT_TOKEN = 'T';
+    process.env.TELEGRAM_CHAT_ID = 'C';
+    await assert.doesNotReject(sendTelegramAlert('x', (url, opts) => new Promise((resolve, reject) => {
+        opts.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true });
+    }), 10));
+    delete process.env.TELEGRAM_BOT_TOKEN;
+    delete process.env.TELEGRAM_CHAT_ID;
+});

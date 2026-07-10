@@ -14,6 +14,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { waitUntil } = require('@vercel/functions');
 const {
     isAllowedOrigin,
     resolveClientIp,
@@ -240,7 +241,7 @@ module.exports = async function handler(req, res) {
         // P3.4: cảnh báo Telegram khi có báo cáo 👎 mới (opt-in; no-op nếu thiếu env).
         if (value.rating === 'down' && typeof sendTelegramAlert === 'function') {
             const catLabel = value.category ? ` [${value.category}]` : '';
-            await sendTelegramAlert(`👎 Báo cáo chatbot mới${catLabel}\nCâu hỏi: ${value.question || '(không kèm)'}\nMô tả: ${value.comment || '(không có)'}`);
+            waitUntil(sendTelegramAlert(`👎 Báo cáo chatbot mới${catLabel}\nCâu hỏi: ${value.question || '(không kèm)'}\nMô tả: ${value.comment || '(không có)'}`));
         }
     } else {
         // Chưa cấu hình FIREBASE_DB_URL (thường là local dev) — không lưu được nhưng không phá UX.
