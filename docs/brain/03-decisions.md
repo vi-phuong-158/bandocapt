@@ -14,6 +14,15 @@
 
 ---
 
+## [2026-07-10] Dieu tra GV02 flaky — ket luan: sampling variance o tang generation, khong phai RAG
+
+- **Phuong phap:** (1) Them log chan doan tam thoi (`finishReason`/`promptFeedback`/`safetyRatings` cua Gemini) vao nhanh `BLOCKED_CONTENT` trong `api/chat.js`. (2) Chay GV02 don le 10 lan lien tiep — **10/10 THANH CONG**, dai 137-350 tu (khong bi chan, khong cham tran). (3) Chay full 30-cau them 2 lan nua — 1 lan sach hoan toan (0 FAIL/TRUNCATED/ERROR), 1 lan GV02 tiep tuc TRUNCATED. Tong cong da chay 4 lan full 30-cau: 2 lan co loi GV02, 1 lan GV02 truncated, 1 lan sach 100%. Khong lan nao trong toan bo dieu tra bat duoc dong log `BLOCKED_CONTENT` moi (khong xay ra them trong cac lan sau khi bat log).
+- **Ket luan:** GV02 ("Toi la nguoi Trung Quoc visa DN sap het han, can chuan bi gi?") da duoc xep dung ngan sach FULL (250 tu, KHONG phai loi phan loai NARROW/FULL) nhung chu de nay von can tra loi dai (nhieu mau don NA6/NA8, nhieu muc phi, nhieu buoc) — sinh ra 137-350 tu tuy lan, thinh thoang vuot ca 250 va cham tran cung 3072 token. Day la **bien thien sampling tu nhien cua Gemini o `temperature: 0.2`** (khong doi trong Giai doan 2/3) ket hop voi chu de von dai, KHONG phai do exact-token-boost/query-rewrite/doi model tien ich (GV02 khong co ma mau/so hieu van ban nen exact-token-boost khong kich hoat; khong co history nen query-rewrite khong chay; model tien ich chi dung cho rerank/groundedness/summary, khong dung cho generation chinh). `BLOCKED_CONTENT` (Gemini tu chan, tra candidate rong) la hien tuong xac suat thap, co the lien quan classifier an toan nhay cam voi cum "nguoi Trung Quoc" + tinh trang cu tru/visa, nhung KHONG tai hien duoc de bat log chan doan xac nhan category cu the.
+- **Quyet dinh:** Giu log chan doan (`api/chat.js`, doi tu "TEMP DEBUG" thanh comment vinh vien P3.5) de lan sau xay ra that trong production co the doc duoc finishReason/safetyRatings tu Vercel logs. KHONG doi threshold safety hay them retry-on-block ngay (can quyet dinh rieng, anh huong toan bo generation). TRUNCATED da duoc xu ly dung thiet ke (lui ranh gioi cau + notice) — chap nhan duoc, khong phai rui ro du lieu. Xoa cac bao cao regression 1-cau phat sinh trong luc dieu tra (khong phai bang chung chinh thuc), giu lai 1 full-run sach moi lam bang chung bo sung.
+- **Nguoi quyet dinh:** user (yeu cau dieu tra) / Claude Code (Fable 5)
+
+---
+
 ## [2026-07-10] Giai doan 3 UX + khep vong chat luong (SSE status, starter chips, guide deep-link, Telegram alert)
 
 - **Quyet dinh:**

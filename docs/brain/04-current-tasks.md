@@ -8,11 +8,11 @@
 
 *(Không có)*
 
-### TASK-GV02-FLAKY: Điều tra câu hỏi GV02 hay lỗi ở tầng generation/safety
-- **Mô tả:** 3 run regression 2026-07-10 đều vướng đúng câu GV02 ("Tôi là người Trung Quốc visa DN sắp hết hạn, cần chuẩn bị gì?") — 2/3 lần bị Gemini tự chặn `BLOCKED_CONTENT`, 1/3 lần chạm trần token (xử lý đúng thiết kế, có notice). Không liên quan retrieval — cần xem có phải safety threshold `BLOCK_ONLY_HIGH` nhạy cảm với cụm "người Trung Quốc" + "visa", hoặc do prompt yêu cầu trả quá chi tiết khiến dễ chạm 3072 token.
-- **Liên quan:** `api/chat.js` (`safetySettings`, `maxOutputTokens`, `SYSTEM_PROMPT_BASE`)
-- **Ưu tiên:** Trung bình — chưa xác nhận hallucination, nhưng ảnh hưởng trải nghiệm (bot không trả lời được câu hợp lệ).
-- **Kiểm tra:** Chạy riêng `node scripts/run-regression.js --ids GV02` nhiều lần để đo tần suất; nếu do safety, cân nhắc hạ mức nhạy cảm hoặc thêm retry đổi wording; nếu do độ dài, cân nhắc rút gọn nhánh trả lời visa DN.
+### [ĐIỀU TRA XONG — TASK-GV02-FLAKY] Vì sao GV02 hay lỗi
+- **Kết quả điều tra (2026-07-10):** Chạy GV02 đơn lẻ 10 lần liên tiếp → **10/10 thành công** (137-350 từ). Chạy thêm 2 lần full 30-câu → 1 lần sạch 100%, 1 lần GV02 TRUNCATED. Không bắt được thêm lần `BLOCKED_CONTENT` nào dù đã bật log chẩn đoán (`finishReason`/`promptFeedback`/`safetyRatings`).
+- **Kết luận:** GV02 đã được xếp đúng ngân sách FULL (250 từ, không phải lỗi phân loại) nhưng chủ đề vốn dài (nhiều mẫu đơn/phí/bước) nên thỉnh thoảng vượt 250 từ và chạm trần cứng 3072 token. Đây là **biến thiên sampling tự nhiên của Gemini ở `temperature: 0.2`** (không đổi trong Giai đoạn 2/3) kết hợp chủ đề dài — KHÔNG liên quan exact-token-boost/query-rewrite/đổi model tiện ích (GV02 không có mã mẫu/số hiệu văn bản nên boost không kích hoạt; không có history nên query-rewrite không chạy). `BLOCKED_CONTENT` là hiện tượng xác suất thấp, nghi liên quan safety classifier nhạy cảm với cụm "người Trung Quốc" + tình trạng cư trú/visa, nhưng không tái hiện được để xác nhận category cụ thể. Chi tiết: `03-decisions.md` (2026-07-10, "Điều tra GV02 flaky").
+- **Đã làm:** Giữ lại log chẩn đoán vĩnh viễn trong `api/chat.js` (nhánh `BLOCKED_CONTENT`) để lần sau xảy ra thật trong production có thể đọc được lý do từ Vercel logs.
+- **Còn mở (tuỳ chọn, ưu tiên thấp):** Nếu muốn giảm rủi ro `BLOCKED_CONTENT` gây mất câu trả lời hợp lệ, cân nhắc thêm retry-on-block (đổi nhẹ wording hoặc fallback DeepSeek) — đây là thay đổi hành vi generation cần quyết định riêng, chưa làm.
 
 ## Đã hoàn thành gần đây (bổ sung)
 

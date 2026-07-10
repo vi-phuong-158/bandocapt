@@ -779,3 +779,13 @@
 - **File da sua:** `test/results/regression-run-2026-07-10_15-47-25.md`, `test/results/regression-run-2026-07-10_15-54-53.md`, `test/results/regression-run-2026-07-10_16-02-57.md`, `test/results/regression-latest.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** User yeu cau chay regression de kiem chung thay doi Giai doan 2 (retrieval) khong gay hoi quy.
 - **Kiem tra:** 3/3 run hoan tat, khong Tier-1 hallucination xac nhan; them TASK-GV02-FLAKY vao backlog de dieu tra rieng cau hoi hay loi.
+
+---
+
+## [2026-07-10] Dieu tra nguyen nhan GV02 flaky
+- **Agent:** Claude Code (Fable 5)
+- **Thay doi:** Them log chan doan `finishReason`/`promptFeedback`/`safetyRatings` vao nhanh `BLOCKED_CONTENT` trong `api/chat.js` (P3.5, giu vinh vien, khong log noi dung cau hoi/PII). Chay GV02 don le 10 lan (10/10 thanh cong) + 1 lan full 30-cau them (sach 100%) de xac dinh nguyen nhan.
+- **File da sua:** `api/chat.js`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`, `test/results/` (them 1 full-run sach, xoa cac bao cao 1-cau phat sinh khi dieu tra)
+- **Ly do:** User yeu cau kiem tra tai sao GV02 hay loi trong 3 run truoc.
+- **Ket qua:** Xac dinh la bien thien sampling Gemini o temperature 0.2 ket hop chu de von dai (nhieu mau don/phi/buoc), khong lien quan cac thay doi retrieval Giai doan 2. Khong tai hien duoc BLOCKED_CONTENT de bat log category cu the — ghi nhan la ton dong uu tien thap, log chan doan da san sang cho lan sau.
+- **Kiem tra:** `npm test` 154/154, `node --check api/chat.js` OK.
