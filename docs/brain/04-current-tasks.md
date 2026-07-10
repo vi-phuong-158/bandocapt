@@ -95,3 +95,17 @@ _(trống)_
 - [2025] Chuyển logic Google Sheet sang Vercel Serverless để ẩn Sheet ID
 - [2025] Implement RAG + Pinecone + Gemini Embedding
 - [2025] Bảo mật: CORS whitelist, HMAC signing, Turnstile CAPTCHA, prompt injection detection
+---
+
+## Cap nhat bo sung 2026-07-09
+
+### TASK-TTHC-CATALOG-01: Backfill 4 thu tuc thieu toan van vao backup (chi anh huong mode backup)
+- **Mo ta:** O mode live (mac dinh khi co key) ca 4 id (`5568-tinh-04`, `5568-tinh-05`, `5568-tw-08`, `5568-tw-10`) da co day du, `missingFromBackups` rong. Task nay chi con lien quan khi chay offline `--source=backups`: backup repo van thieu toan van 4 id nay nen catalog offline se hep hon live. Bo sung backup neu muon snapshot offline day du.
+- **Lien quan:** `scripts/generate-tthc-catalog.js`, `data/tthc-catalog.json`, `data/pinecone-backups/`
+- **Uu tien:** Trung binh
+- **Kiem tra:** `npm run gen:catalog`; `npm test`; xac nhan `missingFromBackups` giam khi bo sung backup va catalog van build duoc o mode backup.
+
+### Hoan thanh gan day
+- [2026-07-09] Hoan thien Goi A cho catalog TTHC: preview server tra MIME JSON, architecture/decision/current-tasks ghi nhan luong catalog tinh va backlog backfill.
+- [2026-07-09] Mo rong generator catalog sang Pinecone live + group `guide_*`: danh muc preview hien 149 thu tuc, co them cu tru, can cuoc, dang ky xe, nganh nghe ANTT.
+- [2026-07-09] Huong 1: loc catalog ve CHI thu tuc that (`source_type='tthc'`), guide thanh opt-in `--include-guides`; them dedupe title+cap; fix `missingFromBackups` (rong o live mode). `data/tthc-catalog.json` = 35 thu tuc that, khong con lo noi dung noi bo chatbot.

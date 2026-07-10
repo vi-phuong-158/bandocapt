@@ -286,10 +286,49 @@
         </div>
     </div>
 
+    <!-- DANH MỤC THỦ TỤC HÀNH CHÍNH (đối chiếu câu trả lời AI) -->
+    <div id="tthc-catalog-launcher">
+        <button id="tthc-catalog-toggle-btn" aria-label="Mở danh mục thủ tục hành chính" aria-expanded="false" aria-controls="tthc-catalog-window">
+            <span class="material-symbols-outlined" aria-hidden="true">menu_book</span>
+            <span class="tthc-launcher-text">Danh mục thủ tục</span>
+        </button>
+    </div>
+
+    <div id="tthc-catalog-window" class="tthc-catalog-window--hidden" role="dialog" aria-labelledby="tthc-catalog-title" aria-modal="false" aria-hidden="true">
+        <div class="tthc-catalog-header">
+            <button id="tthc-catalog-back-btn" class="tthc-catalog-back" type="button" aria-label="Quay lại danh sách" hidden>
+                <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+            </button>
+            <div class="tthc-catalog-header-text">
+                <div id="tthc-catalog-title" class="tthc-catalog-title">Danh mục thủ tục hành chính</div>
+                <p class="tthc-catalog-subtitle">Thủ tục trong kho tri thức để đối chiếu câu trả lời AI</p>
+            </div>
+            <button id="tthc-catalog-close-btn" type="button" aria-label="Đóng danh mục">
+                <span class="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
+        </div>
+
+        <div id="tthc-catalog-list-view">
+            <div id="tthc-catalog-controls">
+                <label for="tthc-catalog-search" class="sr-only">Tìm theo tên thủ tục</label>
+                <div class="tthc-catalog-search-wrap">
+                    <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                    <input type="search" id="tthc-catalog-search" placeholder="Tìm tên thủ tục..." autocomplete="off">
+                </div>
+                <div id="tthc-catalog-chips" role="tablist" aria-label="Lọc theo lĩnh vực"></div>
+            </div>
+            <div id="tthc-catalog-status" hidden></div>
+            <ul id="tthc-catalog-list" class="result-list" aria-label="Danh sách thủ tục hành chính"></ul>
+        </div>
+
+        <div id="tthc-catalog-detail-view" hidden></div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js" integrity="sha384-H+hy9ULve6xfxRkWIh/YOtvDdpXgV2fmAGQkIDTxIgZwNoaoBal14Di2YTMR6MzR" crossorigin="anonymous" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.7/purify.min.js" integrity="sha384-6gdBb4YMPz19eGx6Wf1vmT47Jh7wZArqJc84JuA3BRnoZQwt/X5qLfIip51LgpB/" crossorigin="anonymous" defer></script>
     <script src="js/gemini.js" defer></script>
     <script src="js/chatbot.js" defer></script>
+    <script src="js/tthc-catalog.js" defer></script>
     <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onTurnstileLoad" defer></script>
 
 </body>
