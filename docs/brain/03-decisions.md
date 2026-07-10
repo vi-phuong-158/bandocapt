@@ -5,6 +5,18 @@
 
 ---
 
+## [2026-07-10] Giai doan 2 nang cap do chinh xac retrieval (exact-token boost, query rewrite, model tien ich, taskType gated)
+
+- **Quyet dinh:**
+  1. **Exact-token boost** (`api/chat.js` `extractExactTokens`/`boostExactTokenMatches`): cau hoi chua ma mau don (NA17, TT01) hoac so hieu van ban (5568/QD-BCA, 47/2014) thi don match co token khop NGUYEN VAN len dau TRUOC buoc loc nguong 0.62, va cuu match duoi nguong neu score >= san mem 0.45 (`EXACT_TOKEN_RESCUE_FLOOR`). Rerank sau do van la cong chat luong cuoi. Ly do: bao cao P0.5 ghi nhan bien thien retrieval giua cac lan chay lam bo sot dung van ban nguoi dung goi ten; vector search lam mo token chinh xac.
+  2. **Query rewrite follow-up** (`rewriteFollowUpQuery`): cau follow-up ngan (<8 tu) duoc viet lai thanh cau doc lap bang model tien ich (temp 0, 64 token, timeout 2s) truoc khi embed; loi/timeout → fallback heuristic BOT-04 cu (noi keyword tho). Do qua `stageTimings.query_rewrite_ms`.
+  3. **Model tien ich → gemini-2.5-flash-lite** (`GEMINI_RERANK_URL`, dung chung cho rerank + groundedness nen + tom tat lich su): the he moi hon 2.0-flash, re/nhanh, du cho tac vu xep hang/tom tat. Generation chinh GIU nguyen gemini-2.5-flash.
+  4. **taskType embedding bat doi xung — GATED** (`EMBED_TASK_TYPE`): query-side chi them `taskType` khi env `EMBED_TASK_TYPE` duoc dat; mac dinh khong dat → giu hanh vi cu. Phai kich hoat DONG BO voi re-embed corpus (`RETRIEVAL_DOCUMENT`) sang namespace moi, neu khong query va corpus lech khong gian embedding lam GIAM chat luong. Script `setup/reembed-corpus.js` (mac dinh dry-run) va `setup/backfill-tthc-metadata.js` (mac dinh draft) chi ghi Pinecone khi truyen `--apply`.
+- **Danh doi:** (1) Boost co the keo 1 doc duoi nguong vao prompt khi nguoi dung goi dung so hieu — chap nhan vi do la doc lien quan nhat, va san mem 0.45 chan nhieu thuan; (2) Query rewrite them 1 call LLM trong hot path cho cau ngan (timeout 2s bao ve, fallback an toan); (3) Doi model rerank/tom tat co the doi thu tu doc → CAN chay lai 3 run regression truoc khi coi la baseline moi (chua chay het trong dot nay, moi smoke 1 cau TR03 PASS). taskType chua kich hoat cho toi khi corpus duoc re-embed.
+- **Nguoi quyet dinh:** user / Claude Code (Fable 5)
+
+---
+
 ## [2026-07-10] Tinh nang Bao cao Chatbot: endpoint feedback rieng, luu RTDB, turn_id phia client
 
 - **Quyet dinh:** Them `api/feedback.js` rieng thay vi nhet vao `api/chat.js`. Endpoint tai dung nguyen 4 helper cua chat qua require cheo (`isAllowedOrigin`, `resolveClientIp`, `verifyRequestSignature`, `sanitizeDiagnosticText`) de HMAC khong bao gio lech pha giua client/server. (1) **Luu tru = RTDB** `chat_feedback/<date_key>` (khong dung firebase-admin/Firestore) — 1 fetch REST, cung ha tang telemetry fallback, `scripts/read-feedback.js` doc lai. (2) **`turn_id` sinh phia CLIENT** (`js/chatbot.js`) — de KHONG phai sua 5 diem phat event `done` trong `api/chat.js` (thay doi phau thuat). Bao cao dinh kem san cau hoi + cau tra loi + sources nen khong can doi soat voi telemetry server. (3) **Nut 👍/👎 co san** (truoc chi `lockFeedback` tai cho) duoc noi vao: 👍 gui vote ngay, 👎 mo form (5 loai van de + mo ta + lien he), "Bo qua" van ghi 1 phieu 👎. (4) **Rate limit best-effort** IP/ngay tren RTDB (khong atomic nhu quota chat ton phi LLM) — chi chan spam, fail-open khi loi doc.

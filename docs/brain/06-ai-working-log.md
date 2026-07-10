@@ -755,9 +755,27 @@
 
 ---
 
-## [2026-07-10] Giai doan 1 nang cap hieu nang: defer script ban do + cache-control static
+## [2026-07-10] Giai doan 2 nang cap do chinh xac retrieval (code + script backfill/re-embed)
 - **Agent:** Claude Code (Fable 5)
-- **Thay doi:** (1) Them `defer` cho 4 the script ban do trong `index.html` (`leaflet.js`, `data.js`, `js/location-data.js`, `app.js`) — truoc day chan parse phan HTML chat/catalog nam duoi (dong 222-325). Defer giu nguyen thu tu thuc thi; `app.js` chi truy cap DOM/goi `fetchHeadquarters()` sau khi parse nen an toan. (2) Them 3 route `Cache-Control: public, max-age=3600, stale-while-revalidate=86400` cho `/assets/(.*)`, `/data/(.*)`, va `output.css|styles.css|tokens.css|logo.png` trong `vercel.json` — khong dung key voi catch-all CSP. Khong dung `/api/*` (giu no-store).
+- **Thay doi:** (1) Them `extractExactTokens`/`boostExactTokenMatches` + tich hop vao pipeline RAG: don match khop ma mau/so hieu van ban len dau truoc loc nguong 0.62, cuu match >= san mem 0.45. (2) Them `rewriteFollowUpQuery`: viet lai cau follow-up ngan bang model tien ich, fallback heuristic BOT-04 cu; do `query_rewrite_ms`. (3) `GEMINI_RERANK_URL` doi tu gemini-2.0-flash → gemini-2.5-flash-lite (rerank + groundedness + tom tat lich su). (4) Embed query-side them `taskType` gated qua env `EMBED_TASK_TYPE` (mac dinh khong bat). (5) Script `setup/backfill-tthc-metadata.js` (draft CSV → --apply upsert metadata thoi_han/mau_don) va `setup/reembed-corpus.js` (dry-run → --apply re-embed RETRIEVAL_DOCUMENT sang namespace moi) — ca hai mac dinh khong ghi Pinecone.
+- **File da sua:** `api/chat.js`, `setup/backfill-tthc-metadata.js` (moi), `setup/reembed-corpus.js` (moi), `test/exact-token-boost.test.js` (moi), `package.json` (check:syntax), `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Diet nguon sai so chinh (bien thien retrieval, token chinh xac bi lam mo) va chuan bi ha tang cho embedding bat doi xung + backfill facts thoi_han/mau_don da ghi trong TASK-P0-04-EXT.
+- **Kiem tra:** `npm test` 151/151 pass (them 7 test exact-token boost); `npm run build` sach; `node --check` ca 2 script moi OK; smoke `node scripts/run-regression.js --ids TR03` PASS (top-1 0.776, 205 tu), da khoi phuc regression-latest.md. **Con lai (user step):** chay 3 run regression 30 cau sach truoc khi cong bo baseline; chay `setup/backfill-tthc-metadata.js` + `setup/reembed-corpus.js` voi key va duyet CSV de kich hoat taskType.
+
+---
+
+## [2026-07-11] Fix review PR #20 exact-token va env local cho script
+- **Agent:** Codex
+- **Thay doi:** Chuan hoa exact-token theo dang khong dau de `QĐ/QD`, `NĐ/ND` khop nhau khi extract va khi so voi metadata; them test cho case user go `QĐ` nhung metadata luu `QD`. Hai script maintenance moi doc ca `.env` va `.env.local`, bo qua gia tri rong.
+- **File da sua:** `api/chat.js`, `test/exact-token-boost.test.js`, `setup/backfill-tthc-metadata.js`, `setup/reembed-corpus.js`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Review PR #20 phat hien boost bo sot so hieu van ban ASCII dang duoc repo hien thi (`5568/QD-BCA`) va script moi lech voi workflow env local cua du an.
+- **Kiem tra:** `npm test -- test/exact-token-boost.test.js`; `npm run check:syntax`.
+
+---
+
+## [2026-07-11] Merge PR #19 performance quick wins vao nen PR #20
+- **Agent:** Codex
+- **Thay doi:** Cap nhat nhanh `feat/rag-accuracy` theo `main` sau khi PR #19 merge; giu thay doi defer script ban do va cache-control static asset tu `index.html`/`vercel.json`.
 - **File da sua:** `index.html`, `vercel.json`, `docs/brain/06-ai-working-log.md`
-- **Ly do:** Quick-win hieu nang khong dung retrieval/prompt: giam thoi gian parse HTML (FCP) va bo round-trip revalidate cho static asset khi vao lai trang.
-- **Kiem tra:** `node -e` parse `vercel.json` hop le; `npm run build` (13 files dist, css minify + syntax check pass); `npm test` 144/144 pass. Cong FCP/Lighthouse do tren preview deploy.
+- **Ly do:** PR #20 can rebase/merge voi `main` moi de het conflict truoc khi merge.
+- **Kiem tra:** Chay lai `npm test -- test/exact-token-boost.test.js`, `npm run check:syntax`, `npm run build` sau khi resolve.
