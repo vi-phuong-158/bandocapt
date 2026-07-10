@@ -159,3 +159,19 @@ npx vercel --prod
   `FIREBASE_DB_URL`/`FIREBASE_DB_SECRET` để xóa bản ghi hết hạn ở `chat_logs_metrics` và `chat_logs_diagnostic`.
 - **System prompt:** hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`). Đổi prompt phải sửa code
   và redeploy — không còn cập nhật nóng qua Edge Config.
+
+## Khép vòng feedback → eval (P3.4, hàng tuần)
+
+Người dùng bấm 👎 / gửi báo cáo → lưu RTDB `chat_feedback/<date_key>` (kèm câu hỏi, câu trả lời, sources).
+Quy trình soát định kỳ để biến báo cáo thật thành ca regression:
+
+1. Chạy `node scripts/read-feedback.js --down` (môi trường có `FIREBASE_DB_URL`/`FIREBASE_DB_SECRET`)
+   để in các báo cáo 👎 theo ngày.
+2. Chọn các ca **sai thật** (không phải hiểu nhầm), thêm câu hỏi + kỳ vọng vào bộ
+   `test/cau-hoi/bo-test-regression-30-cau-nguoi-nuoc-ngoai-tthc.md` (tăng 30 → 35, 40… câu).
+3. Chạy lại regression để xác nhận đã vá và không hồi quy.
+
+**Cảnh báo Telegram (opt-in):** đặt `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` trên Vercel để nhận
+cảnh báo tức thời khi (a) groundedness check phát hiện số liệu không khớp nguồn, (b) có báo cáo 👎 mới.
+Thiếu 2 env này thì tính năng no-op (không ảnh hưởng gì). Tạo bot qua @BotFather, lấy chat_id qua
+@userinfobot hoặc getUpdates.

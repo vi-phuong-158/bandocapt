@@ -174,6 +174,7 @@ Headers bat buoc:
 
 SSE response events:
 
+- `{ "status": "generating" }` (P3.1: phát 1 lần sau khâu truy hồi, trước token đầu — client đổi nhãn typing "Đang tra cứu…" → "Đang soạn trả lời…"; client cũ bỏ qua an toàn)
 - `{ "text": "chunk" }`
 - `{ "done": true, "fullText": "...", "history": [...], "sources": [...] }`
 - `{ "error": "..." }`
@@ -240,7 +241,15 @@ RATE_LIMIT_MONTHLY
 RATE_LIMIT_DAILY_IP
 FEEDBACK_DAILY_IP_LIMIT
 FEEDBACK_RETENTION_DAYS
+EMBED_TASK_TYPE
+TELEGRAM_BOT_TOKEN
+TELEGRAM_CHAT_ID
 ```
+
+Biến mới (2026-07-10):
+- `EMBED_TASK_TYPE` (P2.2): khi đặt `RETRIEVAL_QUERY`, query embedding dùng taskType bất đối xứng —
+  CHỈ bật đồng bộ với corpus đã re-embed `RETRIEVAL_DOCUMENT` (`setup/reembed-corpus.js`) sang namespace mới.
+- `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` (P3.4): opt-in cảnh báo groundedness-fail và feedback 👎; thiếu → no-op.
 
 ## Luu y kien truc quan trong
 

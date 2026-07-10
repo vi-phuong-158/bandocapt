@@ -5,6 +5,18 @@
 
 ---
 
+## [2026-07-10] Giai doan 3 UX + khep vong chat luong (SSE status, starter chips, guide deep-link, Telegram alert)
+
+- **Quyet dinh:**
+  1. **SSE status 1 event** (`api/chat.js`): thay vi restructure toan bo SSE head de phat 2 pha `retrieving`/`generating` (se pha vo cac nhanh `res.status().json()` xu ly loi TRUOC stream), chi phat 1 event `{status:'generating'}` tai diem writeHead san co (ngay sau khau truy hoi). Client hien "Dang tra cuu…" tu luc gui, doi sang "Dang soan tra loi…" khi nhan event. Event khong co `text`/`done` nen client cu bo qua an toan. `js/gemini.js` them tham so `onStatus`.
+  2. **Starter chips khi mo chat** (`js/chatbot.js` `renderStarterChips`): hoi thoai trong → 6 chip cau hoi pho bien, tai dung class `ai-chat-quick-replies` (bi `clearQuickReplies` don khi gui). Chip click dien input + `handleChatSend`.
+  3. **Guide deep-link theo title khop chinh xac** (`js/tthc-catalog.js` `findByTitle`/`openByTitle`/`preload`): guide co `procedure_id=guide:*` la id TONG HOP tu catalog, KHONG ton tai trong metadata Pinecone runtime — nen citation guide khong the deep-link qua procedure_id. Giai phap: resolve theo title khop CHINH XAC (chuan hoa `normalizeVi`) trong catalog. `appendSources` chi hien nut doi chieu khi `findByTitle` tra ve id → KHONG bao gio mo nham. Warm catalog trong nen khi MO CHAT (`preload`) de nut resolve duoc, khong eager-load luc tai trang.
+  4. **Telegram alert opt-in** (`sendTelegramAlert` trong `api/chat.js`, dung boi groundedness-fail va feedback 👎 trong `api/feedback.js`): no-op neu thieu `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`. Khep vong: `scripts/read-feedback.js --down` hang tuan → them ca sai that vao bo regression.
+- **Danh doi:** SSE status don gian hoa (1 event thay 2 pha) danh doi do chi tiet lay an toan error-handling. Guide deep-link phu thuoc title khop chinh xac — neu title citation runtime lech title catalog (vd cat ngan) thi nut khong hien (fail-safe, khong sai). Telegram alert trong feedback `await` truoc khi tra 200 → them chut latency cho vote 👎 (chi khi bat env, feedback goi it).
+- **Nguoi quyet dinh:** user / Claude Code (Fable 5)
+
+---
+
 ## [2026-07-10] Giai doan 2 nang cap do chinh xac retrieval (exact-token boost, query rewrite, model tien ich, taskType gated)
 
 - **Quyet dinh:**

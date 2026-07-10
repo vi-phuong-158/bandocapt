@@ -761,3 +761,12 @@
 - **File da sua:** `api/chat.js`, `setup/backfill-tthc-metadata.js` (moi), `setup/reembed-corpus.js` (moi), `test/exact-token-boost.test.js` (moi), `package.json` (check:syntax), `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** Diet nguon sai so chinh (bien thien retrieval, token chinh xac bi lam mo) va chuan bi ha tang cho embedding bat doi xung + backfill facts thoi_han/mau_don da ghi trong TASK-P0-04-EXT.
 - **Kiem tra:** `npm test` 151/151 pass (them 7 test exact-token boost); `npm run build` sach; `node --check` ca 2 script moi OK; smoke `node scripts/run-regression.js --ids TR03` PASS (top-1 0.776, 205 tu), da khoi phuc regression-latest.md. **Con lai (user step):** chay 3 run regression 30 cau sach truoc khi cong bo baseline; chay `setup/backfill-tthc-metadata.js` + `setup/reembed-corpus.js` voi key va duyet CSV de kich hoat taskType.
+
+---
+
+## [2026-07-10] Giai doan 3 UX + khep vong chat luong
+- **Agent:** Claude Code (Fable 5)
+- **Thay doi:** (1) SSE status: `api/chat.js` phat `{status:'generating'}` sau khau truy hoi; `js/gemini.js` them `onStatus`; `js/chatbot.js` doi nhan typing 2 pha (`typingRetrieving`/`typingGenerating`). (2) `renderStarterChips` — 6 chip cau hoi pho bien khi mo chat luc hoi thoai trong. (3) Guide deep-link: `js/tthc-catalog.js` them `findByTitle`/`openByTitle`/`preload`; `appendSources` hien nut doi chieu cho citation guide khi title khop chinh xac; warm catalog khi mo chat. (4) `sendTelegramAlert` (opt-in env) goi tu groundedness-fail (`api/chat.js`) va feedback 👎 (`api/feedback.js`); quy trinh feedback→eval ghi vao `05`.
+- **File da sua:** `api/chat.js`, `api/feedback.js`, `js/gemini.js`, `js/chatbot.js`, `js/tthc-catalog.js`, `test/telegram-alert.test.js` (moi), `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Giam do tre cam nhan khi cho pipeline RAG, rut ngan buoc dau cho nguoi dan, mo khoa 102 guide cho deep-link tu chat, va khep vong feedback→eval + canh bao tuc thoi.
+- **Kiem tra:** `npm test` (154/154, them 3 test Telegram); `npm run build` sach; preview localhost xac nhan 6 starter chip render, `TthcCatalog.findByTitle` khop chinh xac guide+tthc va tra null cho input rac, 0 loi console. Con lai (user step): bat env `TELEGRAM_*` neu muon canh bao; SSE status 2 pha chi thay ro tren moi truong co /api/chat that.
