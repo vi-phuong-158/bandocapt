@@ -81,6 +81,31 @@ function resetTurnstileAndWaitForNewToken() {
     });
 }
 
+// Request signing — HMAC-SHA256 chống casual scraping. Dùng chung công thức với server
+// (verifyRequestSignature trong api/chat.js) cho cả /api/chat lẫn /api/feedback.
+async function signRequestToken(message, ts) {
+    try {
+        const encoder = new TextEncoder();
+        const digestBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(message));
+        const messageDigest = Array.from(new Uint8Array(digestBuffer))
+            .map(b => b.toString(16).padStart(2, '0'))
+            .join('')
+            .substring(0, 32);
+        const originHost = window.location.hostname || 'localhost';
+        const signData = `${ts}:${originHost}:${navigator.userAgent.length}:${messageDigest}`;
+        // Signing key derived từ cùng công thức phía server để tránh false reject.
+        const keyMaterial = `xnc-phu-tho:${originHost}:${navigator.userAgent.substring(0, 16)}`;
+        const cryptoKey = await crypto.subtle.importKey(
+            'raw', encoder.encode(keyMaterial), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+        );
+        const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(signData));
+        return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
+    } catch (e) {
+        // Fallback nếu trình duyệt không hỗ trợ Web Crypto
+        return btoa(`${ts}:${navigator.userAgent.length}:${message.length}`);
+    }
+}
+
 async function callGeminiStream(userMessage, conversationHistory = [], onChunk, signal) {
     // Lấy Turnstile token (đã được render sẵn từ lúc load trang)
     const captchaToken = getTurnstileToken();
@@ -112,29 +137,7 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk, 
 
         // Request signing — HMAC-SHA256 chống casual scraping
         const ts = Date.now();
-        const reqToken = await (async () => {
-            try {
-                const encoder = new TextEncoder();
-                const digestBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(userMessage));
-                const messageDigest = Array.from(new Uint8Array(digestBuffer))
-                    .map(b => b.toString(16).padStart(2, '0'))
-                    .join('')
-                    .substring(0, 32);
-                const originHost = window.location.hostname || 'localhost';
-                const signData = `${ts}:${originHost}:${navigator.userAgent.length}:${messageDigest}`;
-                // Signing key derived từ cùng công thức phía server để tránh false reject.
-                const keyMaterial = `xnc-phu-tho:${originHost}:${navigator.userAgent.substring(0, 16)}`;
-                const cryptoKey = await crypto.subtle.importKey(
-                    'raw', encoder.encode(keyMaterial), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-                );
-                const signature = await crypto.subtle.sign('HMAC', cryptoKey, encoder.encode(signData));
-                // Chuyển ArrayBuffer → hex string
-                return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, '0')).join('');
-            } catch (e) {
-                // Fallback nếu trình duyệt không hỗ trợ Web Crypto
-                return btoa(`${ts}:${navigator.userAgent.length}:${userMessage.length}`);
-            }
-        })();
+        const reqToken = await signRequestToken(userMessage, ts);
 
         const response = await fetch(getApiUrl(), {
             method: 'POST',
@@ -251,6 +254,46 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk, 
     }
 }
 
+function getFeedbackApiUrl() {
+    if (window.location.protocol === 'file:') {
+        return 'http://localhost:3000/api/feedback';
+    }
+    return `${window.location.origin}/api/feedback`;
+}
+
+// Gửi báo cáo / phản hồi của người dùng về một lượt trả lời của chatbot.
+// payload: { turn_id, rating: 'up'|'down', category?, comment?, contact?, question?, answer?, sources?, lang? }
+// Trả { ok: boolean, error?, detail? }.
+async function callSendFeedback(payload) {
+    try {
+        const ts = Date.now();
+        // Ký trên cùng chuỗi định danh lượt mà server kiểm (turn_id:rating).
+        const reqToken = await signRequestToken(`${payload.turn_id}:${payload.rating}`, ts);
+
+        const response = await fetch(getFeedbackApiUrl(), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Request-Token': reqToken,
+                'X-Request-Time': ts.toString(),
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            let detail;
+            try {
+                const errData = await response.json();
+                detail = errData.detail;
+            } catch (_) { }
+            return { ok: false, error: response.status === 429 ? 'RATE_LIMIT' : 'API_ERROR', detail };
+        }
+        return { ok: true };
+    } catch (err) {
+        return { ok: false, error: 'NETWORK_ERROR', detail: err.message };
+    }
+}
+
 function getErrorMessage(errorCode, lang = 'vi') {
     if (errorCode === 'RATE_LIMIT_EXCEEDED') errorCode = 'RATE_LIMIT';
     const messages = {
@@ -307,5 +350,6 @@ function getErrorMessage(errorCode, lang = 'vi') {
 
 window.GeminiAI = {
     stream: callGeminiStream,
+    sendFeedback: callSendFeedback,
     getError: getErrorMessage
 };

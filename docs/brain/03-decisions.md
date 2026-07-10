@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-07-10] Tinh nang Bao cao Chatbot: endpoint feedback rieng, luu RTDB, turn_id phia client
+
+- **Quyet dinh:** Them `api/feedback.js` rieng thay vi nhet vao `api/chat.js`. Endpoint tai dung nguyen 4 helper cua chat qua require cheo (`isAllowedOrigin`, `resolveClientIp`, `verifyRequestSignature`, `sanitizeDiagnosticText`) de HMAC khong bao gio lech pha giua client/server. (1) **Luu tru = RTDB** `chat_feedback/<date_key>` (khong dung firebase-admin/Firestore) — 1 fetch REST, cung ha tang telemetry fallback, `scripts/read-feedback.js` doc lai. (2) **`turn_id` sinh phia CLIENT** (`js/chatbot.js`) — de KHONG phai sua 5 diem phat event `done` trong `api/chat.js` (thay doi phau thuat). Bao cao dinh kem san cau hoi + cau tra loi + sources nen khong can doi soat voi telemetry server. (3) **Nut 👍/👎 co san** (truoc chi `lockFeedback` tai cho) duoc noi vao: 👍 gui vote ngay, 👎 mo form (5 loai van de + mo ta + lien he), "Bo qua" van ghi 1 phieu 👎. (4) **Rate limit best-effort** IP/ngay tren RTDB (khong atomic nhu quota chat ton phi LLM) — chi chan spam, fail-open khi loi doc.
+- **Ngoai le privacy co kiem soat:** Khac quyet dinh telemetry [2026-06-27] (mac dinh KHONG luu Q/A), feedback CO luu cau hoi + cau tra loi cua luot bi bao cao. Ly do: nguoi dung CHU DONG bam gui (opt-in dong y), va thieu Q/A thi admin khong biet bot sai o dau. Van sanitize PII (email/token/so ho chieu) qua `sanitizeDiagnosticText`, IP HMAC-hash, va co TTL `expires_at` (`FEEDBACK_RETENTION_DAYS` mac dinh 90 ngay).
+- **Danh doi:** `api/feedback.js` require `api/chat.js` → keo Pinecone client vao bundle feedback (cold-start nang hon) nhung doi lai HMAC parity tuyet doi; chap nhan vi feedback goi it. `turn_id` client kem tin cay hon server khi doi soat cross-log, nhung du dung vi record da tu chua Q/A. RTDB thay Firestore: option user chon la "Firestore + script" nhung RTDB la cung Firebase, don gian hon va read script van doc duoc — neu sau nay can query/dashboard manh hon thi chuyen sang Firestore collection `chat_feedback`.
+- **Nguoi quyet dinh:** user (chon: Firebase + script doc · ca vote nhanh + form chi tiet · co luu Q/A) / Claude Code (Opus 4.8)
+
+---
+
 ## [2026-07-10] Fix catalog guide rong va dong bo lenh sinh catalog day du
 
 - **Quyet dinh:** `npm run gen:catalog` nay chay `scripts/generate-tthc-catalog.js --include-guides`; CLI mac dinh `includeGuides=true` va co `--exclude-guides` de audit rieng tap `source_type='tthc'`. Generator bo cac chunk guide khong co `Noi dung wiki`/`Nội dung wiki` that, khong con tao detail chi la `<title>:`; `extractGuideFee` chi tom tat phi tu body muc phi/le phi, khong suy phi tu tieu de. Snapshot `data/tthc-catalog.json` sau regenerate = 92 muc (35 tthc that + 57 guide co noi dung), van du 17 linh vuc.
