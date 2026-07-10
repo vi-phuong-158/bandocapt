@@ -770,3 +770,12 @@
 - **File da sua:** `api/chat.js`, `api/feedback.js`, `js/gemini.js`, `js/chatbot.js`, `js/tthc-catalog.js`, `test/telegram-alert.test.js` (moi), `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** Giam do tre cam nhan khi cho pipeline RAG, rut ngan buoc dau cho nguoi dan, mo khoa 102 guide cho deep-link tu chat, va khep vong feedback→eval + canh bao tuc thoi.
 - **Kiem tra:** `npm test` (154/154, them 3 test Telegram); `npm run build` sach; preview localhost xac nhan 6 starter chip render, `TthcCatalog.findByTitle` khop chinh xac guide+tthc va tra null cho input rac, 0 loi console. Con lai (user step): bat env `TELEGRAM_*` neu muon canh bao; SSE status 2 pha chi thay ro tren moi truong co /api/chat that.
+
+---
+
+## [2026-07-10] Chay 3 run regression 30 cau sau Giai doan 2/3
+- **Agent:** Claude Code (Fable 5)
+- **Thay doi:** Chay `node scripts/run-regression.js` 3 lan lien tiep tren nhanh `feat/chat-ux`. Khong LEGAL_HALLUCINATION xac nhan. Nhung chua dat chuan "sach" nghiem ngat: GD02 fail-tu-cham 1 lan (loi harness regex, noi dung dung — 2 lan sau PASS); GV02 loi 2/3 lan (`BLOCKED_CONTENT` x2, `TRUNCATED` co notice x1) — flaky o tang generation/safety cua Gemini, khong lien quan cac thay doi retrieval Giai doan 2. Commit 3 bao cao lam bang chung nhung KHONG cong bo la baseline moi.
+- **File da sua:** `test/results/regression-run-2026-07-10_15-47-25.md`, `test/results/regression-run-2026-07-10_15-54-53.md`, `test/results/regression-run-2026-07-10_16-02-57.md`, `test/results/regression-latest.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** User yeu cau chay regression de kiem chung thay doi Giai doan 2 (retrieval) khong gay hoi quy.
+- **Kiem tra:** 3/3 run hoan tat, khong Tier-1 hallucination xac nhan; them TASK-GV02-FLAKY vao backlog de dieu tra rieng cau hoi hay loi.

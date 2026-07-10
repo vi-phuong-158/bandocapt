@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-07-10] 3 run regression sau Giai doan 2/3 — CHUA dat chuan "sach", phat hien GV02 flaky
+
+- **Ket qua:** Chay 3 lan lien tiep `node scripts/run-regression.js` tren nhanh `feat/chat-ux` (gom code Giai doan 1-3). Khong co `LEGAL_HALLUCINATION` xac nhan o ca 3 lan. Nhung KHONG dat tieu chi "sach" nghiem ngat: Run 1 co 1 FAIL tu cham (GD02 — regex harness doi "tre em" nhung bot viet "tre", noi dung THUC TE dung/khong mien tru, Run 2+3 cung cau PASS → la loi harness, khong phai loi bot) va 1 ERROR `BLOCKED_CONTENT` (GV02); Run 2 co 2 ERROR `BLOCKED_CONTENT` (GV02 + EV01); Run 3 co 1 TRUNCATED (GV02, nhung xu ly dung thiet ke — lui ve ranh gioi cau + notice, khong dut giua cau).
+- **Phat hien:** Ca 3 lan deu vuong o **GV02** ("Toi la nguoi Trung Quoc visa DN sap het han, can chuan bi gi?") — luc bi Gemini tu chan (safety filter, khong doi trong Giai doan 2/3), luc cham tran token (maxOutputTokens khong doi). Khong lien quan retrieval/exact-token-boost (cau nay khong co ma mau/so hieu van ban nen khong kich hoat boost). Nghi la Gemini safety classifier khong on dinh voi cum "nguoi Trung Quoc" + "visa" trong ngu canh nay, hoac cau tra loi qua chi tiet (nhieu doc match) de cham tran o mot so lan.
+- **Quyet dinh:** VAN commit 3 bao cao vao `test/results/` lam bang chung (dung convention repo), nhung KHONG cong bo day la baseline "san xuat dat chuan" moi — GV02 can dieu tra rieng (xem TASK moi trong `04-current-tasks.md`) truoc khi coi Giai doan 2/3 la an toan tuyet doi cho retrieval. Cac thay doi retrieval (exact-token boost, query rewrite, model tien ich) KHONG gay hallucination moi qua 3 lan — rui ro chinh con lai la flakiness cua GV02, thuoc tang generation/safety chu khong phai RAG.
+- **Nguoi quyet dinh:** user (yeu cau chay regression) / Claude Code (Fable 5)
+
+---
+
 ## [2026-07-10] Giai doan 3 UX + khep vong chat luong (SSE status, starter chips, guide deep-link, Telegram alert)
 
 - **Quyet dinh:**

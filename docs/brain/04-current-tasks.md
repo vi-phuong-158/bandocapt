@@ -8,6 +8,12 @@
 
 *(Không có)*
 
+### TASK-GV02-FLAKY: Điều tra câu hỏi GV02 hay lỗi ở tầng generation/safety
+- **Mô tả:** 3 run regression 2026-07-10 đều vướng đúng câu GV02 ("Tôi là người Trung Quốc visa DN sắp hết hạn, cần chuẩn bị gì?") — 2/3 lần bị Gemini tự chặn `BLOCKED_CONTENT`, 1/3 lần chạm trần token (xử lý đúng thiết kế, có notice). Không liên quan retrieval — cần xem có phải safety threshold `BLOCK_ONLY_HIGH` nhạy cảm với cụm "người Trung Quốc" + "visa", hoặc do prompt yêu cầu trả quá chi tiết khiến dễ chạm 3072 token.
+- **Liên quan:** `api/chat.js` (`safetySettings`, `maxOutputTokens`, `SYSTEM_PROMPT_BASE`)
+- **Ưu tiên:** Trung bình — chưa xác nhận hallucination, nhưng ảnh hưởng trải nghiệm (bot không trả lời được câu hợp lệ).
+- **Kiểm tra:** Chạy riêng `node scripts/run-regression.js --ids GV02` nhiều lần để đo tần suất; nếu do safety, cân nhắc hạ mức nhạy cảm hoặc thêm retry đổi wording; nếu do độ dài, cân nhắc rút gọn nhánh trả lời visa DN.
+
 ## Đã hoàn thành gần đây (bổ sung)
 
 - [2026-07-03] Progressive disclosure UI: quick-reply chips (khu vực cũ, quốc tịch mất hộ chiếu, mời hướng dẫn đầy đủ) + accordion thu gọn Hồ sơ/Trình tự trong `js/chatbot.js`. Chỉ client, không đổi `api/chat.js` logic — không cần chạy lại regression baseline. Chi tiết: `docs/brain/03-decisions.md` (2026-07-03) và `06-ai-working-log.md`.
