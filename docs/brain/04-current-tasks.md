@@ -119,6 +119,8 @@
 - **Kiem tra:** `npm run gen:catalog`; `npm test`; xac nhan `missingFromBackups` giam khi bo sung backup va catalog van build duoc o mode backup.
 
 ### Hoan thanh gan day
+- [2026-07-10] Fix catalog guide rong + dong bo `npm run gen:catalog`: generator mac dinh sinh catalog day du co guide, nhung bo guide khong co noi dung wiki va khong suy phi tu tieu de. Snapshot con 92 muc (35 tthc + 57 guide co noi dung), van du 17 linh vuc. `npm test` 121/121.
+- [2026-07-10] Dao Huong 1: catalog commit gom ca guide = 137 muc (35 tthc + 102 guide), phu du 17 linh vuc. Them bo loc `INTERNAL_GUIDE_TITLE_PATTERN` loai 8 muc noi dung noi bo chatbot. `npm test` 119/119, build sach. Ton dong: guide `procedure_id=guide:*` chua direct-link tu nut doi sanh trong chat.
 - [2026-07-09] Hoan thien Goi A cho catalog TTHC: preview server tra MIME JSON, architecture/decision/current-tasks ghi nhan luong catalog tinh va backlog backfill.
 - [2026-07-09] Mo rong generator catalog sang Pinecone live + group `guide_*`: danh muc preview hien 149 thu tuc, co them cu tru, can cuoc, dang ky xe, nganh nghe ANTT.
 - [2026-07-09] Huong 1: loc catalog ve CHI thu tuc that (`source_type='tthc'`), guide thanh opt-in `--include-guides`; them dedupe title+cap; fix `missingFromBackups` (rong o live mode). `data/tthc-catalog.json` = 35 thu tuc that, khong con lo noi dung noi bo chatbot.

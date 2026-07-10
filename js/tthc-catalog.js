@@ -3,6 +3,8 @@
 // Public API: window.TthcCatalog.open() / openProcedure(procedureId) / close().
 
 const TTHC_MODAL_BREAKPOINT = 768;
+const TTHC_DETAIL_FALLBACK = 'Xem nội dung chi tiết bên dưới.';
+const TTHC_FEE_FALLBACK = 'Chưa có thông tin chắc chắn trong dữ liệu hiện có.';
 
 // Tập nhãn đóng trong trường text của mỗi thủ tục — dùng để in đậm đầu dòng, giữ nội dung nguyên văn.
 const TTHC_LABEL_RE = /^([*+]\s*)?(Tên thủ tục|Loại thủ tục|Cấp xử lý|Mức độ dịch vụ|Đối tượng chính|Thời hạn|Phí\/lệ phí|Lệ phí|Phí|Hồ sơ|Số lượng hồ sơ|Đối tượng|Cơ quan xử lý|Kết quả|Căn cứ pháp lý|Trình tự thực hiện|Cách thức thực hiện|Yêu cầu\/điều kiện thực hiện|Mã thủ tục hành chính quốc gia|Nguồn|Ghi chú):/;
@@ -53,6 +55,73 @@ function normalizeVi(value) {
 function formatVerifiedMonth(value) {
     const match = String(value || '').match(/^(\d{4})-(\d{2})/);
     return match ? `${match[2]}/${match[1]}` : String(value || '');
+}
+
+function escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function splitProcedureLines(text) {
+    return String(text || '')
+        .replace(/\r\n/g, '\n')
+        .split('\n')
+        .map(line => line.trim())
+        .filter(Boolean);
+}
+
+function extractProcedureField(text, label) {
+    const pattern = new RegExp(`^(?:[*+]\\s*)?${escapeRegExp(label)}:\\s*(.*)$`, 'i');
+    for (const line of splitProcedureLines(text)) {
+        const match = line.match(pattern);
+        if (match) return match[1].trim();
+    }
+    return '';
+}
+
+function looksCompactSummary(value) {
+    return Boolean(value) &&
+        value.length <= 120 &&
+        !/^(?:[*+]|\d+\.)/.test(value) &&
+        !/\.(docx?|pdf|xlsx?)\b/i.test(value) &&
+        !/(thành phần hồ sơ|xem chi tiết|chi tiết)/i.test(value);
+}
+
+function humanizeFeeValue(fee) {
+    const normalized = String(fee || '').trim();
+    if (!normalized || normalized === 'Chưa xác minh') {
+        return TTHC_FEE_FALLBACK;
+    }
+    return normalized;
+}
+
+function buildCitizenSummary(proc) {
+    const hoSo = extractProcedureField(proc.text, 'Hồ sơ');
+    const coQuanXuLy = extractProcedureField(proc.text, 'Cơ quan xử lý');
+    const nguon = extractProcedureField(proc.text, 'Nguồn');
+    const ketQua = extractProcedureField(proc.text, 'Kết quả');
+
+    return [
+        {
+            label: 'Cần chuẩn bị',
+            icon: 'description',
+            value: looksCompactSummary(hoSo) ? hoSo : TTHC_DETAIL_FALLBACK,
+        },
+        {
+            label: 'Nộp tại',
+            icon: 'location_on',
+            value: looksCompactSummary(coQuanXuLy) ? coQuanXuLy : (looksCompactSummary(nguon) ? nguon : TTHC_DETAIL_FALLBACK),
+        },
+        {
+            label: 'Lệ phí / chi phí',
+            icon: 'payments',
+            value: humanizeFeeValue(proc.fee),
+        },
+        {
+            label: 'Kết quả',
+            icon: 'task',
+            value: looksCompactSummary(ketQua) ? ketQua : TTHC_DETAIL_FALLBACK,
+        },
+    ];
 }
 
 function isTthcModalViewport() {
@@ -130,7 +199,7 @@ function renderListItems() {
     if (procedures.length === 0) {
         list.innerHTML = '<li class="tthc-empty">' +
             '<span class="material-symbols-outlined" aria-hidden="true">search_off</span>' +
-            '<p>Không tìm thấy thủ tục phù hợp.</p></li>';
+            '<p>Chưa tìm thấy thủ tục phù hợp. Thử từ khóa ngắn hơn như "hộ chiếu", "tạm trú", "căn cước".</p></li>';
         return;
     }
 
@@ -170,7 +239,7 @@ function renderCatalogDetail(proc) {
     const { detailView } = getCatalogElements();
     if (!detailView) return;
     const feeUnverified = proc.fee === 'Chưa xác minh';
-    const feeLabel = `Lệ phí (đã xác minh ${formatVerifiedMonth(catalogData && catalogData.feeVerifiedAt)})`;
+    const citizenSummary = buildCitizenSummary(proc);
 
     detailView.innerHTML =
         `<h2 class="tthc-detail-title">${escapeHtml(proc.title)}</h2>` +
@@ -178,13 +247,27 @@ function renderCatalogDetail(proc) {
         `<span class="tthc-badge tthc-badge--cat">${escapeHtml(proc.categoryLabel)}</span>` +
         `<span class="tthc-badge tthc-badge--cap">${escapeHtml(proc.capLabel)}</span>` +
         `</div>` +
+        `<section class="tthc-citizen-summary" aria-label="Tóm tắt nhanh">` +
+        `<h3 class="tthc-citizen-summary-title">Tóm tắt nhanh</h3>` +
+        `<div class="tthc-citizen-summary-grid">` +
+        citizenSummary.map(item =>
+            `<article class="tthc-citizen-summary-item">` +
+            `<span class="material-symbols-outlined" aria-hidden="true">${item.icon}</span>` +
+            `<div>` +
+            `<span class="tthc-citizen-summary-label">${escapeHtml(item.label)}</span>` +
+            `<span class="tthc-citizen-summary-value">${escapeHtml(item.value)}</span>` +
+            `</div>` +
+            `</article>`
+        ).join('') +
+        `</div>` +
+        `</section>` +
         `<div class="tthc-inforow${feeUnverified ? ' tthc-inforow--warn' : ''}">` +
         `<span class="material-symbols-outlined" aria-hidden="true">payments</span>` +
-        `<div><span class="tthc-inforow-label">${escapeHtml(feeLabel)}</span>` +
-        `<span class="tthc-inforow-value">${escapeHtml(proc.fee)}</span></div></div>` +
+        `<div><span class="tthc-inforow-label">Lệ phí / chi phí</span>` +
+        `<span class="tthc-inforow-value">${escapeHtml(humanizeFeeValue(proc.fee))}</span></div></div>` +
         `<div class="tthc-inforow">` +
         `<span class="material-symbols-outlined" aria-hidden="true">gavel</span>` +
-        `<div><span class="tthc-inforow-label">Nguồn / Quyết định</span>` +
+        `<div><span class="tthc-inforow-label">Nguồn dữ liệu</span>` +
         `<span class="tthc-inforow-value">${escapeHtml(proc.sourceDecision || '—')}</span></div></div>` +
         `<div class="tthc-detail-text">${formatProcedureText(proc.text)}</div>`;
 }
@@ -416,9 +499,14 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports.__test = {
         normalizeVi,
         formatVerifiedMonth,
+        extractProcedureField,
+        buildCitizenSummary,
+        humanizeFeeValue,
         formatProcedureText,
         escapeHtml,
-        TTHC_LABEL_RE
+        TTHC_LABEL_RE,
+        TTHC_DETAIL_FALLBACK,
+        TTHC_FEE_FALLBACK
     };
 }
 

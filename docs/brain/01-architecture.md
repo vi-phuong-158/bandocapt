@@ -67,7 +67,7 @@ bandocapt/
 | `lib/regression-metrics.js` | Dem tu Unicode-safe va giu ngan sach verbosity 120/250 dong bo voi prompt answer-first | `scripts/run-regression.js`, test | `Intl.Segmenter` Node 20 |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
 | `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone, split intent `tam_tru_khai_bao`/`tam_tru_the`, fail-closed branch filter, stream model, inject `<verified_locations>`, `buildCitationSource` tra them `procedure_id`/`title` cho nut doi chieu TTHC, dang ky groundedness background task | `js/gemini.js` | Pinecone, Gemini API, Firebase, `@vercel/functions`, `lib/published-locations.js` |
-| `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live (mac dinh chi `source_type='tthc'`, guide opt-in qua `--include-guides`), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
+| `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live, mac dinh gom `tthc_*` + `guide_*` co noi dung (loc guide rong/noi bo), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
 | `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets | Google Apps Script | SpreadsheetApp |
 | `scripts/run-regression.js` | Runner regression API that, co the loc theo ID va tu cham 7 ca tam tru trong yeu | CLI / agent | `api/chat.js`, `test/cau-hoi/bo-test-regression-30-cau-nguoi-nuoc-ngoai-tthc.md`, `test/results/` |
 | `scripts/repair-pinecone-temp-residence.js` | Script sua Pinecone `tthc_matt26265`: backup, re-embed, upsert UTF-8 sach, verify top-1 | CLI / agent | Pinecone, Gemini Embedding API, `.env`, `data/pinecone-backups/` |
@@ -138,10 +138,10 @@ index.html load
 -> render chip loc linh vuc + tim kiem + danh sach
 -> xem chi tiet thu tuc voi text nguyen van va phi da resolve
 
-Developer chay generate catalog
+Developer chay `npm run gen:catalog`
 -> scripts/generate-tthc-catalog.js
--> neu co PINECONE_API_KEY hop le: list/fetch Pinecone namespace, lay `tthc_*`, group `guide_*` theo ten thu tuc
--> dedupe guide neu trung tieu de voi `tthc_*`, tom tat fee tu muc phi/le phi, sort theo category/cap
+-> neu co PINECONE_API_KEY hop le: list/fetch Pinecone namespace, lay `tthc_*`, group `guide_*` co `Noi dung wiki` theo ten thu tuc
+-> loai guide noi bo/rong, dedupe guide neu trung tieu de voi `tthc_*`, tom tat fee tu than muc phi/le phi, sort theo category/cap
 -> neu khong co env hop le: fallback backup trong repo (va co the `--fetch-missing` cho 4 record thieu)
 -> ghi data/tthc-catalog.json
 

@@ -5,6 +5,51 @@
 
 ---
 
+## [2026-07-10] Dọn mouse-drag dead code + ổn định ngữ nghĩa drag/E2E
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** (1) Xoá bộ handler `mousedown`/`document mousemove`/`document mouseup` và biến `activeMouseDrag` trong `app.js` — chúng không bao giờ chạy vì `pointerdown` luôn fire trước và set `isDragging=true` khiến `mousedown` bail, đồng thời không test nào chạm tới (E2E đã chuyển sang `PointerEvent`). Giữ lại guard `if (isDragging …)` ở `pointerdown` (chặn drag chồng khi đa chạm) và việc `pointerup` áp translate theo toạ độ cuối. (2) Revert `lostpointercapture` về `endSheetDrag({ cancelled: true })`: khi capture bị ngắt giữa chừng nên khôi phục trạng thái trước drag thay vì "chốt" ở vị trí kéo dở. (3) `test/e2e/tthc-catalog.spec.js` đổi assert `'Tất cả92'` cứng sang regex `/Tất cả\d+/` để không vỡ khi regenerate catalog.
+- **File đã sửa:** `app.js`, `test/e2e/tthc-catalog.spec.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Review PR #18 phát hiện 3 điểm còn lại: dead code làm phình state machine drag, thay đổi ngữ nghĩa cancel→commit khi bị ngắt (kém an toàn hơn), và E2E khoá cứng số lượng snapshot (đã đổi 137→119→92).
+- **Kiểm tra:** `node --check app.js` OK; `npm test` 125/125; `npx playwright test` 10/10 (gồm cả `mobile detail panel closes … by drag` và `mobile pointer cancel returns the sheet to a stable open state`).
+
+---
+
+## [2026-07-10] Fix ô "Nộp tại" lộ tên file .docx nội bộ cho người dân
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** `buildCitizenSummary` (ô "Nộp tại") fallback từ `Cơ quan xử lý` sang `Nguồn`; với 57/57 guide (thiếu `Cơ quan xử lý`) thì `Nguồn` là tên file nguồn (vd `B. CƯ TRÚ 2025.xong.docx`) → hiển thị tên file nội bộ ở ô "Nộp tại". Thêm chặn tên file (`.doc/.docx/.pdf/.xls/.xlsx`) vào `looksCompactSummary` → mọi ô tóm tắt (Cần chuẩn bị / Nộp tại / Kết quả) không còn hiện tên file; guide thiếu cơ quan xử lý rơi về câu trung tính "Xem nội dung chi tiết bên dưới.". Cập nhật unit test trước đó vốn khóa cứng hành vi cũ (nhận tên file) sang assert không lộ tên file.
+- **File đã sửa:** `js/tthc-catalog.js`, `test/tthc-catalog-ui.test.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Review PR #18 phát hiện 57/92 mục (toàn bộ guide, 62% catalog) hiển thị tên file docx nội bộ dưới nhãn "Nộp tại" — sai nghĩa và lộ artifact nội bộ, đi ngược mục tiêu wording cho người dân của chính PR.
+- **Kiểm tra:** `npm test` 125/125 pass; kiểm chứng trực tiếp `buildCitizenSummary` trên `data/tthc-catalog.json` — 0/57 guide còn lộ tên file ở ô "Nộp tại".
+
+---
+
+## [2026-07-10] Cải thiện UX catalog TTHC cho người dân
+- **Agent:** Codex
+- **Thay đổi:** Cập nhật wording panel catalog để dễ hiểu hơn cho người dân, thêm khối `Tóm tắt nhanh` ở đầu chi tiết thủ tục với 4 mục `Cần chuẩn bị`, `Nộp tại`, `Lệ phí / chi phí`, `Kết quả`, và đổi cách hiển thị phí chưa xác minh sang câu trung tính hơn. Bổ sung empty state thân thiện hơn cho tìm kiếm không có kết quả. Thêm unit test cho helper tóm tắt ở frontend và E2E mới cho catalog trên desktop/mobile. Sửa thêm luồng kéo mobile detail sheet để `pointerup/mouseup` chốt theo tọa độ cuối, đồng thời đổi E2E drag sang `PointerEvent` touch ổn định khi chạy song song.
+- **File đã sửa:** `index.html`, `js/tthc-catalog.js`, `styles.css`, `app.js`, `test/tthc-catalog-ui.test.js`, `test/e2e/tthc-catalog.spec.js`, `test/e2e/detail-panel.spec.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Catalog hiện dùng được để đối chiếu nhưng còn thiên về kho dữ liệu hơn là luồng tra cứu cho người dân ít am hiểu công nghệ; cần đưa thông tin quan trọng lên đầu và dùng wording bớt kỹ thuật.
+- **Kiểm tra:** `npm test` pass 125/125; `npm run build` pass; `npx playwright test` pass 10/10; stress riêng `detail-panel.spec.js > mobile detail panel closes reliably by button and drag gestures` với `--workers=3 --repeat-each=5` pass 5/5; kiểm tra tay trên preview `http://127.0.0.1:4173/` xác nhận `Tóm tắt nhanh` và wording mới hiển thị đúng.
+
+---
+
+## [2026-07-10] Fix catalog guide rong va dong bo lenh sinh catalog
+- **Agent:** Codex
+- **Thay đổi:** Sua `scripts/generate-tthc-catalog.js` de mac dinh sinh catalog day du co guide, them opt-out `--exclude-guides`, bo chunk guide khong co `Noi dung wiki`/`Nội dung wiki`, va chi tom tat phi tu body muc phi/le phi thay vi suy tu tieu de. Doi `npm run gen:catalog` sang goi `--include-guides`, regenerate `data/tthc-catalog.json` con 92 muc (35 tthc + 57 guide co noi dung), van du 17 linh vuc. Them test cho guide rong, parseArgs mac dinh, va snapshot khong co detail guide rong.
+- **File đã sửa:** `scripts/generate-tthc-catalog.js`, `package.json`, `data/tthc-catalog.json`, `test/tthc-catalog.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Review commit `0f84233` phat hien 46 guide co detail gan nhu rong va lenh `npm run gen:catalog` khong tai tao dung snapshot include-guides, gay rui ro UI hien card rong va snapshot khong reproducible.
+- **Kiểm tra:** `npm run gen:catalog` ghi 92 muc; `npm test` 121/121 pass; `npm run build` pass; `npm run ci` pass (audit High khong fail, con 8 Moderate trong chuoi Firebase/Google).
+
+---
+
+## [2026-07-10] Catalog TTHC gồm cả guide (137 mục), lọc nội dung nội bộ chatbot
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** Đảo "Hướng 1" (2026-07-09): `data/tthc-catalog.json` đã commit giờ sinh với `--include-guides` = **137 thủ tục** (35 tthc thật + 102 guide), phủ đủ 17 lĩnh vực (bổ sung cư trú, căn cước, đăng ký xe, định danh điện tử, ngành nghề ANTT, khiếu nại–tố cáo, xuất nhập cảnh — trước bị bỏ sót ở bản 35). Thêm `INTERNAL_GUIDE_TITLE_PATTERN` trong `scripts/generate-tthc-catalog.js` → loại 8 mục guide thực chất là nội dung nội bộ chatbot ("Nguyên tắc trả lời của chatbot", "Gợi ý cho quản trị viên", 6× câu hỏi mẫu `Người dùng: "..."`). Cập nhật test committed-catalog (`includeGuides=true`, 100–200 mục, phải có cả guide lẫn tthc, assert 0 mục lộ nội dung nội bộ) + thêm 1 unit test cho bộ lọc nội bộ.
+- **File đã sửa:** `scripts/generate-tthc-catalog.js`, `data/tthc-catalog.json`, `test/tthc-catalog.test.js`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** User cho biết đã chuẩn bị nhiều thủ tục nhưng danh mục chỉ hiện 35; nguyên nhân là "Hướng 1" lọc bỏ toàn bộ guide. User chốt (qua câu hỏi): giữ đủ (cả tthc + guide). Nỗi lo lộ nội dung nội bộ của Hướng 1 vẫn đúng nên chỉ lọc đúng nhóm nội bộ thay vì bỏ hết guide.
+- **Kiểm tra:** `npm test` 119/119 pass; `npm run build` sạch (dist có 137 mục); verify browser: panel mở, 17 lĩnh vực chips + cards render, 0 lỗi console, `internalLeak=0`, các lĩnh vực chỉ-có-tthc (thường trú, giấy thông hành, người không quốc tịch...) vẫn còn. **Lưu ý còn tồn:** 102 guide có `procedure_id=guide:*` không direct-link từ nút "Đối sánh thủ tục gốc" trong chat — panel duyệt được nhưng deep-link citation vẫn chỉ chạm 35 tthc.
+
+---
+
 ## [2026-07-09] Hoàn thiện build và wording cho danh mục TTHC
 - **Agent:** Codex
 - **Thay đổi:** Bổ sung `js/tthc-catalog.js` và `data/tthc-catalog.json` vào artifact `dist/`; thêm syntax check cho `js/tthc-catalog.js`; đổi nhãn nút trong citation từ wording tuyệt đối sang wording trung tính hơn.

@@ -226,7 +226,7 @@ function endSheetDrag({ cancelled = false, restoreFocus = false } = {}) {
 }
 
 dragHandle.addEventListener("pointerdown", (event) => {
-  if (!isMobileViewport() || activeSheetState === SHEET_STATES.HIDDEN) return;
+  if (isDragging || !isMobileViewport() || activeSheetState === SHEET_STATES.HIDDEN) return;
   if (event.pointerType === "mouse" && event.button !== 0) return;
   startY = event.clientY;
   dragStartState = activeSheetState;
@@ -247,6 +247,8 @@ dragHandle.addEventListener("pointermove", (event) => {
 
 dragHandle.addEventListener("pointerup", (event) => {
   if (!isDragging || event.pointerId !== activePointerId) return;
+  const deltaPercent = ((event.clientY - startY) / window.innerHeight) * 100;
+  applySheetTranslate(dragStartPercent + deltaPercent);
   endSheetDrag({ restoreFocus: resolveSheetStateFromPercent(getCurrentSheetPercent()) === SHEET_STATES.HIDDEN });
 });
 
