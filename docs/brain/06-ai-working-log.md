@@ -805,3 +805,11 @@
 - **File da sua:** `api/chat.js`, `api/feedback.js`, `test/telegram-alert.test.js`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** Sau khi bat Telegram bot, alert khong con la no-op; neu Telegram cham thi co the lam treo request feedback cua nguoi dung.
 - **Kiem tra:** `npm test -- test/telegram-alert.test.js`; `npm run check:syntax`.
+---
+
+## [2026-07-11] Merge main vao PR #21 sau PR #19 va PR #20
+- **Agent:** Codex
+- **Thay doi:** Cap nhat nhanh `feat/chat-ux` theo `main` sau khi PR #19/#20 merge; giu cac thay doi performance, RAG accuracy va Telegram feedback non-blocking tren cung mot nen.
+- **File da sua:** `index.html`, `vercel.json`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** PR #21 can doi base sang `main` va merge sach sau khi hai PR nen da vao production branch.
+- **Kiem tra:** Chay lai `npm test -- test/telegram-alert.test.js`, `npm run check:syntax`, `npm run build` sau khi resolve.
