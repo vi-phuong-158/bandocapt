@@ -194,6 +194,9 @@ function renderChips() {
 function renderListItems() {
     const { list } = getCatalogElements();
     if (!list) return;
+    // Đưa danh sách về đầu mỗi khi lọc/tìm kiếm thay đổi — nếu không, trình duyệt tự
+    // kẹp scrollTop cũ vào cuối danh sách mới (ngắn hơn), trông như tìm kiếm không phản hồi.
+    list.scrollTop = 0;
     const procedures = filteredProcedures();
 
     if (procedures.length === 0) {
