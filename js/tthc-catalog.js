@@ -82,6 +82,7 @@ function looksCompactSummary(value) {
     return Boolean(value) &&
         value.length <= 120 &&
         !/^(?:[*+]|\d+\.)/.test(value) &&
+        !/\.(docx?|pdf|xlsx?)\b/i.test(value) &&
         !/(thành phần hồ sơ|xem chi tiết|chi tiết)/i.test(value);
 }
 

@@ -133,7 +133,6 @@ let activeSheetState = SHEET_STATES.HIDDEN;
 let dragStartState = SHEET_STATES.HIDDEN;
 let dragStartPercent = MOBILE_SHEET_TRANSLATES[SHEET_STATES.HIDDEN];
 let activePointerId = null;
-let activeMouseDrag = false;
 let overlayHideTimer = null;
 
 function isMobileViewport() {
@@ -215,7 +214,6 @@ function resolveSheetStateFromPercent(percent, startState = dragStartState) {
 function endSheetDrag({ cancelled = false, restoreFocus = false } = {}) {
   if (!isDragging) return;
   isDragging = false;
-  activeMouseDrag = false;
   if (activePointerId != null && dragHandle.hasPointerCapture?.(activePointerId)) {
     dragHandle.releasePointerCapture(activePointerId);
   }
@@ -241,20 +239,6 @@ dragHandle.addEventListener("pointerdown", (event) => {
   event.preventDefault();
 });
 
-dragHandle.addEventListener("mousedown", (event) => {
-  if (isDragging || !isMobileViewport() || activeSheetState === SHEET_STATES.HIDDEN) return;
-  if (event.button !== 0) return;
-  startY = event.clientY;
-  dragStartState = activeSheetState;
-  dragStartPercent = getCurrentSheetPercent();
-  activePointerId = null;
-  activeMouseDrag = true;
-  isDragging = true;
-  detailPanel.dataset.dragging = "true";
-  detailPanel.dataset.animate = "false";
-  event.preventDefault();
-});
-
 dragHandle.addEventListener("pointermove", (event) => {
   if (!isDragging || event.pointerId !== activePointerId) return;
   const deltaPercent = ((event.clientY - startY) / window.innerHeight) * 100;
@@ -274,21 +258,8 @@ dragHandle.addEventListener("pointercancel", () => {
 
 dragHandle.addEventListener("lostpointercapture", () => {
   if (isDragging) {
-    endSheetDrag({ restoreFocus: resolveSheetStateFromPercent(getCurrentSheetPercent()) === SHEET_STATES.HIDDEN });
+    endSheetDrag({ cancelled: true });
   }
-});
-
-document.addEventListener("mousemove", (event) => {
-  if (!isDragging || !activeMouseDrag) return;
-  const deltaPercent = ((event.clientY - startY) / window.innerHeight) * 100;
-  applySheetTranslate(dragStartPercent + deltaPercent);
-});
-
-document.addEventListener("mouseup", (event) => {
-  if (!isDragging || !activeMouseDrag) return;
-  const deltaPercent = ((event.clientY - startY) / window.innerHeight) * 100;
-  applySheetTranslate(dragStartPercent + deltaPercent);
-  endSheetDrag({ restoreFocus: resolveSheetStateFromPercent(getCurrentSheetPercent()) === SHEET_STATES.HIDDEN });
 });
 
 function openDetailPanel(loc, trigger = null) {

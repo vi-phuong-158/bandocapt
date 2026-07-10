@@ -8,7 +8,8 @@ async function openCatalog(page) {
 
 test('catalog opens with current committed dataset', async ({ page }) => {
     await openCatalog(page);
-    await expect(page.locator('#tthc-catalog-chips')).toContainText('Tất cả92');
+    // Không khóa cứng số lượng (snapshot có thể regenerate) — chỉ cần chip "Tất cả" kèm số.
+    await expect(page.locator('#tthc-catalog-chips')).toContainText(/Tất cả\d+/);
     await expect(page.locator('#tthc-catalog-list .tthc-card').first()).toBeVisible();
 });
 

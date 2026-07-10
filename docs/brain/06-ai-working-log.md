@@ -5,6 +5,24 @@
 
 ---
 
+## [2026-07-10] Dọn mouse-drag dead code + ổn định ngữ nghĩa drag/E2E
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** (1) Xoá bộ handler `mousedown`/`document mousemove`/`document mouseup` và biến `activeMouseDrag` trong `app.js` — chúng không bao giờ chạy vì `pointerdown` luôn fire trước và set `isDragging=true` khiến `mousedown` bail, đồng thời không test nào chạm tới (E2E đã chuyển sang `PointerEvent`). Giữ lại guard `if (isDragging …)` ở `pointerdown` (chặn drag chồng khi đa chạm) và việc `pointerup` áp translate theo toạ độ cuối. (2) Revert `lostpointercapture` về `endSheetDrag({ cancelled: true })`: khi capture bị ngắt giữa chừng nên khôi phục trạng thái trước drag thay vì "chốt" ở vị trí kéo dở. (3) `test/e2e/tthc-catalog.spec.js` đổi assert `'Tất cả92'` cứng sang regex `/Tất cả\d+/` để không vỡ khi regenerate catalog.
+- **File đã sửa:** `app.js`, `test/e2e/tthc-catalog.spec.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Review PR #18 phát hiện 3 điểm còn lại: dead code làm phình state machine drag, thay đổi ngữ nghĩa cancel→commit khi bị ngắt (kém an toàn hơn), và E2E khoá cứng số lượng snapshot (đã đổi 137→119→92).
+- **Kiểm tra:** `node --check app.js` OK; `npm test` 125/125; `npx playwright test` 10/10 (gồm cả `mobile detail panel closes … by drag` và `mobile pointer cancel returns the sheet to a stable open state`).
+
+---
+
+## [2026-07-10] Fix ô "Nộp tại" lộ tên file .docx nội bộ cho người dân
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** `buildCitizenSummary` (ô "Nộp tại") fallback từ `Cơ quan xử lý` sang `Nguồn`; với 57/57 guide (thiếu `Cơ quan xử lý`) thì `Nguồn` là tên file nguồn (vd `B. CƯ TRÚ 2025.xong.docx`) → hiển thị tên file nội bộ ở ô "Nộp tại". Thêm chặn tên file (`.doc/.docx/.pdf/.xls/.xlsx`) vào `looksCompactSummary` → mọi ô tóm tắt (Cần chuẩn bị / Nộp tại / Kết quả) không còn hiện tên file; guide thiếu cơ quan xử lý rơi về câu trung tính "Xem nội dung chi tiết bên dưới.". Cập nhật unit test trước đó vốn khóa cứng hành vi cũ (nhận tên file) sang assert không lộ tên file.
+- **File đã sửa:** `js/tthc-catalog.js`, `test/tthc-catalog-ui.test.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Review PR #18 phát hiện 57/92 mục (toàn bộ guide, 62% catalog) hiển thị tên file docx nội bộ dưới nhãn "Nộp tại" — sai nghĩa và lộ artifact nội bộ, đi ngược mục tiêu wording cho người dân của chính PR.
+- **Kiểm tra:** `npm test` 125/125 pass; kiểm chứng trực tiếp `buildCitizenSummary` trên `data/tthc-catalog.json` — 0/57 guide còn lộ tên file ở ô "Nộp tại".
+
+---
+
 ## [2026-07-10] Cải thiện UX catalog TTHC cho người dân
 - **Agent:** Codex
 - **Thay đổi:** Cập nhật wording panel catalog để dễ hiểu hơn cho người dân, thêm khối `Tóm tắt nhanh` ở đầu chi tiết thủ tục với 4 mục `Cần chuẩn bị`, `Nộp tại`, `Lệ phí / chi phí`, `Kết quả`, và đổi cách hiển thị phí chưa xác minh sang câu trung tính hơn. Bổ sung empty state thân thiện hơn cho tìm kiếm không có kết quả. Thêm unit test cho helper tóm tắt ở frontend và E2E mới cho catalog trên desktop/mobile. Sửa thêm luồng kéo mobile detail sheet để `pointerup/mouseup` chốt theo tọa độ cuối, đồng thời đổi E2E drag sang `PointerEvent` touch ổn định khi chạy song song.
