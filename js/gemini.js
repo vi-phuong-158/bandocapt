@@ -106,7 +106,7 @@ async function signRequestToken(message, ts) {
     }
 }
 
-async function callGeminiStream(userMessage, conversationHistory = [], onChunk, signal) {
+async function callGeminiStream(userMessage, conversationHistory = [], onChunk, signal, onStatus) {
     // Lấy Turnstile token (đã được render sẵn từ lúc load trang)
     const captchaToken = getTurnstileToken();
 
@@ -199,6 +199,12 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk, 
 
                         if (data.error) {
                             return { ok: false, error: data.error };
+                        }
+
+                        if (data.status) {
+                            // P3.1: event trạng thái pipeline (vd 'generating') — không phải text.
+                            try { if (onStatus) onStatus(data.status); } catch (_) { }
+                            continue;
                         }
 
                         if (data.done) {

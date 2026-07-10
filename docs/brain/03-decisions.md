@@ -5,6 +5,36 @@
 
 ---
 
+## [2026-07-10] 3 run regression sau Giai doan 2/3 — CHUA dat chuan "sach", phat hien GV02 flaky
+
+- **Ket qua:** Chay 3 lan lien tiep `node scripts/run-regression.js` tren nhanh `feat/chat-ux` (gom code Giai doan 1-3). Khong co `LEGAL_HALLUCINATION` xac nhan o ca 3 lan. Nhung KHONG dat tieu chi "sach" nghiem ngat: Run 1 co 1 FAIL tu cham (GD02 — regex harness doi "tre em" nhung bot viet "tre", noi dung THUC TE dung/khong mien tru, Run 2+3 cung cau PASS → la loi harness, khong phai loi bot) va 1 ERROR `BLOCKED_CONTENT` (GV02); Run 2 co 2 ERROR `BLOCKED_CONTENT` (GV02 + EV01); Run 3 co 1 TRUNCATED (GV02, nhung xu ly dung thiet ke — lui ve ranh gioi cau + notice, khong dut giua cau).
+- **Phat hien:** Ca 3 lan deu vuong o **GV02** ("Toi la nguoi Trung Quoc visa DN sap het han, can chuan bi gi?") — luc bi Gemini tu chan (safety filter, khong doi trong Giai doan 2/3), luc cham tran token (maxOutputTokens khong doi). Khong lien quan retrieval/exact-token-boost (cau nay khong co ma mau/so hieu van ban nen khong kich hoat boost). Nghi la Gemini safety classifier khong on dinh voi cum "nguoi Trung Quoc" + "visa" trong ngu canh nay, hoac cau tra loi qua chi tiet (nhieu doc match) de cham tran o mot so lan.
+- **Quyet dinh:** VAN commit 3 bao cao vao `test/results/` lam bang chung (dung convention repo), nhung KHONG cong bo day la baseline "san xuat dat chuan" moi — GV02 can dieu tra rieng (xem TASK moi trong `04-current-tasks.md`) truoc khi coi Giai doan 2/3 la an toan tuyet doi cho retrieval. Cac thay doi retrieval (exact-token boost, query rewrite, model tien ich) KHONG gay hallucination moi qua 3 lan — rui ro chinh con lai la flakiness cua GV02, thuoc tang generation/safety chu khong phai RAG.
+- **Nguoi quyet dinh:** user (yeu cau chay regression) / Claude Code (Fable 5)
+
+---
+
+## [2026-07-10] Dieu tra GV02 flaky — ket luan: sampling variance o tang generation, khong phai RAG
+
+- **Phuong phap:** (1) Them log chan doan tam thoi (`finishReason`/`promptFeedback`/`safetyRatings` cua Gemini) vao nhanh `BLOCKED_CONTENT` trong `api/chat.js`. (2) Chay GV02 don le 10 lan lien tiep — **10/10 THANH CONG**, dai 137-350 tu (khong bi chan, khong cham tran). (3) Chay full 30-cau them 2 lan nua — 1 lan sach hoan toan (0 FAIL/TRUNCATED/ERROR), 1 lan GV02 tiep tuc TRUNCATED. Tong cong da chay 4 lan full 30-cau: 2 lan co loi GV02, 1 lan GV02 truncated, 1 lan sach 100%. Khong lan nao trong toan bo dieu tra bat duoc dong log `BLOCKED_CONTENT` moi (khong xay ra them trong cac lan sau khi bat log).
+- **Ket luan:** GV02 ("Toi la nguoi Trung Quoc visa DN sap het han, can chuan bi gi?") da duoc xep dung ngan sach FULL (250 tu, KHONG phai loi phan loai NARROW/FULL) nhung chu de nay von can tra loi dai (nhieu mau don NA6/NA8, nhieu muc phi, nhieu buoc) — sinh ra 137-350 tu tuy lan, thinh thoang vuot ca 250 va cham tran cung 3072 token. Day la **bien thien sampling tu nhien cua Gemini o `temperature: 0.2`** (khong doi trong Giai doan 2/3) ket hop voi chu de von dai, KHONG phai do exact-token-boost/query-rewrite/doi model tien ich (GV02 khong co ma mau/so hieu van ban nen exact-token-boost khong kich hoat; khong co history nen query-rewrite khong chay; model tien ich chi dung cho rerank/groundedness/summary, khong dung cho generation chinh). `BLOCKED_CONTENT` (Gemini tu chan, tra candidate rong) la hien tuong xac suat thap, co the lien quan classifier an toan nhay cam voi cum "nguoi Trung Quoc" + tinh trang cu tru/visa, nhung KHONG tai hien duoc de bat log chan doan xac nhan category cu the.
+- **Quyet dinh:** Giu log chan doan (`api/chat.js`, doi tu "TEMP DEBUG" thanh comment vinh vien P3.5) de lan sau xay ra that trong production co the doc duoc finishReason/safetyRatings tu Vercel logs. KHONG doi threshold safety hay them retry-on-block ngay (can quyet dinh rieng, anh huong toan bo generation). TRUNCATED da duoc xu ly dung thiet ke (lui ranh gioi cau + notice) — chap nhan duoc, khong phai rui ro du lieu. Xoa cac bao cao regression 1-cau phat sinh trong luc dieu tra (khong phai bang chung chinh thuc), giu lai 1 full-run sach moi lam bang chung bo sung.
+- **Nguoi quyet dinh:** user (yeu cau dieu tra) / Claude Code (Fable 5)
+
+---
+
+## [2026-07-10] Giai doan 3 UX + khep vong chat luong (SSE status, starter chips, guide deep-link, Telegram alert)
+
+- **Quyet dinh:**
+  1. **SSE status 1 event** (`api/chat.js`): thay vi restructure toan bo SSE head de phat 2 pha `retrieving`/`generating` (se pha vo cac nhanh `res.status().json()` xu ly loi TRUOC stream), chi phat 1 event `{status:'generating'}` tai diem writeHead san co (ngay sau khau truy hoi). Client hien "Dang tra cuu…" tu luc gui, doi sang "Dang soan tra loi…" khi nhan event. Event khong co `text`/`done` nen client cu bo qua an toan. `js/gemini.js` them tham so `onStatus`.
+  2. **Starter chips khi mo chat** (`js/chatbot.js` `renderStarterChips`): hoi thoai trong → 6 chip cau hoi pho bien, tai dung class `ai-chat-quick-replies` (bi `clearQuickReplies` don khi gui). Chip click dien input + `handleChatSend`.
+  3. **Guide deep-link theo title khop chinh xac** (`js/tthc-catalog.js` `findByTitle`/`openByTitle`/`preload`): guide co `procedure_id=guide:*` la id TONG HOP tu catalog, KHONG ton tai trong metadata Pinecone runtime — nen citation guide khong the deep-link qua procedure_id. Giai phap: resolve theo title khop CHINH XAC (chuan hoa `normalizeVi`) trong catalog. `appendSources` chi hien nut doi chieu khi `findByTitle` tra ve id → KHONG bao gio mo nham. Warm catalog trong nen khi MO CHAT (`preload`) de nut resolve duoc, khong eager-load luc tai trang.
+  4. **Telegram alert opt-in** (`sendTelegramAlert` trong `api/chat.js`, dung boi groundedness-fail va feedback 👎 trong `api/feedback.js`): no-op neu thieu `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`. Khep vong: `scripts/read-feedback.js --down` hang tuan → them ca sai that vao bo regression.
+- **Danh doi:** SSE status don gian hoa (1 event thay 2 pha) danh doi do chi tiet lay an toan error-handling. Guide deep-link phu thuoc title khop chinh xac — neu title citation runtime lech title catalog (vd cat ngan) thi nut khong hien (fail-safe, khong sai). Telegram alert trong feedback `await` truoc khi tra 200 → them chut latency cho vote 👎 (chi khi bat env, feedback goi it).
+- **Nguoi quyet dinh:** user / Claude Code (Fable 5)
+
+---
+
 ## [2026-07-10] Giai doan 2 nang cap do chinh xac retrieval (exact-token boost, query rewrite, model tien ich, taskType gated)
 
 - **Quyet dinh:**

@@ -8,6 +8,12 @@
 
 *(Không có)*
 
+### [ĐIỀU TRA XONG — TASK-GV02-FLAKY] Vì sao GV02 hay lỗi
+- **Kết quả điều tra (2026-07-10):** Chạy GV02 đơn lẻ 10 lần liên tiếp → **10/10 thành công** (137-350 từ). Chạy thêm 2 lần full 30-câu → 1 lần sạch 100%, 1 lần GV02 TRUNCATED. Không bắt được thêm lần `BLOCKED_CONTENT` nào dù đã bật log chẩn đoán (`finishReason`/`promptFeedback`/`safetyRatings`).
+- **Kết luận:** GV02 đã được xếp đúng ngân sách FULL (250 từ, không phải lỗi phân loại) nhưng chủ đề vốn dài (nhiều mẫu đơn/phí/bước) nên thỉnh thoảng vượt 250 từ và chạm trần cứng 3072 token. Đây là **biến thiên sampling tự nhiên của Gemini ở `temperature: 0.2`** (không đổi trong Giai đoạn 2/3) kết hợp chủ đề dài — KHÔNG liên quan exact-token-boost/query-rewrite/đổi model tiện ích (GV02 không có mã mẫu/số hiệu văn bản nên boost không kích hoạt; không có history nên query-rewrite không chạy). `BLOCKED_CONTENT` là hiện tượng xác suất thấp, nghi liên quan safety classifier nhạy cảm với cụm "người Trung Quốc" + tình trạng cư trú/visa, nhưng không tái hiện được để xác nhận category cụ thể. Chi tiết: `03-decisions.md` (2026-07-10, "Điều tra GV02 flaky").
+- **Đã làm:** Giữ lại log chẩn đoán vĩnh viễn trong `api/chat.js` (nhánh `BLOCKED_CONTENT`) để lần sau xảy ra thật trong production có thể đọc được lý do từ Vercel logs.
+- **Còn mở (tuỳ chọn, ưu tiên thấp):** Nếu muốn giảm rủi ro `BLOCKED_CONTENT` gây mất câu trả lời hợp lệ, cân nhắc thêm retry-on-block (đổi nhẹ wording hoặc fallback DeepSeek) — đây là thay đổi hành vi generation cần quyết định riêng, chưa làm.
+
 ## Đã hoàn thành gần đây (bổ sung)
 
 - [2026-07-03] Progressive disclosure UI: quick-reply chips (khu vực cũ, quốc tịch mất hộ chiếu, mời hướng dẫn đầy đủ) + accordion thu gọn Hồ sơ/Trình tự trong `js/chatbot.js`. Chỉ client, không đổi `api/chat.js` logic — không cần chạy lại regression baseline. Chi tiết: `docs/brain/03-decisions.md` (2026-07-03) và `06-ai-working-log.md`.
@@ -125,3 +131,28 @@
 - [2026-07-09] Hoan thien Goi A cho catalog TTHC: preview server tra MIME JSON, architecture/decision/current-tasks ghi nhan luong catalog tinh va backlog backfill.
 - [2026-07-09] Mo rong generator catalog sang Pinecone live + group `guide_*`: danh muc preview hien 149 thu tuc, co them cu tru, can cuoc, dang ky xe, nganh nghe ANTT.
 - [2026-07-09] Huong 1: loc catalog ve CHI thu tuc that (`source_type='tthc'`), guide thanh opt-in `--include-guides`; them dedupe title+cap; fix `missingFromBackups` (rong o live mode). `data/tthc-catalog.json` = 35 thu tuc that, khong con lo noi dung noi bo chatbot.
+
+---
+
+## Cap nhat 2026-07-10 — Nang cap do chinh xac / UX / hieu nang (3 giai doan)
+
+Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
+
+- **[DONE] Giai doan 1 — hieu nang** (`feat/perf-quick-wins`): defer 4 script ban do (`index.html`),
+  cache-control static (`vercel.json`). `npm test` 144/144, build sach.
+- **[DONE-code] Giai doan 2 — do chinh xac retrieval** (`feat/rag-accuracy`): exact-token boost,
+  query rewrite follow-up, model tien ich → flash-lite, taskType embedding gated. Script
+  `setup/backfill-tthc-metadata.js` + `setup/reembed-corpus.js` (mac dinh KHONG ghi Pinecone).
+  `npm test` 151/151, smoke TR03 PASS.
+- **[DONE-code] Giai doan 3 — UX + khep vong** (`feat/chat-ux`, stack tren Giai doan 2): SSE status,
+  starter chips, guide deep-link theo title, Telegram alert opt-in. `npm test` 154/154.
+
+### Con lai (BUOC NGUOI DUNG — can key/quyet dinh):
+1. **Chay 3 run regression 30 cau sach** (`node scripts/run-regression.js`) truoc khi cong bo baseline moi
+   cho Giai doan 2 (doi model rerank + boost + rewrite). Commit bao cao vao `test/results/`.
+2. **Backfill metadata**: `node setup/backfill-tthc-metadata.js` → duyet `data/tthc-metadata-draft.csv`
+   → `--apply` de ghi `thoi_han`/`mau_don` vao Pinecone.
+3. **Re-embed corpus** (neu muon bat taskType): `node setup/reembed-corpus.js --apply --target <ns>` →
+   dat `PINECONE_NAMESPACE=<ns>` + `EMBED_TASK_TYPE=RETRIEVAL_QUERY` tren Vercel.
+4. **Telegram alert** (tuy chon): dat `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` tren Vercel.
+5. **Push + PR** cac nhanh (chua push — theo quy tac khong tu push `main`).

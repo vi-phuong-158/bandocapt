@@ -22,6 +22,8 @@ const CHATBOT_TEXT = {
     captchaPlaceholder: 'Vui lòng xác minh Turnstile trước...',
     recaptchaPending: 'Đang xác minh lại CAPTCHA...',
     typing: 'Đang suy nghĩ...',
+    typingRetrieving: 'Đang tra cứu văn bản pháp luật…',
+    typingGenerating: 'Đang soạn câu trả lời…',
     copied: 'Đã chép',
     copy: 'Sao chép',
     interrupted: 'Phản hồi bị gián đoạn trước khi hoàn tất. Nội dung phía trên có thể chưa đầy đủ.',
@@ -142,6 +144,9 @@ function openChatWindow() {
     toggle.setAttribute('aria-expanded', 'true');
     chatWindow.setAttribute('aria-hidden', 'false');
     syncChatWindowPresentation(true);
+    renderStarterChips();
+    // P3.3: warm catalog trong nền để citation guide resolve deep-link theo title.
+    window.TthcCatalog?.preload?.();
     setTimeout(() => input?.focus(), 120);
 }
 
@@ -217,7 +222,7 @@ function appendAssistantShell() {
     content.innerHTML = `
         <span class="ai-chat-typing">
             <span></span><span></span><span></span>
-            <span>${CHATBOT_TEXT.typing}</span>
+            <span class="ai-chat-typing-label">${CHATBOT_TEXT.typingRetrieving}</span>
         </span>
     `;
 
@@ -415,15 +420,26 @@ function appendSources(bubble, sources) {
         }
 
         // Nút mở toàn văn thủ tục trong danh mục để người dùng đối sánh câu trả lời AI.
-        // Chỉ hiện khi source là thủ tục (có procedure_id) và catalog đã nạp; dedupe theo procedure_id.
-        if (source.procedure_id && window.TthcCatalog && !seenProcedureIds.has(source.procedure_id)) {
-            seenProcedureIds.add(source.procedure_id);
+        // (1) source có procedure_id (tthc) → mở trực tiếp. (2) source guide không có
+        // procedure_id runtime → P3.3: resolve theo title khớp chính xác trong catalog
+        // (chỉ hiện khi catalog đã warm và tìm thấy đúng, tránh nút dead-end/mở nhầm).
+        const addCompareBtn = onClick => {
             const compareBtn = document.createElement('button');
             compareBtn.type = 'button';
             compareBtn.className = 'ai-chat-source-compare';
             compareBtn.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">fact_check</span><span>Đối chiếu trong danh mục</span>';
-            compareBtn.addEventListener('click', () => window.TthcCatalog.openProcedure(source.procedure_id));
+            compareBtn.addEventListener('click', onClick);
             item.appendChild(compareBtn);
+        };
+        if (source.procedure_id && window.TthcCatalog && !seenProcedureIds.has(source.procedure_id)) {
+            seenProcedureIds.add(source.procedure_id);
+            addCompareBtn(() => window.TthcCatalog.openProcedure(source.procedure_id));
+        } else if (!source.procedure_id && source.title && window.TthcCatalog?.findByTitle) {
+            const resolvedId = window.TthcCatalog.findByTitle(source.title);
+            if (resolvedId && !seenProcedureIds.has(resolvedId)) {
+                seenProcedureIds.add(resolvedId);
+                addCompareBtn(() => window.TthcCatalog.openByTitle(source.title));
+            }
         }
 
         sourceWrap.appendChild(item);
@@ -485,6 +501,42 @@ function detectQuickReplies(fullText) {
 
 function clearQuickReplies() {
     document.querySelectorAll('.ai-chat-quick-replies').forEach(el => el.remove());
+}
+
+// P3.2: Câu hỏi gợi ý hiển thị khi mở chat lúc hội thoại còn trống — rút ngắn
+// bước đầu cho người dân (không phải tự nghĩ câu hỏi). Phủ các lĩnh vực phổ biến.
+const STARTER_QUESTIONS = [
+    { label: 'Gia hạn tạm trú cho người nước ngoài', send: 'Thủ tục gia hạn tạm trú cho người nước ngoài như thế nào?' },
+    { label: 'Khai báo tạm trú cho khách nước ngoài', send: 'Khách sạn của tôi có khách nước ngoài thì khai báo tạm trú thế nào?' },
+    { label: 'Làm căn cước ở đâu?', send: 'Tôi muốn làm căn cước thì đến đâu và cần giấy tờ gì?' },
+    { label: 'Cấp hộ chiếu phổ thông', send: 'Thủ tục cấp hộ chiếu phổ thông cần những gì?' },
+    { label: 'Đăng ký xe máy, ô tô', send: 'Thủ tục đăng ký xe máy, ô tô như thế nào?' },
+    { label: 'Mất hộ chiếu thì làm sao?', send: 'Tôi bị mất hộ chiếu thì phải làm gì?' }
+];
+
+function renderStarterChips() {
+    const { history } = getChatElements();
+    if (!history) return;
+    if (chatHistory.length > 0) return;                       // chỉ khi hội thoại trống
+    if (history.querySelector('.ai-chat-starter')) return;    // tránh render trùng khi mở lại
+
+    const wrap = document.createElement('div');
+    wrap.className = 'ai-chat-quick-replies ai-chat-starter';  // dùng chung style + bị clearQuickReplies dọn
+    STARTER_QUESTIONS.forEach(q => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ai-chat-quick-reply';
+        btn.textContent = q.label;
+        btn.addEventListener('click', () => {
+            const { input } = getChatElements();
+            if (!input || input.disabled) return;
+            input.value = q.send;
+            handleChatSend();
+        });
+        wrap.appendChild(btn);
+    });
+    history.appendChild(wrap);
+    scrollChatToBottom();
 }
 
 function appendQuickReplies(row, fullText) {
@@ -614,7 +666,13 @@ async function handleChatSend() {
                     renderTimer = null;
                 }, 80);
             }
-        }, activeCancelController.signal);
+        }, activeCancelController.signal, (status) => {
+            // P3.1: đổi nhãn typing khi server báo đã xong khâu truy hồi.
+            if (status === 'generating' && firstChunk) {
+                const label = content.querySelector('.ai-chat-typing-label');
+                if (label) label.textContent = CHATBOT_TEXT.typingGenerating;
+            }
+        });
 
         if (renderTimer) clearTimeout(renderTimer);
         if (activeAbortMode === 'close' && requestController.signal.aborted) {

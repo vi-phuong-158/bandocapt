@@ -764,18 +764,52 @@
 
 ---
 
+## [2026-07-10] Giai doan 3 UX + khep vong chat luong
+- **Agent:** Claude Code (Fable 5)
+- **Thay doi:** (1) SSE status: `api/chat.js` phat `{status:'generating'}` sau khau truy hoi; `js/gemini.js` them `onStatus`; `js/chatbot.js` doi nhan typing 2 pha (`typingRetrieving`/`typingGenerating`). (2) `renderStarterChips` — 6 chip cau hoi pho bien khi mo chat luc hoi thoai trong. (3) Guide deep-link: `js/tthc-catalog.js` them `findByTitle`/`openByTitle`/`preload`; `appendSources` hien nut doi chieu cho citation guide khi title khop chinh xac; warm catalog khi mo chat. (4) `sendTelegramAlert` (opt-in env) goi tu groundedness-fail (`api/chat.js`) va feedback 👎 (`api/feedback.js`); quy trinh feedback→eval ghi vao `05`.
+- **File da sua:** `api/chat.js`, `api/feedback.js`, `js/gemini.js`, `js/chatbot.js`, `js/tthc-catalog.js`, `test/telegram-alert.test.js` (moi), `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Giam do tre cam nhan khi cho pipeline RAG, rut ngan buoc dau cho nguoi dan, mo khoa 102 guide cho deep-link tu chat, va khep vong feedback→eval + canh bao tuc thoi.
+- **Kiem tra:** `npm test` (154/154, them 3 test Telegram); `npm run build` sach; preview localhost xac nhan 6 starter chip render, `TthcCatalog.findByTitle` khop chinh xac guide+tthc va tra null cho input rac, 0 loi console. Con lai (user step): bat env `TELEGRAM_*` neu muon canh bao; SSE status 2 pha chi thay ro tren moi truong co /api/chat that.
+
+---
+
+## [2026-07-10] Chay 3 run regression 30 cau sau Giai doan 2/3
+- **Agent:** Claude Code (Fable 5)
+- **Thay doi:** Chay `node scripts/run-regression.js` 3 lan lien tiep tren nhanh `feat/chat-ux`. Khong LEGAL_HALLUCINATION xac nhan. Nhung chua dat chuan "sach" nghiem ngat: GD02 fail-tu-cham 1 lan (loi harness regex, noi dung dung — 2 lan sau PASS); GV02 loi 2/3 lan (`BLOCKED_CONTENT` x2, `TRUNCATED` co notice x1) — flaky o tang generation/safety cua Gemini, khong lien quan cac thay doi retrieval Giai doan 2. Commit 3 bao cao lam bang chung nhung KHONG cong bo la baseline moi.
+- **File da sua:** `test/results/regression-run-2026-07-10_15-47-25.md`, `test/results/regression-run-2026-07-10_15-54-53.md`, `test/results/regression-run-2026-07-10_16-02-57.md`, `test/results/regression-latest.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** User yeu cau chay regression de kiem chung thay doi Giai doan 2 (retrieval) khong gay hoi quy.
+- **Kiem tra:** 3/3 run hoan tat, khong Tier-1 hallucination xac nhan; them TASK-GV02-FLAKY vao backlog de dieu tra rieng cau hoi hay loi.
+
+---
+
+## [2026-07-10] Dieu tra nguyen nhan GV02 flaky
+- **Agent:** Claude Code (Fable 5)
+- **Thay doi:** Them log chan doan `finishReason`/`promptFeedback`/`safetyRatings` vao nhanh `BLOCKED_CONTENT` trong `api/chat.js` (P3.5, giu vinh vien, khong log noi dung cau hoi/PII). Chay GV02 don le 10 lan (10/10 thanh cong) + 1 lan full 30-cau them (sach 100%) de xac dinh nguyen nhan.
+- **File da sua:** `api/chat.js`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`, `test/results/` (them 1 full-run sach, xoa cac bao cao 1-cau phat sinh khi dieu tra)
+- **Ly do:** User yeu cau kiem tra tai sao GV02 hay loi trong 3 run truoc.
+- **Ket qua:** Xac dinh la bien thien sampling Gemini o temperature 0.2 ket hop chu de von dai (nhieu mau don/phi/buoc), khong lien quan cac thay doi retrieval Giai doan 2. Khong tai hien duoc BLOCKED_CONTENT de bat log category cu the — ghi nhan la ton dong uu tien thap, log chan doan da san sang cho lan sau.
+- **Kiem tra:** `npm test` 154/154, `node --check api/chat.js` OK.
+---
+
 ## [2026-07-11] Fix review PR #20 exact-token va env local cho script
 - **Agent:** Codex
 - **Thay doi:** Chuan hoa exact-token theo dang khong dau de `QĐ/QD`, `NĐ/ND` khop nhau khi extract va khi so voi metadata; them test cho case user go `QĐ` nhung metadata luu `QD`. Hai script maintenance moi doc ca `.env` va `.env.local`, bo qua gia tri rong.
 - **File da sua:** `api/chat.js`, `test/exact-token-boost.test.js`, `setup/backfill-tthc-metadata.js`, `setup/reembed-corpus.js`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** Review PR #20 phat hien boost bo sot so hieu van ban ASCII dang duoc repo hien thi (`5568/QD-BCA`) va script moi lech voi workflow env local cua du an.
 - **Kiem tra:** `npm test -- test/exact-token-boost.test.js`; `npm run check:syntax`.
-
 ---
 
-## [2026-07-11] Merge PR #19 performance quick wins vao nen PR #20
+## [2026-07-11] Fix review PR #21 Telegram alert khong chan feedback
 - **Agent:** Codex
-- **Thay doi:** Cap nhat nhanh `feat/rag-accuracy` theo `main` sau khi PR #19 merge; giu thay doi defer script ban do va cache-control static asset tu `index.html`/`vercel.json`.
+- **Thay doi:** Them timeout ngan cho `sendTelegramAlert`; doi luong feedback tu `await sendTelegramAlert` sang `waitUntil(sendTelegramAlert(...))` de tra response sau khi luu RTDB, khong doi nguoi dung cho Telegram. Bo sung test timeout cho Telegram helper.
+- **File da sua:** `api/chat.js`, `api/feedback.js`, `test/telegram-alert.test.js`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Sau khi bat Telegram bot, alert khong con la no-op; neu Telegram cham thi co the lam treo request feedback cua nguoi dung.
+- **Kiem tra:** `npm test -- test/telegram-alert.test.js`; `npm run check:syntax`.
+---
+
+## [2026-07-11] Merge main vao PR #21 sau PR #19 va PR #20
+- **Agent:** Codex
+- **Thay doi:** Cap nhat nhanh `feat/chat-ux` theo `main` sau khi PR #19/#20 merge; giu cac thay doi performance, RAG accuracy va Telegram feedback non-blocking tren cung mot nen.
 - **File da sua:** `index.html`, `vercel.json`, `docs/brain/06-ai-working-log.md`
-- **Ly do:** PR #20 can rebase/merge voi `main` moi de het conflict truoc khi merge.
-- **Kiem tra:** Chay lai `npm test -- test/exact-token-boost.test.js`, `npm run check:syntax`, `npm run build` sau khi resolve.
+- **Ly do:** PR #21 can doi base sang `main` va merge sach sau khi hai PR nen da vao production branch.
+- **Kiem tra:** Chay lai `npm test -- test/telegram-alert.test.js`, `npm run check:syntax`, `npm run build` sau khi resolve.

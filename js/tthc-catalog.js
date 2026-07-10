@@ -490,10 +490,36 @@ function initTthcCatalog() {
     }
 }
 
+// P3.3: Tra procedureId theo title khớp CHÍNH XÁC (đã chuẩn hóa). Cho phép
+// citation guide trong chat (không có procedure_id runtime) deep-link tới danh
+// mục qua tiêu đề. Khớp chính xác để KHÔNG bao giờ mở nhầm thủ tục.
+function findProcedureIdByTitle(title) {
+    if (!title || !catalogData || !Array.isArray(catalogData.procedures)) return null;
+    const target = normalizeVi(title).trim();
+    if (!target) return null;
+    const proc = catalogData.procedures.find(p => normalizeVi(p.title).trim() === target);
+    return proc ? proc.procedureId : null;
+}
+
+// Mở danh mục và điều hướng theo title (lazy-load như openProcedure). Không khớp
+// chính xác thì về list view kèm thông báo — không mở nhầm thủ tục.
+function openCatalogByTitle(title) {
+    openCatalogWindow();
+    ensureCatalogLoaded().then(() => {
+        const id = findProcedureIdByTitle(title);
+        if (id) goToProcedure(id);
+        else showListView('Thủ tục này chưa có trong danh mục đối chiếu.');
+    }).catch(() => {});
+}
+
 if (typeof window !== 'undefined') {
     window.TthcCatalog = {
         open: () => openCatalogWindow(),
         openProcedure: procedureId => openCatalogWindow(procedureId),
+        openByTitle: openCatalogByTitle,
+        findByTitle: findProcedureIdByTitle,
+        // Nạp trước catalog trong nền (không mở panel) để chat resolve guide theo title.
+        preload: () => ensureCatalogLoaded().catch(() => {}),
         close: closeCatalogWindow
     };
 }
