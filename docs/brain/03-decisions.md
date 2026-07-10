@@ -5,7 +5,16 @@
 
 ---
 
-## [2026-07-09] Catalog chi chua TTHC that; guide la opt-in (huong 1)
+## [2026-07-10] Dao huong 1: catalog gom ca guide, chi loc noi dung noi bo chatbot
+
+- **Quyet dinh:** `data/tthc-catalog.json` da commit gio sinh bang `--include-guides` (137 thu tuc = 35 tthc that + 102 guide). Them `INTERNAL_GUIDE_TITLE_PATTERN` trong `scripts/generate-tthc-catalog.js` de LOAI cac muc guide thuc chat la noi dung noi bo chatbot (title khop `nguyên tắc trả lời | quản trị viên | chatbot | ^người dùng:`) — 8 muc bi loai. Test `data/tthc-catalog.json da commit` doi ky vong sang `includeGuides=true`, ~100–200 muc, phai co ca entry guide lan tthc, va assert 0 muc lo noi dung noi bo.
+- **Ly do:** User yeu cau khoi phuc danh muc day du: ban chi-tthc (35) bo sot nhieu linh vuc nguoi dan can (cu tru 13, can cuoc 21, dang ky xe 11, dinh danh dien tu 3, nganh nghe ANTT 3, khieu nai to cao 2, xuat nhap canh 3). Cac linh vuc nay CHI ton tai duoi dang guide trong KB. Bo hoan toan guide (huong 1) la mat scope thuc te. Nhung noi lo lo noi dung noi bo cua huong 1 van dung — nen thay vi bo het guide, chi loc dung 8 muc noi bo.
+- **Danh doi:** Danh muc rong hon (137 vs 35) nhung 102 guide co `procedure_id = guide:*` KHONG direct-link tu nut "Doi sanh thu tuc goc" trong chat (nut do chi match `procedure_id` cua tthc). Nghia la: panel duyet day du 17 linh vuc, nhung deep-link tu citation chatbot van chi cham 35 tthc that. Guide chi doc duoc qua duyet danh muc, khong qua nut doi sanh. 6 linh vuc chi-co-tthc (thuong tru, giay thong hanh, tai khoan dien tu, xac nhan thong tin, nguoi khong quoc tich, khu vuc cam) van giu nguyen 17 muc tthc.
+- **Nguoi quyet dinh:** user / Claude Code (Opus 4.8) — dao quyet dinh [2026-07-09] "huong 1" ngay duoi.
+
+---
+
+## [2026-07-09] Catalog chi chua TTHC that; guide la opt-in (huong 1) — DA DAO NGAY 2026-07-10
 
 - **Quyet dinh:** Mac dinh `scripts/generate-tthc-catalog.js` CHI xuat thu tuc hanh chinh that (`source_type='tthc'`). Kho `guide` (wiki/FAQ/huong dan noi bo chatbot) chi duoc gop vao khi bat `--include-guides`. Them dedupe theo (linh vuc + cap + ten chuan hoa), giu ban day du hon (uu tien phi da xac minh, roi text dai hon). `missingFromBackups` tinh lai tren tap TRUOC dedupe (audit id khong tai duoc tu Pinecone) — o live mode du du lieu thi rong. Regenerate `data/tthc-catalog.json` = 35 thu tuc that (39 fetch - 4 ban trung title+cap).
 - **Ly do:** Che do live truoc do nap CA corpus Pinecone, bien moi chunk RAG thanh mot "thu tuc" (149 entry, 110 guide). Lam lo noi dung noi bo ("Nguyen tac tra loi cua chatbot", "Goi y cho quan tri vien"), cau hoi mau ('Nguoi dung: "..."'), va xe mot thu tuc thanh ~35 manh — phan tac dung voi muc dich "nguon de doi chieu". Chi tiet review: xem log [2026-07-09] duoi.

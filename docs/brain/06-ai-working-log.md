@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-07-10] Catalog TTHC gồm cả guide (137 mục), lọc nội dung nội bộ chatbot
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** Đảo "Hướng 1" (2026-07-09): `data/tthc-catalog.json` đã commit giờ sinh với `--include-guides` = **137 thủ tục** (35 tthc thật + 102 guide), phủ đủ 17 lĩnh vực (bổ sung cư trú, căn cước, đăng ký xe, định danh điện tử, ngành nghề ANTT, khiếu nại–tố cáo, xuất nhập cảnh — trước bị bỏ sót ở bản 35). Thêm `INTERNAL_GUIDE_TITLE_PATTERN` trong `scripts/generate-tthc-catalog.js` → loại 8 mục guide thực chất là nội dung nội bộ chatbot ("Nguyên tắc trả lời của chatbot", "Gợi ý cho quản trị viên", 6× câu hỏi mẫu `Người dùng: "..."`). Cập nhật test committed-catalog (`includeGuides=true`, 100–200 mục, phải có cả guide lẫn tthc, assert 0 mục lộ nội dung nội bộ) + thêm 1 unit test cho bộ lọc nội bộ.
+- **File đã sửa:** `scripts/generate-tthc-catalog.js`, `data/tthc-catalog.json`, `test/tthc-catalog.test.js`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** User cho biết đã chuẩn bị nhiều thủ tục nhưng danh mục chỉ hiện 35; nguyên nhân là "Hướng 1" lọc bỏ toàn bộ guide. User chốt (qua câu hỏi): giữ đủ (cả tthc + guide). Nỗi lo lộ nội dung nội bộ của Hướng 1 vẫn đúng nên chỉ lọc đúng nhóm nội bộ thay vì bỏ hết guide.
+- **Kiểm tra:** `npm test` 119/119 pass; `npm run build` sạch (dist có 137 mục); verify browser: panel mở, 17 lĩnh vực chips + cards render, 0 lỗi console, `internalLeak=0`, các lĩnh vực chỉ-có-tthc (thường trú, giấy thông hành, người không quốc tịch...) vẫn còn. **Lưu ý còn tồn:** 102 guide có `procedure_id=guide:*` không direct-link từ nút "Đối sánh thủ tục gốc" trong chat — panel duyệt được nhưng deep-link citation vẫn chỉ chạm 35 tthc.
+
+---
+
 ## [2026-07-09] Hoàn thiện build và wording cho danh mục TTHC
 - **Agent:** Codex
 - **Thay đổi:** Bổ sung `js/tthc-catalog.js` và `data/tthc-catalog.json` vào artifact `dist/`; thêm syntax check cho `js/tthc-catalog.js`; đổi nhãn nút trong citation từ wording tuyệt đối sang wording trung tính hơn.

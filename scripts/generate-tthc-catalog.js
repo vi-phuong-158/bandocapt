@@ -391,6 +391,11 @@ function parseGuideProcedureRecord(vectorId, metadata) {
     };
 }
 
+// Loại các "mục" guide thực chất là nội dung nội bộ chatbot (nguyên tắc trả lời,
+// ghi chú cho quản trị viên, câu hỏi mẫu 'Người dùng: "..."') — không phải thủ tục
+// hành chính, không được lộ ra danh mục công khai.
+const INTERNAL_GUIDE_TITLE_PATTERN = /(nguyên tắc trả lời|quản trị viên|chatbot|^người dùng\s*:)/i;
+
 function buildGuideProcedures(guideRecords, tthcProcedures = []) {
     const takenTitles = new Set(tthcProcedures.map(proc => normalizeProcedureTitle(proc.title)));
     const grouped = new Map();
@@ -400,6 +405,7 @@ function buildGuideProcedures(guideRecords, tthcProcedures = []) {
         const normalizedTitle = normalizeProcedureTitle(parsed.title);
 
         if (!normalizedTitle || takenTitles.has(normalizedTitle)) continue;
+        if (INTERNAL_GUIDE_TITLE_PATTERN.test(parsed.title)) continue;
 
         const key = `${parsed.category}|${parsed.cap}|${normalizedTitle}`;
         const existing = grouped.get(key) || {
