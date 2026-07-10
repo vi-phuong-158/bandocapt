@@ -125,3 +125,28 @@
 - [2026-07-09] Hoan thien Goi A cho catalog TTHC: preview server tra MIME JSON, architecture/decision/current-tasks ghi nhan luong catalog tinh va backlog backfill.
 - [2026-07-09] Mo rong generator catalog sang Pinecone live + group `guide_*`: danh muc preview hien 149 thu tuc, co them cu tru, can cuoc, dang ky xe, nganh nghe ANTT.
 - [2026-07-09] Huong 1: loc catalog ve CHI thu tuc that (`source_type='tthc'`), guide thanh opt-in `--include-guides`; them dedupe title+cap; fix `missingFromBackups` (rong o live mode). `data/tthc-catalog.json` = 35 thu tuc that, khong con lo noi dung noi bo chatbot.
+
+---
+
+## Cap nhat 2026-07-10 — Nang cap do chinh xac / UX / hieu nang (3 giai doan)
+
+Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
+
+- **[DONE] Giai doan 1 — hieu nang** (`feat/perf-quick-wins`): defer 4 script ban do (`index.html`),
+  cache-control static (`vercel.json`). `npm test` 144/144, build sach.
+- **[DONE-code] Giai doan 2 — do chinh xac retrieval** (`feat/rag-accuracy`): exact-token boost,
+  query rewrite follow-up, model tien ich → flash-lite, taskType embedding gated. Script
+  `setup/backfill-tthc-metadata.js` + `setup/reembed-corpus.js` (mac dinh KHONG ghi Pinecone).
+  `npm test` 151/151, smoke TR03 PASS.
+- **[DONE-code] Giai doan 3 — UX + khep vong** (`feat/chat-ux`, stack tren Giai doan 2): SSE status,
+  starter chips, guide deep-link theo title, Telegram alert opt-in. `npm test` 154/154.
+
+### Con lai (BUOC NGUOI DUNG — can key/quyet dinh):
+1. **Chay 3 run regression 30 cau sach** (`node scripts/run-regression.js`) truoc khi cong bo baseline moi
+   cho Giai doan 2 (doi model rerank + boost + rewrite). Commit bao cao vao `test/results/`.
+2. **Backfill metadata**: `node setup/backfill-tthc-metadata.js` → duyet `data/tthc-metadata-draft.csv`
+   → `--apply` de ghi `thoi_han`/`mau_don` vao Pinecone.
+3. **Re-embed corpus** (neu muon bat taskType): `node setup/reembed-corpus.js --apply --target <ns>` →
+   dat `PINECONE_NAMESPACE=<ns>` + `EMBED_TASK_TYPE=RETRIEVAL_QUERY` tren Vercel.
+4. **Telegram alert** (tuy chon): dat `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` tren Vercel.
+5. **Push + PR** cac nhanh (chua push — theo quy tac khong tu push `main`).
