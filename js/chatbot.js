@@ -253,6 +253,7 @@ function appendSources(bubble, sources) {
 
     const sourceWrap = document.createElement('div');
     sourceWrap.className = 'ai-chat-sources';
+    const seenProcedureIds = new Set();
 
     sources.forEach(source => {
         const item = document.createElement('div');
@@ -281,6 +282,18 @@ function appendSources(bubble, sources) {
             meta.className = 'ai-chat-source-meta';
             meta.textContent = metadata.join(' • ');
             item.appendChild(meta);
+        }
+
+        // Nút mở toàn văn thủ tục trong danh mục để người dùng đối sánh câu trả lời AI.
+        // Chỉ hiện khi source là thủ tục (có procedure_id) và catalog đã nạp; dedupe theo procedure_id.
+        if (source.procedure_id && window.TthcCatalog && !seenProcedureIds.has(source.procedure_id)) {
+            seenProcedureIds.add(source.procedure_id);
+            const compareBtn = document.createElement('button');
+            compareBtn.type = 'button';
+            compareBtn.className = 'ai-chat-source-compare';
+            compareBtn.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">fact_check</span><span>Đối chiếu trong danh mục</span>';
+            compareBtn.addEventListener('click', () => window.TthcCatalog.openProcedure(source.procedure_id));
+            item.appendChild(compareBtn);
         }
 
         sourceWrap.appendChild(item);

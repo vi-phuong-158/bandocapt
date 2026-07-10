@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-07-09] Hoàn thiện build và wording cho danh mục TTHC
+- **Agent:** Codex
+- **Thay đổi:** Bổ sung `js/tthc-catalog.js` và `data/tthc-catalog.json` vào artifact `dist/`; thêm syntax check cho `js/tthc-catalog.js`; đổi nhãn nút trong citation từ wording tuyệt đối sang wording trung tính hơn.
+- **File đã sửa:** `scripts/build-static.js`, `package.json`, `js/chatbot.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Tránh 404 khi build production/preview, giữ `check:syntax` phủ hết file runtime mới, và giảm rủi ro người dùng hiểu catalog là “nguồn gốc chính thức”.
+- **Kiểm tra:** `npm test`; `npm run build`; xác nhận có `dist/js/tthc-catalog.js` và `dist/data/tthc-catalog.json`.
+
+---
+
 ## [2026-07-03] Cải thiện chất lượng nhánh khai báo tạm trú người nước ngoài
 - **Agent:** Codex
 - **Thay đổi:** Siết `api/chat.js` cho nhánh `tam_tru_khai_bao` theo hướng fail-closed, chỉ giữ tài liệu có tín hiệu rõ về người nước ngoài/NA17/KBTT hoặc metadata intent chính xác; loại các tài liệu cư trú công dân Việt Nam và bỏ fallback trả toàn bộ match. Mở rộng `scripts/run-regression.js` để lọc theo ID và tự chấm 7 ca trọng yếu, thêm lệnh `npm run test:regression:tam-tru`. Viết `scripts/repair-pinecone-temp-residence.js` để backup, re-embed, upsert UTF-8 sạch cho `tthc_matt26265`, cập nhật `content_hash`/`retrieval_intent`/`subject_scope` và xác minh top-1 retrieval.
@@ -649,6 +658,31 @@
 - **File da sua:** `lib/output-validator.js`, `api/chat.js`, `test/output-validator.test.js`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** Hard-redact Tier 2 da xoa nham Thong tu dung va cat nat `Luat so 47/2014/QH13` trong chay that.
 - **Kiem tra:** `node -c lib/output-validator.js`; `node -c api/chat.js`; `npm test`; `npm run build`; targeted/full regression neu moi truong API cho phep.
+
+---
+
+## [2026-07-09] Goi A catalog TTHC: release hygiene
+- **Agent:** Codex
+- **Thay doi:** Them MIME `.json` cho preview server; cap nhat architecture/code graph voi `js/tthc-catalog.js`, `data/tthc-catalog.json`, generator catalog va luong doi chieu tu chat; ghi decision cho catalog tinh; them backlog backfill cac thu tuc thieu toan van.
+- **File da sua:** `scripts/preview-server.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Khop docs va local preview voi feature catalog truoc khi chuyen sang verification runtime.
+- **Kiem tra:** `npm test`; `npm run build`.
+## [2026-07-09] Mo rong catalog TTHC sang nguon Pinecone live
+- **Agent:** Codex
+- **Thay doi:** Doi `scripts/generate-tthc-catalog.js` sang che do uu tien Pinecone live, bo qua key rong trong `.env.local`, retry call Pinecone khi loi mang, group `guide_*` thanh thu tuc muc-do catalog va dedupe co ban voi `tthc_*`; regenerate `data/tthc-catalog.json` thanh 149 thu tuc; cap nhat test va tai lieu kien truc/quyet dinh/task.
+- **File da sua:** `scripts/generate-tthc-catalog.js`, `data/tthc-catalog.json`, `test/tthc-catalog.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Catalog cu chi dua vao backup hep nen UI nhin nhu chi con thu tuc XNC; Pinecone thuc te con nhieu nhom TTHC khac can dua vao danh muc doi chieu.
+- **Kiem tra:** `npm test`; `npm run build`; `http://127.0.0.1:4173/data/tthc-catalog.json` tra `sourceMode=live`, `procedures=149`; Playwright local xac nhan panel tai du danh muc va hien chip cho `Cu tru`, `Can cuoc`, `Dang ky xe`.
+
+## [2026-07-09] Loc catalog ve chi TTHC that (huong 1) + fix trung lap/missingFromBackups
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay doi:** Review toan dien phat hien che do live nap ca 110 chunk `guide` (wiki/FAQ/huong dan noi bo chatbot) thanh "thu tuc" (149 entry, lo noi dung noi bo + xe 1 thu tuc thanh nhieu manh). Trien khai huong 1: guide thanh opt-in `--include-guides`, mac dinh chi xuat `source_type='tthc'`. Them `dedupeProcedures` (gop trung linh vuc+cap+ten, giu ban co phi da xac minh / text dai hon). `missingFromBackups` tinh lai tren tap truoc dedupe -> rong o live mode. Regenerate `data/tthc-catalog.json` = 35 thu tuc that, 0 guide, 0 trung title+cap, 27 phi da xac minh.
+- **File da sua:** `scripts/generate-tthc-catalog.js`, `data/tthc-catalog.json`, `test/tthc-catalog.test.js`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Catalog doi chieu phai la thu tuc hanh chinh that, khong duoc lo huong dan noi bo/cau hoi mau; entry trung title+cap gay roi nguoi dung; `missingFromBackups` liet ke nham cac id da co trong catalog.
+- **Kiem tra:** `npm test` (99 pass); `npm run build` (dist co 35 thu tuc, 0 guide); preview `dev-server` xac nhan panel hien 35 card, khong con entry chatbot/admin, 10 chip; dedupe giu dung "Cap" vs "Cap lai" (title khac) va giu ban co phi da xac minh.
+
+---
+
 ## [2026-07-03] Cap nhat thu tuc khai bao tam tru NNN tren Pinecone theo PDF KBTT co so luu tru
 - **Agent:** Codex
 - **Thay doi:** Doc PDF chinh thong `KBTT_HD_Trang_CSLT_v2.0.pdf`, doi chieu voi record Pinecone `tthc_matt26265`, sau do cap nhat truc tiep metadata record nay: sua `cap` tu `tinh` ve `xa`, bo thong tin sai `24 gio den 07 ngay`, thay bang huong dan thao tac online tren `kbtt.xuatnhapcanh.gov.vn`, bo sung `official_url`, `thoi_han`, `mau_don`; dong thoi sao luu metadata truoc/sau update vao `data/pinecone-backups/` va ghi lai technical decision.

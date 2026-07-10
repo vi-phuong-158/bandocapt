@@ -27,10 +27,13 @@ bandocapt/
 |- input.css
 |- output.css
 |- data.js
+|- data/
+|  `- tthc-catalog.json
 |- js/
 |  |- chatbot.js
 |  |- gemini.js
-|  `- location-data.js
+|  |- location-data.js
+|  `- tthc-catalog.js
 |- lib/
 |  |- output-validator.js
 |  |- published-locations.js
@@ -40,6 +43,7 @@ bandocapt/
 |  `- google-sheet.js
 |- setup/
 |- scripts/
+|  `- generate-tthc-catalog.js
 |- test/
 |- assets/
 |- vercel.json
@@ -50,17 +54,20 @@ bandocapt/
 
 | Module / file | Vai tro | Duoc goi boi | Phu thuoc vao |
 |---------------|---------|--------------|---------------|
-| `index.html` | Shell UI, tai CSS/JS va DOM | Browser | `output.css`, `styles.css`, `app.js`, `js/chatbot.js`, `js/gemini.js` |
+| `index.html` | Shell UI, tai CSS/JS va DOM | Browser | `output.css`, `styles.css`, `app.js`, `js/chatbot.js`, `js/gemini.js`, `js/tthc-catalog.js` |
 | `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker | `index.html` | `js/location-data.js`, `api/google-sheet.js`, `data.js` |
 | `data.js` | Fallback tinh cho map khi Google Sheets loi | `app.js` | - |
 | `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check, doc them `search_aliases` neu co | `app.js`, `lib/published-locations.js`, test | - |
 | `js/gemini.js` | Goi `POST /api/chat`, parse SSE stream | `js/chatbot.js` | `api/chat.js` |
-| `js/chatbot.js` | UI chat, toggle panel, render stream | `index.html` | `js/gemini.js` |
+| `js/chatbot.js` | UI chat, toggle panel, render stream va nut doi chieu TTHC khi source co `procedure_id` | `index.html` | `js/gemini.js`, `window.TthcCatalog` neu co |
+| `js/tthc-catalog.js` | UI danh muc TTHC tinh: load JSON, loc/tim kiem, xem chi tiet, public API `window.TthcCatalog` | `index.html`, `js/chatbot.js` | `data/tthc-catalog.json` |
+| `data/tthc-catalog.json` | Catalog TTHC tinh de nguoi dung doi chieu cau tra loi AI | `js/tthc-catalog.js` | sinh tu Pinecone live + audit phi, fallback backup khi local khong co key |
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
 | `lib/output-validator.js` | Fail-closed output guard: doi chieu va redact SDT/Maps/toa do/so lieu phap ly khong co trong nguon xac minh | `api/chat.js`, test | - |
 | `lib/regression-metrics.js` | Dem tu Unicode-safe va giu ngan sach verbosity 120/250 dong bo voi prompt answer-first | `scripts/run-regression.js`, test | `Intl.Segmenter` Node 20 |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
-| `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone, split intent `tam_tru_khai_bao`/`tam_tru_the`, fail-closed branch filter, stream model, inject `<verified_locations>`, dang ky groundedness background task | `js/gemini.js` | Pinecone, Gemini API, Firebase, `@vercel/functions`, `lib/published-locations.js` |
+| `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone, split intent `tam_tru_khai_bao`/`tam_tru_the`, fail-closed branch filter, stream model, inject `<verified_locations>`, `buildCitationSource` tra them `procedure_id`/`title` cho nut doi chieu TTHC, dang ky groundedness background task | `js/gemini.js` | Pinecone, Gemini API, Firebase, `@vercel/functions`, `lib/published-locations.js` |
+| `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live (mac dinh chi `source_type='tthc'`, guide opt-in qua `--include-guides`), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
 | `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets | Google Apps Script | SpreadsheetApp |
 | `scripts/run-regression.js` | Runner regression API that, co the loc theo ID va tu cham 7 ca tam tru trong yeu | CLI / agent | `api/chat.js`, `test/cau-hoi/bo-test-regression-30-cau-nguoi-nuoc-ngoai-tthc.md`, `test/results/` |
 | `scripts/repair-pinecone-temp-residence.js` | Script sua Pinecone `tthc_matt26265`: backup, re-embed, upsert UTF-8 sach, verify top-1 | CLI / agent | Pinecone, Gemini Embedding API, `.env`, `data/pinecone-backups/` |
@@ -121,6 +128,29 @@ User nhap
 -> SSE ve client
 ```
 
+### Luong danh muc TTHC
+
+```text
+index.html load
+-> js/tthc-catalog.js init
+-> user mo "Danh muc thu tuc hanh chinh"
+-> fetch data/tthc-catalog.json same-origin
+-> render chip loc linh vuc + tim kiem + danh sach
+-> xem chi tiet thu tuc voi text nguyen van va phi da resolve
+
+Developer chay generate catalog
+-> scripts/generate-tthc-catalog.js
+-> neu co PINECONE_API_KEY hop le: list/fetch Pinecone namespace, lay `tthc_*`, group `guide_*` theo ten thu tuc
+-> dedupe guide neu trung tieu de voi `tthc_*`, tom tat fee tu muc phi/le phi, sort theo category/cap
+-> neu khong co env hop le: fallback backup trong repo (va co the `--fetch-missing` cho 4 record thieu)
+-> ghi data/tthc-catalog.json
+
+Chat source co procedure_id
+-> js/chatbot.js render nut "Doi chieu trong danh muc"
+-> window.TthcCatalog.openProcedure(procedure_id)
+-> mo dung chi tiet thu tuc neu catalog co id; neu khong thi hien thong bao thieu
+```
+
 ## Mo hinh du lieu / API
 
 ### `POST /api/chat`
@@ -147,6 +177,11 @@ SSE response events:
 ### `GET /api/google-sheet`
 
 Tra ve payload GViz da parse cua sheet `Published_Locations`. Public contract giu nguyen.
+
+### `GET /data/tthc-catalog.json`
+
+File tinh same-origin duoc copy vao `dist/` boi `scripts/build-static.js`. Frontend chi doc file nay de hien thi
+danh muc doi chieu; runtime khong goi Pinecone tu trinh duyet.
 
 ## Bien moi truong
 
@@ -194,6 +229,11 @@ RATE_LIMIT_DAILY_IP
   limit uu tien `x-vercel-forwarded-for` -> `x-real-ip` -> `x-forwarded-for` (XFF client co the tu chen
   gia tri gia vao dau chuoi).
 - `output.css` duoc commit va `npm run build` se tai tao lai file nay truoc khi tao `dist/`.
+- `scripts/build-static.js` dung allowlist file ro rang; khi them file runtime tinh nhu `js/tthc-catalog.js` hoac
+  `data/tthc-catalog.json` phai them vao allowlist, neu khong preview/production se 404.
+- `data/tthc-catalog.json` la snapshot tinh dung cho UI doi chieu; generator uu tien Pinecone live neu local co env hop le,
+  nhung frontend van chi fetch file same-origin nay va khong goi Pinecone runtime tu browser.
+- `.env.local` co the ton tai key Pinecone rong; generator bo qua gia tri rong va fallback ve `.env` thay vi coi nhu da cau hinh.
 - FAQ cache trong `api/chat.js` la in-memory theo tung serverless instance, khong shared giua cac instance.
 - Cau hoi co nhu cau tra dia diem/tru so khong duoc dung FAQ cache 1 gio de tranh dia chi cu sau khi Google Sheet cap nhat.
 - `Published_Locations` la nguon runtime duy nhat cho ten don vi, dia chi, so dien thoai, toa do va Google Maps cua chatbot.

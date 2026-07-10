@@ -5,6 +5,24 @@
 
 ---
 
+## [2026-07-09] Catalog chi chua TTHC that; guide la opt-in (huong 1)
+
+- **Quyet dinh:** Mac dinh `scripts/generate-tthc-catalog.js` CHI xuat thu tuc hanh chinh that (`source_type='tthc'`). Kho `guide` (wiki/FAQ/huong dan noi bo chatbot) chi duoc gop vao khi bat `--include-guides`. Them dedupe theo (linh vuc + cap + ten chuan hoa), giu ban day du hon (uu tien phi da xac minh, roi text dai hon). `missingFromBackups` tinh lai tren tap TRUOC dedupe (audit id khong tai duoc tu Pinecone) — o live mode du du lieu thi rong. Regenerate `data/tthc-catalog.json` = 35 thu tuc that (39 fetch - 4 ban trung title+cap).
+- **Ly do:** Che do live truoc do nap CA corpus Pinecone, bien moi chunk RAG thanh mot "thu tuc" (149 entry, 110 guide). Lam lo noi dung noi bo ("Nguyen tac tra loi cua chatbot", "Goi y cho quan tri vien"), cau hoi mau ('Nguoi dung: "..."'), va xe mot thu tuc thanh ~35 manh — phan tac dung voi muc dich "nguon de doi chieu". Chi tiet review: xem log [2026-07-09] duoi.
+- **Danh doi:** Catalog hep hon (35 thay vi 149) nhung dung nghia thu tuc hanh chinh. Neu sau nay muon lam san pham "wiki huong dan" rieng thi bat `--include-guides` (code parse guide + test van con). Guide procedure_id la tong hop nen khong direct-link tu chat — khong con la van de vi guide da tach khoi catalog mac dinh.
+- **Nguoi quyet dinh:** user / Claude Code (Opus 4.8)
+
+---
+
+## [2026-07-09] Catalog TTHC tinh de doi chieu cau tra loi AI
+
+- **Quyet dinh:** Giu frontend doc `data/tthc-catalog.json` tinh same-origin, nhung doi `scripts/generate-tthc-catalog.js` sang che do uu tien Pinecone live neu local co env hop le. Generator lay ca record `tthc_*` va group `guide_*` thanh mot thu tuc de catalog khong bi hep vao bo backup XNC cu; neu local khong co key hop le thi fallback ve backup trong repo. Chat van chi hien nut doi chieu khi source co `procedure_id`.
+- **Ly do:** KB thuc te trong Pinecone rong hon bo backup dang track trong repo; neu tiep tuc sinh catalog tu backup cu thi UI se lech scope va bo sot nhieu TTHC nhu cu tru, can cuoc, dang ky xe. Van giu file tinh o frontend de khong mo Pinecone ra browser.
+- **Danh doi:** Catalog van la snapshot, nen muon dong bo voi KB moi nhat phai chay lai `npm run gen:catalog`, commit JSON moi va build lai. Cac guide duoc tong hop theo heuristics (ten thu tuc + muc wiki), nen `procedure_id` direct-link hien chi co cho nhom `tthc_*`; 4 record thieu toan van trong backup cu van duoc ghi nhan o `missingFromBackups` de theo doi.
+- **Nguoi quyet dinh:** user / Codex
+
+---
+
 ## [2026-07-03] Progressive disclosure UI — quick-reply chips + accordion (chỉ client, không đổi API)
 
 - **Quyết định:** (1) `js/chatbot.js` thêm `detectQuickReplies(fullText)` — hàm thuần nhận diện 3 loại follow-up có tập lựa chọn hữu hạn bằng regex khớp NGUYÊN VĂN phrasing cố định trong `SYSTEM_PROMPT_BASE`/`XNC_RECEPTION_VERIFIED_BLOCK` (api/chat.js): hỏi khu vực cũ (Phú Thọ/Vĩnh Phúc/Hòa Bình) → 3 chip; hỏi quốc tịch khi mất hộ chiếu chưa rõ đối tượng → 2 chip vi/en; câu mời "hướng dẫn đầy đủ hồ sơ" (chế độ HẸP) → 1 chip. Click chip = điền `input.value` rồi gọi lại `handleChatSend()` (tái dùng nguyên luồng gửi, kể cả guard Turnstile). Chip bị dọn (`clearQuickReplies`) mỗi khi gửi tin mới. (2) `applyProgressiveDisclosure(content)` — sau khi render markdown, gom 2 khối `📋 Hồ sơ`/`📝 Trình tự` (nếu CẢ HAI cùng xuất hiện — tức câu trả lời trọn thủ tục) vào `<details>` đóng mặc định; `📍 Nơi nộp`, `📚 Căn cứ` và đáp án mở đầu luôn hiển thị. Câu hỏi hẹp (chỉ 1 marker hoặc 0) giữ nguyên phẳng.

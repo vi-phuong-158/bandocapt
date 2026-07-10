@@ -7,6 +7,7 @@ const files = [
     'index.html',
     'app.js',
     'data.js',
+    'data/tthc-catalog.json',
     'output.css',
     'tokens.css',
     'styles.css',
@@ -15,6 +16,7 @@ const files = [
     'js/chatbot.js',
     'js/gemini.js',
     'js/location-data.js',
+    'js/tthc-catalog.js',
 ];
 
 fs.rmSync(output, { recursive: true, force: true });
