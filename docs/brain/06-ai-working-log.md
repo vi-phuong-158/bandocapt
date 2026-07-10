@@ -752,3 +752,12 @@
 - **File da sua:** `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`, `data/pinecone-backups/2026-07-03-pre-update-tthc_matt26265.json`, `data/pinecone-backups/2026-07-03-post-update-tthc_matt26265.json`
 - **Ly do:** Record cu mo ta sai ban chat thu tuc online danh cho co so luu tru, co the khien chatbot tra sai tham quyen tiep nhan va sai cach thuc khai bao.
 - **Kiem tra:** Fetch truc tiep vector `tthc_matt26265` sau update de xac nhan `cap=xa`, `official_url=https://kbtt.xuatnhapcanh.gov.vn`, `thoi_han`/`mau_don` da co; query embedding voi cau `Khai bao tam tru nguoi nuoc ngoai online cho co so luu tru` tra lai chinh record nay top-1.
+
+---
+
+## [2026-07-10] Giai doan 1 nang cap hieu nang: defer script ban do + cache-control static
+- **Agent:** Claude Code (Fable 5)
+- **Thay doi:** (1) Them `defer` cho 4 the script ban do trong `index.html` (`leaflet.js`, `data.js`, `js/location-data.js`, `app.js`) — truoc day chan parse phan HTML chat/catalog nam duoi (dong 222-325). Defer giu nguyen thu tu thuc thi; `app.js` chi truy cap DOM/goi `fetchHeadquarters()` sau khi parse nen an toan. (2) Them 3 route `Cache-Control: public, max-age=3600, stale-while-revalidate=86400` cho `/assets/(.*)`, `/data/(.*)`, va `output.css|styles.css|tokens.css|logo.png` trong `vercel.json` — khong dung key voi catch-all CSP. Khong dung `/api/*` (giu no-store).
+- **File da sua:** `index.html`, `vercel.json`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Quick-win hieu nang khong dung retrieval/prompt: giam thoi gian parse HTML (FCP) va bo round-trip revalidate cho static asset khi vao lai trang.
+- **Kiem tra:** `node -e` parse `vercel.json` hop le; `npm run build` (13 files dist, css minify + syntax check pass); `npm test` 144/144 pass. Cong FCP/Lighthouse do tren preview deploy.
