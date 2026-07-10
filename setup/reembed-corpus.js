@@ -20,7 +20,19 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+const dotenv = require('dotenv');
+
+function loadEnvFilesPreferNonEmpty() {
+    for (const envPath of [path.resolve(__dirname, '../.env'), path.resolve(__dirname, '../.env.local')]) {
+        if (!fs.existsSync(envPath)) continue;
+        const parsed = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+        for (const [key, value] of Object.entries(parsed)) {
+            if (String(value || '').trim()) process.env[key] = value;
+        }
+    }
+}
+
+loadEnvFilesPreferNonEmpty();
 
 const EMBED_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent';
 const BACKUP_DIR = path.resolve(__dirname, '../data/pinecone-backups');

@@ -894,19 +894,29 @@ function shouldSkipRerank(matches) {
 // =====================================================================
 const EXACT_TOKEN_PATTERNS = [
     /\b(?:NA|TT|N|M|XC|HC)\d{1,3}\b/gi,                 // mã mẫu đơn: NA5, NA17, TT01
-    /\b\d{1,4}\/\d{4}(?:\/[A-ZĐ-]+)?\b/g,               // số hiệu có năm: 47/2014, 5568/2021/QĐ
-    /\b\d{1,4}\/(?:QĐ|NĐ|TT|CP|BCA|TTg|NQ)[-A-ZĐ]*\b/gi // số hiệu không năm: 5568/QĐ-BCA
+    /\b\d{1,4}\/\d{4}(?:\/[A-Z-]+)?\b/g,                // số hiệu có năm: 47/2014, 5568/2021/QD
+    /\b\d{1,4}\/(?:QD|ND|TT|CP|BCA|TTG|NQ)[-A-Z]*\b/g   // số hiệu không năm: 5568/QD-BCA
 ];
 // Sàn mềm: chỉ cứu match dưới ngưỡng 0.62 nếu score vẫn >= mức này, tránh kéo
 // nhiễu thuần (doc chỉ nhắc thoáng số hiệu) vào prompt.
 const EXACT_TOKEN_RESCUE_FLOOR = 0.45;
 
+function normalizeExactTokenText(value) {
+    return String(value || '')
+        .replace(/đ/g, 'd')
+        .replace(/Đ/g, 'D')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+}
+
 function extractExactTokens(message) {
     if (!message || typeof message !== 'string') return [];
+    const normalizedMessage = normalizeExactTokenText(message);
     const found = new Set();
     for (const re of EXACT_TOKEN_PATTERNS) {
-        const matches = message.match(re);
-        if (matches) matches.forEach(t => found.add(t.toUpperCase()));
+        const matches = normalizedMessage.match(re);
+        if (matches) matches.forEach(t => found.add(t));
     }
     return [...found];
 }
@@ -917,9 +927,10 @@ function matchHasExactToken(match, tokens) {
     const haystack = [
         meta.text, meta.title, meta.source_decision, meta.van_ban,
         meta.source_file, meta.procedure_id, meta.mau_don, meta.dieu
-    ].filter(Boolean).join(' ').toUpperCase();
+    ].filter(Boolean).join(' ');
+    const normalizedHaystack = normalizeExactTokenText(haystack);
     if (!haystack) return false;
-    return tokens.some(t => haystack.includes(t));
+    return tokens.some(t => normalizedHaystack.includes(normalizeExactTokenText(t)));
 }
 
 // Đôn các match khớp token chính xác lên đầu, đánh dấu `_exactTokenBoost` để

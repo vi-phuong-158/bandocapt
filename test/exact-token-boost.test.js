@@ -12,7 +12,8 @@ test('extractExactTokens: bắt mã mẫu đơn NA/TT', () => {
 
 test('extractExactTokens: bắt số hiệu văn bản có và không có năm', () => {
     assert.ok(extractExactTokens('theo Nghị định 47/2014 thì sao').includes('47/2014'));
-    assert.ok(extractExactTokens('Quyết định 5568/QĐ-BCA quy định gì').includes('5568/QĐ-BCA'));
+    assert.ok(extractExactTokens('Quyết định 5568/QĐ-BCA quy định gì').includes('5568/QD-BCA'));
+    assert.ok(extractExactTokens('Quyet dinh 5568/QD-BCA quy dinh gi').includes('5568/QD-BCA'));
 });
 
 test('extractExactTokens: trả rỗng cho câu không có token và input rỗng', () => {
@@ -24,12 +25,21 @@ test('extractExactTokens: trả rỗng cho câu không có token và input rỗn
 test('boostExactTokenMatches: đôn match chứa token lên đầu và đánh dấu', () => {
     const matches = [
         { score: 0.70, metadata: { text: 'thủ tục chung về cư trú' } },
-        { score: 0.66, metadata: { text: 'Quyết định 5568/QĐ-BCA về TTHC', source_decision: '5568/QĐ-BCA' } },
+        { score: 0.66, metadata: { text: 'Quyết định 5568/QĐ-BCA về TTHC', source_decision: '5568/QD-BCA' } },
     ];
-    const out = boostExactTokenMatches(matches, ['5568/QĐ-BCA']);
-    assert.equal(out[0].metadata.source_decision, '5568/QĐ-BCA');
+    const out = boostExactTokenMatches(matches, ['5568/QD-BCA']);
+    assert.equal(out[0].metadata.source_decision, '5568/QD-BCA');
     assert.equal(out[0]._exactTokenBoost, true);
     assert.ok(!out[1]._exactTokenBoost);
+});
+
+test('boostExactTokenMatches: khớp được giữa QĐ người dùng và QD trong metadata', () => {
+    const tokens = extractExactTokens('Quyết định 5568/QĐ-BCA quy định gì?');
+    const matches = [
+        { score: 0.50, metadata: { source_decision: '5568/QD-BCA', text: '' } },
+    ];
+    const out = boostExactTokenMatches(matches, tokens);
+    assert.equal(out[0]._exactTokenBoost, true);
 });
 
 test('boostExactTokenMatches: cứu match dưới ngưỡng nhưng vẫn trên sàn mềm 0.45', () => {

@@ -761,3 +761,14 @@
 - **File da sua:** `api/chat.js`, `setup/backfill-tthc-metadata.js` (moi), `setup/reembed-corpus.js` (moi), `test/exact-token-boost.test.js` (moi), `package.json` (check:syntax), `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** Diet nguon sai so chinh (bien thien retrieval, token chinh xac bi lam mo) va chuan bi ha tang cho embedding bat doi xung + backfill facts thoi_han/mau_don da ghi trong TASK-P0-04-EXT.
 - **Kiem tra:** `npm test` 151/151 pass (them 7 test exact-token boost); `npm run build` sach; `node --check` ca 2 script moi OK; smoke `node scripts/run-regression.js --ids TR03` PASS (top-1 0.776, 205 tu), da khoi phuc regression-latest.md. **Con lai (user step):** chay 3 run regression 30 cau sach truoc khi cong bo baseline; chay `setup/backfill-tthc-metadata.js` + `setup/reembed-corpus.js` voi key va duyet CSV de kich hoat taskType.
+
+---
+
+## [2026-07-11] Fix review PR #20 exact-token va env local cho script
+- **Agent:** Codex
+- **Thay doi:** Chuan hoa exact-token theo dang khong dau de `QĐ/QD`, `NĐ/ND` khop nhau khi extract va khi so voi metadata; them test cho case user go `QĐ` nhung metadata luu `QD`. Hai script maintenance moi doc ca `.env` va `.env.local`, bo qua gia tri rong.
+- **File da sua:** `api/chat.js`, `test/exact-token-boost.test.js`, `setup/backfill-tthc-metadata.js`, `setup/reembed-corpus.js`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Review PR #20 phat hien boost bo sot so hieu van ban ASCII dang duoc repo hien thi (`5568/QD-BCA`) va script moi lech voi workflow env local cua du an.
+- **Kiem tra:** `npm test -- test/exact-token-boost.test.js`; `npm run check:syntax`.
+
+---
