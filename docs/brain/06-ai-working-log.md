@@ -752,3 +752,12 @@
 - **File da sua:** `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`, `data/pinecone-backups/2026-07-03-pre-update-tthc_matt26265.json`, `data/pinecone-backups/2026-07-03-post-update-tthc_matt26265.json`
 - **Ly do:** Record cu mo ta sai ban chat thu tuc online danh cho co so luu tru, co the khien chatbot tra sai tham quyen tiep nhan va sai cach thuc khai bao.
 - **Kiem tra:** Fetch truc tiep vector `tthc_matt26265` sau update de xac nhan `cap=xa`, `official_url=https://kbtt.xuatnhapcanh.gov.vn`, `thoi_han`/`mau_don` da co; query embedding voi cau `Khai bao tam tru nguoi nuoc ngoai online cho co so luu tru` tra lai chinh record nay top-1.
+
+---
+
+## [2026-07-10] Giai doan 2 nang cap do chinh xac retrieval (code + script backfill/re-embed)
+- **Agent:** Claude Code (Fable 5)
+- **Thay doi:** (1) Them `extractExactTokens`/`boostExactTokenMatches` + tich hop vao pipeline RAG: don match khop ma mau/so hieu van ban len dau truoc loc nguong 0.62, cuu match >= san mem 0.45. (2) Them `rewriteFollowUpQuery`: viet lai cau follow-up ngan bang model tien ich, fallback heuristic BOT-04 cu; do `query_rewrite_ms`. (3) `GEMINI_RERANK_URL` doi tu gemini-2.0-flash → gemini-2.5-flash-lite (rerank + groundedness + tom tat lich su). (4) Embed query-side them `taskType` gated qua env `EMBED_TASK_TYPE` (mac dinh khong bat). (5) Script `setup/backfill-tthc-metadata.js` (draft CSV → --apply upsert metadata thoi_han/mau_don) va `setup/reembed-corpus.js` (dry-run → --apply re-embed RETRIEVAL_DOCUMENT sang namespace moi) — ca hai mac dinh khong ghi Pinecone.
+- **File da sua:** `api/chat.js`, `setup/backfill-tthc-metadata.js` (moi), `setup/reembed-corpus.js` (moi), `test/exact-token-boost.test.js` (moi), `package.json` (check:syntax), `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Diet nguon sai so chinh (bien thien retrieval, token chinh xac bi lam mo) va chuan bi ha tang cho embedding bat doi xung + backfill facts thoi_han/mau_don da ghi trong TASK-P0-04-EXT.
+- **Kiem tra:** `npm test` 151/151 pass (them 7 test exact-token boost); `npm run build` sach; `node --check` ca 2 script moi OK; smoke `node scripts/run-regression.js --ids TR03` PASS (top-1 0.776, 205 tu), da khoi phuc regression-latest.md. **Con lai (user step):** chay 3 run regression 30 cau sach truoc khi cong bo baseline; chay `setup/backfill-tthc-metadata.js` + `setup/reembed-corpus.js` voi key va duyet CSV de kich hoat taskType.

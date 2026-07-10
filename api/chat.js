@@ -870,8 +870,11 @@ async function fetchWithRetry(url, options, maxRetries = 2, timeoutMs = 8000) {
 // =====================================================================
 // RAG-01: Re-rank kết quả Pinecone bằng Gemini Flash
 // =====================================================================
+// P2.4: Model tiện ích dùng chung cho 3 tác vụ phụ (rerank, groundedness nền,
+// tóm tắt lịch sử) — chuyển sang gemini-2.5-flash-lite: thế hệ mới hơn 2.0-flash,
+// rẻ/nhanh, đủ cho tác vụ xếp hạng/tóm tắt ngắn. Không dùng cho generation chính.
 const GEMINI_RERANK_URL =
-    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent';
 
 // P1.1.2: Rerank có điều kiện — bỏ qua khi top-1 đã rõ ràng vượt trội, chỉ gọi Gemini rerank
 // khi kết quả còn mập mờ (top-1 không đủ cao, hoặc cách top-2 chưa đủ xa).
@@ -880,6 +883,62 @@ function shouldSkipRerank(matches) {
     if (matches[0].score <= 0.75) return false;
     if (matches.length < 2) return true;
     return matches[0].score - matches[1].score >= 0.05;
+}
+
+// =====================================================================
+// P2.3: Exact-token boost — câu hỏi pháp lý thường chứa token chính xác
+// (mã mẫu đơn NA17/TT01, số hiệu văn bản 5568/QĐ-BCA, 47/2014) mà embedding
+// vector làm mờ. Đôn match có token khớp NGUYÊN VĂN lên đầu và cứu khỏi ngưỡng
+// 0.62 (nếu vẫn trên sàn mềm) trước khi rerank — để vector search không bỏ sót
+// đúng văn bản người dùng gọi tên. Rerank sau đó vẫn là cổng chất lượng cuối.
+// =====================================================================
+const EXACT_TOKEN_PATTERNS = [
+    /\b(?:NA|TT|N|M|XC|HC)\d{1,3}\b/gi,                 // mã mẫu đơn: NA5, NA17, TT01
+    /\b\d{1,4}\/\d{4}(?:\/[A-ZĐ-]+)?\b/g,               // số hiệu có năm: 47/2014, 5568/2021/QĐ
+    /\b\d{1,4}\/(?:QĐ|NĐ|TT|CP|BCA|TTg|NQ)[-A-ZĐ]*\b/gi // số hiệu không năm: 5568/QĐ-BCA
+];
+// Sàn mềm: chỉ cứu match dưới ngưỡng 0.62 nếu score vẫn >= mức này, tránh kéo
+// nhiễu thuần (doc chỉ nhắc thoáng số hiệu) vào prompt.
+const EXACT_TOKEN_RESCUE_FLOOR = 0.45;
+
+function extractExactTokens(message) {
+    if (!message || typeof message !== 'string') return [];
+    const found = new Set();
+    for (const re of EXACT_TOKEN_PATTERNS) {
+        const matches = message.match(re);
+        if (matches) matches.forEach(t => found.add(t.toUpperCase()));
+    }
+    return [...found];
+}
+
+function matchHasExactToken(match, tokens) {
+    if (!tokens || tokens.length === 0) return false;
+    const meta = match?.metadata || {};
+    const haystack = [
+        meta.text, meta.title, meta.source_decision, meta.van_ban,
+        meta.source_file, meta.procedure_id, meta.mau_don, meta.dieu
+    ].filter(Boolean).join(' ').toUpperCase();
+    if (!haystack) return false;
+    return tokens.some(t => haystack.includes(t));
+}
+
+// Đôn các match khớp token chính xác lên đầu, đánh dấu `_exactTokenBoost` để
+// bước lọc ngưỡng cứu chúng khỏi bị loại. Giữ nguyên thứ tự tương đối ban đầu.
+function boostExactTokenMatches(matches, tokens) {
+    if (!Array.isArray(matches) || matches.length === 0) return matches || [];
+    if (!tokens || tokens.length === 0) return matches;
+    const boosted = [];
+    const rest = [];
+    for (const m of matches) {
+        if (matchHasExactToken(m, tokens) && (m.score === undefined || m.score >= EXACT_TOKEN_RESCUE_FLOOR)) {
+            m._exactTokenBoost = true;
+            boosted.push(m);
+        } else {
+            rest.push(m);
+        }
+    }
+    if (boosted.length === 0) return matches;
+    return [...boosted, ...rest];
 }
 
 async function rerankWithGemini(question, candidates, apiKey, timeoutMs = 8000) {
@@ -1166,6 +1225,38 @@ function buildVerifiedFactsLine(metadata = {}) {
     return `[FACTS ĐÃ XÁC MINH]: ${facts.join(' | ')}`;
 }
 
+
+// =====================================================================
+// P2.4: Viết lại câu follow-up ngắn thành câu độc lập trước khi embed.
+// Heuristic cũ (nối keyword thô của câu trước) dễ nhiễu embedding. Dùng model
+// tiện ích viết lại giữ nguyên ý định + ngôn ngữ; lỗi/timeout → trả null để
+// caller fallback về heuristic cũ (không tăng rủi ro so với hiện trạng).
+// =====================================================================
+async function rewriteFollowUpQuery(currentMessage, previousUserText, apiKey, timeoutMs = 2000) {
+    if (!apiKey || !currentMessage || !previousUserText) return null;
+    try {
+        const prompt = `Câu hỏi trước của người dùng: "${String(previousUserText).substring(0, 300)}"
+Câu hỏi hiện tại (có thể là follow-up ngắn, thiếu ngữ cảnh): "${String(currentMessage).substring(0, 300)}"
+
+Viết lại câu hỏi hiện tại thành MỘT câu độc lập, đầy đủ ngữ cảnh để tìm kiếm tài liệu, giữ nguyên ý định và ngôn ngữ gốc. Chỉ trả về câu đã viết lại, không giải thích, không thêm dấu ngoặc.`;
+        const res = await fetchWithRetry(`${GEMINI_RERANK_URL}?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { temperature: 0, maxOutputTokens: 64 }
+            })
+        }, 1, timeoutMs);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const rewritten = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+        if (!rewritten || rewritten.length < 3) return null;
+        return rewritten.replace(/^["'“”]+|["'“”]+$/g, '').trim();
+    } catch (e) {
+        console.warn('[P2.4] Follow-up rewrite error, fallback heuristic:', e.message);
+        return null;
+    }
+}
 
 // =====================================================================
 // RAG-04: Conversation summarization thay vì cắt cứng
@@ -1657,6 +1748,7 @@ module.exports = async function handler(req, res) {
         embedding_ms: 0,
         retrieval_ms: 0,
         rerank_ms: 0,
+        query_rewrite_ms: 0,
         history_summary_ms: 0,
         generation_ms: 0,
         total_ms: 0,
@@ -1695,14 +1787,23 @@ module.exports = async function handler(req, res) {
     // cho câu follow-up ngắn (< 8 từ), tránh làm nhiễu embedding của câu đã tự đủ nghĩa.
     const isShortFollowUp = searchQuery.split(/\s+/).filter(Boolean).length < 8;
     if (isShortFollowUp && safeHistory && safeHistory.length > 0) {
-        // BOT-04: Chỉ ghép keyword ngắn từ câu trước (tránh noise dài)
         const lastUserMsg = [...safeHistory].reverse().find(h => h.role === 'user');
-        if (lastUserMsg && lastUserMsg.parts && lastUserMsg.parts[0]?.text) {
-            const prevKeywords = lastUserMsg.parts[0].text
-                .substring(0, 100)
-                .replace(/[?!.,;:]/g, '')
-                .trim();
-            searchQuery = searchQuery + ' ' + prevKeywords;
+        const prevUserText = lastUserMsg?.parts?.[0]?.text || '';
+        if (prevUserText) {
+            // P2.4: ưu tiên viết lại câu độc lập bằng model tiện ích; lỗi/timeout →
+            // fallback BOT-04 (nối keyword thô câu trước) như hiện trạng.
+            const rewritten = await measureStage(stageTimings, 'query_rewrite_ms', () =>
+                rewriteFollowUpQuery(searchQuery, prevUserText, apiKey, 2000)
+            );
+            if (rewritten) {
+                searchQuery = rewritten;
+            } else {
+                const prevKeywords = prevUserText
+                    .substring(0, 100)
+                    .replace(/[?!.,;:]/g, '')
+                    .trim();
+                searchQuery = searchQuery + ' ' + prevKeywords;
+            }
         }
     }
 
@@ -1716,14 +1817,22 @@ module.exports = async function handler(req, res) {
     // -------------------------------------------------------------
     let embedVector = [];
     try {
+        // P2.2: taskType bất đối xứng — CHỈ bật khi corpus đã được re-embed với
+        // RETRIEVAL_DOCUMENT (env EMBED_TASK_TYPE=RETRIEVAL_QUERY, flip cùng lúc đổi
+        // PINECONE_NAMESPACE sang namespace mới). Không đặt env → giữ hành vi cũ,
+        // tránh lệch không gian embedding giữa query và corpus.
+        const embedBody = {
+            model: 'models/gemini-embedding-001',
+            content: { parts: [{ text: searchQuery }] },
+            outputDimensionality: 768
+        };
+        if (process.env.EMBED_TASK_TYPE) {
+            embedBody.taskType = process.env.EMBED_TASK_TYPE;
+        }
         const embedRes = await fetchWithRetry(`${GEMINI_EMBED_API_URL}?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                model: 'models/gemini-embedding-001',
-                content: { parts: [{ text: searchQuery }] },
-                outputDimensionality: 768
-            })
+            body: JSON.stringify(embedBody)
         }, 2); // Retry tối đa 2 lần cho embedding
         if (!embedRes.ok) {
             console.warn('[api/chat] Embedding thất bại (status', embedRes.status, '), tiếp tục chat không RAG');
@@ -1793,9 +1902,19 @@ module.exports = async function handler(req, res) {
                     console.log('[RAG-03] Split temp-residence branch filter reduced matches:', `${nonLocationMatches.length} -> ${branchFilteredMatches.length}`);
                 }
 
+                // P2.3: Đôn match khớp token chính xác (mã mẫu / số hiệu văn bản) lên đầu
+                // TRƯỚC bước lọc ngưỡng — để không bỏ sót đúng văn bản người dùng gọi tên.
+                const exactTokens = extractExactTokens(userMessage);
+                const prioritizedMatches = boostExactTokenMatches(branchFilteredMatches, exactTokens);
+                if (exactTokens.length > 0) {
+                    const boostedCount = prioritizedMatches.filter(m => m._exactTokenBoost).length;
+                    if (boostedCount > 0) console.log('[P2.3] Exact-token boost:', exactTokens.join(','), `-> ${boostedCount} match`);
+                }
+
                 // P0.1: Không còn fallback lấy top-3 dưới ngưỡng — tài liệu điểm thấp là nguyên liệu
                 // gây hallucination. Dưới ngưỡng → matchedDocs rỗng, model tự báo "không tìm thấy tài liệu".
-                const relevantMatches = branchFilteredMatches.filter(m => m.score > 0.62); // BOT-02: nâng threshold
+                // Ngoại lệ: match được exact-token boost giữ lại dù dưới 0.62 (đã qua sàn mềm 0.45).
+                const relevantMatches = prioritizedMatches.filter(m => m.score > 0.62 || m._exactTokenBoost); // BOT-02: nâng threshold
                 if (relevantMatches.length === 0 && nonLocationMatches.length > 0) {
                     console.warn('[api/chat] Pinecone scores below threshold, không dùng tài liệu yếu.');
                 }
@@ -2244,3 +2363,5 @@ module.exports.checkGroundednessAsync = checkGroundednessAsync;
 module.exports.resolveClientIp = resolveClientIp;
 module.exports.isAllowedOrigin = isAllowedOrigin;
 module.exports.shouldSkipRerank = shouldSkipRerank;
+module.exports.extractExactTokens = extractExactTokens;
+module.exports.boostExactTokenMatches = boostExactTokenMatches;
