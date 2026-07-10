@@ -772,3 +772,10 @@
 - **Kiem tra:** `npm test -- test/exact-token-boost.test.js`; `npm run check:syntax`.
 
 ---
+
+## [2026-07-11] Merge PR #19 performance quick wins vao nen PR #20
+- **Agent:** Codex
+- **Thay doi:** Cap nhat nhanh `feat/rag-accuracy` theo `main` sau khi PR #19 merge; giu thay doi defer script ban do va cache-control static asset tu `index.html`/`vercel.json`.
+- **File da sua:** `index.html`, `vercel.json`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** PR #20 can rebase/merge voi `main` moi de het conflict truoc khi merge.
+- **Kiem tra:** Chay lai `npm test -- test/exact-token-boost.test.js`, `npm run check:syntax`, `npm run build` sau khi resolve.
