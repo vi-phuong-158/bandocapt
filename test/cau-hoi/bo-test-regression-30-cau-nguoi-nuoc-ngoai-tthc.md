@@ -12,7 +12,7 @@
 
 | STT | ID | Nhóm | Câu hỏi test | Kỳ vọng đạt | Lỗi cần bắt |
 |---:|---|---|---|---|---|
-| 1 | `F01` | N1 — Người nước ngoài hỏi rất ngắn, thiếu thông tin | Tôi là người nước ngoài, cần đăng ký tạm trú | Trả hướng dẫn chung, hỏi đang tạm trú tại xã/phường nào hoặc cơ sở lưu trú nào. | `ASK_MISSING_INFO` |
+| 1 | `F01` | N1 — Người nước ngoài hỏi rất ngắn, thiếu thông tin | Tôi là người nước ngoài, cần đăng ký tạm trú | Trả hướng dẫn chung, hỏi đang tạm trú tại xã/phường nào hoặc cơ sở lưu trú nào. **Cấm** phiếu giấy / NA17 / fax / nộp trực tiếp; **không cấm** mốc 12–24 giờ (xem 03-decisions 2026-07-11). Baseline: `DEFERRED_SOURCE_GOVERNANCE` (đóng ở Giai đoạn 3). | `ASK_MISSING_INFO` |
 | 2 | `TR01` | N2 — Khai báo tạm trú người nước ngoài | Người Trung Quốc đến ở nhà tôi 3 ngày thì có phải khai báo tạm trú không? | Trả có/không theo RAG; nêu hồ sơ/cách thực hiện nếu tài liệu có; hỏi xã/phường để chỉ trụ sở. | `LEGAL` |
 | 3 | `TR02` | N2 — Khai báo tạm trú người nước ngoài | Tôi cho người Hàn Quốc thuê nhà ở Thanh Miếu, khai báo tạm trú ở đâu? | Match Thanh Miếu, trả nơi nộp/trụ sở nếu có dữ liệu xác minh. | `LOCATION` |
 | 4 | `TR03` | N2 — Khai báo tạm trú người nước ngoài | Khách sạn của tôi có khách nước ngoài thì khai báo thế nào? | Phân biệt cơ sở lưu trú; hướng dẫn chung theo tài liệu; không bịa link hệ thống nếu RAG không có. | `LEGAL_HALLUCINATION` |
@@ -34,7 +34,7 @@
 | 20 | `TYPO02` | N9 — Người nước ngoài hỏi bằng tiếng Việt sai chính tả / không dấu / viết tắt | khach tq o nha toi 2 ngay co phai khai bao ko | Hiểu TQ = Trung Quốc nếu an toàn; có thể hỏi lại nếu không chắc. | `INTENT` |
 | 21 | `ON01` | N10 — Hỏi online, dịch vụ công, hồ sơ số | Khai báo tạm trú người nước ngoài online được không? | Trả theo RAG; nếu có link chính thức thì nêu; nếu không thì không tự tạo link. | `LEGAL_HALLUCINATION` |
 | 22 | `HS02` | N11 — Hồ sơ, giấy tờ, biểu mẫu | Gia hạn visa cần mẫu NA5 không? | Chỉ xác nhận nếu RAG có. | `LEGAL_HALLUCINATION` |
-| 23 | `TL01` | N12 — Thời hạn, lệ phí, thời gian giải quyết | Khai báo tạm trú người nước ngoài trong bao lâu kể từ khi đến? | Chỉ trả mốc thời hạn nếu RAG có. | `LEGAL_HALLUCINATION` |
+| 23 | `TL01` | N12 — Thời hạn, lệ phí, thời gian giải quyết | Khai báo tạm trú người nước ngoài trong bao lâu kể từ khi đến? | Trả đúng mốc **12 giờ / 24 giờ** (vùng sâu, vùng xa) khi RAG có căn cứ; phân biệt **hạn khai báo** với **thời gian xử lý** (xem 03-decisions 2026-07-11). | `LEGAL_HALLUCINATION` |
 | 24 | `CS01` | N13 — Người nước ngoài cư trú tại nhà dân, khách sạn, công ty, ký túc xá | Người nước ngoài ở khách sạn thì ai khai báo tạm trú? | Trả đúng chủ thể nếu RAG có. | `LEGAL` |
 | 25 | `GD02` | N14 — Tình huống trẻ em, gia đình, kết hôn, thăm thân | Con tôi quốc tịch Hàn Quốc ở cùng bố mẹ tại Phú Thọ có phải khai báo tạm trú không? | Không bỏ qua vì trẻ em; trả theo quy định nếu RAG có. | `LEGAL` |
 | 26 | `KC04` | N15 — Mất hộ chiếu, mất giấy tờ, tình huống khẩn | Lost passport in Phu Tho, where should I go? | Trả tiếng Anh, hỏi vị trí/xã phường hoặc chỉ trụ sở nếu có. | `LANGUAGE / LOCATION` |

@@ -5,7 +5,19 @@
 
 ---
 
-## [2026-07-10] Fix danh mục TTHC: chip lọc chiếm hết vùng cuộn + tìm kiếm "không phản hồi"
+## [2026-07-11] T1.1 — Chốt quyết định nội dung 12/24h + đồng bộ F01/TL01
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** Thực hiện task T1.1 của kế hoạch (file 07). (1) `03-decisions.md`: thêm entry chốt nội dung — chỉ luồng phiếu giấy/NA17/fax/nộp trực tiếp là lỗi thời; mốc hạn khai báo 12 giờ (24 giờ vùng sâu/xa) VẪN áp dụng cho khai báo trực tuyến KBTT. Ghi rõ 3 chỗ phải nhất quán (F01 expectation, TL01 grading, `allowedConstants`) và F01 mang trạng thái `DEFERRED_SOURCE_GOVERNANCE` (đóng ở Giai đoạn 3, cấm prompt-hack). (2) `bo-test-regression-30-cau-*.md`: F01 bổ sung "cấm phiếu giấy/NA17/fax/nộp trực tiếp, không cấm 12–24 giờ, baseline deferred"; TL01 nêu rõ trả đúng 12/24 giờ + phân biệt hạn khai báo với thời gian xử lý. (3) Xác minh `allowedConstants` trong `api/chat.js` (dòng 2298-2304) CÒN NGUYÊN "12 giờ"/"24 giờ" + 3 bản dịch — không sửa (thuộc LANE-CORE, ngoài phạm vi T1.1).
+- **File đã sửa:** `docs/brain/03-decisions.md`, `test/cau-hoi/bo-test-regression-30-cau-nguoi-nuoc-ngoai-tthc.md`, `docs/brain/07-parallel-task-plan.md` (T1.1→DONE), `docs/brain/06-ai-working-log.md`
+- **Lý do:** Gỡ mâu thuẫn tiềm ẩn trong bộ chấm (cấm phiếu giấy dễ kéo theo cấm nhầm mốc giờ mà TL01 lại bắt buộc). Chốt nội dung trước để T1.2 (expectations JSON) codify không lệch.
+- **Kiểm tra:** Chỉ docs + bảng câu hỏi test (không đụng code chạy). Đối chiếu 3 chỗ nhất quán: F01/TL01 trong bảng test đã trỏ về quyết định 2026-07-11; `allowedConstants` xác nhận còn 12/24 giờ. Không cần `npm test`.
+
+## [2026-07-11] Lập kế hoạch task song song cho 2 agent (Claude Code + Codex)
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** Tạo `docs/brain/07-parallel-task-plan.md` — chia "Kế hoạch khắc phục toàn diện 4 giai đoạn" (đã review và chốt cùng người dùng 2026-07-11) thành ~30 task nhỏ, mỗi task gắn: làn sở hữu file (LANE-CORE/EVAL/FE/DATA/DOCS), agent đề xuất, mức trí tuệ cần (CAO/TRUNG/THẤP), phụ thuộc, trạng thái. Kèm "Luật phân làn" chống conflict khi 2 agent chạy song song (quy tắc quan trọng nhất: không bao giờ 2 nhánh cùng sửa `api/chat.js`; task LANE-CORE làm tuần tự). Cập nhật `04-current-tasks.md` mục "Đang làm" trỏ sang file 07 và ghi rõ các backlog cũ được kế hoạch hấp thụ (TASK-UX-01-EXT mục 1, TASK-P0-04-EXT, TASK-FIX-01 mục telemetry, bước 3-run cho feat/rag-accuracy).
+- **File đã sửa:** `docs/brain/07-parallel-task-plan.md` (mới), `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Người dùng muốn dùng đồng thời ChatGPT Codex và Claude Code sửa chung dự án — cần nguồn sự thật chung về task, thứ tự phụ thuộc và quyền sở hữu file để 2 agent không giẫm chân nhau.
+- **Kiểm tra:** Chỉ thay đổi docs, không đụng code — không cần chạy test. Xác nhận task đầu tiên chưa bắt đầu (mọi task ở trạng thái TODO); quyết định nội dung 12/24h sẽ được ghi vào `03-decisions.md` ở task T1.1.
 - **Agent:** Claude Code (Sonnet 5)
 - **Thay đổi:** (1) `styles.css` `#tthc-catalog-chips`: đổi `flex-wrap: wrap` sang `nowrap` + `overflow-x: auto` (chip lĩnh vực cuộn ngang 1 dòng thay vì wrap nhiều dòng) — với 17 lĩnh vực + "Tất cả" (18 chip, có nhãn rất dài như "Quản lý ngành, nghề đầu tư kinh doanh có điều kiện về an ninh, trật tự"), khối chip trước đó cao tới 263px/517px khung desktop (379px/674px trên mobile), chỉ còn 128px (desktop)/227px (mobile) cho danh sách cuộn. Sau fix: chip ~41px (desktop)/~32px (mobile), danh sách cuộn 432px/625px. (2) `js/tthc-catalog.js` `renderListItems()`: thêm `list.scrollTop = 0` đầu hàm — trước đó khi người dùng cuộn sâu rồi gõ tìm kiếm/đổi chip, trình duyệt tự kẹp `scrollTop` cũ vào cuối danh sách mới (ngắn hơn), khiến vùng hiển thị trống hoặc lệch, trông như tìm kiếm không hoạt động.
 - **File đã sửa:** `styles.css`, `js/tthc-catalog.js`
