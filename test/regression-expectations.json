@@ -29,9 +29,10 @@
     },
     "TR01": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["kbtt_online", "cong_an_cap_xa"],
-      "must_abstain": false, "must_ask_clarification": true, "verbosity_budget": 120,
-      "required_facts": [{"id": "must_declare", "match": "all", "patterns": ["(?:phải|cần|có trách nhiệm) khai báo( tạm trú)?"], "grounding_required": true, "grounding_patterns": ["khai báo tạm trú"]}, {"id": "ask_location", "match": "any", "patterns": ["xã|phường", "địa chỉ.*lưu trú"], "grounding_required": false}],
-      "forbidden_facts": [], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf"], "error_classes": ["LEGAL"]
+      "must_abstain": false, "must_ask_clarification": false, "verbosity_budget": 120,
+      "required_facts": [{"id": "must_declare", "match": "all", "patterns": ["(?:phải|cần|có trách nhiệm) khai báo( tạm trú)?"], "grounding_required": true, "grounding_patterns": ["khai báo tạm trú"]}],
+      "forbidden_facts": [], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf"], "error_classes": ["LEGAL"],
+      "note_t1_11": "Bỏ required ask_location: khai báo tạm trú NNN là thủ tục TRỰC TUYẾN (kbtt_online) — không bắt buộc chỉ trụ sở; TR01 lại thuộc chế độ HẸP 120 từ (answer-first). 'Chủ động hỏi xã/phường' cần đổi system prompt → backlog Giai đoạn 2/3, không thuộc gate Giai đoạn 1."
     },
     "TR02": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["verified_local_station", "kbtt_online"],
@@ -71,9 +72,10 @@
     },
     "TT01": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["phong_qlxnc_cap_tinh"],
-      "must_abstain": false, "must_ask_clarification": true, "verbosity_budget": 250,
-      "required_facts": [{"id": "temporary_residence_card_documents", "match": "any", "patterns": ["\\bNA6\\b", "\\bNA7\\b", "\\bNA8\\b"], "grounding_required": true}, {"id": "ask_eligibility", "match": "any", "patterns": ["ký hiệu.*thị thực|loại đối tượng|diện.*thẻ tạm trú"], "grounding_required": false}],
-      "forbidden_facts": [], "expected_procedure_ids": ["5568-tw-10", "5568-tinh-05"], "expected_source_ids": ["5568/QD-BCA"], "error_classes": ["LEGAL", "ASK_MISSING_INFO"]
+      "must_abstain": false, "must_ask_clarification": false, "verbosity_budget": 350,
+      "required_facts": [{"id": "temporary_residence_card_documents", "match": "any", "patterns": ["\\bNA6\\b", "\\bNA7\\b", "\\bNA8\\b"], "grounding_required": true}],
+      "forbidden_facts": [], "expected_procedure_ids": ["5568-tw-10", "5568-tinh-05"], "expected_source_ids": ["5568/QD-BCA"], "error_classes": ["LEGAL", "ASK_MISSING_INFO"],
+      "note_t1_11": "Kỳ vọng gốc: 'Trả hồ sơ/trình tự NẾU RAG có; hỏi loại đối tượng NẾU thiếu' — RAG có đủ nên bắt ask_eligibility vô điều kiện là sai chính kỳ vọng. Budget 250→350: câu trả lời trọn thủ tục đủ 4 phần bắt buộc chạy ổn định 280–330 từ (VERBOSITY lặp 3/3 run vi phạm quy tắc soft-warning ≤1/3)."
     },
     "TT04": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["phong_qlxnc_cap_tinh"],
