@@ -13,48 +13,9 @@ const {
     VERBOSITY_LIMIT_NARROW,
     VERBOSITY_LIMIT_FULL,
 } = require('../lib/regression-metrics');
-
-const GRADED_CASES = {
-    TR01: {
-        required: [
-            { label: 'mentions foreigner temporary residence declaration duty', patterns: [/khai báo tạm trú|khai bao tam tru/i, /người nước ngoài|nguoi nuoc ngoai|foreign guest/i] },
-            { label: 'answers yes / obligation', patterns: [/\bcó\b|\bco\b|\bmust\b|\bneed to\b|\bphải\b|\bphai\b/i] }
-        ]
-    },
-    TR02: {
-        required: [
-            { label: 'mentions Thanh Mieu verified office', patterns: [/thanh miếu|thanh mieu/i, /công an phường thanh miếu|cong an phuong thanh mieu|thanh mieu ward police station/i] }
-        ]
-    },
-    TR03: {
-        required: [
-            { label: 'uses official KBTT url', patterns: [/https:\/\/kbtt\.xuatnhapcanh\.gov\.vn/i] },
-            { label: 'mentions accommodation facility responsibility', patterns: [/cơ sở lưu trú|co so luu tru|khách sạn|khach san|accommodation facilit|hotel/i] }
-        ]
-    },
-    ON01: {
-        required: [
-            { label: 'confirms online declaration path', patterns: [/online|trực tuyến|truc tuyen/i, /https:\/\/kbtt\.xuatnhapcanh\.gov\.vn/i] }
-        ]
-    },
-    TL01: {
-        required: [
-            { label: 'contains 12 hours / 12 gio deadline', patterns: [/12 giờ|12 gio|12 hours/i] },
-            { label: 'contains 24 hours / 24 gio deadline', patterns: [/24 giờ|24 gio|24 hours/i] }
-        ]
-    },
-    GD02: {
-        required: [
-            { label: 'does not exempt child from declaration', patterns: [/khai báo tạm trú|khai bao tam tru|temporary residence declaration/i, /trẻ em|tre em|con|child/i] }
-        ]
-    },
-    TR09: {
-        required: [
-            { label: 'responds in English', patterns: [/temporary residence|declare|police station|ward police/i] },
-            { label: 'mentions Thanh Mieu verified office', patterns: [/thanh miếu|thanh mieu/i, /công an phường thanh miếu|cong an phuong thanh mieu|thanh mieu ward police station/i] }
-        ]
-    }
-};
+// T1.4/T1.5: bộ chấm 2 lớp (deterministic + grounding) đọc từ expectations JSON.
+const { loadExpectations, gradeCase } = require('../lib/regression-grader');
+const EXPECTATIONS = loadExpectations();
 
 const COMMON_FORBIDDEN_PATTERNS = [
     { label: 'does not cite citizen residence law', pattern: /luật cư trú|luat cu tru/i },
@@ -118,6 +79,7 @@ function runChat(userMessage) {
         let error = null;
         let truncated = false;
         let finishReason = '';
+        let evalTrace = null;
         let streamBuffer = '';
 
         const res = {
@@ -132,7 +94,7 @@ function runChat(userMessage) {
             },
             json(payload) {
                 if (payload.error) error = payload.error;
-                resolve({ text: fullResponse, sources, error, statusCode: this.statusCode, truncated, finishReason });
+                resolve({ text: fullResponse, sources, error, statusCode: this.statusCode, truncated, finishReason, eval: evalTrace });
                 return this;
             },
             writeHead(code) {
@@ -156,6 +118,7 @@ function runChat(userMessage) {
                         if (data.error) error = data.error;
                         if (data.truncated) truncated = true;
                         if (data.finishReason) finishReason = data.finishReason;
+                        if (data.eval) evalTrace = data.eval;
                     } catch (_) {
                         // ignore parse errors from partial chunks
                     }
@@ -163,14 +126,15 @@ function runChat(userMessage) {
                 return true;
             },
             end() {
-                resolve({ text: fullResponse, sources, error, statusCode: this.statusCode, truncated, finishReason });
+                resolve({ text: fullResponse, sources, error, statusCode: this.statusCode, truncated, finishReason, eval: evalTrace });
                 return this;
             },
         };
 
         chatHandler(createRequest({
             captchaToken: 'test-bypass-token',
-            userMessage
+            userMessage,
+            evalDebug: true // T1.5: xin eval trace để chấm grounding (chỉ bật trong eval-run non-production)
         }), res).catch(reject);
     });
 }
@@ -208,43 +172,28 @@ function parseQuestions() {
     return questions;
 }
 
-function extractHaystack(result) {
-    const sourceText = (result.sources || []).map(src => [
-        src.file,
-        src.van_ban,
-        src.document_title,
-        src.article,
-        src.url
-    ].filter(Boolean).join(' ')).join('\n');
-    return `${result.response || ''}\n${sourceText}`;
-}
-
+// T1.4/T1.5: chấm 1 ca bằng bộ chấm 2 lớp (deterministic + grounding) đọc từ
+// expectations JSON. Trả object tương thích report cũ (status/failures) + trường
+// giàu hơn (verdict, softWarnings, grounding metric, authority).
 function evaluateCase(result) {
-    const spec = GRADED_CASES[result.id];
-    if (!spec) return null;
-
-    const failures = [];
-    const haystack = extractHaystack(result);
-    const responseOnly = result.response || '';
-
-    for (const forbidden of COMMON_FORBIDDEN_PATTERNS) {
-        if (forbidden.pattern.test(haystack)) {
-            failures.push(forbidden.label);
-        }
-    }
-
-    if (result.error) {
-        failures.push(`unexpected error: ${result.error}`);
-    }
-
-    for (const rule of spec.required) {
-        const matched = rule.patterns.every(pattern => pattern.test(responseOnly));
-        if (!matched) failures.push(rule.label);
-    }
-
+    const expectation = EXPECTATIONS.cases[result.id];
+    if (!expectation) return null;
+    const graded = gradeCase(expectation, {
+        text: result.response || '',
+        wordCount: result.wordCount,
+        truncated: result.truncated,
+        error: result.error,
+        eval: result.eval,
+    }, { globalForbidden: COMMON_FORBIDDEN_PATTERNS });
     return {
-        status: failures.length === 0 ? 'PASS' : 'FAIL',
-        failures
+        status: graded.verdict,            // PASS | HARD_FAIL | DEFERRED_FAIL
+        failures: graded.failures,
+        isDeferred: graded.isDeferred,
+        softWarnings: graded.softWarnings,
+        providerError: graded.providerError,
+        language: graded.language,
+        authority: graded.authority,
+        grounding: graded.grounding,
     };
 }
 
@@ -276,14 +225,20 @@ async function main() {
         console.log(`[${i + 1}/${questions.length}] Running ID: ${q.id} - ${q.question}`);
         try {
             const result = await runChat(q.question);
+            const wordCount = countWords(result.text);
+            const expectation = EXPECTATIONS.cases[q.id];
+            const verbosityLimit = (expectation && typeof expectation.verbosity_budget === 'number')
+                ? expectation.verbosity_budget
+                : (NARROW_QUESTION_IDS.has(q.id) ? VERBOSITY_LIMIT_NARROW : VERBOSITY_LIMIT_FULL);
             const graded = evaluateCase({
                 id: q.id,
                 response: result.text,
                 sources: result.sources,
                 error: result.error,
+                wordCount,
+                truncated: result.truncated,
+                eval: result.eval,
             });
-            const wordCount = countWords(result.text);
-            const verbosityLimit = NARROW_QUESTION_IDS.has(q.id) ? VERBOSITY_LIMIT_NARROW : VERBOSITY_LIMIT_FULL;
 
             results.push({
                 ...q,
@@ -292,6 +247,7 @@ async function main() {
                 error: result.error,
                 truncated: result.truncated,
                 finishReason: result.finishReason,
+                eval: result.eval,
                 wordCount,
                 verbosity: wordCount > verbosityLimit,
                 verbosityLimit,
@@ -316,10 +272,11 @@ async function main() {
                 error: e.message,
                 truncated: false,
                 finishReason: '',
+                eval: null,
                 wordCount,
                 verbosity: false,
                 verbosityLimit,
-                grade: evaluateCase({ id: q.id, response: '', sources: [], error: e.message })
+                grade: evaluateCase({ id: q.id, response: '', sources: [], error: e.message, wordCount: 0, truncated: false, eval: null })
             });
         }
 
@@ -330,26 +287,43 @@ async function main() {
 
     const gradedResults = results.filter(result => result.grade);
     const passCount = gradedResults.filter(result => result.grade.status === 'PASS').length;
-    const failCount = gradedResults.length - passCount;
+    const hardFailCount = gradedResults.filter(result => result.grade.status === 'HARD_FAIL').length;
+    const deferredFailCount = gradedResults.filter(result => result.grade.status === 'DEFERRED_FAIL').length;
+    const failCount = hardFailCount + deferredFailCount;
+    // Gate chính thức: 0 hard fail. Deferred (F01) KHÔNG chặn gate cho tới Giai đoạn 3.
+    const providerErrorCount = gradedResults.filter(result => result.grade.providerError).length;
+    // Grounding metric tổng hợp (chỉ trên ca có eval trace + có kỳ vọng procedure/source).
+    const groundingResults = gradedResults.filter(r => r.grade.grounding);
+    const avg = (arr) => arr.length ? arr.reduce((s, n) => s + n, 0) / arr.length : null;
+    const recallVals = groundingResults.map(r => r.grade.grounding.recallAt4).filter(v => typeof v === 'number');
+    const mrrVals = groundingResults.map(r => r.grade.grounding.mrr).filter(v => typeof v === 'number');
+    const sourceRecallVals = groundingResults.map(r => r.grade.grounding.sourceRecall).filter(v => typeof v === 'number');
+    const meanRecall = avg(recallVals);
+    const meanMrr = avg(mrrVals);
+    const meanSourceRecall = avg(sourceRecallVals);
     const now = new Date();
     const stamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '_');
     const reportPath = path.resolve(__dirname, `../test/results/regression-run-${stamp}.md`);
     const latestPath = path.resolve(__dirname, '../test/results/regression-latest.md');
     fs.mkdirSync(path.dirname(reportPath), { recursive: true });
 
+    const pct = (v) => v === null ? 'N/A' : `${(v * 100).toFixed(1)}%`;
     let reportMd = `# Báo cáo Regression Run (${now.toISOString()})\n\n`;
     reportMd += `- Tổng số câu chạy: ${results.length}\n`;
-    reportMd += `- Số ca tự chấm: ${gradedResults.length}\n`;
-    reportMd += `- PASS: ${passCount}\n`;
-    reportMd += `- FAIL: ${failCount}\n\n`;
+    reportMd += `- Số ca tự chấm: ${gradedResults.length}/30\n`;
+    reportMd += `- **PASS: ${passCount}** — **HARD_FAIL: ${hardFailCount}** — DEFERRED_FAIL: ${deferredFailCount} — PROVIDER_ERROR: ${providerErrorCount}\n`;
+    reportMd += `- **Gate (0 hard fail): ${hardFailCount === 0 ? '✅ ĐẠT' : '❌ KHÔNG ĐẠT'}** — deferred (F01) không chặn gate tới Giai đoạn 3\n`;
+    reportMd += `- Grounding: Recall@4 TB ${pct(meanRecall)} · MRR TB ${meanMrr === null ? 'N/A' : meanMrr.toFixed(3)} · Source recall TB ${pct(meanSourceRecall)}\n\n`;
 
     if (gradedResults.length > 0) {
         reportMd += `## Tóm tắt tự chấm\n`;
         for (const result of gradedResults) {
-            reportMd += `- ${result.id}: ${result.grade.status}`;
-            if (result.grade.failures.length > 0) {
-                reportMd += ` — ${result.grade.failures.join('; ')}`;
+            const g = result.grade;
+            reportMd += `- ${result.id}: ${g.status}`;
+            if (g.grounding && typeof g.grounding.recallAt4 === 'number') {
+                reportMd += ` [R@4 ${pct(g.grounding.recallAt4)}]`;
             }
+            if (g.failures.length > 0) reportMd += ` — ${g.failures.join('; ')}`;
             reportMd += '\n';
         }
         reportMd += '\n';
@@ -378,6 +352,16 @@ async function main() {
             if (result.grade.failures.length > 0) {
                 reportMd += `- **Assertion fail:** ${result.grade.failures.join('; ')}\n`;
             }
+            const gr = result.grade.grounding;
+            if (gr) {
+                const parts = [];
+                if (typeof gr.recallAt4 === 'number') parts.push(`Recall@4 ${(gr.recallAt4 * 100).toFixed(0)}%`);
+                if (typeof gr.mrr === 'number') parts.push(`MRR ${gr.mrr.toFixed(2)}`);
+                if (typeof gr.sourceRecall === 'number') parts.push(`Source ${(gr.sourceRecall * 100).toFixed(0)}%`);
+                if (gr.groundingFailures && gr.groundingFailures.length) parts.push(`ungrounded: ${gr.groundingFailures.join(', ')}`);
+                if (parts.length) reportMd += `- **Grounding:** ${parts.join(' · ')}\n`;
+            }
+            if (result.grade.providerError) reportMd += `- **Provider error:** ${result.grade.providerError}\n`;
         }
         reportMd += '\n';
         if (result.error) {
@@ -394,7 +378,8 @@ async function main() {
     console.log(`Regression run complete. Report saved to ${reportPath}`);
     console.log(`Also updated pointer file: ${latestPath}`);
 
-    if (failCount > 0) {
+    // Chỉ hard fail mới đánh exit 1 (chặn gate). Deferred/provider error báo riêng, không fail CI.
+    if (hardFailCount > 0) {
         process.exitCode = 1;
     }
 }
