@@ -5,6 +5,53 @@
 
 ---
 
+## [2026-07-12] T1.11 gate ĐA SỐ 2/3 + sửa 2 lỗi bot thật (H17 Đại sứ quán, TT04 answer-first)
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** (1) Nghiệm thu: strict per-run KHÔNG hội tụ (4 run đầy đủ liên tiếp mỗi run một ca khác flaky). User chốt **gate ĐA SỐ**: runner thêm `--majority`/`--runs N` (mặc định 3, ngưỡng ⌊N/2⌋+1) + hàm thuần `aggregateMajority` (majority = hard fail thật/chặn gate; rớt lẻ = flaky/advisory; provider error theo đa số dưới strict). Refactor `executeSuiteOnce`/`buildReportMd`/`writeReport`. Báo cáo tổng hợp `regression-majority-*.md`. (2) Sửa 2 LỖI BOT THẬT phát hiện qua run (KHÔNG nới grader): thêm luật prompt trong `api/chat.js` — người nước ngoài mất hộ chiếu BẮT BUỘC nêu cả trình báo QLXNC LẪN liên hệ Đại sứ quán/Lãnh sự quán (H17); mất/cấp lại thẻ tạm trú không hỏi lại quốc tịch, trả lời-trước thẩm quyền QLXNC, không bịa NA6/NA8 (TT04).
+- **File đã sửa:** `scripts/run-regression.js`, `test/regression-runner.test.js`, `api/chat.js`, `docs/brain/03-decisions.md`, `docs/brain/07-parallel-task-plan.md`, `docs/brain/01-architecture.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Grader regex trên output LLM không tất định không thể ổn định đạt "0 hard fail × 3 run liên tiếp"; đa số tách nhiễu 1-run khỏi lỗi hệ thống. H17/TT04 là lỗi bot tái diễn (không phải thước đo) — sửa ở prompt cho đúng nguyên tắc "không nới grader để né lỗi thật".
+- **Kiểm tra:** `npm test` 225/225 pass (thêm test `aggregateMajority` majority-vs-flaky + provider, `parseArgs --runs/--majority`). Live 5 ca affected (TT04/EV04/KC04/H16/H17) 0 hard fail: H17 nay nêu rõ Đại sứ quán/Lãnh sự quán; TT04 trả lời-trước QLXNC không hỏi thừa quốc tịch. **Còn phải chạy 3-run majority đầy đủ để có phán quyết gate chính thức.**
+
+## [2026-07-11] T1.11 hủy chuỗi tại run 2 — sửa LOC07 Markdown và soft gate DN01
+- **Agent:** Codex
+- **Thay đổi:** Run 1 (`13-05-04`) đạt strict gate; run 2 (`13-12-22`) bị hủy vì LOC07 bị detector chấm nhầm tiếng Việt dù câu trả lời dùng nhãn tiếng Anh bọc Markdown. Detector nay nhận `**Address:**`, `**Phone:**` và `Google Maps`; vẫn giữ test chiều ngược bắt câu thuần tiếng Việt. DN01 lặp soft warning do phải trả hai luồng nghĩa vụ, nên đặt ngân sách riêng 300 từ và siết prompt trọn thủ tục tự bỏ phần lặp/ngoài câu hỏi trước khi kết thúc.
+- **File đã sửa:** `api/chat.js`, `lib/regression-grader.js`, `test/regression-expectations.json`, `test/regression-grader.test.js`, `test/regression-runner.test.js`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`, hai report `13-05-04`/`13-12-22` và `test/results/regression-latest.md`.
+- **Lý do:** Không được công nhận chuỗi chỉ dựa trên hard gate khi soft warning cùng một ca đã lặp quá 1/3; đồng thời không được sửa hành vi bot khi nguyên văn LOC07 thực tế đã là câu trả lời tiếng Anh hợp lệ.
+- **Kiểm tra:** Targeted grader/runner 48/48 pass; chuỗi nghiệm thu phải chạy lại từ run 1.
+
+## [2026-07-11] T1.11 strict run 12-54-23 — sửa expectation GV02/PI01 theo đúng ngữ nghĩa
+- **Agent:** Codex
+- **Thay đổi:** Phân tích report `12-54-23`: bỏ `sponsor_context` khỏi hard fact vô điều kiện của GV02 vì câu trả lời đã được RAG cung cấp đủ hồ sơ thì không cần hỏi lại đơn vị bảo lãnh; vẫn giữ mẫu NA5 là hard fact. Mở rộng PI01 để nhận câu từ chối injection rõ ràng “không thể thực hiện yêu cầu”, đồng thời giữ forbidden chặn câu làm theo injection. Bổ sung test hai chiều cho cả hai ca.
+- **File đã sửa:** `test/regression-expectations.json`, `test/regression-grader.test.js`, `test/results/regression-run-2026-07-11_12-54-23.md`, `test/results/regression-latest.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Hai hard fail của run đều là cấu trúc expectation sai hoặc regex quá hẹp, không phải câu trả lời chatbot sai; chuỗi strict phải hủy và chạy lại từ run 1 sau khi sửa.
+- **Kiểm tra:** `npm test` 220/220 pass trước khi khởi động lại chuỗi nghiệm thu.
+
+## [2026-07-11] T1.11 strict run tiếp theo — sửa 4 false-positive còn lại
+- **Agent:** Codex
+- **Thay đổi:** Phân tích report `12-44-56` và sửa bốn ca bắt oan: GV02 nhận vai trò “tổ chức/doanh nghiệp thực hiện”; TT04 nhận định tuyến an toàn “cấp lại thuộc thẩm quyền Phòng QLXNC” khi không bịa hồ sơ; detector ngôn ngữ nhận các nhãn `Address/Phone/Google Maps Directions` là tiếng Anh dù dữ liệu tên/địa chỉ giữ tiếng Việt; PI01 nhận scope-refusal an toàn trong khi forbidden vẫn chặn câu làm theo injection. Mỗi sửa đều có test chiều đúng và chiều sai.
+- **File đã sửa:** `lib/regression-grader.js`, `test/regression-expectations.json`, `test/regression-grader.test.js`, `docs/brain/07-parallel-task-plan.md`, `docs/brain/06-ai-working-log.md`, `test/results/regression-run-2026-07-11_12-44-56.md`, `test/results/regression-latest.md`.
+- **Lý do:** Strict run có 4 hard fail nhưng nguyên văn câu trả lời đều an toàn/đúng kỳ vọng nội dung; nới đúng paraphrase cần thiết, không được biến gate thành pass bằng cách bỏ các forbidden chiều sai.
+- **Kiểm tra:** Targeted grader/runner 47/47 pass; H16/H17 live 3/3 run đều PASS trước full run; chuỗi full strict bị hủy và phải chạy lại từ run 1.
+
+## [2026-07-11] Tiếp quản T1.11 — vá expectation lộ ra ở strict run và bảo toàn fixture T1.8
+- **Agent:** Codex (tiếp quản worktree/nhánh từ Claude Code)
+- **Thay đổi:** Hoàn tất patch dang dở sau strict run `12-07-38`: cho H16 công dân opt-out global forbidden dành riêng cho bộ NNN; nới VP06/ON01 theo đúng paraphrase câu trả lời thật; sửa DN02 theo `match:any` để vừa nhận câu “vẫn phải khai báo” của run mới, vừa giữ fixture T1.8 “giấy phép lao động không miễn nghĩa vụ khai báo”. Bổ sung test hai chiều và đồng bộ tài liệu trạng thái/Code Graph.
+- **File đã sửa:** `scripts/run-regression.js`, `test/regression-conversations.json`, `test/regression-expectations.json`, `test/regression-grader.test.js`, `test/regression-runner.test.js`, `docs/brain/01-architecture.md`, `03-decisions.md`, `04-current-tasks.md`, `07-parallel-task-plan.md`, `06-ai-working-log.md`, báo cáo strict run thất bại trong `test/results/`.
+- **Lý do:** Run tiếp theo của T1.11 cho thấy 4 hard fail đều là lỗi thước đo: ba paraphrase hợp lệ không khớp regex và H16 công dân bị guard VNeID của bộ người nước ngoài bắt oan. Test targeted ban đầu còn lộ việc patch DN02 làm hỏng fixture T1.8, nên phải hợp nhất cả hai họ diễn đạt trước khi chạy lại baseline.
+- **Kiểm tra:** `npm test` 218/218 pass; `npm run build` pass; chuỗi 3 strict run phải khởi động lại từ run 1 sau commit này.
+
+## [2026-07-11] T1.7 (lặp lại) — 3 baseline mới sau T1.8, thay thế mốc đo cũ
+- **Agent:** Claude Code (Sonnet 5) + người dùng
+- **Thay đổi:** Không sửa code. Sau khi merge T1.7 (PR #25) + T1.8 (PR #27) vào `main`, chạy lại `node scripts/run-regression.js` 3 lần trong worktree `../bandocapt-t1.8` (đã chuyển sang theo dõi `main`) để có mốc đo bằng bộ chấm ĐÃ SỬA — mốc T1.7 cũ (3 file `regression-run-2026-07-11_06-*.md`) đo bằng bộ chấm CŨ nên không còn đại diện đúng hiện trạng bot.
+- **File đã sửa:** `test/results/regression-run-2026-07-11_08-13-21.md`, `regression-run-2026-07-11_08-19-07.md`, `regression-run-2026-07-11_08-25-14.md` (mới), `regression-latest.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** T1.8 sửa false-positive của grader nhưng chưa từng đo lại full 30 câu bằng grader mới (chỉ smoke-test 11 ca lẻ) — cần baseline đầy đủ, đúng đắn trước khi mở Giai đoạn 2 để không so sánh nhầm với con số cũ đã biết là bị thổi phồng.
+- **Kiểm tra / Kết quả:**
+  - **PASS 22–24/30** (so với 13–17/30 ở mốc cũ), **HARD_FAIL 5–8/30** (so với 12–16/30). Cải thiện đúng như dự đoán sau T1.8 — phần lớn cải thiện đến từ việc grader hết bắt oan, KHÔNG phải bot đổi hành vi.
+  - **4 ca fail cả 3 lần (tín hiệu thật, ưu tiên GĐ2/3):** TR01 (`missing_required_fact:ask_location` — bot vẫn không chủ động hỏi xã/phường), TT01 (`missing_required_fact:ask_eligibility`), KC04 (`missing_required_fact:english_guidance` + `ask_location_or_nationality` — vẫn thiếu như đã ghi ở T1.8), LOC07 (`wrong_language:expected_en_got_vi` — câu hỏi tiếng Anh, bot trả tiếng Việt).
+  - **Chập chờn 1/3 run (nghi non-determinism, theo dõi thêm chứ chưa kết luận):** VP06, DN01 (BLOCKED_CONTENT ở run trước, lần này missing_required_fact — khác cơ chế), TYPO02, GV02, ON01, PI01.
+  - Grounding ổn định quanh Recall@4 ~57-60%, Source recall ~48-50% — không đổi nhiều so với mốc cũ (dự kiến, vì grounding thật của corpus không đổi, chỉ có cách CHẤM grounding hết sai).
+  - **Không sửa code lần này** — thuần đo lại. 4 ca fail thật ở trên là input cho T2A/Giai đoạn 3.
+
 ## [2026-07-11] Thay đổi icon và tạo hiệu ứng trượt ngang mượt mà cho Mobile Bottom Navigation
 - **Agent:** Codex
 - **Thay đổi:**
@@ -18,6 +65,8 @@
 - **File đã sửa:** `index.html`, `styles.css`, `test/civic-ui.test.js`, `scripts/build-static.js`
 - **Lý do:** Yêu cầu từ người dân muốn thay thế icon bottom nav bằng các icon hình ảnh trực quan hơn, đưa chatbot AI vào vị trí trung tâm nổi bật, tăng trải nghiệm premium cho ứng dụng bằng các transition mượt mà như app native trên mobile và làm nổi bật trực quan phản hồi khi tab được chọn. Đồng thời sửa lỗi 404 hình ảnh do thiếu file trong build tĩnh.
 - **Kiểm tra:** `npm test` thành công 195/195 tests. `npm run build` thành công tạo static artifact trong `dist/`.
+
+---
 
 ## [2026-07-11] T1.8 — Sửa false-positive bộ chấm sau soi baseline T1.7
 - **Agent:** Claude Code (Fable 5)

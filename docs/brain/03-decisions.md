@@ -533,3 +533,31 @@
 - **Nguoi quyet dinh:** user / Codex
 
 ---
+
+## [2026-07-11] T1.9: Câu trả lời quốc tịch không phải địa danh — chặn ở cả heuristic lẫn nhánh tất định
+
+- **Quyết định:** `lib/published-locations.js` thêm `NATIONALITY_ANSWER_PATTERN` (loại "Người/Công dân Việt Nam", "Người nước ngoài", biến thể EN khỏi `looksLikeShortLocationText`) và `isNationalityAnswerContext(currentMessage, history)` (nhận diện bot vừa hỏi quốc tịch trong 2 lượt model gần nhất). `api/chat.js` dùng hàm này để KHÔNG rơi vào nhánh trả lời tất định `DETERMINISTIC_NO_MATCH` khi người dùng đang trả lời câu hỏi quốc tịch. Chip quốc tịch trong `js/chatbot.js` nhận cả hai thứ tự vế hỏi ("công dân VN hay người nước ngoài" và ngược lại).
+- **Lý do:** Heuristic "câu ≤4 từ không dính từ khóa loại trừ = địa danh" nuốt câu trả lời quốc tịch, kết thúc request trước khi RAG chạy → hội thoại mất hộ chiếu gãy ngay sau lượt làm rõ (lỗi tái hiện được trong review Giai đoạn 1). Chặn 2 lớp (pattern + ngữ cảnh) để cả biến thể không khớp pattern ("Việt Nam" trần) vẫn an toàn ngay sau câu hỏi quốc tịch.
+- **Đánh đổi:** Nếu người dùng thật sự muốn tra một địa danh trần ngay sau khi bot hỏi quốc tịch (hiếm, off-context) thì lượt đó đi qua LLM thay vì matcher trụ sở; các tín hiệu địa điểm tường minh (từ khóa "công an/trụ sở/xã/phường", khai nơi ở) vẫn ưu tiên vào luồng địa điểm như cũ.
+- **Người quyết định:** user (review Giai đoạn 1) / Claude Code
+
+---
+
+## [2026-07-11] T1.10–T1.11: Gate nghiêm ngặt, thước đo hội thoại nhiều lượt, tái hiệu chỉnh KC04/TR01/TT01/LOC07
+
+- **Quyết định:** (1) Runner nhận `--strict-gate`: exit ≠ 0 khi có hard fail HOẶC provider error; hard fail hội thoại cũng chặn gate. (2) Hội thoại nhiều lượt chạy thật qua handler với `history`, định nghĩa trong `test/regression-conversations.json` (H16 công dân / H17 người nước ngoài cho luồng mất hộ chiếu), chấm lượt cuối bằng `gradeCase`, thống kê tách riêng khỏi bộ 30 câu đơn. Global forbidden của bộ NNN được bật mặc định, nhưng fixture công dân H16 khai `use_global_forbidden=false` vì VNeID/Cổng DVC là hợp lệ trong thủ tục hộ chiếu công dân. (3) Tái hiệu chỉnh expectation theo paraphrase đã quan sát, luôn kèm test hai chiều: KC04 chỉ bắt hỏi lại quốc tịch khi câu hỏi chưa rõ đối tượng; TR01 bỏ `ask_location` vô điều kiện; TT01 bỏ `ask_eligibility` vô điều kiện + budget 250→350; VP06/DN02/ON01 nhận diễn đạt tương đương nhưng vẫn giữ forbidden bắt chiều sai; `detectLanguage` bỏ từ viết hoa đầu khi đo mật độ dấu để địa chỉ tiếng Việt trong câu trả lời tiếng Anh không bị chấm oan (LOC07).
+- **Lý do:** Baseline T1.7b còn 4 ca fail 3/3 run — soi từng ca cho thấy toàn bộ là lỗi thước đo (encoding mâu thuẫn chính kỳ vọng gốc, hoặc detector ngôn ngữ nhầm vì tên riêng), không phải lỗi bot. Gate Giai đoạn 1 chỉ có giá trị khi 0 hard fail là 0 hard fail THẬT, và provider error không được che trong run baseline.
+- **Đánh đổi:** Việc bot "chủ động hỏi xã/phường" (TR01) và các cải thiện hành vi khác bị đưa ra khỏi gate GĐ1 — phải theo dõi ở backlog, không được quên. detectLanguage bỏ qua từ viết hoa nên câu vi toàn từ viết hoa (hiếm) có thể bị nhận nhầm en — chấp nhận vì mẫu <5 từ đã có fallback đo trên toàn bộ từ.
+- **Hiệu chỉnh sau strict run `13-12-22`:** LOC07 dùng đúng nhãn tiếng Anh nhưng Markdown bọc đậm `**Address:**`/`**Phone:**`, nên detector phải nhận cả nhãn có Markdown và `Google Maps` không có hậu tố `Directions`; test thuần tiếng Việt vẫn phải fail. DN01 đồng thời bao phủ hai luồng bắt buộc (khai báo tạm trú và thủ tục doanh nghiệp bảo lãnh), nên ngân sách riêng là 300 từ như TT01 đã có ngân sách riêng 350; prompt trọn thủ tục vẫn giữ giới hạn chung tối đa 250 từ và thêm bước tự bỏ phần lặp/ngoài câu hỏi. Chuỗi 3 run bị hủy và chạy lại từ đầu.
+- **Người quyết định:** user (plan T1.9–T1.11) / Claude Code
+
+---
+
+## [2026-07-11] T1.11: Gate nghiệm thu Giai đoạn 1 chuyển sang ĐA SỐ 2/3 (thay strict per-run)
+
+- **Quyết định:** Tiêu chí nghiệm thu gate Giai đoạn 1 đổi từ "0 hard fail mỗi run × 3 run liên tiếp" sang **đa số**: chạy N run đầy đủ (mặc định 3), một ca chỉ tính HARD FAIL THẬT (chặn gate) khi rớt ≥ ⌊N/2⌋+1 run; rớt lẻ tẻ (1..ngưỡng-1 run) là **flaky** — báo advisory, KHÔNG chặn. Provider error cũng áp quy tắc đa số dưới `--strict-gate`. Cài trong `scripts/run-regression.js` qua `--majority`/`--runs N` + hàm thuần `aggregateMajority`; báo cáo tổng hợp `test/results/regression-majority-*.md`. Lỗi bot THẬT (vd VP01 bịa mức phạt) vẫn phải sửa ở prompt, không được nới grader để né.
+- **Lý do:** Grader regex chấm trên output LLM không tất định về mặt cấu trúc không thể ổn định đạt "0 hard fail × 3 run liên tiếp": mỗi run một ca KHÁC diễn đạt câu đúng theo cách lệch pattern (bằng chứng: 4 run đầy đủ liên tiếp fail EV04/TT04/VP01/H17, mỗi run một ca khác). Vòng "rớt → nới regex cho khớp câu vừa nói → reset" hoặc không hội tụ, hoặc làm rỗng gate. Đa số tách nhiễu 1-run của model khỏi lỗi hệ thống (ca fail ≥2/3 mới là tín hiệu thật) — trung thực về thống kê, đúng cách các ca đang dao động ~1/3.
+- **Đánh đổi:** Gate không còn bắt được lỗi chỉ xuất hiện 1/3 lần — chấp nhận, vì đó là nhiễu diễn đạt/độ nhiễu model, không phải hồi quy ổn định; các ca flaky vẫn được liệt kê advisory để theo dõi. Không thay việc sửa lỗi bot thật ở prompt. Muốn chặt hơn có thể nâng N (5/7…) hoặc thêm LLM-judge (đã xếp "làm SAU").
+- **Người quyết định:** user (chọn "gate đa số 2/3") / Claude Code (Opus 4.8)
+
+---

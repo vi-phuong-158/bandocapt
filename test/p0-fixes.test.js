@@ -6,6 +6,11 @@ const test = require('node:test');
 
 const handler = require('../api/chat');
 
+test('empty Gemini stream retry only accepts actual candidate text', () => {
+    assert.equal(handler.extractGeminiResponseText({ candidates: [{ content: { parts: [{ text: '  Retry answer. ' }, {}] } }] }), 'Retry answer.');
+    assert.equal(handler.extractGeminiResponseText({ candidates: [{ finishReason: 'STOP' }] }), '');
+});
+
 const ROOT = path.resolve(__dirname, '..');
 const ORIGINAL_ENV = { ...process.env };
 const ORIGINAL_FETCH = global.fetch;

@@ -43,6 +43,15 @@ test('detects nationality chips in Vietnamese and English with matching labels',
     assert.match(en[0].send, /foreign national/i);
 });
 
+test('detects nationality chips when the model reverses the two options (T1.9)', () => {
+    const vi = detectQuickReplies('Bạn là công dân Việt Nam hay người nước ngoài để mình hướng dẫn chi tiết nhé?');
+    assert.deepEqual(vi.map(r => r.label), ['Người nước ngoài', 'Công dân Việt Nam']);
+    assert.match(vi[1].send, /Tôi là công dân Việt Nam/);
+
+    const en = detectQuickReplies('Are you a Vietnamese citizen or a foreign national?');
+    assert.deepEqual(en.map(r => r.label), ['Foreign national', 'Vietnamese citizen']);
+});
+
 test('returns empty for ordinary answers and empty input', () => {
     assert.deepEqual(detectQuickReplies('Thời hạn khai báo là 12 giờ kể từ khi đến.'), []);
     assert.deepEqual(detectQuickReplies(''), []);

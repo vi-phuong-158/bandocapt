@@ -1,0 +1,2 @@
+[api/chat] BLOCKED_CONTENT finishReason=stop promptFeedback=null safetyRatings=null
+[api/chat] Pinecone scores below threshold, không dùng tài liệu yếu.

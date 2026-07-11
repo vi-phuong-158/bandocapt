@@ -49,8 +49,12 @@
 | T1.4 | Lớp chấm deterministic trong runner | EVAL | Claude/Codex | TRUNG | T1.2 | **DONE** (2026-07-11) |
 | T1.5 | Lớp chấm grounding + Recall@4/MRR | EVAL | Claude | TRUNG | T1.2, T1.3, T1.4 | **DONE** (2026-07-11) |
 | T1.6 | Format báo cáo mới (hard/deferred/soft/latency) | EVAL | Claude (nhận từ Codex) | THẤP | T1.4 | **DONE** (2026-07-11) |
-| T1.7 | Chạy 3 baseline + commit báo cáo | EVAL | Người dùng + Claude | THẤP | T1.4–T1.6 | **DONE** (2026-07-11) — gate ❌ 12-16/30 hard fail, xem 06-log |
+| T1.7 | Chạy 3 baseline + commit báo cáo | EVAL | Người dùng + Claude | THẤP | T1.4–T1.6 | **DONE** (2026-07-11) — mốc ban đầu ❌ 12-16/30 hard fail (đo bằng grader cũ, đã lỗi thời, xem T1.8) |
 | T1.8 | Sửa false-positive bộ chấm (negation-aware forbidden, `grounding_patterns`, mã hóa lại TL01) | EVAL | Claude | TRUNG | T1.7 | **DONE** (2026-07-11) — 10/11 ca fail lặp chuyển PASS live |
+| T1.7b | Baseline mới sau T1.8 (mốc chính thức cho Giai đoạn 2) | EVAL | Claude | THẤP | T1.8 | **DONE** (2026-07-11) — ❌ 5-8/30 hard fail, 4 ca lặp cả 3 lần (TR01/TT01/KC04/LOC07), xem 06-log. Bị thay bằng T1.11 làm mốc chính thức |
+| T1.9 | Sửa định tuyến câu trả lời quốc tịch ("Người Việt Nam" bị coi là địa danh → DETERMINISTIC_NO_MATCH trước RAG) | CORE | Claude | **CAO** | — | **DONE** (2026-07-11) — unit + integration + live H16/H17 3/3 PASS |
+| T1.10 | Thước đo hội thoại nhiều lượt (H16/H17) + `--strict-gate` + sửa expectation KC04 | EVAL | Claude | TRUNG | T1.9 | **DONE** (2026-07-11) |
+| T1.11 | Nghiệm thu gate Giai đoạn 1 — chuyển strict per-run → **gate ĐA SỐ 2/3** | EVAL | Claude/Codex/Gemini | **CAO** | T1.9, T1.10 | ĐANG CHẠY (2026-07-11) — strict per-run KHÔNG hội tụ (4 run liên tiếp mỗi run một ca khác flaky: EV04/TT04/VP01/H17). User chốt gate đa số; runner `--majority` + `aggregateMajority` đã có + unit test; đang chạy 3-run majority chính thức |
 
 **Chi tiết:**
 
@@ -62,6 +66,10 @@
 - **T1.6** — Tách section báo cáo: hard fail / deferred fail / TRUNCATED / VERBOSITY / provider error / Recall@4/MRR / p50-p95 theo stage. Spec rõ, cơ học.
 - **T1.7** — Cần API key thật (bước người dùng). 3 run liên tiếp, commit vào `test/results/`. Baseline này đồng thời đóng TASK-UX-01-EXT mục 1 và bước "3 run cho feat/rag-accuracy" trong `04-current-tasks.md`.
 - **T1.8** — Soi 11 ca fail lặp cả 3 run baseline → ~9 là false-positive của bộ chấm, không phải lỗi bot. Sửa: (1) forbidden regex negation-aware (GV01/GV06 — "Không nộp tại Công an phường" không còn bị bắt oan); (2) schema thêm `grounding_patterns` — pattern riêng dò tài liệu tiếng Việt, tách khỏi pattern dò câu trả lời (EV07/KC04 en-zh, TR01/ON01/GD02/DN02/EV04 diễn đạt khác); (3) nới required cho diễn đạt tương đương (VP06/DN02/TR01); (4) TL01: bỏ required "cụm phân biệt", thay bằng forbidden `deadline_confused_with_processing`. Sau sửa, lỗi bot THẬT còn lại cho GĐ2/3: KC04 (không đưa hướng dẫn police/embassy), TR01 chập chờn `ask_location`, TYPO02 chập chờn gợi ý VNeID, LOC07 chập chờn sai ngôn ngữ, TR01 từng gợi ý phiếu NA17. Xem 03-decisions 2026-07-11.
+
+- **T1.9** — Lỗi tái hiện: hỏi "mất hộ chiếu" → bot hỏi quốc tịch → trả lời "Người Việt Nam" → heuristic câu-ngắn coi là địa danh → nhánh tất định `DETERMINISTIC_NO_MATCH` kết thúc request TRƯỚC khi RAG chạy. Sửa 2 lớp trong `lib/published-locations.js` (`NATIONALITY_ANSWER_PATTERN` + `isNationalityAnswerContext`), guard nhánh tất định trong `api/chat.js`, chip quốc tịch nhận cả 2 thứ tự vế. Xem 03-decisions 2026-07-11.
+- **T1.10** — `test/regression-conversations.json` (H16 công dân / H17 người nước ngoài), runner truyền `history` từng lượt + transcript + chấm lượt cuối, thống kê tách câu-đơn/hội-thoại, cờ `--strict-gate` (hard fail HOẶC provider error → exit 1). KC04 chỉ bắt hỏi lại quốc tịch (nhánh sau làm rõ chấm bằng H16/H17).
+- **T1.11** — Quy trình: npm test + build → H16/H17 ×3 → 3 run đầy đủ liên tiếp `--strict-gate`; bất kỳ run nào hard fail/provider error → HỦY chuỗi, sửa nguyên nhân + thêm regression, chạy lại từ run 1. Trước chuỗi: sửa 3 ca fail-do-thước-đo còn lại của T1.7b (TR01 bỏ ask_location vô điều kiện, TT01 bỏ ask_eligibility + budget 350, LOC07 sửa detectLanguage bỏ từ viết hoa). Chuỗi 1 hủy ở run 1 → vá thêm các pattern bắt oan (TR05/GV02/DN02/ON01/TR09/H16-forbidden) + grader không quy provider error thành content fail. Run kế tiếp tiếp tục lộ paraphrase hợp lệ VP06/DN02/ON01 và H16 công dân bị global guard của bộ NNN bắt oan; đã bổ sung test hai chiều và opt-out `use_global_forbidden=false` chỉ cho H16. Chuỗi gần nhất: run 1 đạt, run 2 hủy vì LOC07 detector chưa nhận nhãn tiếng Anh bọc Markdown và DN01 lặp soft warning; đã thêm test đúng/sai, ngân sách riêng DN01 300 và siết prompt chống lặp. Soft warning mỗi ca ≤1/3 run; chuỗi kế tiếp chạy lại từ run 1.
 
 **LLM judge:** làm SAU khi T1.4+T1.5 ổn định, chỉ advisory cho 5–8 ca khó, không chặn gate. Chưa tạo task — mở khi cần.
 
