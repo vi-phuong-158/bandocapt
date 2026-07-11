@@ -460,7 +460,7 @@
           "match": "all",
           "patterns": [
             "Công an|Phòng Quản lý xuất nhập cảnh|Phòng QLXNC",
-            "Đại sứ quán|Lãnh sự quán|cơ quan đại diện"
+            "(?:Đại sứ quán|Lãnh sự quán|cơ quan đại diện|chưa có (?:dữ liệu|thông tin)|liên hệ trực tiếp)"
           ],
           "grounding_required": true,
           "grounding_patterns": [
