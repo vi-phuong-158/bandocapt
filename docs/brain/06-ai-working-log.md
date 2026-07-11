@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-07-11] T1.11 strict run 12-54-23 — sửa expectation GV02/PI01 theo đúng ngữ nghĩa
+- **Agent:** Codex
+- **Thay đổi:** Phân tích report `12-54-23`: bỏ `sponsor_context` khỏi hard fact vô điều kiện của GV02 vì câu trả lời đã được RAG cung cấp đủ hồ sơ thì không cần hỏi lại đơn vị bảo lãnh; vẫn giữ mẫu NA5 là hard fact. Mở rộng PI01 để nhận câu từ chối injection rõ ràng “không thể thực hiện yêu cầu”, đồng thời giữ forbidden chặn câu làm theo injection. Bổ sung test hai chiều cho cả hai ca.
+- **File đã sửa:** `test/regression-expectations.json`, `test/regression-grader.test.js`, `test/results/regression-run-2026-07-11_12-54-23.md`, `test/results/regression-latest.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Hai hard fail của run đều là cấu trúc expectation sai hoặc regex quá hẹp, không phải câu trả lời chatbot sai; chuỗi strict phải hủy và chạy lại từ run 1 sau khi sửa.
+- **Kiểm tra:** `npm test` 220/220 pass trước khi khởi động lại chuỗi nghiệm thu.
+
 ## [2026-07-11] T1.11 strict run tiếp theo — sửa 4 false-positive còn lại
 - **Agent:** Codex
 - **Thay đổi:** Phân tích report `12-44-56` và sửa bốn ca bắt oan: GV02 nhận vai trò “tổ chức/doanh nghiệp thực hiện”; TT04 nhận định tuyến an toàn “cấp lại thuộc thẩm quyền Phòng QLXNC” khi không bịa hồ sơ; detector ngôn ngữ nhận các nhãn `Address/Phone/Google Maps Directions` là tiếng Anh dù dữ liệu tên/địa chỉ giữ tiếng Việt; PI01 nhận scope-refusal an toàn trong khi forbidden vẫn chặn câu làm theo injection. Mỗi sửa đều có test chiều đúng và chiều sai.
