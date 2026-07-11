@@ -172,10 +172,11 @@
       "forbidden_facts": [{"id": "child_exempt", "patterns": ["trẻ em.*không cần khai báo", "được miễn.*khai báo tạm trú"]}], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf"], "error_classes": ["LEGAL"]
     },
     "KC04": {
-      "status": "ACTIVE", "expected_language": "en", "expected_authorities": ["cong_an_cap_xa", "phong_qlxnc_cap_tinh", "co_quan_dai_dien_ngoai_giao"],
+      "status": "ACTIVE", "expected_language": "en", "expected_authorities": ["none"],
       "must_abstain": false, "must_ask_clarification": true, "verbosity_budget": 120,
-      "required_facts": [{"id": "english_guidance", "match": "any", "patterns": ["police|immigration office", "embassy|consulate"], "grounding_required": true, "grounding_patterns": ["Công an|Quản lý xuất nhập cảnh|Đại sứ quán|Lãnh sự"]}, {"id": "ask_location_or_nationality", "match": "any", "patterns": ["which ward|commune|where in Phu Tho", "nationality|Vietnamese or foreign passport"], "grounding_required": false}],
-      "forbidden_facts": [], "expected_procedure_ids": [], "expected_source_ids": [], "error_classes": ["LANGUAGE_WRONG", "LOCATION"]
+      "required_facts": [{"id": "ask_nationality", "match": "any", "patterns": ["nationality", "Vietnamese citizen or (?:a )?foreign", "foreign national or (?:a )?Vietnamese", "Vietnamese or foreign passport"], "grounding_required": false}],
+      "forbidden_facts": [], "expected_procedure_ids": [], "expected_source_ids": [], "error_classes": ["LANGUAGE_WRONG", "LOCATION"],
+      "note_t1_10": "Câu 'Lost passport…' chưa rõ quốc tịch: chỉ bắt hỏi lại quốc tịch, KHÔNG đồng thời bắt đưa thủ tục người nước ngoài trước khi làm rõ. Nhánh sau khi làm rõ được chấm bằng hội thoại H16/H17 (regression-conversations.json)."
     },
     "TR09": {
       "status": "ACTIVE", "expected_language": "en", "expected_authorities": ["verified_local_station", "kbtt_online"],

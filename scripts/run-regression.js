@@ -27,9 +27,14 @@ const COMMON_FORBIDDEN_PATTERNS = [
 ];
 
 function parseArgs(argv) {
-    const parsed = { ids: null, delayMs: 2000 };
+    const parsed = { ids: null, delayMs: 2000, strictGate: false };
     for (let i = 0; i < argv.length; i += 1) {
         const arg = argv[i];
+        // T1.10: gate nghiêm ngặt — provider error cũng đánh exit 1 (mặc định chỉ hard fail).
+        if (arg === '--strict-gate') {
+            parsed.strictGate = true;
+            continue;
+        }
         if (arg === '--ids' && argv[i + 1]) {
             parsed.ids = argv[i + 1].split(',').map(item => item.trim()).filter(Boolean);
             i += 1;
@@ -72,7 +77,7 @@ const NARROW_QUESTION_IDS = new Set([
     'CS01', 'GD02', 'ON01', 'TYPO02', 'LOC02', 'LOC04', 'LOC07', 'KC04', 'PI01',
 ]);
 // Soft-fail VERBOSITY: vượt ngưỡng không tính là fail cứng, nhưng phải hiện rõ trong báo cáo.
-function runChat(userMessage) {
+function runChat(userMessage, history = []) {
     return new Promise((resolve, reject) => {
         let fullResponse = '';
         let sources = [];
@@ -134,6 +139,7 @@ function runChat(userMessage) {
         chatHandler(createRequest({
             captchaToken: 'test-bypass-token',
             userMessage,
+            history, // T1.10: hội thoại nhiều lượt truyền lịch sử như client thật
             evalDebug: true // T1.5: xin eval trace để chấm grounding (chỉ bật trong eval-run non-production)
         }), res).catch(reject);
     });
@@ -170,6 +176,15 @@ function parseQuestions() {
     }
 
     return questions;
+}
+
+// T1.10: hội thoại nhiều lượt — chạy thật qua handler với history, chấm lượt CUỐI
+// bằng expectation nhúng trong test/regression-conversations.json (cùng schema grader).
+function parseConversations() {
+    const jsonPath = path.resolve(__dirname, '../test/regression-conversations.json');
+    if (!fs.existsSync(jsonPath)) return [];
+    const raw = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+    return Object.entries(raw.conversations || {}).map(([id, spec]) => ({ id, ...spec }));
 }
 
 // T1.4/T1.5: chấm 1 ca bằng bộ chấm 2 lớp (deterministic + grounding) đọc từ
@@ -290,6 +305,55 @@ async function main() {
         }
     }
 
+    // ----- T1.10: hội thoại nhiều lượt (thống kê TÁCH RIÊNG khỏi bộ câu đơn) -----
+    const conversations = parseConversations().filter(conv => !selectedIds || selectedIds.has(conv.id));
+    const conversationResults = [];
+    for (const conv of conversations) {
+        console.log(`[conversation] Running ${conv.id} (${conv.turns.length} turns) — ${conv.description || ''}`);
+        const history = [];
+        const turns = [];
+        let lastResult = null;
+        let abortError = null;
+        for (const turnText of conv.turns) {
+            if (args.delayMs > 0 && turns.length > 0) {
+                await new Promise(resolve => setTimeout(resolve, args.delayMs));
+            }
+            const t0 = Date.now();
+            try {
+                const result = await runChat(turnText, history);
+                const latencyMs = Date.now() - t0;
+                turns.push({
+                    question: turnText,
+                    response: result.text,
+                    latencyMs,
+                    finishReason: result.finishReason,
+                    error: result.error,
+                    truncated: result.truncated,
+                });
+                history.push({ role: 'user', parts: [{ text: turnText }] });
+                history.push({ role: 'model', parts: [{ text: result.text }] });
+                lastResult = result;
+            } catch (e) {
+                turns.push({ question: turnText, response: '', latencyMs: Date.now() - t0, finishReason: '', error: e.message, truncated: false });
+                abortError = e.message;
+                lastResult = null;
+                break;
+            }
+        }
+        const finalText = lastResult ? lastResult.text : '';
+        const wordCount = countWords(finalText);
+        const grade = gradeCase(conv.expectation, {
+            text: finalText,
+            wordCount,
+            truncated: lastResult ? lastResult.truncated : false,
+            error: abortError || (lastResult ? lastResult.error : 'CONVERSATION_ABORTED'),
+            eval: lastResult ? lastResult.eval : null,
+        }, { globalForbidden: COMMON_FORBIDDEN_PATTERNS });
+        conversationResults.push({ ...conv, turns, wordCount, grade });
+        console.log(`  -> ${conv.id}: ${grade.verdict}${grade.failures.length ? ` (${grade.failures.join('; ')})` : ''}`);
+        if (args.delayMs > 0) await new Promise(resolve => setTimeout(resolve, args.delayMs));
+    }
+
     const gradedResults = results.filter(result => result.grade);
     const passCount = gradedResults.filter(result => result.grade.status === 'PASS').length;
     const hardFailCount = gradedResults.filter(result => result.grade.status === 'HARD_FAIL').length;
@@ -297,6 +361,12 @@ async function main() {
     const failCount = hardFailCount + deferredFailCount;
     // Gate chính thức: 0 hard fail. Deferred (F01) KHÔNG chặn gate cho tới Giai đoạn 3.
     const providerErrorCount = gradedResults.filter(result => result.grade.providerError).length;
+    // T1.10: thống kê hội thoại tách riêng nhưng hard fail/provider error VẪN tính vào gate.
+    const convPassCount = conversationResults.filter(c => c.grade.verdict === 'PASS').length;
+    const convHardFailCount = conversationResults.filter(c => c.grade.verdict === 'HARD_FAIL').length;
+    const convProviderErrorCount = conversationResults.filter(c => c.grade.providerError).length;
+    const totalHardFail = hardFailCount + convHardFailCount;
+    const totalProviderErrors = providerErrorCount + convProviderErrorCount;
     // Grounding metric tổng hợp (chỉ trên ca có eval trace + có kỳ vọng procedure/source).
     const groundingResults = gradedResults.filter(r => r.grade.grounding);
     const avg = (arr) => arr.length ? arr.reduce((s, n) => s + n, 0) / arr.length : null;
@@ -323,9 +393,17 @@ async function main() {
     const pct = (v) => v === null ? 'N/A' : `${(v * 100).toFixed(1)}%`;
     let reportMd = `# Báo cáo Regression Run (${now.toISOString()})\n\n`;
     reportMd += `- Tổng số câu chạy: ${results.length}\n`;
-    reportMd += `- Số ca tự chấm: ${gradedResults.length}/30\n`;
+    reportMd += `- Số ca tự chấm (câu đơn): ${gradedResults.length}/30\n`;
     reportMd += `- **PASS: ${passCount}** — **HARD_FAIL: ${hardFailCount}** — DEFERRED_FAIL: ${deferredFailCount} — PROVIDER_ERROR: ${providerErrorCount}\n`;
-    reportMd += `- **Gate (0 hard fail): ${hardFailCount === 0 ? '✅ ĐẠT' : '❌ KHÔNG ĐẠT'}** — deferred (F01) không chặn gate tới Giai đoạn 3\n`;
+    if (conversationResults.length > 0) {
+        reportMd += `- Hội thoại nhiều lượt: ${conversationResults.length} — **PASS: ${convPassCount}** · HARD_FAIL: ${convHardFailCount} · PROVIDER_ERROR: ${convProviderErrorCount}\n`;
+    }
+    if (args.strictGate) {
+        const strictOk = totalHardFail === 0 && totalProviderErrors === 0;
+        reportMd += `- **Gate NGHIÊM NGẶT (0 hard fail + 0 provider error): ${strictOk ? '✅ ĐẠT' : '❌ KHÔNG ĐẠT'}** — deferred (F01) không chặn gate tới Giai đoạn 3\n`;
+    } else {
+        reportMd += `- **Gate (0 hard fail): ${totalHardFail === 0 ? '✅ ĐẠT' : '❌ KHÔNG ĐẠT'}** — deferred (F01) không chặn gate tới Giai đoạn 3\n`;
+    }
     reportMd += `- Grounding: Recall@4 TB ${pct(meanRecall)} · MRR TB ${meanMrr === null ? 'N/A' : meanMrr.toFixed(3)} · Source recall TB ${pct(meanSourceRecall)}\n`;
     reportMd += `- Authority accuracy: ${authorityResults.length ? `${authorityHits}/${authorityResults.length} (${pct(authorityHits / authorityResults.length)})` : 'N/A'}\n`;
     reportMd += `- Latency: TB ${latAvg} ms · median ${latMedian} ms · p95 ${latP95} ms\n\n`;
@@ -350,10 +428,14 @@ async function main() {
     const softCases = results.filter(r => r.grade && (r.grade.softWarnings.length > 0 || r.verbosity || r.truncated));
     const providerErrors = results.filter(r => r.grade && r.grade.providerError);
 
-    if (hardFails.length > 0) {
-        reportMd += `## ❌ Hard fail (${hardFails.length}) — CHẶN GATE\n`;
+    const convHardFails = conversationResults.filter(c => c.grade.verdict === 'HARD_FAIL');
+    if (hardFails.length > 0 || convHardFails.length > 0) {
+        reportMd += `## ❌ Hard fail (${hardFails.length + convHardFails.length}) — CHẶN GATE\n`;
         for (const r of hardFails) {
             reportMd += `- **${r.id}** — ${r.grade.failures.join('; ') || 'không rõ nguyên nhân'}\n`;
+        }
+        for (const c of convHardFails) {
+            reportMd += `- **${c.id}** (hội thoại) — ${c.grade.failures.join('; ') || 'không rõ nguyên nhân'}\n`;
         }
         reportMd += '\n';
     }
@@ -384,6 +466,29 @@ async function main() {
             reportMd += `- **${r.id}** — ${r.grade.providerError}\n`;
         }
         reportMd += '\n';
+    }
+
+    // T1.10: transcript hội thoại nhiều lượt — báo cáo TỪNG LƯỢT, verdict chấm trên lượt cuối.
+    if (conversationResults.length > 0) {
+        reportMd += `## 🗣 Hội thoại nhiều lượt (${conversationResults.length})\n\n`;
+        for (const conv of conversationResults) {
+            reportMd += `### [${conv.id}] ${conv.description || ''}\n`;
+            reportMd += `- **Verdict (lượt cuối):** ${conv.grade.verdict}\n`;
+            if (conv.grade.failures.length > 0) {
+                reportMd += `- **Assertion fail:** ${conv.grade.failures.join('; ')}\n`;
+            }
+            if (conv.grade.providerError) {
+                reportMd += `- **Provider error:** ${conv.grade.providerError}\n`;
+            }
+            reportMd += `- **Độ dài lượt cuối:** ${conv.wordCount} từ / ngân sách ${conv.expectation.verbosity_budget || 'n/a'}\n\n`;
+            conv.turns.forEach((turn, index) => {
+                reportMd += `**Lượt ${index + 1} — người dùng:** ${turn.question}\n`;
+                if (Number.isFinite(turn.latencyMs)) reportMd += `- Latency: ${turn.latencyMs} ms${turn.finishReason ? ` — finishReason: ${turn.finishReason}` : ''}\n`;
+                if (turn.error) reportMd += `- **[ERROR]** ${turn.error}\n`;
+                reportMd += `\n\`\`\`text\n${turn.response}\n\`\`\`\n\n`;
+            });
+            reportMd += `---\n\n`;
+        }
     }
 
     // Bảng tổng hợp độ dài/ngắt câu — để so sánh trước–sau khi sửa prompt mà không phải đọc từng câu.
@@ -437,13 +542,22 @@ async function main() {
     console.log(`Regression run complete. Report saved to ${reportPath}`);
     console.log(`Also updated pointer file: ${latestPath}`);
 
-    // Chỉ hard fail mới đánh exit 1 (chặn gate). Deferred/provider error báo riêng, không fail CI.
-    if (hardFailCount > 0) {
+    // Gate: hard fail (câu đơn + hội thoại) luôn đánh exit 1. Với --strict-gate (T1.10),
+    // provider error cũng đánh exit 1 — không được che lỗi hạ tầng trong run baseline.
+    if (totalHardFail > 0) {
+        process.exitCode = 1;
+    }
+    if (args.strictGate && totalProviderErrors > 0) {
         process.exitCode = 1;
     }
 }
 
-main().catch(error => {
-    console.error(error);
-    process.exitCode = 1;
-});
+if (require.main === module) {
+    main().catch(error => {
+        console.error(error);
+        process.exitCode = 1;
+    });
+}
+
+// T1.10: xuất helper thuần cho unit test (test/regression-runner.test.js).
+module.exports = { parseArgs, parseQuestions, parseConversations };

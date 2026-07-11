@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "description": "Hội thoại nhiều lượt chạy thật qua api/chat trong regression run (T1.10). Runner truyền history qua từng lượt và chấm lượt CUỐI bằng expectation bên dưới (cùng schema với regression-expectations.json, gradeCase dùng trực tiếp).",
+  "pattern_syntax": "JS RegExp, cờ iu — giống regression-expectations.json. Forbidden phải negation-aware nếu nội dung có thể xuất hiện trong câu phủ định (T1.8).",
+  "conversations": {
+    "H16": {
+      "description": "Mất hộ chiếu → bot hỏi quốc tịch → 'Người Việt Nam' phải tiếp tục luồng công dân (trình báo/cấp lại hộ chiếu), tuyệt đối không rơi vào nhánh lỗi trụ sở tất định (T1.9).",
+      "turns": ["Tôi bị mất hộ chiếu, phải làm sao?", "Người Việt Nam"],
+      "expectation": {
+        "status": "ACTIVE",
+        "expected_language": "vi",
+        "expected_authorities": ["cong_an_cap_xa", "phong_qlxnc_cap_tinh"],
+        "must_abstain": false,
+        "must_ask_clarification": false,
+        "verbosity_budget": 250,
+        "required_facts": [
+          {"id": "passport_flow_continued", "match": "any", "patterns": ["hộ chiếu"], "grounding_required": false},
+          {"id": "report_or_reissue_step", "match": "any", "patterns": ["trình báo|báo mất|khai báo mất", "cấp lại|đề nghị cấp"], "grounding_required": false}
+        ],
+        "forbidden_facts": [
+          {"id": "deterministic_no_data_reply", "patterns": ["chưa có dữ liệu trụ sở"]},
+          {"id": "context_lost_asks_again", "patterns": ["công dân Việt Nam hay (?:là )?người nước ngoài|người nước ngoài hay (?:là )?công dân Việt Nam"]}
+        ],
+        "expected_procedure_ids": [],
+        "expected_source_ids": [],
+        "error_classes": ["LOCATION", "CONTEXT_LOST"]
+      }
+    },
+    "H17": {
+      "description": "Mất hộ chiếu → bot hỏi quốc tịch → 'Người nước ngoài' phải vào nhánh người nước ngoài: trình báo Công an/Phòng QLXNC và liên hệ cơ quan đại diện ngoại giao.",
+      "turns": ["Tôi bị mất hộ chiếu, phải làm sao?", "Người nước ngoài"],
+      "expectation": {
+        "status": "ACTIVE",
+        "expected_language": "vi",
+        "expected_authorities": ["phong_qlxnc_cap_tinh", "cong_an_cap_xa", "co_quan_dai_dien_ngoai_giao"],
+        "must_abstain": false,
+        "must_ask_clarification": false,
+        "verbosity_budget": 250,
+        "required_facts": [
+          {"id": "police_or_qlxnc_report", "match": "any", "patterns": ["Quản lý xuất nhập cảnh|QLXNC", "Công an [^.!?\\n]{0,40}(?:nơi lưu trú|xã|phường|tỉnh)"], "grounding_required": false},
+          {"id": "diplomatic_mission_contact", "match": "any", "patterns": ["đại sứ quán|lãnh sự|cơ quan đại diện"], "grounding_required": false}
+        ],
+        "forbidden_facts": [
+          {"id": "deterministic_no_data_reply", "patterns": ["chưa có dữ liệu trụ sở"]},
+          {"id": "context_lost_asks_again", "patterns": ["công dân Việt Nam hay (?:là )?người nước ngoài|người nước ngoài hay (?:là )?công dân Việt Nam"]}
+        ],
+        "expected_procedure_ids": [],
+        "expected_source_ids": [],
+        "error_classes": ["LOCATION", "CONTEXT_LOST", "WRONG_BRANCH"]
+      }
+    }
+  }
+}
