@@ -5,6 +5,20 @@
 
 ---
 
+## [2026-07-11] Thay đổi icon và tạo hiệu ứng trượt ngang mượt mà cho Mobile Bottom Navigation
+- **Agent:** Codex
+- **Thay đổi:**
+  - Thay thế các icon font Bản đồ (`map`) và Thủ tục (`menu_book`) ở mobile bottom navigation trong `index.html` bằng các icon hình ảnh thực tế `assets/icon-bando.png` và `assets/icon-thutuc.png`.
+  - Di chuyển Hỏi đáp AI (`chat`) ra giữa thanh điều hướng bottom nav (thứ tự tab mới: Bản đồ -> Hỏi đáp AI -> Thủ tục).
+  - Thêm class `.mobile-nav-custom-icon` trong `styles.css` để khống chế kích thước icon tùy chỉnh ở mức `24px x 24px` cân đối với icon Chatbot.
+  - Cấu hình hiệu ứng trượt ngang (horizontal slide transitions) trên mobile cho `#ai-chat-window` và `#tthc-catalog-window` dựa trên thuộc tính `data-active-tab` của `body`.
+  - Cập nhật test case `test/civic-ui.test.js` để mong đợi thứ tự tab mới `['map', 'chat', 'procedures']`.
+  - Thêm `assets/icon-bando.png` và `assets/icon-thutuc.png` vào allowlist của `scripts/build-static.js` để copy sang `dist/` khi build.
+  - Thêm hiệu ứng phóng to 1.15 lần và chuyển động nhún nhảy (pop animation) cho các tab icon khi được chọn (`aria-current="page"`).
+- **File đã sửa:** `index.html`, `styles.css`, `test/civic-ui.test.js`, `scripts/build-static.js`
+- **Lý do:** Yêu cầu từ người dân muốn thay thế icon bottom nav bằng các icon hình ảnh trực quan hơn, đưa chatbot AI vào vị trí trung tâm nổi bật, tăng trải nghiệm premium cho ứng dụng bằng các transition mượt mà như app native trên mobile và làm nổi bật trực quan phản hồi khi tab được chọn. Đồng thời sửa lỗi 404 hình ảnh do thiếu file trong build tĩnh.
+- **Kiểm tra:** `npm test` thành công 195/195 tests. `npm run build` thành công tạo static artifact trong `dist/`.
+
 ## [2026-07-11] T1.8 — Sửa false-positive bộ chấm sau soi baseline T1.7
 - **Agent:** Claude Code (Fable 5)
 - **Thay đổi:** Soi từng ca trong 11 ca hard-fail lặp cả 3 run baseline, đối chiếu nguyên văn câu bot trả lời với expectations → ~9/11 là bộ chấm bắt oan, không phải lỗi bot. Sửa 3 lớp: **(1) Grader** (`lib/regression-grader.js`): fact có `grounding_patterns` (match any) thì dò TÀI LIỆU bằng bộ pattern đó thay vì tái dùng pattern của câu trả lời — vì corpus tiếng Việt còn câu trả lời có thể en/zh (EV07/KC04) hoặc diễn đạt khác docs (TR01/ON01/GD02/DN02/EV04). **(2) Expectations** (`test/regression-expectations.json`): GV01/GV06 forbidden viết lại negation-aware (`(?<!không[^.!?\n]{0,30})` + giới hạn cùng câu thay `.*` xuyên câu — GV01 run1 bị bắt oan vì `.*` nối "Nộp tại Phòng QLXNC" với "Công an xã/phường" ở CÂU SAU); VP06/DN02/TR01 nới required cho diễn đạt tương đương ("không có hình thức lùi ngày", "không miễn nghĩa vụ", "phải khai báo" không kèm "tạm trú"); thêm `grounding_patterns` cho 9 fact; TL01 bỏ required `deadline_not_processing` → forbidden `deadline_confused_with_processing` (chỉ fail khi bot thực sự trình bày 12/24h như thời gian xử lý — đúng ý định T1.1); cập nhật `pattern_syntax` đầu file cho agent sau. **(3) Test** (`test/regression-grader.test.js`): +7 test T1.8 dùng NGUYÊN VĂN câu bot từ run 1 làm fixture — mỗi test đều có 2 chiều (câu đúng không bị bắt oan / câu sai thật vẫn bị bắt).
