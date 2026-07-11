@@ -49,8 +49,9 @@
 | T1.4 | Lớp chấm deterministic trong runner | EVAL | Claude/Codex | TRUNG | T1.2 | **DONE** (2026-07-11) |
 | T1.5 | Lớp chấm grounding + Recall@4/MRR | EVAL | Claude | TRUNG | T1.2, T1.3, T1.4 | **DONE** (2026-07-11) |
 | T1.6 | Format báo cáo mới (hard/deferred/soft/latency) | EVAL | Claude (nhận từ Codex) | THẤP | T1.4 | **DONE** (2026-07-11) |
-| T1.7 | Chạy 3 baseline + commit báo cáo | EVAL | Người dùng + Claude | THẤP | T1.4–T1.6 | **DONE** (2026-07-11) — gate ❌ 12-16/30 hard fail, xem 06-log |
+| T1.7 | Chạy 3 baseline + commit báo cáo | EVAL | Người dùng + Claude | THẤP | T1.4–T1.6 | **DONE** (2026-07-11) — mốc ban đầu ❌ 12-16/30 hard fail (đo bằng grader cũ, đã lỗi thời, xem T1.8) |
 | T1.8 | Sửa false-positive bộ chấm (negation-aware forbidden, `grounding_patterns`, mã hóa lại TL01) | EVAL | Claude | TRUNG | T1.7 | **DONE** (2026-07-11) — 10/11 ca fail lặp chuyển PASS live |
+| T1.7b | Baseline mới sau T1.8 (mốc chính thức cho Giai đoạn 2) | EVAL | Claude | THẤP | T1.8 | **DONE** (2026-07-11) — ❌ 5-8/30 hard fail, 4 ca lặp cả 3 lần (TR01/TT01/KC04/LOC07), xem 06-log |
 
 **Chi tiết:**
 

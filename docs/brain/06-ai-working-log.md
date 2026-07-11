@@ -5,6 +5,20 @@
 
 ---
 
+## [2026-07-11] T1.7 (lặp lại) — 3 baseline mới sau T1.8, thay thế mốc đo cũ
+- **Agent:** Claude Code (Sonnet 5) + người dùng
+- **Thay đổi:** Không sửa code. Sau khi merge T1.7 (PR #25) + T1.8 (PR #27) vào `main`, chạy lại `node scripts/run-regression.js` 3 lần trong worktree `../bandocapt-t1.8` (đã chuyển sang theo dõi `main`) để có mốc đo bằng bộ chấm ĐÃ SỬA — mốc T1.7 cũ (3 file `regression-run-2026-07-11_06-*.md`) đo bằng bộ chấm CŨ nên không còn đại diện đúng hiện trạng bot.
+- **File đã sửa:** `test/results/regression-run-2026-07-11_08-13-21.md`, `regression-run-2026-07-11_08-19-07.md`, `regression-run-2026-07-11_08-25-14.md` (mới), `regression-latest.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** T1.8 sửa false-positive của grader nhưng chưa từng đo lại full 30 câu bằng grader mới (chỉ smoke-test 11 ca lẻ) — cần baseline đầy đủ, đúng đắn trước khi mở Giai đoạn 2 để không so sánh nhầm với con số cũ đã biết là bị thổi phồng.
+- **Kiểm tra / Kết quả:**
+  - **PASS 22–24/30** (so với 13–17/30 ở mốc cũ), **HARD_FAIL 5–8/30** (so với 12–16/30). Cải thiện đúng như dự đoán sau T1.8 — phần lớn cải thiện đến từ việc grader hết bắt oan, KHÔNG phải bot đổi hành vi.
+  - **4 ca fail cả 3 lần (tín hiệu thật, ưu tiên GĐ2/3):** TR01 (`missing_required_fact:ask_location` — bot vẫn không chủ động hỏi xã/phường), TT01 (`missing_required_fact:ask_eligibility`), KC04 (`missing_required_fact:english_guidance` + `ask_location_or_nationality` — vẫn thiếu như đã ghi ở T1.8), LOC07 (`wrong_language:expected_en_got_vi` — câu hỏi tiếng Anh, bot trả tiếng Việt).
+  - **Chập chờn 1/3 run (nghi non-determinism, theo dõi thêm chứ chưa kết luận):** VP06, DN01 (BLOCKED_CONTENT ở run trước, lần này missing_required_fact — khác cơ chế), TYPO02, GV02, ON01, PI01.
+  - Grounding ổn định quanh Recall@4 ~57-60%, Source recall ~48-50% — không đổi nhiều so với mốc cũ (dự kiến, vì grounding thật của corpus không đổi, chỉ có cách CHẤM grounding hết sai).
+  - **Không sửa code lần này** — thuần đo lại. 4 ca fail thật ở trên là input cho T2A/Giai đoạn 3.
+
+---
+
 ## [2026-07-11] T1.8 — Sửa false-positive bộ chấm sau soi baseline T1.7
 - **Agent:** Claude Code (Fable 5)
 - **Thay đổi:** Soi từng ca trong 11 ca hard-fail lặp cả 3 run baseline, đối chiếu nguyên văn câu bot trả lời với expectations → ~9/11 là bộ chấm bắt oan, không phải lỗi bot. Sửa 3 lớp: **(1) Grader** (`lib/regression-grader.js`): fact có `grounding_patterns` (match any) thì dò TÀI LIỆU bằng bộ pattern đó thay vì tái dùng pattern của câu trả lời — vì corpus tiếng Việt còn câu trả lời có thể en/zh (EV07/KC04) hoặc diễn đạt khác docs (TR01/ON01/GD02/DN02/EV04). **(2) Expectations** (`test/regression-expectations.json`): GV01/GV06 forbidden viết lại negation-aware (`(?<!không[^.!?\n]{0,30})` + giới hạn cùng câu thay `.*` xuyên câu — GV01 run1 bị bắt oan vì `.*` nối "Nộp tại Phòng QLXNC" với "Công an xã/phường" ở CÂU SAU); VP06/DN02/TR01 nới required cho diễn đạt tương đương ("không có hình thức lùi ngày", "không miễn nghĩa vụ", "phải khai báo" không kèm "tạm trú"); thêm `grounding_patterns` cho 9 fact; TL01 bỏ required `deadline_not_processing` → forbidden `deadline_confused_with_processing` (chỉ fail khi bot thực sự trình bày 12/24h như thời gian xử lý — đúng ý định T1.1); cập nhật `pattern_syntax` đầu file cho agent sau. **(3) Test** (`test/regression-grader.test.js`): +7 test T1.8 dùng NGUYÊN VĂN câu bot từ run 1 làm fixture — mỗi test đều có 2 chiều (câu đúng không bị bắt oan / câu sai thật vẫn bị bắt).
