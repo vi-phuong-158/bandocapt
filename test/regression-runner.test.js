@@ -6,7 +6,7 @@ const {
     VERBOSITY_LIMIT_NARROW,
     VERBOSITY_LIMIT_FULL,
 } = require('../lib/regression-metrics');
-const { parseArgs, parseConversations } = require('../scripts/run-regression');
+const { parseArgs, parseConversations, conversationGradeOptions } = require('../scripts/run-regression');
 const { gradeCase, compilePattern } = require('../lib/regression-grader');
 
 test('regression word count handles whitespace and CJK text', () => {
@@ -58,6 +58,21 @@ test('H16 expectation: citizen passport answer passes, deterministic no-data rep
         wordCount: 17, truncated: false, error: null, eval: null,
     });
     assert.equal(reAsked.verdict, 'HARD_FAIL', 'hỏi lại quốc tịch sau khi đã trả lời = mất ngữ cảnh');
+});
+
+test('H16 nhánh công dân tắt global forbidden: nhắc VNeID/Cổng DVC là hợp lệ (T1.11)', () => {
+    const conversations = parseConversations();
+    const h16 = conversations.find(c => c.id === 'H16');
+    const h17 = conversations.find(c => c.id === 'H17');
+    assert.deepEqual(conversationGradeOptions(h16), {}, 'H16 công dân không áp global forbidden');
+    assert.ok(Array.isArray(conversationGradeOptions(h17).globalForbidden), 'H17 người nước ngoài giữ global forbidden');
+
+    // Nguyên văn ý chính câu trả lời ĐÚNG của bot (chuỗi 2 run 1) có nhắc VNeID.
+    const answer = '**Bạn cần trình báo mất hộ chiếu ngay.** Đơn trình báo mẫu TK05, nộp trực tiếp tại Cơ quan Quản lý xuất nhập cảnh Công an cấp tỉnh, hoặc qua Cổng Dịch vụ công quốc gia / VNeID. Lệ phí trình báo: miễn phí; cấp lại hộ chiếu 400.000 đồng.';
+    const graded = gradeCase(h16.expectation, {
+        text: answer, wordCount: 55, truncated: false, error: null, eval: null,
+    }, conversationGradeOptions(h16));
+    assert.equal(graded.verdict, 'PASS', graded.failures.join('; '));
 });
 
 test('H17 expectation: foreigner branch with QLXNC + diplomatic mission passes', () => {

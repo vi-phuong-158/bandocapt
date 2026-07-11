@@ -187,6 +187,14 @@ function parseConversations() {
     return Object.entries(raw.conversations || {}).map(([id, spec]) => ({ id, ...spec }));
 }
 
+// Global forbidden (VNeID, luật cư trú…) là guard cho BỘ CÂU NGƯỜI NƯỚC NGOÀI.
+// Hội thoại nhánh công dân (H16) khai use_global_forbidden=false vì với công dân
+// các nội dung đó là hợp lệ (hộ chiếu công dân đi qua VNeID/Cổng DVC).
+function conversationGradeOptions(conv) {
+    if (conv.expectation && conv.expectation.use_global_forbidden === false) return {};
+    return { globalForbidden: COMMON_FORBIDDEN_PATTERNS };
+}
+
 // T1.4/T1.5: chấm 1 ca bằng bộ chấm 2 lớp (deterministic + grounding) đọc từ
 // expectations JSON. Trả object tương thích report cũ (status/failures) + trường
 // giàu hơn (verdict, softWarnings, grounding metric, authority).
@@ -348,7 +356,7 @@ async function main() {
             truncated: lastResult ? lastResult.truncated : false,
             error: abortError || (lastResult ? lastResult.error : 'CONVERSATION_ABORTED'),
             eval: lastResult ? lastResult.eval : null,
-        }, { globalForbidden: COMMON_FORBIDDEN_PATTERNS });
+        }, conversationGradeOptions(conv));
         conversationResults.push({ ...conv, turns, wordCount, grade });
         console.log(`  -> ${conv.id}: ${grade.verdict}${grade.failures.length ? ` (${grade.failures.join('; ')})` : ''}`);
         if (args.delayMs > 0) await new Promise(resolve => setTimeout(resolve, args.delayMs));
@@ -560,4 +568,4 @@ if (require.main === module) {
 }
 
 // T1.10: xuất helper thuần cho unit test (test/regression-runner.test.js).
-module.exports = { parseArgs, parseQuestions, parseConversations };
+module.exports = { parseArgs, parseQuestions, parseConversations, conversationGradeOptions };

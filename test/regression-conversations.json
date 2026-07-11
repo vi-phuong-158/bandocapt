@@ -12,6 +12,8 @@
         "expected_authorities": ["cong_an_cap_xa", "phong_qlxnc_cap_tinh"],
         "must_abstain": false,
         "must_ask_clarification": false,
+        "use_global_forbidden": false,
+        "note_use_global_forbidden": "Nhánh CÔNG DÂN: hộ chiếu công dân đi qua VNeID/Cổng DVC hợp lệ — global forbidden của bộ câu người nước ngoài không áp ở đây.",
         "verbosity_budget": 250,
         "required_facts": [
           {"id": "passport_flow_continued", "match": "any", "patterns": ["hộ chiếu"], "grounding_required": false},

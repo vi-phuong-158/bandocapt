@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-07-11] Tiếp quản T1.11 — vá expectation lộ ra ở strict run và bảo toàn fixture T1.8
+- **Agent:** Codex (tiếp quản worktree/nhánh từ Claude Code)
+- **Thay đổi:** Hoàn tất patch dang dở sau strict run `12-07-38`: cho H16 công dân opt-out global forbidden dành riêng cho bộ NNN; nới VP06/ON01 theo đúng paraphrase câu trả lời thật; sửa DN02 theo `match:any` để vừa nhận câu “vẫn phải khai báo” của run mới, vừa giữ fixture T1.8 “giấy phép lao động không miễn nghĩa vụ khai báo”. Bổ sung test hai chiều và đồng bộ tài liệu trạng thái/Code Graph.
+- **File đã sửa:** `scripts/run-regression.js`, `test/regression-conversations.json`, `test/regression-expectations.json`, `test/regression-grader.test.js`, `test/regression-runner.test.js`, `docs/brain/01-architecture.md`, `03-decisions.md`, `04-current-tasks.md`, `07-parallel-task-plan.md`, `06-ai-working-log.md`, báo cáo strict run thất bại trong `test/results/`.
+- **Lý do:** Run tiếp theo của T1.11 cho thấy 4 hard fail đều là lỗi thước đo: ba paraphrase hợp lệ không khớp regex và H16 công dân bị guard VNeID của bộ người nước ngoài bắt oan. Test targeted ban đầu còn lộ việc patch DN02 làm hỏng fixture T1.8, nên phải hợp nhất cả hai họ diễn đạt trước khi chạy lại baseline.
+- **Kiểm tra:** `npm test` 218/218 pass; `npm run build` pass; chuỗi 3 strict run phải khởi động lại từ run 1 sau commit này.
+
 ## [2026-07-11] T1.7 (lặp lại) — 3 baseline mới sau T1.8, thay thế mốc đo cũ
 - **Agent:** Claude Code (Sonnet 5) + người dùng
 - **Thay đổi:** Không sửa code. Sau khi merge T1.7 (PR #25) + T1.8 (PR #27) vào `main`, chạy lại `node scripts/run-regression.js` 3 lần trong worktree `../bandocapt-t1.8` (đã chuyển sang theo dõi `main`) để có mốc đo bằng bộ chấm ĐÃ SỬA — mốc T1.7 cũ (3 file `regression-run-2026-07-11_06-*.md`) đo bằng bộ chấm CŨ nên không còn đại diện đúng hiện trạng bot.
