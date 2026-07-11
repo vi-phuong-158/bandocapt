@@ -12,6 +12,26 @@
 - **Lý do:** Runner hiện chỉ nhận citation chips — không đủ để kiểm grounding (fact có trong nguồn đã retrieve không, expected source có trong top 4 không, Recall@4/MRR). T1.5 cần toàn văn 4 docs + toàn bộ match + lý do loại. Gated 3-điều-kiện-AND để không mở lỗ rò dữ liệu nội bộ trên production.
 - **Kiểm tra:** `node --check api/chat.js` OK. `test/eval-debug-output.test.js` 8/8 (gồm 2 ca bảo mật: production + đủ token/cờ vẫn KHÔNG trả `eval`; production + token trống vẫn false). `npm test` 165/165 (157→165, +8). Không đụng client `js/gemini.js` (client cũ bỏ qua trường `eval` lạ trong `done` an toàn). Chưa smoke live (cần key + evalDebug thật) — sẽ xác nhận khi chạy baseline T1.7.
 
+---
+
+## [2026-07-11] T1.2 — Codify expectations cho đủ 30 ca regression
+- **Agent:** Codex
+- **Thay đổi:** Tạo `test/regression-expectations.json` schema version 1, keyed đủ 30 ID. Mỗi ca khai báo fact bắt buộc/cấm, procedure/source kỳ vọng, ngôn ngữ, thẩm quyền, abstention/clarification và ngân sách 120/250 từ; F01 được gắn `DEFERRED_SOURCE_GOVERNANCE`, chỉ cấm luồng giấy/NA17/fax/nộp trực tiếp và không cấm mốc 12/24 giờ; TL01 bắt buộc cả hai mốc cùng phân biệt hạn khai báo với thời gian xử lý. Đánh dấu T1.2 hoàn tất trong kế hoạch phân làn.
+- **File đã sửa:** `test/regression-expectations.json` (mới), `docs/brain/07-parallel-task-plan.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Cung cấp thước đo có cấu trúc và nhất quán cho T1.4/T1.5, thay cho bộ chấm hardcode chỉ phủ một phần ca regression.
+- **Kiểm tra:** Parse JSON; đối chiếu tự động đúng 30/30 ID với bảng câu hỏi; kiểm tra đủ trường bắt buộc, compile toàn bộ regex, ngân sách hợp lệ và invariant F01/TL01; review tay từng ID; chạy `npm test`.
+
+---
+
+## [2026-07-11] Xây bộ test mở rộng toàn diện 198 câu + 10 hội thoại cho chatbot
+- **Agent:** Claude Code (Fable 5)
+- **Thay đổi:** Tạo `test/cau-hoi/bo-test-mo-rong-toan-dien-tthc.md` — bộ câu hỏi test mới gồm 198 câu đơn (nhóm N19–N38) và 10 kịch bản hội thoại nhiều lượt (H06–H15), không trùng ID với 2 bộ cũ. Phủ các mảng corpus chưa từng được test: cư trú công dân VN (chiều ngược của split-intent NNN), căn cước/định danh điện tử, hộ chiếu công dân, đăng ký xe, ngành nghề ANTT, vũ khí thô sơ, khiếu nại tố cáo, giấy thông hành/ABTC, người không quốc tịch, khu vực cấm biên giới, xác nhận thông tin XNC, bản đồ/trụ sở nâng cao (địa danh ngoài tỉnh/không tồn tại/giờ làm việc), cặp thủ tục dễ nhầm, lệ phí/mẫu đơn, ngoài phạm vi, đa ngôn ngữ mở rộng (Nhật/Pháp/Nga/phồn thể/trộn ngôn ngữ), input bất thường (PII, script tag, base64, câu siêu dài), prompt injection nâng cao, tình huống khẩn cấp/cảm xúc, và đối tượng NNN bổ sung (du học sinh, tour, miễn thị thực, thường trú). Giữ nguyên khung chấm 6 tiêu chí + 12 mã lỗi của bộ sâu, bổ sung 2 mã mới `EMERGENCY_MISS` và `PII_ECHO`. Kèm bộ rút gọn đề xuất và ghi chú chấm riêng cho từng nhóm mới.
+- **File đã sửa:** `test/cau-hoi/bo-test-mo-rong-toan-dien-tthc.md` (mới), `docs/brain/06-ai-working-log.md`
+- **Lý do:** User yêu cầu bộ test lớn hơn, bao trùm tình huống hơn. Khảo sát cho thấy 2 bộ hiện có (30 câu regression + 130 câu sâu) chỉ phủ mảng người nước ngoài, trong khi catalog TTHC/Pinecone thực tế có 17 lĩnh vực; các câu hỏi công dân, khẩn cấp, edge input và injection nâng cao hoàn toàn chưa có test. Câu hỏi mới được bám theo danh sách thủ tục thật trong `data/tthc-catalog.json` (92 mục) để kỳ vọng khớp corpus.
+- **Kiểm tra:** `grep -c` xác nhận đúng 198 dòng câu hỏi + 10 kịch bản H. File chỉ là tài liệu test (không đổi code/runtime); `scripts/run-regression.js` không parse file này (chỉ parse bảng `| STT |` của bộ 30 câu) nên không ảnh hưởng pipeline hiện có — đã ghi chú rõ trong file cách trích câu sang định dạng runner khi cần chạy tự động.
+
+---
+
 ## [2026-07-11] T1.1 — Chốt quyết định nội dung 12/24h + đồng bộ F01/TL01
 - **Agent:** Claude Code (Opus 4.8)
 - **Thay đổi:** Thực hiện task T1.1 của kế hoạch (file 07). (1) `03-decisions.md`: thêm entry chốt nội dung — chỉ luồng phiếu giấy/NA17/fax/nộp trực tiếp là lỗi thời; mốc hạn khai báo 12 giờ (24 giờ vùng sâu/xa) VẪN áp dụng cho khai báo trực tuyến KBTT. Ghi rõ 3 chỗ phải nhất quán (F01 expectation, TL01 grading, `allowedConstants`) và F01 mang trạng thái `DEFERRED_SOURCE_GOVERNANCE` (đóng ở Giai đoạn 3, cấm prompt-hack). (2) `bo-test-regression-30-cau-*.md`: F01 bổ sung "cấm phiếu giấy/NA17/fax/nộp trực tiếp, không cấm 12–24 giờ, baseline deferred"; TL01 nêu rõ trả đúng 12/24 giờ + phân biệt hạn khai báo với thời gian xử lý. (3) Xác minh `allowedConstants` trong `api/chat.js` (dòng 2298-2304) CÒN NGUYÊN "12 giờ"/"24 giờ" + 3 bản dịch — không sửa (thuộc LANE-CORE, ngoài phạm vi T1.1).
@@ -25,6 +45,10 @@
 - **File đã sửa:** `docs/brain/07-parallel-task-plan.md` (mới), `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
 - **Lý do:** Người dùng muốn dùng đồng thời ChatGPT Codex và Claude Code sửa chung dự án — cần nguồn sự thật chung về task, thứ tự phụ thuộc và quyền sở hữu file để 2 agent không giẫm chân nhau.
 - **Kiểm tra:** Chỉ thay đổi docs, không đụng code — không cần chạy test. Xác nhận task đầu tiên chưa bắt đầu (mọi task ở trạng thái TODO); quyết định nội dung 12/24h sẽ được ghi vào `03-decisions.md` ở task T1.1.
+
+---
+
+## [2026-07-10] Fix danh mục TTHC: chip lọc chiếm hết vùng cuộn + tìm kiếm "không phản hồi"
 - **Agent:** Claude Code (Sonnet 5)
 - **Thay đổi:** (1) `styles.css` `#tthc-catalog-chips`: đổi `flex-wrap: wrap` sang `nowrap` + `overflow-x: auto` (chip lĩnh vực cuộn ngang 1 dòng thay vì wrap nhiều dòng) — với 17 lĩnh vực + "Tất cả" (18 chip, có nhãn rất dài như "Quản lý ngành, nghề đầu tư kinh doanh có điều kiện về an ninh, trật tự"), khối chip trước đó cao tới 263px/517px khung desktop (379px/674px trên mobile), chỉ còn 128px (desktop)/227px (mobile) cho danh sách cuộn. Sau fix: chip ~41px (desktop)/~32px (mobile), danh sách cuộn 432px/625px. (2) `js/tthc-catalog.js` `renderListItems()`: thêm `list.scrollTop = 0` đầu hàm — trước đó khi người dùng cuộn sâu rồi gõ tìm kiếm/đổi chip, trình duyệt tự kẹp `scrollTop` cũ vào cuối danh sách mới (ngắn hơn), khiến vùng hiển thị trống hoặc lệch, trông như tìm kiếm không hoạt động.
 - **File đã sửa:** `styles.css`, `js/tthc-catalog.js`
