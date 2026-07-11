@@ -7,7 +7,7 @@ const {
     VERBOSITY_LIMIT_NARROW,
     VERBOSITY_LIMIT_FULL,
 } = require('../lib/regression-metrics');
-const { parseArgs, parseConversations, conversationGradeOptions } = require('../scripts/run-regression');
+const { parseArgs, parseConversations, conversationGradeOptions, aggregateMajority } = require('../scripts/run-regression');
 const { gradeCase, compilePattern } = require('../lib/regression-grader');
 
 test('regression word count handles whitespace and CJK text', () => {
@@ -27,6 +27,48 @@ test('--strict-gate flag is parsed, default stays lenient (T1.10)', () => {
     assert.equal(parseArgs([]).strictGate, false);
     assert.equal(parseArgs(['--strict-gate']).strictGate, true);
     assert.deepEqual(parseArgs(['--strict-gate', '--ids', 'H16,H17']).ids, ['H16', 'H17']);
+});
+
+test('--majority / --runs flags (T1.11)', () => {
+    // Mặc định: 1 run, không đa số.
+    assert.equal(parseArgs([]).runs, 1);
+    assert.equal(parseArgs([]).majority, false);
+    // --majority không nêu runs → mặc định 3 (đa số 2/3).
+    assert.equal(parseArgs(['--majority']).runs, 3);
+    assert.equal(parseArgs(['--majority']).majority, true);
+    // --runs > 1 tự bật đa số.
+    assert.equal(parseArgs(['--runs', '5']).runs, 5);
+    assert.equal(parseArgs(['--runs', '5']).majority, true);
+    assert.equal(parseArgs(['--runs=3']).runs, 3);
+});
+
+test('aggregateMajority: rớt ≥ ngưỡng = hard fail thật, rớt lẻ = flaky (T1.11)', () => {
+    const perRun = [
+        [{ id: 'A', verdict: 'HARD_FAIL', failures: ['a1'] }, { id: 'B', verdict: 'PASS' }, { id: 'C', verdict: 'HARD_FAIL', failures: ['c1'] }],
+        [{ id: 'A', verdict: 'HARD_FAIL', failures: ['a2'] }, { id: 'B', verdict: 'HARD_FAIL', failures: ['b1'] }, { id: 'C', verdict: 'PASS' }],
+        [{ id: 'A', verdict: 'PASS' }, { id: 'B', verdict: 'PASS' }, { id: 'C', verdict: 'PASS' }],
+    ];
+    const out = aggregateMajority(perRun, 2);
+    // A rớt 2/3 → hard fail thật; B & C rớt 1/3 → flaky (không chặn).
+    assert.deepEqual(out.majorityHardFails.map(e => e.id), ['A']);
+    assert.deepEqual(out.flakyHardFails.map(e => e.id).sort(), ['B', 'C']);
+    // Ma trận verdict giữ đúng ký hiệu theo từng run.
+    const a = out.rows.find(e => e.id === 'A');
+    assert.deepEqual(a.verdicts, ['F', 'F', '.']);
+    assert.equal(a.failuresByRun.length, 2);
+});
+
+test('aggregateMajority: provider error đa số vs lẻ tẻ tách riêng (T1.11)', () => {
+    const perRun = [
+        [{ id: 'X', verdict: 'PASS', providerError: 'BLOCKED_CONTENT' }, { id: 'Y', verdict: 'PASS', providerError: 'BLOCKED_CONTENT' }],
+        [{ id: 'X', verdict: 'PASS', providerError: 'BLOCKED_CONTENT' }, { id: 'Y', verdict: 'PASS' }],
+        [{ id: 'X', verdict: 'PASS' }, { id: 'Y', verdict: 'PASS' }],
+    ];
+    const out = aggregateMajority(perRun, 2);
+    assert.deepEqual(out.majorityProvErrs.map(e => e.id), ['X']); // 2/3
+    assert.deepEqual(out.flakyProvErrs.map(e => e.id), ['Y']);    // 1/3
+    assert.deepEqual(out.majorityHardFails, []);                  // provider error KHÔNG phải content hard fail
+    assert.equal(out.rows.find(e => e.id === 'X').verdicts[0], 'E');
 });
 
 test('conversation fixtures load with valid schema and compilable patterns (T1.10)', () => {

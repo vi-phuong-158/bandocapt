@@ -27,12 +27,26 @@ const COMMON_FORBIDDEN_PATTERNS = [
 ];
 
 function parseArgs(argv) {
-    const parsed = { ids: null, delayMs: 2000, strictGate: false };
+    const parsed = { ids: null, delayMs: 2000, strictGate: false, runs: 1, majority: false };
     for (let i = 0; i < argv.length; i += 1) {
         const arg = argv[i];
         // T1.10: gate nghiêm ngặt — provider error cũng đánh exit 1 (mặc định chỉ hard fail).
         if (arg === '--strict-gate') {
             parsed.strictGate = true;
+            continue;
+        }
+        // T1.11 (gate đa số): chạy N lần, một ca chỉ tính hard fail THẬT khi rớt ≥ đa số.
+        if (arg === '--majority') {
+            parsed.majority = true;
+            continue;
+        }
+        if (arg === '--runs' && argv[i + 1]) {
+            parsed.runs = Number(argv[i + 1]) || parsed.runs;
+            i += 1;
+            continue;
+        }
+        if (arg.startsWith('--runs=')) {
+            parsed.runs = Number(arg.split('=')[1]) || parsed.runs;
             continue;
         }
         if (arg === '--ids' && argv[i + 1]) {
@@ -53,7 +67,37 @@ function parseArgs(argv) {
             parsed.delayMs = Number(arg.split('=')[1]) || parsed.delayMs;
         }
     }
+    // --majority mà không nêu --runs → mặc định 3 run (đa số = 2/3).
+    if (parsed.majority && parsed.runs < 2) parsed.runs = 3;
+    if (parsed.runs > 1) parsed.majority = true;
     return parsed;
+}
+
+// T1.11 gate đa số — hàm THUẦN, unit-test được không cần chạy live.
+// perRun: mảng N phần tử, mỗi phần tử là mảng { id, verdict, providerError, failures, isConv }.
+// Một ca là hard fail THẬT (chặn gate) khi rớt ≥ threshold/N run; rớt 1..threshold-1 là "flaky"
+// (advisory, KHÔNG chặn) — tách nhiễu 1-run của LLM khỏi lỗi hệ thống.
+function aggregateMajority(perRun, threshold) {
+    const agg = new Map();
+    perRun.forEach((runCases, runIdx) => {
+        for (const c of runCases) {
+            const e = agg.get(c.id) || { id: c.id, isConv: c.isConv, verdicts: [], failRuns: [], provRuns: [], deferredRuns: [], failuresByRun: [] };
+            e.verdicts[runIdx] = c.providerError ? 'E' : (c.verdict === 'HARD_FAIL' ? 'F' : (c.verdict === 'DEFERRED_FAIL' ? 'd' : '.'));
+            if (c.verdict === 'HARD_FAIL') e.failRuns.push(runIdx + 1);
+            if (c.providerError) e.provRuns.push(runIdx + 1);
+            if (c.verdict === 'DEFERRED_FAIL') e.deferredRuns.push(runIdx + 1);
+            if (c.failures && c.failures.length) e.failuresByRun.push(`run${runIdx + 1}: ${c.failures.join(', ')}`);
+            agg.set(c.id, e);
+        }
+    });
+    const rows = [...agg.values()];
+    return {
+        rows,
+        majorityHardFails: rows.filter(e => e.failRuns.length >= threshold),
+        flakyHardFails: rows.filter(e => e.failRuns.length > 0 && e.failRuns.length < threshold),
+        majorityProvErrs: rows.filter(e => e.provRuns.length >= threshold),
+        flakyProvErrs: rows.filter(e => e.provRuns.length > 0 && e.provRuns.length < threshold),
+    };
 }
 
 function createRequest(body = {}, headers = {}) {
@@ -231,16 +275,9 @@ function renderSources(sources = []) {
     }).join('\n') + '\n';
 }
 
-async function main() {
-    const args = parseArgs(process.argv.slice(2));
-    const selectedIds = args.ids ? new Set(args.ids) : null;
-    const questions = parseQuestions().filter(q => !selectedIds || selectedIds.has(q.id));
-
-    console.log(`Parsed ${questions.length} questions. Starting regression run...`);
-    if (selectedIds) {
-        console.log(`Selected IDs: ${Array.from(selectedIds).join(', ')}`);
-    }
-
+// T1.11: chạy TOÀN BỘ suite (30 câu đơn + hội thoại) ĐÚNG 1 lần, trả kết quả thô.
+// Tách khỏi phần dựng báo cáo/gate để gọi lại nhiều lần cho gate đa số.
+async function executeSuiteOnce(questions, conversations, args) {
     const results = [];
 
     for (let i = 0; i < questions.length; i += 1) {
@@ -314,7 +351,6 @@ async function main() {
     }
 
     // ----- T1.10: hội thoại nhiều lượt (thống kê TÁCH RIÊNG khỏi bộ câu đơn) -----
-    const conversations = parseConversations().filter(conv => !selectedIds || selectedIds.has(conv.id));
     const conversationResults = [];
     for (const conv of conversations) {
         console.log(`[conversation] Running ${conv.id} (${conv.turns.length} turns) — ${conv.description || ''}`);
@@ -362,6 +398,46 @@ async function main() {
         if (args.delayMs > 0) await new Promise(resolve => setTimeout(resolve, args.delayMs));
     }
 
+    return { results, conversationResults };
+}
+
+// Gộp verdict câu đơn + hội thoại → tổng hard fail / provider error cho quyết định gate 1-run.
+function computeTotals(results, conversationResults) {
+    const gradedResults = results.filter(r => r.grade);
+    const hardFailCount = gradedResults.filter(r => r.grade.status === 'HARD_FAIL').length;
+    const providerErrorCount = gradedResults.filter(r => r.grade.providerError).length;
+    const convHardFailCount = conversationResults.filter(c => c.grade.verdict === 'HARD_FAIL').length;
+    const convProviderErrorCount = conversationResults.filter(c => c.grade.providerError).length;
+    return {
+        totalHardFail: hardFailCount + convHardFailCount,
+        totalProviderErrors: providerErrorCount + convProviderErrorCount,
+    };
+}
+
+// Gộp verdict một run về dạng phẳng cho gate đa số.
+function unifyRunCases({ results, conversationResults }) {
+    const single = results.filter(r => r.grade).map(r => ({
+        id: r.id, verdict: r.grade.status, providerError: r.grade.providerError, failures: r.grade.failures, isConv: false,
+    }));
+    const conv = conversationResults.map(c => ({
+        id: c.id, verdict: c.grade.verdict, providerError: c.grade.providerError, failures: c.grade.failures, isConv: true,
+    }));
+    return [...single, ...conv];
+}
+
+function writeReport(reportMd, { prefix = 'regression-run', latestName = 'regression-latest.md' } = {}) {
+    const stamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '_');
+    const reportPath = path.resolve(__dirname, `../test/results/${prefix}-${stamp}.md`);
+    const latestPath = path.resolve(__dirname, `../test/results/${latestName}`);
+    fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+    fs.writeFileSync(reportPath, reportMd, 'utf-8');
+    fs.writeFileSync(latestPath, reportMd, 'utf-8');
+    console.log(`Report saved to ${reportPath}`);
+    return reportPath;
+}
+
+// Dựng markdown báo cáo cho MỘT run (giữ nguyên format T1.6/T1.10).
+function buildReportMd(results, conversationResults, args) {
     const gradedResults = results.filter(result => result.grade);
     const passCount = gradedResults.filter(result => result.grade.status === 'PASS').length;
     const hardFailCount = gradedResults.filter(result => result.grade.status === 'HARD_FAIL').length;
@@ -393,11 +469,6 @@ async function main() {
     const latMedian = latencies.length ? latencies[Math.floor(latencies.length / 2)] : 0;
     const latP95 = latencies.length ? latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * 0.95))] : 0;
     const now = new Date();
-    const stamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '_');
-    const reportPath = path.resolve(__dirname, `../test/results/regression-run-${stamp}.md`);
-    const latestPath = path.resolve(__dirname, '../test/results/regression-latest.md');
-    fs.mkdirSync(path.dirname(reportPath), { recursive: true });
-
     const pct = (v) => v === null ? 'N/A' : `${(v * 100).toFixed(1)}%`;
     let reportMd = `# Báo cáo Regression Run (${now.toISOString()})\n\n`;
     reportMd += `- Tổng số câu chạy: ${results.length}\n`;
@@ -544,19 +615,89 @@ async function main() {
         reportMd += `---\n\n`;
     }
 
-    fs.writeFileSync(reportPath, reportMd, 'utf-8');
-    fs.writeFileSync(latestPath, reportMd, 'utf-8');
+    return reportMd;
+}
 
-    console.log(`Regression run complete. Report saved to ${reportPath}`);
-    console.log(`Also updated pointer file: ${latestPath}`);
-
+// Đường chạy 1 run (mặc định) — giữ hành vi cũ: chạy, ghi báo cáo, gate theo run đơn.
+async function runSingle(questions, conversations, args) {
+    const once = await executeSuiteOnce(questions, conversations, args);
+    writeReport(buildReportMd(once.results, once.conversationResults, args));
+    const { totalHardFail, totalProviderErrors } = computeTotals(once.results, once.conversationResults);
     // Gate: hard fail (câu đơn + hội thoại) luôn đánh exit 1. Với --strict-gate (T1.10),
     // provider error cũng đánh exit 1 — không được che lỗi hạ tầng trong run baseline.
-    if (totalHardFail > 0) {
-        process.exitCode = 1;
+    if (totalHardFail > 0) process.exitCode = 1;
+    if (args.strictGate && totalProviderErrors > 0) process.exitCode = 1;
+}
+
+// T1.11 gate ĐA SỐ: chạy N run đầy đủ, một ca chỉ chặn gate khi rớt ≥ đa số (⌊N/2⌋+1) run.
+// Rớt lẻ tẻ (1..đa số-1 run) là flaky — báo advisory, KHÔNG chặn — tách nhiễu LLM khỏi lỗi thật.
+async function runMajority(questions, conversations, args) {
+    const N = args.runs;
+    const threshold = Math.floor(N / 2) + 1;
+    const perRun = [];
+    for (let r = 0; r < N; r += 1) {
+        console.log(`\n===== GATE ĐA SỐ — Run ${r + 1}/${N} =====`);
+        const once = await executeSuiteOnce(questions, conversations, args);
+        // Vẫn ghi báo cáo chi tiết từng run (giữ transcript để soi khi cần).
+        writeReport(buildReportMd(once.results, once.conversationResults, args));
+        perRun.push(unifyRunCases(once));
     }
-    if (args.strictGate && totalProviderErrors > 0) {
-        process.exitCode = 1;
+
+    const { rows, majorityHardFails, flakyHardFails, majorityProvErrs, flakyProvErrs } = aggregateMajority(perRun, threshold);
+    const blocked = majorityHardFails.length > 0 || (args.strictGate && majorityProvErrs.length > 0);
+
+    let md = `# Báo cáo Gate ĐA SỐ (majority ${threshold}/${N})\n\n`;
+    md += `- Số run đầy đủ: **${N}** — ngưỡng đa số: **${threshold}/${N}** (một ca là HARD FAIL THẬT khi rớt ≥ ${threshold} run)\n`;
+    md += `- **Gate ĐA SỐ${args.strictGate ? ' (kèm provider error)' : ''}: ${blocked ? '❌ KHÔNG ĐẠT' : '✅ ĐẠT'}** — deferred (F01) không chặn tới Giai đoạn 3\n`;
+    md += `- Hard fail ĐA SỐ (chặn gate): ${majorityHardFails.length ? majorityHardFails.map(e => `${e.id} (${e.failRuns.length}/${N})`).join(', ') : '_không có_'}\n`;
+    if (args.strictGate) {
+        md += `- Provider error ĐA SỐ (chặn gate): ${majorityProvErrs.length ? majorityProvErrs.map(e => `${e.id} (${e.provRuns.length}/${N})`).join(', ') : '_không có_'}\n`;
+    }
+    md += `- 🟠 Flaky (rớt 1..${threshold - 1}/${N} run — advisory, KHÔNG chặn): ${flakyHardFails.length ? flakyHardFails.map(e => `${e.id} (${e.failRuns.length}/${N})`).join(', ') : '_không có_'}\n`;
+    if (flakyProvErrs.length) {
+        md += `- 🟠 Provider error lẻ tẻ (advisory): ${flakyProvErrs.map(e => `${e.id} (${e.provRuns.length}/${N})`).join(', ')}\n`;
+    }
+    md += `\n## Ma trận verdict theo run\n\n`;
+    md += `Ký hiệu: \`.\` PASS · \`F\` HARD_FAIL · \`d\` DEFERRED_FAIL · \`E\` provider error\n\n`;
+    md += `| ID | ${Array.from({ length: N }, (_, i) => `R${i + 1}`).join(' | ')} | Fail/N | Phân loại |\n`;
+    md += `|---|${'---|'.repeat(N)}---:|---|\n`;
+    for (const e of rows) {
+        const cells = Array.from({ length: N }, (_, i) => e.verdicts[i] || '?').join(' | ');
+        let klass = '✅ ổn định';
+        if (e.failRuns.length >= threshold) klass = '❌ HARD FAIL (đa số)';
+        else if (e.failRuns.length > 0) klass = '🟠 flaky';
+        else if (e.deferredRuns.length > 0) klass = '🟡 deferred';
+        else if (e.provRuns.length >= threshold) klass = '🔌 provider (đa số)';
+        else if (e.provRuns.length > 0) klass = '🟠 provider lẻ';
+        md += `| ${e.id}${e.isConv ? ' (HT)' : ''} | ${cells} | ${e.failRuns.length}/${N} | ${klass} |\n`;
+    }
+    md += `\n## Chi tiết failure theo run\n\n`;
+    for (const e of rows.filter(x => x.failuresByRun.length)) {
+        md += `- **${e.id}${e.isConv ? ' (hội thoại)' : ''}** — ${e.failuresByRun.join(' · ')}\n`;
+    }
+
+    writeReport(md, { prefix: 'regression-majority', latestName: 'regression-majority-latest.md' });
+
+    console.log(`\n===== GATE ĐA SỐ ${threshold}/${N}: ${blocked ? 'KHÔNG ĐẠT' : 'ĐẠT'} =====`);
+    console.log(`Hard fail đa số: ${majorityHardFails.map(e => e.id).join(', ') || 'none'}`);
+    console.log(`Flaky (không chặn): ${flakyHardFails.map(e => `${e.id} ${e.failRuns.length}/${N}`).join(', ') || 'none'}`);
+    if (blocked) process.exitCode = 1;
+}
+
+async function main() {
+    const args = parseArgs(process.argv.slice(2));
+    const selectedIds = args.ids ? new Set(args.ids) : null;
+    const questions = parseQuestions().filter(q => !selectedIds || selectedIds.has(q.id));
+    const conversations = parseConversations().filter(conv => !selectedIds || selectedIds.has(conv.id));
+
+    console.log(`Parsed ${questions.length} questions${conversations.length ? ` + ${conversations.length} hội thoại` : ''}. Bắt đầu regression run...`);
+    if (selectedIds) console.log(`Selected IDs: ${Array.from(selectedIds).join(', ')}`);
+    if (args.majority) console.log(`Chế độ GATE ĐA SỐ: ${args.runs} run, ngưỡng ${Math.floor(args.runs / 2) + 1}/${args.runs}.`);
+
+    if (args.majority) {
+        await runMajority(questions, conversations, args);
+    } else {
+        await runSingle(questions, conversations, args);
     }
 }
 
@@ -567,5 +708,5 @@ if (require.main === module) {
     });
 }
 
-// T1.10: xuất helper thuần cho unit test (test/regression-runner.test.js).
-module.exports = { parseArgs, parseQuestions, parseConversations, conversationGradeOptions };
+// T1.10/T1.11: xuất helper thuần cho unit test (test/regression-runner.test.js).
+module.exports = { parseArgs, parseQuestions, parseConversations, conversationGradeOptions, aggregateMajority };
