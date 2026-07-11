@@ -13,6 +13,7 @@ const {
     getPublishedLocations,
     isLocationLookupRequested,
     isBarePlaceNameQuery,
+    isNationalityAnswerContext,
     findVerifiedLocationMatches,
     formatVerifiedLocationsPrompt,
 } = require('../lib/published-locations');
@@ -2112,7 +2113,9 @@ module.exports = async function handler(req, res) {
         }
 
         // Tất định CHỈ cho câu tiếng Việt, thuần địa danh, không match được. ambiguous_* để LLM trình option/hỏi lại.
-        if (isVietnamese && !hasProcedureIntent && (locStatus === 'no_match' || locStatus === 'unavailable')) {
+        // Trả lời quốc tịch sau khi bot hỏi ("Người Việt Nam") KHÔNG phải địa danh → phải đi tiếp luồng LLM.
+        if (isVietnamese && !hasProcedureIntent && !isNationalityAnswerContext(userMessage, safeHistory) &&
+            (locStatus === 'no_match' || locStatus === 'unavailable')) {
             const deterministicReply = "Mình chưa có dữ liệu trụ sở được xác minh cho địa danh này. Vui lòng cung cấp thêm thông tin hoặc kiểm tra lại tên địa danh (xã/phường) nhé.";
             const historyToClient = [
                 { role: 'user', parts: [{ text: userMessage.trim() }] },

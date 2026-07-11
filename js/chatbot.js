@@ -475,14 +475,15 @@ function detectQuickReplies(fullText) {
         ];
     }
 
-    // 2. Hỏi quốc tịch (mất hộ chiếu chưa rõ đối tượng) — phrasing cố định vi/en trong prompt
-    if (/foreign national or a Vietnamese citizen/i.test(text)) {
+    // 2. Hỏi quốc tịch (mất hộ chiếu chưa rõ đối tượng) — phrasing cố định vi/en trong prompt,
+    // model có thể đảo thứ tự hai vế nên nhận cả hai chiều.
+    if (/foreign national or a Vietnamese citizen|Vietnamese citizen or a foreign national/i.test(text)) {
         return [
             { label: 'Foreign national', send: 'I am a foreign national' },
             { label: 'Vietnamese citizen', send: 'I am a Vietnamese citizen' }
         ];
     }
-    if (/người nước ngoài hay công dân Việt Nam/i.test(text)) {
+    if (/người nước ngoài hay (?:là )?công dân Việt Nam|công dân Việt Nam hay (?:là )?người nước ngoài/i.test(text)) {
         return [
             { label: 'Người nước ngoài', send: 'Tôi là người nước ngoài' },
             { label: 'Công dân Việt Nam', send: 'Tôi là công dân Việt Nam' }
