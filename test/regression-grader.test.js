@@ -211,3 +211,100 @@ test('gradeCase end-to-end: F01 dùng phiếu giấy → DEFERRED_FAIL (không k
     assert.equal(graded.verdict, 'DEFERRED_FAIL');
     assert.ok(graded.isDeferred);
 });
+
+// --------------------------------------------------------------------
+// T1.8 — chống false-positive của bộ chấm (đối chứng từ baseline T1.7).
+// Các chuỗi answer dưới đây là NGUYÊN VĂN câu bot trả lời trong run 1
+// (test/results/regression-run-2026-07-11_06-31-01.md) từng bị chấm oan.
+// --------------------------------------------------------------------
+test('T1.8 forbidden negation-aware: GV01 phủ định đúng KHÔNG bị bắt, khẳng định sai VẪN bị bắt', () => {
+    // Run 1: bot trả đúng "không thuộc Công an xã/phường" nhưng dính forbidden_fact:wrong_ward_authority.
+    const correct = gradeDeterministic(EXPECTATIONS.cases.GV01, {
+        text: '**Nộp tại Phòng Quản lý xuất nhập cảnh - Công an tỉnh Phú Thọ.** Thủ tục này không thuộc Công an xã/phường.',
+        wordCount: 25,
+    });
+    assert.ok(!correct.hardFailures.some(f => f.startsWith('forbidden_fact:')), `bắt oan: ${correct.hardFailures}`);
+
+    const wrong = gradeDeterministic(EXPECTATIONS.cases.GV01, {
+        text: 'Bạn nộp hồ sơ gia hạn visa tại Công an phường nơi cư trú. Phòng Quản lý xuất nhập cảnh không xử lý.',
+        wordCount: 25,
+    });
+    assert.ok(wrong.hardFailures.includes('forbidden_fact:wrong_ward_authority'));
+});
+
+test('T1.8 forbidden negation-aware: GV06 "Không nộp tại Công an phường" là câu ĐÚNG', () => {
+    const correct = gradeDeterministic(EXPECTATIONS.cases.GV06, {
+        text: '**Không nộp tại Công an phường — thủ tục gia hạn visa thuộc thẩm quyền của Phòng Quản lý xuất nhập cảnh Công an tỉnh.**',
+        wordCount: 25,
+    });
+    assert.ok(!correct.hardFailures.some(f => f.startsWith('forbidden_fact:')), `bắt oan: ${correct.hardFailures}`);
+
+    const wrong = gradeDeterministic(EXPECTATIONS.cases.GV06, {
+        text: 'Được, bạn nộp tại Công an phường Thanh Miếu, Công an phường sẽ tiếp nhận hồ sơ gia hạn.',
+        wordCount: 20,
+    });
+    assert.ok(wrong.hardFailures.includes('forbidden_fact:ward_accepts_extension'));
+});
+
+test('T1.8 required nới diễn đạt tương đương: VP06 "không có hình thức lùi ngày" và DN02 "không miễn nghĩa vụ" đạt', () => {
+    const vp06 = gradeDeterministic(EXPECTATIONS.cases.VP06, {
+        text: 'Theo quy định hiện hành, **không có hình thức "khai báo lùi ngày"** — bạn buộc phải khai báo tạm trú đúng thời điểm.',
+        wordCount: 25,
+    });
+    assert.ok(!vp06.hardFailures.includes('missing_required_fact:refuse_backdating'), `${vp06.hardFailures}`);
+
+    const dn02 = gradeDeterministic(EXPECTATIONS.cases.DN02, {
+        text: '**Có, phải khai báo.** Việc có giấy phép lao động không miễn nghĩa vụ khai báo tạm trú cho người nước ngoài.',
+        wordCount: 25,
+    });
+    assert.ok(!dn02.hardFailures.includes('missing_required_fact:work_permit_does_not_replace'), `${dn02.hardFailures}`);
+});
+
+test('T1.8 TL01 mã hóa lại: trả hạn 12/24h thẳng → đạt; nhầm sang "thời gian xử lý" → forbidden', () => {
+    // Ý định T1.1: chỉ fail khi bot NHẦM hạn khai báo với thời gian xử lý, không bắt
+    // câu trả lời đúng phải chứa cụm "phân biệt" tường minh.
+    const plain = gradeDeterministic(EXPECTATIONS.cases.TL01, {
+        text: '**Trong 12 giờ** đối với địa bàn thông thường, hoặc **24 giờ** đối với vùng sâu, vùng xa, kể từ khi người nước ngoài đến.',
+        wordCount: 25,
+    });
+    assert.equal(plain.hardFailures.length, 0, `${plain.hardFailures}`);
+
+    const confused = gradeDeterministic(EXPECTATIONS.cases.TL01, {
+        text: 'Cơ quan Công an sẽ xử lý hồ sơ khai báo trong 12 giờ làm việc; vùng sâu, vùng xa là 24 giờ.',
+        wordCount: 25,
+    });
+    assert.ok(confused.hardFailures.includes('forbidden_fact:deadline_confused_with_processing'), `${confused.hardFailures}`);
+});
+
+test('T1.8 grounding_patterns: EV07 trả tiếng Trung, docs tiếng Việt → dò bằng pattern Việt, không còn ungrounded oan', () => {
+    const trace = {
+        matchedDocs: 'Thủ tục cấp thị thực điện tử theo đề nghị của người nước ngoài, nộp trực tuyến qua Cổng dịch vụ công.',
+        matchesFinal: [{ procedure_id: '5568-tw-06', source_file: '5568/QD-BCA', rank: 1 }],
+    };
+    const out = gradeGrounding(EXPECTATIONS.cases.EV07, trace, {
+        text: '**可以。** 外国人可在线申请越南电子签证（e-visa）。',
+    });
+    assert.equal(out.groundingFailures.length, 0, `${out.groundingFailures}`);
+});
+
+test('T1.8 grounding_patterns: docs KHÔNG có bằng chứng → vẫn ungrounded (không mất khả năng bắt hallucination)', () => {
+    const trace = {
+        matchedDocs: 'Tài liệu chỉ nói về đăng ký xe máy, hoàn toàn không liên quan.',
+        matchesFinal: [{ procedure_id: '5568-tw-06', source_file: '5568/QD-BCA', rank: 1 }],
+    };
+    const out = gradeGrounding(EXPECTATIONS.cases.EV07, trace, {
+        text: '**可以。** 外国人可在线申请越南电子签证（e-visa）。',
+    });
+    assert.ok(out.groundingFailures.includes('ungrounded_fact:chinese_evisa'));
+});
+
+test('T1.8 grounding_patterns: ON01 docs diễn đạt khác câu trả lời vẫn được coi là có căn cứ', () => {
+    const trace = {
+        matchedDocs: 'Hướng dẫn khai báo tạm trú cho người nước ngoài qua trang kbtt.xuatnhapcanh.gov.vn dành cho cơ sở lưu trú.',
+        matchesFinal: [{ procedure_id: 'matt26265', source_file: 'KBTT_HD_Trang_CSLT_v2.0.pdf', rank: 1 }],
+    };
+    const out = gradeGrounding(EXPECTATIONS.cases.ON01, trace, {
+        text: '**Có, được.** Cơ sở lưu trú khai báo tạm trú trực tuyến qua hệ thống KBTT.',
+    });
+    assert.equal(out.groundingFailures.length, 0, `${out.groundingFailures}`);
+});
