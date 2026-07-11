@@ -49,7 +49,7 @@
     "TR05": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["cong_an_cap_xa", "phong_qlxnc_cap_tinh"],
       "must_abstain": true, "must_ask_clarification": false, "verbosity_budget": 120,
-      "required_facts": [{"id": "no_unsupported_fine", "match": "any", "patterns": ["chưa (?:tìm thấy|có) (?:căn cứ|mức phạt) cụ thể", "không đủ (?:thông tin|căn cứ).*mức phạt", "liên hệ.*Công an"], "grounding_required": false}],
+      "required_facts": [{"id": "no_unsupported_fine", "match": "any", "patterns": ["chưa (?:tìm thấy|có)[^.!?\\n]{0,30}(?:mức (?:xử )?phạt|căn cứ)", "không đủ (?:thông tin|căn cứ)[^.!?\\n]{0,30}mức phạt", "mức phạt[^.!?\\n]{0,40}(?:không|chưa)[^.!?\\n]{0,30}(?:tài liệu|dữ liệu)", "liên hệ[^.!?\\n]{0,40}Công an"], "grounding_required": false}],
       "forbidden_facts": [{"id": "ungrounded_fine", "patterns": ["phạt (?:tiền )?từ \\d", "\\d[\\d.]*\\s*(?:đồng|triệu)"]}], "expected_procedure_ids": [], "expected_source_ids": ["Nghị định 282/2025/NĐ-CP"], "error_classes": ["LEGAL_HALLUCINATION"]
     },
     "GV01": {
@@ -61,7 +61,7 @@
     "GV02": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["phong_qlxnc_cap_tinh"],
       "must_abstain": false, "must_ask_clarification": true, "verbosity_budget": 250,
-      "required_facts": [{"id": "sponsor_context", "match": "any", "patterns": ["cơ quan|tổ chức|doanh nghiệp.*bảo lãnh", "đơn vị bảo lãnh"], "grounding_required": true}, {"id": "application_form", "match": "any", "patterns": ["\\bNA5\\b", "tờ khai.*gia hạn"], "grounding_required": true}],
+      "required_facts": [{"id": "sponsor_context", "match": "any", "patterns": ["(?:cơ quan|tổ chức|doanh nghiệp|công ty|đơn vị)[^.!?\\n]{0,50}bảo lãnh", "doanh nghiệp[^.!?\\n]{0,40}(?:ký số|xác nhận|đề nghị)", "đơn vị bảo lãnh"], "grounding_required": true, "grounding_patterns": ["bảo lãnh|doanh nghiệp|cơ quan, tổ chức"]}, {"id": "application_form", "match": "any", "patterns": ["\\bNA5\\b", "tờ khai.*gia hạn"], "grounding_required": true}],
       "forbidden_facts": [], "expected_procedure_ids": ["5568-tw-12", "5568-tinh-07"], "expected_source_ids": ["5568/QD-BCA"], "error_classes": ["LEGAL", "ASK_MISSING_INFO"]
     },
     "GV06": {
@@ -116,7 +116,7 @@
     "DN02": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["kbtt_online"],
       "must_abstain": false, "must_ask_clarification": false, "verbosity_budget": 120,
-      "required_facts": [{"id": "work_permit_does_not_replace", "match": "all", "patterns": ["giấy phép lao động.*không.*(?:thay thế|miễn)", "(?:vẫn|phải|cần).*khai báo tạm trú"], "grounding_required": true, "grounding_patterns": ["khai báo tạm trú"]}],
+      "required_facts": [{"id": "work_permit_does_not_replace", "match": "all", "patterns": ["giấy phép lao động[^.!?\\n]{0,40}không[^.!?\\n]{0,30}(?:thay thế|miễn)|không[^.!?\\n]{0,25}(?:miễn|ngoại lệ)[^.!?\\n]{0,40}giấy phép lao động|giấy phép lao động[^.!?\\n]{0,25}vẫn phải", "(?:vẫn|phải|cần).*khai báo tạm trú"], "grounding_required": true, "grounding_patterns": ["khai báo tạm trú"]}],
       "forbidden_facts": [{"id": "no_declaration_needed", "patterns": ["không cần khai báo tạm trú"]}], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf"], "error_classes": ["LEGAL"]
     },
     "LOC02": {
@@ -146,7 +146,7 @@
     "ON01": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["kbtt_online"],
       "must_abstain": false, "must_ask_clarification": false, "verbosity_budget": 120,
-      "required_facts": [{"id": "online_available", "match": "all", "patterns": ["(?:có thể|được).*trực tuyến|online", "khai báo tạm trú"], "grounding_required": true, "grounding_patterns": ["kbtt\\.xuatnhapcanh\\.gov\\.vn|trực tuyến|online"]}],
+      "required_facts": [{"id": "online_available", "match": "all", "patterns": ["(?:có thể|được)[^.!?\\n]{0,50}(?:trực tuyến|online|qua mạng)|kbtt\\.xuatnhapcanh\\.gov\\.vn", "khai báo tạm trú"], "grounding_required": true, "grounding_patterns": ["kbtt\\.xuatnhapcanh\\.gov\\.vn|trực tuyến|online"]}],
       "forbidden_facts": [{"id": "obsolete_paper_flow", "patterns": ["\\bNA17\\b", "fax", "nộp trực tiếp"]}], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf"], "error_classes": ["LEGAL_HALLUCINATION"]
     },
     "HS02": {
@@ -183,8 +183,9 @@
     "TR09": {
       "status": "ACTIVE", "expected_language": "en", "expected_authorities": ["verified_local_station", "kbtt_online"],
       "must_abstain": false, "must_ask_clarification": false, "verbosity_budget": 250,
-      "required_facts": [{"id": "english_station", "match": "all", "patterns": ["Công an (?:Phường )?Thanh Miếu|Thanh Mieu Ward Police"], "grounding_required": false}],
-      "forbidden_facts": [], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf"], "error_classes": ["LANGUAGE_WRONG", "LOCATION"]
+      "required_facts": [{"id": "english_station", "match": "any", "patterns": ["Công an (?:Phường )?Thanh Miếu|Thanh Mieu Ward Police", "kbtt\\.xuatnhapcanh\\.gov\\.vn"], "grounding_required": false}],
+      "forbidden_facts": [], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf"], "error_classes": ["LANGUAGE_WRONG", "LOCATION"],
+      "note_t1_11": "Khai báo tạm trú NNN là thủ tục trực tuyến — đích hợp lệ là trụ sở đã xác minh HOẶC cổng KBTT chính thức; chỉ cấm bịa đích không có căn cứ."
     },
     "EV07": {
       "status": "ACTIVE", "expected_language": "zh", "expected_authorities": ["cuc_qlxnc_or_national_online"],

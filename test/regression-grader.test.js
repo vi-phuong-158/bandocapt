@@ -376,3 +376,109 @@ test('T1.11 KC04: chỉ bắt hỏi lại quốc tịch khi câu hỏi chưa rõ
     });
     assert.ok(noClarify.hardFailures.includes('missing_required_fact:ask_nationality'), `${noClarify.hardFailures}`);
 });
+
+// --------------------------------------------------------------------
+// T1.11 run-1: 5 ca abstain/diễn-đạt-tương-đương bị bắt oan + provider error.
+// Fixture là NGUYÊN VĂN câu bot trả lời trong run 2026-07-11_11-54-09.
+// --------------------------------------------------------------------
+test('T1.11 TR05: abstain đúng bằng diễn đạt tương đương phải PASS, phán mức phạt bịa vẫn bị bắt', () => {
+    const abstain = gradeDeterministic(EXPECTATIONS.cases.TR05, {
+        text: 'Theo dữ liệu hiện có, mình chưa có thông tin về mức xử phạt khi khai báo tạm trú cho người nước ngoài quá hạn. Việc chậm 2 ngày là vi phạm thời hạn, nhưng mức phạt cụ thể không nằm trong tài liệu mình có.',
+        wordCount: 45,
+    });
+    assert.equal(abstain.hardFailures.length, 0, `${abstain.hardFailures}`);
+
+    const inventedFine = gradeDeterministic(EXPECTATIONS.cases.TR05, {
+        text: 'Bạn sẽ bị phạt từ 4.000.000 đến 6.000.000 đồng vì chậm khai báo tạm trú.',
+        wordCount: 17,
+    });
+    assert.ok(inventedFine.hardFailures.some(f => f.includes('ungrounded_fine') || f.includes('no_unsupported_fine')), `${inventedFine.hardFailures}`);
+});
+
+test('T1.11 GV02: vai trò doanh nghiệp qua "ký số/xác nhận" đủ sponsor_context, thiếu hẳn vẫn fail', () => {
+    const good = gradeDeterministic(EXPECTATIONS.cases.GV02, {
+        text: '**Mẫu NA5** – mục III phải điền đầy đủ; người nước ngoài tự ký, chữ ký trùng với hộ chiếu; doanh nghiệp ký số phần xác nhận.',
+        wordCount: 30,
+    });
+    assert.ok(!good.hardFailures.includes('missing_required_fact:sponsor_context'), `${good.hardFailures}`);
+
+    const noSponsor = gradeDeterministic(EXPECTATIONS.cases.GV02, {
+        text: 'Bạn cần chuẩn bị mẫu NA5 và hộ chiếu còn hạn rồi nộp tại Phòng Quản lý xuất nhập cảnh.',
+        wordCount: 20,
+    });
+    assert.ok(noSponsor.hardFailures.includes('missing_required_fact:sponsor_context'), `${noSponsor.hardFailures}`);
+});
+
+test('T1.11 DN02: "không có ngoại lệ về giấy phép lao động" là chính ý không-thay-thế', () => {
+    const good = gradeDeterministic(EXPECTATIONS.cases.DN02, {
+        text: '**Có, lao động nước ngoài có giấy phép lao động vẫn phải khai báo tạm trú.** Quy định này áp dụng cho mọi trường hợp người nước ngoài đến lưu trú tại Việt Nam, không có ngoại lệ về giấy phép lao động.',
+        wordCount: 45,
+    });
+    assert.equal(good.hardFailures.length, 0, `${good.hardFailures}`);
+
+    const wrong = gradeDeterministic(EXPECTATIONS.cases.DN02, {
+        text: 'Đã có giấy phép lao động thì không cần khai báo tạm trú nữa.',
+        wordCount: 14,
+    });
+    assert.ok(wrong.hardFailures.length > 0, `${wrong.hardFailures}`);
+});
+
+test('T1.11 ON01: "khai báo qua mạng" + link kbtt chính thức là câu trả lời đúng', () => {
+    const good = gradeDeterministic(EXPECTATIONS.cases.ON01, {
+        text: '**Có, hoàn toàn có thể khai báo tạm trú cho người nước ngoài qua mạng.** Cơ sở lưu trú hoặc chủ hộ thực hiện trên hệ thống https://kbtt.xuatnhapcanh.gov.vn.',
+        wordCount: 35,
+    });
+    assert.equal(good.hardFailures.length, 0, `${good.hardFailures}`);
+
+    const paperFlow = gradeDeterministic(EXPECTATIONS.cases.ON01, {
+        text: 'Bạn phải nộp mẫu NA17 bản giấy hoặc gửi fax đến Công an phường để khai báo tạm trú.',
+        wordCount: 20,
+    });
+    assert.ok(paperFlow.hardFailures.some(f => f.includes('obsolete_paper_flow')), `${paperFlow.hardFailures}`);
+});
+
+test('T1.11 TR09: hướng dẫn cổng KBTT chính thức là đích hợp lệ ngang trụ sở xác minh', () => {
+    const onlineFirst = gradeDeterministic(EXPECTATIONS.cases.TR09, {
+        text: '**You declare online through the national system at https://kbtt.xuatnhapcanh.gov.vn.** No need to go to a police station; the entire process is done electronically by the host.',
+        wordCount: 30,
+    });
+    assert.equal(onlineFirst.hardFailures.length, 0, `${onlineFirst.hardFailures}`);
+
+    const noDestination = gradeDeterministic(EXPECTATIONS.cases.TR09, {
+        text: 'You should declare temporary residence for your foreign guest as soon as possible after arrival.',
+        wordCount: 16,
+    });
+    assert.ok(noDestination.hardFailures.includes('missing_required_fact:english_station'), `${noDestination.hardFailures}`);
+});
+
+test('T1.11 provider error + text rỗng: báo providerError, KHÔNG quy thành content hard fail', () => {
+    const blocked = gradeCase(EXPECTATIONS.cases.DN01 || EXPECTATIONS.cases.TR01, {
+        text: '', wordCount: 0, truncated: false, error: 'BLOCKED_CONTENT', eval: null,
+    });
+    assert.equal(blocked.providerError, 'BLOCKED_CONTENT');
+    assert.equal(blocked.failures.length, 0, `${blocked.failures}`);
+
+    // Có text (dù lỗi ghi kèm) → content vẫn được chấm bình thường.
+    const partial = gradeCase(EXPECTATIONS.cases.TR01, {
+        text: 'Không sao đâu, không cần làm gì cả.', wordCount: 9, truncated: false, error: 'SOME_WARNING', eval: null,
+    });
+    assert.ok(partial.failures.includes('missing_required_fact:must_declare'), `${partial.failures}`);
+});
+
+test('T1.11 H16: câu hedging "chưa có dữ liệu trụ sở xác minh của Công an tỉnh" trong câu trả lời tốt không bị bắt oan', () => {
+    const { parseConversations } = require('../scripts/run-regression');
+    const h16 = parseConversations().find(c => c.id === 'H16');
+    // Nguyên văn đoạn cuối câu trả lời ĐÚNG của bot trong run 1 (kèm hồ sơ TK05 phía trên).
+    const good = gradeCase(h16.expectation, {
+        text: '**Bạn cần trình báo mất hộ chiếu ngay.** Đơn trình báo mất hộ chiếu phổ thông (mẫu TK05). Nộp tại Cơ quan Quản lý xuất nhập cảnh hoặc Cổng Dịch vụ công; nếu xin cấp lại hộ chiếu, lệ phí 400.000 đồng. Hiện mình chưa có dữ liệu trụ sở xác minh của Công an tỉnh Phú Thọ. Bạn ở xã/phường nào để mình chỉ đúng địa chỉ nhé?',
+        wordCount: 70, truncated: false, error: null, eval: null,
+    });
+    assert.equal(good.verdict, 'PASS', good.failures.join('; '));
+
+    // Chuỗi tất định no_match nguyên bản VẪN bị bắt.
+    const deterministic = gradeCase(h16.expectation, {
+        text: 'Mình chưa có dữ liệu trụ sở được xác minh cho địa danh này. Vui lòng cung cấp thêm thông tin hoặc kiểm tra lại tên địa danh (xã/phường) nhé.',
+        wordCount: 30, truncated: false, error: null, eval: null,
+    });
+    assert.equal(deterministic.verdict, 'HARD_FAIL');
+});

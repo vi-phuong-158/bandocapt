@@ -18,7 +18,7 @@
           {"id": "report_or_reissue_step", "match": "any", "patterns": ["trình báo|báo mất|khai báo mất", "cấp lại|đề nghị cấp"], "grounding_required": false}
         ],
         "forbidden_facts": [
-          {"id": "deterministic_no_data_reply", "patterns": ["chưa có dữ liệu trụ sở"]},
+          {"id": "deterministic_no_data_reply", "patterns": ["chưa có dữ liệu trụ sở được xác minh cho địa danh này"]},
           {"id": "context_lost_asks_again", "patterns": ["công dân Việt Nam hay (?:là )?người nước ngoài|người nước ngoài hay (?:là )?công dân Việt Nam"]}
         ],
         "expected_procedure_ids": [],
@@ -41,7 +41,7 @@
           {"id": "diplomatic_mission_contact", "match": "any", "patterns": ["đại sứ quán|lãnh sự|cơ quan đại diện"], "grounding_required": false}
         ],
         "forbidden_facts": [
-          {"id": "deterministic_no_data_reply", "patterns": ["chưa có dữ liệu trụ sở"]},
+          {"id": "deterministic_no_data_reply", "patterns": ["chưa có dữ liệu trụ sở được xác minh cho địa danh này"]},
           {"id": "context_lost_asks_again", "patterns": ["công dân Việt Nam hay (?:là )?người nước ngoài|người nước ngoài hay (?:là )?công dân Việt Nam"]}
         ],
         "expected_procedure_ids": [],
