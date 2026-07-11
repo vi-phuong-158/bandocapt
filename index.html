@@ -22,6 +22,7 @@
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" integrity="sha384-pmjIAcz2bAn0xukfxADbZIb3t8oRT9Sv0rvO+BR5Csr6Dhqq+nZs59P0pPKQJkEV" crossorigin="anonymous" />
 
 <link rel="stylesheet" href="tokens.css" />
 
@@ -111,13 +112,41 @@
 </ul>
         </div>
 
-<div id="detail-panel" role="dialog" aria-modal="false" aria-hidden="true" aria-labelledby="detail-title" tabindex="-1" data-sheet-state="hidden" data-animate="true" data-dragging="false" inert class="absolute md:absolute bottom-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full md:max-h-full flex flex-col z-40 md:z-20 bg-surface/90 md:bg-surface backdrop-blur-md md:backdrop-blur-none rounded-t-2xl md:rounded-none border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu overflow-hidden">
+<div id="detail-panel" role="region" aria-hidden="true" aria-labelledby="detail-title" tabindex="-1" data-sheet-state="hidden" data-animate="true" data-dragging="false" inert class="absolute md:absolute bottom-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full md:max-h-full flex flex-col z-40 md:z-20 bg-surface/90 md:bg-surface backdrop-blur-md md:backdrop-blur-none rounded-t-2xl md:rounded-none border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu overflow-hidden">
 
 <div id="drag-handle" class="md:hidden w-24 h-10 flex items-center justify-center pt-2 pb-1 cursor-grab active:cursor-grabbing absolute left-1/2 -translate-x-1/2 top-0 z-20 transform-gpu">
                 <div class="w-12 h-1.5 bg-white/50 backdrop-blur rounded-full"></div>
             </div>
 
-<div class="flex-none relative w-full h-[220px] md:h-[240px] bg-slate-900 shrink-0 transform-gpu" style="perspective: 1000px;">
+            <div id="location-preview" class="md:hidden">
+                <button id="preview-close-btn" type="button" aria-label="Đóng thông tin vị trí">
+                    <span class="material-symbols-outlined" aria-hidden="true">close</span>
+                </button>
+                <div class="location-preview-main">
+                    <div id="location-preview-icon" class="location-preview-icon" aria-hidden="true">
+                        <span class="material-symbols-outlined">local_police</span>
+                    </div>
+                    <div class="location-preview-copy">
+                        <div class="location-preview-heading">
+                            <h2 id="location-preview-title">Tên trụ sở</h2>
+                            <span id="location-preview-distance" hidden>-- km</span>
+                        </div>
+                        <p id="location-preview-address">Địa chỉ trụ sở</p>
+                    </div>
+                </div>
+                <div class="location-preview-actions">
+                    <a id="preview-directions" href="#" target="_blank" rel="noopener noreferrer">
+                        <span class="material-symbols-outlined" aria-hidden="true">directions</span>
+                        <span>Chỉ đường</span>
+                    </a>
+                    <button id="preview-expand-btn" type="button">
+                        <span>Xem chi tiết</span>
+                        <span class="material-symbols-outlined" aria-hidden="true">expand_less</span>
+                    </button>
+                </div>
+            </div>
+
+<div id="detail-hero" class="flex-none relative w-full h-[220px] md:h-[240px] bg-slate-900 shrink-0 transform-gpu" style="perspective: 1000px;">
                 <img id="detail-image" alt="Hình ảnh trụ sở" class="w-full h-full object-cover opacity-90 transform-gpu" src="https://ui-avatars.com/api/?name=Police&background=random" />
                 <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
 
@@ -140,7 +169,7 @@
                 </div>
             </div>
 
-<div class="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-8 pt-7 pb-24 md:pb-8 will-change-[contents]">
+<div id="detail-content" class="flex-1 overflow-y-auto custom-scrollbar px-6 md:px-8 pt-7 pb-24 md:pb-8 will-change-[contents]">
 
 <div class="grid grid-cols-2 gap-4 mb-8">
                     <a id="action-directions" href="#" target="_blank" class="flex items-center justify-center gap-2.5 bg-blue-50/80 hover:bg-blue-100 text-primary py-3.5 rounded-xl transition-colors shadow-sm border border-white/50">
@@ -199,7 +228,7 @@
     </button>
 
     <!-- Map Actions (Bottom Right) -->
-    <div class="absolute bottom-8 right-5 md:right-8 flex flex-col gap-3 pointer-events-auto z-20">
+    <div id="map-actions" class="absolute bottom-8 right-5 md:right-8 flex flex-col gap-3 pointer-events-auto z-20">
 
         <button id="find-location-btn" aria-label="Tìm vị trí của tôi" class="w-14 h-14 text-white rounded-full flex items-center justify-center transition-all md:hover:-translate-y-1 active:scale-95 group border border-white/10 transform-gpu will-change-transform focus-visible:ring-2 focus-visible:ring-white" style="background-color:var(--color-primary);box-shadow:var(--shadow-fab);">
             <span id="location-icon" class="material-symbols-outlined text-[26px]" aria-hidden="true" style="font-variation-settings: 'FILL' 1;">my_location</span>
@@ -216,6 +245,8 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous" defer></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" integrity="sha384-eXVCORTRlv4FUUgS/xmOyr66XBVraen8ATNLMESp92FKXLAMiKkerixTiBvXriZr" crossorigin="anonymous" defer></script>
+    <script src="js/app-navigation.js" defer></script>
     <script src="data.js" defer></script>
     <script src="js/location-data.js" defer></script>
     <script src="app.js" defer></script>
@@ -323,6 +354,24 @@
 
         <div id="tthc-catalog-detail-view" hidden></div>
     </div>
+
+    <nav id="mobile-bottom-nav" aria-label="Điều hướng chính">
+        <button type="button" data-app-tab="map" aria-label="Mở bản đồ" aria-current="page">
+            <span class="material-symbols-outlined" aria-hidden="true">map</span>
+            <span>Bản đồ</span>
+        </button>
+        <button type="button" data-app-tab="procedures" aria-label="Mở danh mục thủ tục">
+            <span class="material-symbols-outlined" aria-hidden="true">menu_book</span>
+            <span>Thủ tục</span>
+        </button>
+        <button type="button" data-app-tab="chat" aria-label="Mở hỏi đáp AI">
+            <span class="mobile-nav-ai-icon">
+                <img class="mobile-nav-chatbot-icon" src="assets/icon-bottom.png" alt="" aria-hidden="true">
+                <span class="mobile-nav-ai-dot" aria-hidden="true"></span>
+            </span>
+            <span>Hỏi đáp AI</span>
+        </button>
+    </nav>
 
     <script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js" integrity="sha384-H+hy9ULve6xfxRkWIh/YOtvDdpXgV2fmAGQkIDTxIgZwNoaoBal14Di2YTMR6MzR" crossorigin="anonymous" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.7/purify.min.js" integrity="sha384-6gdBb4YMPz19eGx6Wf1vmT47Jh7wZArqJc84JuA3BRnoZQwt/X5qLfIip51LgpB/" crossorigin="anonymous" defer></script>

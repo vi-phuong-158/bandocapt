@@ -568,16 +568,18 @@ test('chat runtime injects verified locations and excludes tru_so Pinecone vecto
     assert.doesNotMatch(source, /filterCategories\.push\('tru_so'\)/);
 });
 
-test('chatbot mobile modal and close-abort guards remain in source', () => {
+test('chatbot mobile tab surface and close-abort guards remain in source', () => {
     const js = fs.readFileSync(path.join(ROOT, 'js', 'chatbot.js'), 'utf8');
     const css = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
 
-    assert.match(js, /CHAT_MODAL_BREAKPOINT\s*=\s*768/);
+    assert.match(js, /CHAT_MODAL_BREAKPOINT\s*=\s*767/);
     assert.match(js, /stopActiveStream\('close'\)/);
     assert.match(js, /restoreFocus:\s*shouldRestoreFocus\s*&&\s*isChatWindowVisible\(\)/);
-    assert.match(js, /event\.key === 'Tab' && isChatModalViewport\(\)/);
+    assert.match(js, /registerSurface\('chat'/);
+    assert.match(js, /setAttribute\('aria-modal', 'false'\)/);
+    assert.doesNotMatch(js, /event\.key === 'Tab' && isChatModalViewport\(\)/);
     assert.match(css, /body\.ai-chat-modal-open\s*\{\s*overflow:\s*hidden;/);
-    assert.match(css, /@media \(max-width: 768px\)[\s\S]*#ai-chat-window[\s\S]*100dvh/);
+    assert.match(css, /@media \(max-width: 767px\)[\s\S]*#ai-chat-window[\s\S]*var\(--mobile-nav-total-height\)/);
 });
 
 test('classifyQuestion returns valid Pinecone metadata (W5)', () => {

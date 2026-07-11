@@ -28,6 +28,13 @@ const backToListBtn = document.getElementById("back-to-list-btn");
 const detailDistanceBadge = document.getElementById("detail-distance-badge");
 const detailDistanceText = document.getElementById("detail-distance-text");
 const dragHandle = document.getElementById("drag-handle");
+const previewTitle = document.getElementById("location-preview-title");
+const previewAddress = document.getElementById("location-preview-address");
+const previewDistance = document.getElementById("location-preview-distance");
+const previewIcon = document.getElementById("location-preview-icon");
+const previewDirections = document.getElementById("preview-directions");
+const previewExpandBtn = document.getElementById("preview-expand-btn");
+const previewCloseBtn = document.getElementById("preview-close-btn");
 
 let userMarker = null;
 let userLat = null;
@@ -35,6 +42,7 @@ let userLng = null;
 let currentlySelectedLocation = null;
 let previousSelectedLocation = null;
 let detailTrigger = null;
+let detailSuspended = false;
 
 // Debounce utility
 function debounce(fn, delay) {
@@ -52,12 +60,6 @@ const SHEET_STATES = Object.freeze({
   EXPANDED: "expanded",
 });
 
-const MOBILE_SHEET_TRANSLATES = Object.freeze({
-  [SHEET_STATES.HIDDEN]: 100,
-  [SHEET_STATES.COLLAPSED]: 50,
-  [SHEET_STATES.EXPANDED]: 0,
-});
-
 const map = L.map("map", {
   zoomControl: false,
   zoomSnap: 0.5,
@@ -73,7 +75,7 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 
 // Hiện tên trụ sở khi zoom đủ gần (≥ LABEL_ZOOM) để nhãn không chồng chéo.
 // Toàn tỉnh (zoom thấp) chỉ thấy pin — giống Google Maps.
-const LABEL_ZOOM = 13;
+const LABEL_ZOOM = 14;
 function updateMarkerLabels() {
   map.getContainer().classList.toggle("show-marker-labels", map.getZoom() >= LABEL_ZOOM);
 }
@@ -114,16 +116,62 @@ const html = `
 return L.divIcon({
     className: "transparent-leaflet-icon",
     html: html,
-    iconSize: [44, 44],
-    iconAnchor: [22, 44],
+    iconSize: [48, 48],
+    iconAnchor: [24, 48],
   });
 }
 
-const layerGroup = L.layerGroup().addTo(map);
+function createClusterIcon(cluster) {
+  const count = cluster.getChildCount();
+  const sizeClass = count >= 30
+    ? "marker-cluster-civic--large"
+    : count >= 10
+      ? "marker-cluster-civic--medium"
+      : "marker-cluster-civic--small";
+
+  return L.divIcon({
+    className: `marker-cluster-civic ${sizeClass}`,
+    html: `<div><span>${count}</span></div>`,
+    iconSize: [44, 44],
+  });
+}
+
+const clusterGroup = typeof L.markerClusterGroup === "function"
+  ? L.markerClusterGroup({
+      disableClusteringAtZoom: 14,
+      maxClusterRadius: zoom => zoom <= 9 ? 60 : zoom <= 11 ? 48 : 36,
+      showCoverageOnHover: false,
+      zoomToBoundsOnClick: true,
+      spiderfyOnMaxZoom: false,
+      removeOutsideVisibleBounds: true,
+      animate: !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+      iconCreateFunction: createClusterIcon,
+    }).addTo(map)
+  : L.layerGroup().addTo(map);
+const selectedLayer = L.layerGroup().addTo(map);
+
+function removeLocationMarker(loc) {
+  if (!loc?.marker) return;
+  if (clusterGroup.hasLayer(loc.marker)) clusterGroup.removeLayer(loc.marker);
+  if (selectedLayer.hasLayer(loc.marker)) selectedLayer.removeLayer(loc.marker);
+}
+
+function addLocationMarker(loc) {
+  if (!loc?.marker || !loc._visible) return;
+  removeLocationMarker(loc);
+  const isSelected = currentlySelectedLocation?.id === loc.id;
+  (isSelected ? selectedLayer : clusterGroup).addLayer(loc.marker);
+}
+
+function refreshLocationMarker(loc) {
+  if (!loc?.marker) return;
+  loc.marker.setIcon(createCustomIcon(loc));
+  addLocationMarker(loc);
+}
 
 function updateAllMarkersIcon() {
   locations.forEach((loc) => {
-    if (loc.marker) loc.marker.setIcon(createCustomIcon(loc));
+    refreshLocationMarker(loc);
   });
 }
 
@@ -131,7 +179,7 @@ let startY = 0;
 let isDragging = false;
 let activeSheetState = SHEET_STATES.HIDDEN;
 let dragStartState = SHEET_STATES.HIDDEN;
-let dragStartPercent = MOBILE_SHEET_TRANSLATES[SHEET_STATES.HIDDEN];
+let dragStartOffset = 0;
 let activePointerId = null;
 let overlayHideTimer = null;
 
@@ -143,23 +191,43 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function getSheetTranslatePercent(state = activeSheetState) {
-  return MOBILE_SHEET_TRANSLATES[state] ?? MOBILE_SHEET_TRANSLATES[SHEET_STATES.HIDDEN];
+function getPreviewHeight() {
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue("--location-preview-height");
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : 164;
 }
 
-function applySheetTranslate(percent) {
-  detailPanel.style.setProperty("--sheet-translate", `${clamp(percent, 0, 100)}%`);
+function getSheetHeight() {
+  return detailPanel.getBoundingClientRect().height || window.innerHeight * 0.76;
 }
 
-function getCurrentSheetPercent() {
+function getSheetOffsets() {
+  const hidden = getSheetHeight();
+  return {
+    [SHEET_STATES.HIDDEN]: hidden,
+    [SHEET_STATES.COLLAPSED]: Math.max(0, hidden - getPreviewHeight()),
+    [SHEET_STATES.EXPANDED]: 0,
+  };
+}
+
+function getSheetOffset(state = activeSheetState) {
+  const offsets = getSheetOffsets();
+  return offsets[state] ?? offsets[SHEET_STATES.HIDDEN];
+}
+
+function applySheetTranslate(offset) {
+  detailPanel.style.setProperty("--sheet-translate", `${clamp(offset, 0, getSheetHeight())}px`);
+}
+
+function getCurrentSheetOffset() {
   const inlineValue = detailPanel.style.getPropertyValue("--sheet-translate");
   const parsed = Number.parseFloat(inlineValue);
-  return Number.isFinite(parsed) ? parsed : getSheetTranslatePercent();
+  return Number.isFinite(parsed) ? parsed : getSheetOffset();
 }
 
 function setDetailPanelAccessibility(hidden) {
   detailPanel.setAttribute("aria-hidden", hidden ? "true" : "false");
-  detailPanel.setAttribute("aria-modal", hidden ? "false" : "true");
   detailPanel.toggleAttribute("inert", hidden);
 }
 
@@ -184,12 +252,14 @@ function setSheetState(state, { animate = true, restoreFocus = false } = {}) {
   detailPanel.dataset.animate = animate ? "true" : "false";
   detailPanel.dataset.dragging = "false";
   if (isMobileViewport()) {
-    applySheetTranslate(getSheetTranslatePercent(state));
+    applySheetTranslate(getSheetOffset(state));
   } else {
     detailPanel.style.removeProperty("--sheet-translate");
   }
   const hidden = state === SHEET_STATES.HIDDEN;
   setDetailPanelAccessibility(hidden);
+  document.body.classList.toggle("location-preview-open", state === SHEET_STATES.COLLAPSED);
+  document.body.classList.toggle("location-detail-expanded", state === SHEET_STATES.EXPANDED);
   if (hidden && restoreFocus) {
     restoreDetailFocus();
   }
@@ -202,13 +272,12 @@ function clearOverlayHideTimer() {
   }
 }
 
-function resolveSheetStateFromPercent(percent, startState = dragStartState) {
-  if (percent <= 20) return SHEET_STATES.EXPANDED;
-  if (percent <= 70) return SHEET_STATES.COLLAPSED;
-  if (startState === SHEET_STATES.EXPANDED && percent < 85) {
-    return SHEET_STATES.COLLAPSED;
-  }
-  return SHEET_STATES.HIDDEN;
+function resolveSheetStateFromOffset(offset) {
+  const offsets = getSheetOffsets();
+  return Object.entries(offsets).reduce((nearest, [state, stateOffset]) => {
+    const distance = Math.abs(offset - stateOffset);
+    return distance < nearest.distance ? { state, distance } : nearest;
+  }, { state: SHEET_STATES.HIDDEN, distance: Infinity }).state;
 }
 
 function endSheetDrag({ cancelled = false, restoreFocus = false } = {}) {
@@ -217,10 +286,10 @@ function endSheetDrag({ cancelled = false, restoreFocus = false } = {}) {
   if (activePointerId != null && dragHandle.hasPointerCapture?.(activePointerId)) {
     dragHandle.releasePointerCapture(activePointerId);
   }
-  const finalPercent = cancelled ? dragStartPercent : getCurrentSheetPercent();
+  const finalOffset = cancelled ? dragStartOffset : getCurrentSheetOffset();
   activePointerId = null;
   setSheetState(
-    cancelled ? dragStartState : resolveSheetStateFromPercent(finalPercent),
+    cancelled ? dragStartState : resolveSheetStateFromOffset(finalOffset),
     { animate: true, restoreFocus },
   );
 }
@@ -230,7 +299,7 @@ dragHandle.addEventListener("pointerdown", (event) => {
   if (event.pointerType === "mouse" && event.button !== 0) return;
   startY = event.clientY;
   dragStartState = activeSheetState;
-  dragStartPercent = getCurrentSheetPercent();
+  dragStartOffset = getCurrentSheetOffset();
   activePointerId = event.pointerId;
   isDragging = true;
   detailPanel.dataset.dragging = "true";
@@ -241,15 +310,13 @@ dragHandle.addEventListener("pointerdown", (event) => {
 
 dragHandle.addEventListener("pointermove", (event) => {
   if (!isDragging || event.pointerId !== activePointerId) return;
-  const deltaPercent = ((event.clientY - startY) / window.innerHeight) * 100;
-  applySheetTranslate(dragStartPercent + deltaPercent);
+  applySheetTranslate(dragStartOffset + event.clientY - startY);
 });
 
 dragHandle.addEventListener("pointerup", (event) => {
   if (!isDragging || event.pointerId !== activePointerId) return;
-  const deltaPercent = ((event.clientY - startY) / window.innerHeight) * 100;
-  applySheetTranslate(dragStartPercent + deltaPercent);
-  endSheetDrag({ restoreFocus: resolveSheetStateFromPercent(getCurrentSheetPercent()) === SHEET_STATES.HIDDEN });
+  applySheetTranslate(dragStartOffset + event.clientY - startY);
+  endSheetDrag({ restoreFocus: resolveSheetStateFromOffset(getCurrentSheetOffset()) === SHEET_STATES.HIDDEN });
 });
 
 dragHandle.addEventListener("pointercancel", () => {
@@ -262,19 +329,41 @@ dragHandle.addEventListener("lostpointercapture", () => {
   }
 });
 
+function formatDistance(distance) {
+  if (distance == null) return "";
+  return distance < 1
+    ? `${(distance * 1000).toFixed(0)} m`
+    : `${distance.toFixed(1)} km`;
+}
+
+function renderLocationPreview(loc, isPolice) {
+  previewTitle.textContent = loc.name;
+  previewAddress.textContent = loc.address;
+  previewDirections.href = `https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`;
+  previewIcon.classList.toggle("is-cccd", !isPolice);
+  previewIcon.querySelector(".material-symbols-outlined").textContent = isPolice
+    ? "local_police"
+    : "badge";
+  const distance = formatDistance(loc._currentDistance);
+  previewDistance.textContent = distance;
+  previewDistance.hidden = !distance;
+}
+
 function openDetailPanel(loc, trigger = null) {
   detailTrigger = trigger;
   previousSelectedLocation = currentlySelectedLocation;
   currentlySelectedLocation = loc;
+  detailSuspended = false;
 
 if (previousSelectedLocation && previousSelectedLocation.marker) {
-    previousSelectedLocation.marker.setIcon(createCustomIcon(previousSelectedLocation));
+    refreshLocationMarker(previousSelectedLocation);
   }
   if (currentlySelectedLocation && currentlySelectedLocation.marker) {
-    currentlySelectedLocation.marker.setIcon(createCustomIcon(currentlySelectedLocation));
+    refreshLocationMarker(currentlySelectedLocation);
   }
 
 const isPolice = loc.type === "police_station";
+  renderLocationPreview(loc, isPolice);
 
 detailBadge.textContent = isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD";
   detailBadge.className = isPolice
@@ -289,8 +378,7 @@ detailTitle.textContent = loc.name;
       const { hostname } = new URL(loc.imageUrl);
       return hostname.endsWith('.googleusercontent.com') ||
              hostname.endsWith('.google.com') ||
-             hostname === 'drive.google.com' ||
-             hostname === 'ui-avatars.com';
+             hostname === 'drive.google.com';
     } catch { return false; }
   })();
   if (isAllowedImage) {
@@ -300,9 +388,9 @@ detailTitle.textContent = loc.name;
     detailImage.referrerPolicy = 'no-referrer';
     detailImage.className = 'w-full h-full object-cover opacity-90 transform-gpu';
   } else {
-
-detailImage.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(loc.name)}&background=random`;
-    detailImage.alt = 'Ảnh trụ sở';
+    detailImage.src = 'assets/logo.png';
+    detailImage.alt = 'Biểu trưng Công an nhân dân';
+    detailImage.className = 'w-full h-full object-contain p-10 opacity-90 transform-gpu';
   }
 
 detailAddress.textContent = loc.address;
@@ -348,10 +436,7 @@ detailHours.innerHTML = `<span class="${statusColor} font-bold">${statusText}</s
   detailHoursContainer.style.display = "flex";
 
 if (loc._currentDistance != null) {
-    detailDistanceText.textContent =
-      loc._currentDistance < 1
-        ? `${(loc._currentDistance * 1000).toFixed(0)} m`
-        : `${loc._currentDistance.toFixed(1)} km`;
+    detailDistanceText.textContent = formatDistance(loc._currentDistance);
     detailDistanceBadge.style.display = "inline-flex";
   } else {
     detailDistanceBadge.style.display = "none";
@@ -363,37 +448,49 @@ actionDirections.href = `https://www.google.com/maps/dir/?api=1&destination=${lo
 hideMobileSearch({ restoreFocus: false });
   const isMobile = isMobileViewport();
   setSheetState(isMobile ? SHEET_STATES.COLLAPSED : SHEET_STATES.EXPANDED);
-  requestAnimationFrame(() => backToListBtn.focus());
+  requestAnimationFrame(() => (isMobile ? previewExpandBtn : backToListBtn).focus());
 
 if (isMobile) {
-
-map.flyTo([loc.lat - 0.003, loc.lng], 15.5, {
+    map.flyTo([loc.lat, loc.lng], 15.5, {
       animate: true,
       duration: 0.8,
     });
+    map.once("moveend", () => {
+      map.panInside([loc.lat, loc.lng], {
+        paddingTopLeft: [16, 88],
+        paddingBottomRight: [16, getPreviewHeight() + 80],
+      });
+    });
   } else {
-    map.flyTo([loc.lat, loc.lng + 0.015], 15.5, {
+    map.flyTo([loc.lat, loc.lng], 15.5, {
       animate: true,
       duration: 0.8,
     });
   }
 }
 
-function closeDetailPanel() {
+function closeDetailPanel({ restoreFocus = true } = {}) {
   if (isDragging) {
     endSheetDrag({ cancelled: true });
   }
   previousSelectedLocation = currentlySelectedLocation;
   currentlySelectedLocation = null;
+  detailSuspended = false;
 
 if (previousSelectedLocation && previousSelectedLocation.marker) {
-    previousSelectedLocation.marker.setIcon(createCustomIcon(previousSelectedLocation));
+    refreshLocationMarker(previousSelectedLocation);
   }
-  setSheetState(SHEET_STATES.HIDDEN, { restoreFocus: true });
+  setSheetState(SHEET_STATES.HIDDEN, { restoreFocus });
 }
 
 backToListBtn.addEventListener("click", () => {
   closeDetailPanel();
+});
+
+previewCloseBtn.addEventListener("click", () => closeDetailPanel());
+previewExpandBtn.addEventListener("click", () => {
+  setSheetState(SHEET_STATES.EXPANDED);
+  requestAnimationFrame(() => detailPhoneLink.focus());
 });
 
 function getActiveFilters() {
@@ -450,10 +547,12 @@ locations.forEach((loc) => {
       (loc._addressLower || loc.address.toLowerCase()).includes(searchTerm);
 
 if (matchesFilter && matchesSearch) {
-      if (!layerGroup.hasLayer(loc.marker)) layerGroup.addLayer(loc.marker);
+      loc._visible = true;
+      addLocationMarker(loc);
       visibleLocations.push(loc);
     } else {
-      if (layerGroup.hasLayer(loc.marker)) layerGroup.removeLayer(loc.marker);
+      loc._visible = false;
+      removeLocationMarker(loc);
     }
   });
 
@@ -467,7 +566,8 @@ if (userLat != null) {
 if (showNearby && userLat != null) {
 
 visibleLocations.slice(5).forEach((loc) => {
-      if (loc.marker && layerGroup.hasLayer(loc.marker)) layerGroup.removeLayer(loc.marker);
+      loc._visible = false;
+      removeLocationMarker(loc);
     });
     visibleLocations = visibleLocations.slice(0, 5);
 
@@ -483,6 +583,10 @@ if (visibleLocations.length > 0) {
         map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
       }
     }
+  }
+
+  if (currentlySelectedLocation && !currentlySelectedLocation._visible) {
+    closeDetailPanel({ restoreFocus: false });
   }
 
 renderResultsList(visibleLocations);
@@ -730,7 +834,8 @@ async function fetchHeadquarters() {
   try {
     const data = await fetchSheetData("Published_Locations");
 
-layerGroup.clearLayers();
+clusterGroup.clearLayers();
+    selectedLayer.clearLayers();
     locations = [];
 
     const normalized = window.LocationData.normalizePublishedLocations(data);
@@ -763,8 +868,10 @@ const loc = {
 
 const marker = L.marker([loc.lat, loc.lng], {
         icon: createCustomIcon(loc),
-      }).addTo(layerGroup);
+      });
       loc.marker = marker;
+      loc._visible = true;
+      clusterGroup.addLayer(marker);
       marker.on("click", () => openDetailPanel(loc));
 
 locations.push(loc);
@@ -805,6 +912,28 @@ function syncPanelsToViewport() {
     { animate: false },
   );
 }
+
+function suspendDetailSelection() {
+  if (currentlySelectedLocation && activeSheetState !== SHEET_STATES.HIDDEN) {
+    detailSuspended = true;
+  }
+  if (activeSheetState !== SHEET_STATES.HIDDEN) {
+    setSheetState(SHEET_STATES.HIDDEN, { animate: false });
+  }
+  hideMobileSearch({ restoreFocus: false });
+}
+
+function resumeDetailSelection() {
+  if (!detailSuspended || !currentlySelectedLocation || !isMobileViewport()) return;
+  detailSuspended = false;
+  setSheetState(SHEET_STATES.COLLAPSED);
+  refreshLocationMarker(currentlySelectedLocation);
+}
+
+window.AppNavigation?.registerSurface("map", {
+  activate: resumeDetailSelection,
+  deactivate: suspendDetailSelection,
+});
 
 window.addEventListener("resize", debounce(syncPanelsToViewport, 120));
 window.addEventListener("orientationchange", syncPanelsToViewport);

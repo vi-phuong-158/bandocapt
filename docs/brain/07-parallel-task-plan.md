@@ -119,10 +119,15 @@ Schema metadata: `review_status` (approved/pending/superseded), `valid_from/vali
 | T4A-2 | Danh mục tìm theo title/mã/lĩnh vực/đối tượng/mẫu đơn/tóm tắt | FE | Codex | TRUNG | — | TODO |
 | T4A-3 | Starter questions: 4 mục, lưới 2 cột, "Xem thêm" | FE | Codex | THẤP | — | TODO |
 | T4A-4 | Touch target ≥44px + design token hóa màu/spacing/radius | FE | Codex | THẤP–TRUNG | Đọc `DESIGN_SYSTEM.md` trước | TODO |
-| T4B | Action dock mobile (Danh mục / Hỏi đáp AI / Vị trí tôi) | FE | Claude hoặc Codex reasoning cao | TRUNG–CAO | T4A-* xong, runtime + corpus ổn định | TODO |
+| T4B | Civic Modern mobile: bottom nav Bản đồ/Thủ tục/AI + preview vị trí + marker clustering | FE | Codex | TRUNG–CAO | User reprioritize trực tiếp 2026-07-11 | **DONE** (2026-07-11) |
 | T4C | E2E 3 viewport + a11y + benchmark 100 request staging + alert | EVAL | Claude | TRUNG | T4B | TODO |
 
-Rollout production: Gemini primary, DeepSeek tắt → theo dõi 48h → bật DeepSeek nếu đạt cùng hard gate → deploy action dock cuối cùng.
+**T4B đã chốt:** bottom navigation luôn hiện dưới 768px; giữ selection khi đổi tab; preview marker 164px;
+nút định vị tự tránh preview; cluster marker dưới zoom 14 và bung marker từ zoom 14. Quyết định này thay
+đặc tả action dock cũ và được user yêu cầu triển khai trước T4A. E2E UI thuộc T4B đã có; T4C vẫn còn
+benchmark staging/alert và audit a11y rộng hơn, không được đánh dấu hoàn tất.
+
+Rollout production: Gemini primary, DeepSeek tắt → theo dõi 48h → bật DeepSeek nếu đạt cùng hard gate → deploy các phần UX còn lại.
 
 ---
 

@@ -117,6 +117,16 @@
   --fab-size: 56px;
   --hit-min: 44px;
   --panel-w: 420px;
+  --mobile-nav-content-height: 64px;
+  --mobile-nav-total-height: calc(var(--mobile-nav-content-height) + env(safe-area-inset-bottom, 0px));
+  --location-preview-height: 164px;
+
+  /* ---- Layer scale ---- */
+  --z-map: 0;
+  --z-map-control: 100;
+  --z-overlay: 200;
+  --z-panel: 300;
+  --z-navigation: 400;
 
   /* ---- Effects ---- */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -127,6 +137,9 @@
   --shadow-pop: 0 24px 70px rgba(15, 23, 42, 0.18), 0 2px 8px rgba(15, 23, 42, 0.06);
   --shadow-fab: 0 8px 24px rgba(29, 78, 216, 0.35);
   --shadow-fab-amber: 0 8px 24px rgba(217, 119, 6, 0.30);
+  --shadow-marker: 0 4px 12px rgba(15, 23, 42, 0.18);
+  --shadow-marker-selected: 0 0 0 4px rgba(255, 255, 255, 0.92), 0 8px 24px rgba(29, 78, 216, 0.32);
+  --shadow-cluster: 0 6px 18px rgba(29, 78, 216, 0.28);
 
   --ring-primary: 0 0 0 4px rgba(29, 78, 216, 0.12);
   --ring-focus: 0 0 0 3px rgba(37, 99, 235, 0.40);

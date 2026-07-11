@@ -281,6 +281,26 @@ Tailwind class tùy tiện** — map Tailwind vào design-system token như sau:
 /* Shape: border-radius 50% 50% 50% 0, rotate -45deg */
 ```
 
+### Kích thước và clustering
+
+- Marker thường: hình 38px trong vùng chạm 48px.
+- Marker đang chọn: 48px, viền trắng và bóng xanh dùng token `--shadow-marker-selected`.
+- Zoom dưới 14: gom marker thường bằng cluster có số; 36px (2–9), 40px (10–29), 44px (>=30).
+- Zoom từ 14: bung marker riêng và cho phép hiện nhãn tên.
+- Marker đang chọn nằm trong `selectedLayer`, không bị gom trở lại cluster cho tới khi bỏ chọn.
+
+## 6.1 Mobile bottom navigation
+
+Viewport dưới 768px dùng đúng 3 tab cố định: `Bản đồ` (`map`), `Thủ tục` (`menu_book`),
+`Hỏi đáp AI` (asset `assets/icon-bottom.png`). Chiều cao phần nội dung 64px cộng `env(safe-area-inset-bottom)`.
+
+- Launcher AI/TTHC dạng viên chỉ dùng trên desktop.
+- Tab active dùng màu `--color-primary`, `aria-current="page"` và chỉ báo 3px.
+- AI có chấm xanh; pulse chỉ trước lần đầu mở và phải tắt với `prefers-reduced-motion`.
+- `icon-bottom.png` là ngoại lệ asset thương hiệu duy nhất trong bottom navigation; ảnh 60×60 được hiển thị ở 24×24 và có `alt=""` vì nhãn tab đã cung cấp tên truy cập được.
+- Chat, catalog, preview vị trí và nút định vị phải nằm phía trên `--mobile-nav-total-height`.
+- Mọi surface mobile vẫn cho phép truy cập thanh điều hướng nên không khai báo `aria-modal="true"`.
+
 ---
 
 ## 7. Quy tắc sửa UI
@@ -307,7 +327,7 @@ function createMarker(type) {
     me:     'var(--color-nearby)',   // #047857
   };
   // Dùng L.divIcon với class marker-{type} đã có trong styles.css
-  return L.divIcon({ className: `marker marker-${type}`, iconSize: [28, 36] });
+  return L.divIcon({ className: `marker marker-${type}`, iconSize: [48, 48], iconAnchor: [24, 48] });
 }
 ```
 

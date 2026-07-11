@@ -13,7 +13,7 @@ test('mobile detail panel closes reliably by button and drag gestures', async ({
     await page.goto('/');
 
     await openFirstMobileResult(page);
-    await page.locator('#back-to-list-btn').click({ position: { x: 6, y: 6 } });
+    await page.locator('#preview-close-btn').click();
     await expect.poll(async () => page.locator('#detail-panel').getAttribute('data-sheet-state')).toBe('hidden');
 
     await openFirstMobileResult(page);

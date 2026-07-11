@@ -2,7 +2,9 @@ const { test, expect } = require('@playwright/test');
 
 async function openCatalog(page) {
     await page.goto('/');
-    await page.click('#tthc-catalog-toggle-btn');
+    const mobileTab = page.locator('[data-app-tab="procedures"]');
+    if (await mobileTab.isVisible()) await mobileTab.click();
+    else await page.click('#tthc-catalog-toggle-btn');
     await expect(page.locator('#tthc-catalog-window')).toHaveClass(/tthc-catalog-window--visible/);
 }
 
@@ -40,7 +42,7 @@ test('catalog empty state suggests simpler keywords', async ({ page }) => {
     await expect(page.locator('.tthc-empty')).toContainText('căn cước');
 });
 
-test('catalog mobile detail keeps summary readable in full-screen panel', async ({ page }) => {
+test('catalog mobile detail keeps summary readable above persistent navigation', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openCatalog(page);
 

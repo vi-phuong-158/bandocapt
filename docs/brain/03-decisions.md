@@ -30,6 +30,13 @@
   (đã có test 2 chiều: docs không có bằng chứng → vẫn ungrounded). Xác minh live: 10/11 ca từng fail
   lặp lại chuyển PASS, KC04 còn fail là **gap bot thật** (không đưa hướng dẫn police/embassy).
 - **Người quyết định:** user ("Mở T1.8 sửa grader") / Claude Code (Fable 5). Chi tiết: `07-parallel-task-plan.md` (T1.8).
+## [2026-07-11] Civic Modern mobile navigation + clustering co kiem soat (T4B)
+
+- **Quyet dinh:** Mobile duoi 768px dung bottom navigation co dinh `Ban do / Thu tuc / Hoi dap AI`; bo 2 launcher noi tren mobile, giu launcher desktop. Chat va catalog tro thanh tab surface nam tren safe area. Marker click mobile chi mo preview 164px; detail day du chi mo khi bam/xoay keo. Marker thuong 38px, marker chon 48px va tach sang `selectedLayer`. Tai zoom <14, marker thuong duoc gom bang Leaflet.markercluster 1.5.3; zoom >=14 bung tung marker.
+- **Ly do:** Launcher AI va danh muc dang chong len nhau/che thong tin vi tri; bottom sheet collapsed 50% cua sheet 85vh che khoang 42,5% ban do; 140 marker rieng le lam mat kha nang doc o zoom tinh. Bottom navigation tao 3 diem den on dinh, preview nho giu ban do lam trung tam, clustering giam che phu.
+- **Danh doi:** Quyet dinh nay **thay the** quyet dinh [2026-06-28] loai MarkerCluster de luon thay moi pin. O zoom thap nguoi dung thay so cum thay vi tung vi tri, nhung cham cum se zoom vao bounds va zoom 14 bung het marker. Them 1 CDN dependency da pin + SRI; neu plugin khong tai duoc, runtime fallback ve `L.layerGroup()` de ban do van hoat dong.
+- **Thu tu:** User yeu cau trien khai truc tiep T4B ngay 2026-07-11, duoc ghi nhan la reprioritize co chu dich so voi phu thuoc T4A trong ke hoach cu.
+- **Nguoi quyet dinh:** user / Codex
 
 ---
 

@@ -5,7 +5,7 @@
 | Layer | Cong nghe |
 |-------|-----------|
 | Frontend | HTML5 + Tailwind CSS 3 + Vanilla JS |
-| Ban do | Leaflet.js 1.9.4 + OpenStreetMap tiles |
+| Ban do | Leaflet.js 1.9.4 + Leaflet.markercluster 1.5.3 + OpenStreetMap tiles |
 | LLM / Chat | Gemini 2.5 Flash (streaming SSE), fallback DeepSeek |
 | Embedding / RAG | Gemini Embedding 001 + Pinecone vector DB |
 | Backend API | Vercel Serverless Functions (Node.js 20, CommonJS) + `@vercel/functions` `waitUntil` |
@@ -58,7 +58,8 @@ bandocapt/
 | Module / file | Vai tro | Duoc goi boi | Phu thuoc vao |
 |---------------|---------|--------------|---------------|
 | `index.html` | Shell UI, tai CSS/JS va DOM | Browser | `output.css`, `styles.css`, `app.js`, `js/chatbot.js`, `js/gemini.js`, `js/tthc-catalog.js` |
-| `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker | `index.html` | `js/location-data.js`, `api/google-sheet.js`, `data.js` |
+| `js/app-navigation.js` | Dieu phoi 3 tab mobile Ban do/Thu tuc/Hoi dap AI, dong bo `aria-current` va ghi nhan lan dau mo AI | `index.html` | public surface callbacks tu `app.js`, `js/chatbot.js`, `js/tthc-catalog.js` |
+| `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker/cluster, preview vi tri mobile | `index.html`, `js/app-navigation.js` | `js/location-data.js`, `api/google-sheet.js`, `data.js`, Leaflet.markercluster |
 | `data.js` | Fallback tinh cho map khi Google Sheets loi | `app.js` | - |
 | `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check, doc them `search_aliases` neu co | `app.js`, `lib/published-locations.js`, test | - |
 | `js/gemini.js` | Goi `POST /api/chat` (parse SSE stream) va `POST /api/feedback` (`sendFeedback`); ky HMAC dung chung qua `signRequestToken` | `js/chatbot.js` | `api/chat.js`, `api/feedback.js` |
@@ -88,7 +89,9 @@ index.html load
 -> fetch /api/google-sheet?sheet=Published_Locations
 -> lib/published-locations.js fetch Google GViz payload
 -> js/location-data.js normalize/validate
--> render markers
+-> render marker vao clusterGroup/selectedLayer
+-> zoom < 14 gom cum; zoom >= 14 bung marker va hien nhan
+-> chon marker mobile mo preview 164px, desktop mo detail sidebar
 ```
 
 ### Luong quan tri du lieu ban do
@@ -273,6 +276,8 @@ Biến mới (2026-07-10):
   limit uu tien `x-vercel-forwarded-for` -> `x-real-ip` -> `x-forwarded-for` (XFF client co the tu chen
   gia tri gia vao dau chuoi).
 - `output.css` duoc commit va `npm run build` se tai tao lai file nay truoc khi tao `dist/`.
+- Mobile duoi 768px dung bottom navigation co dinh 3 tab; chat/catalog la tab surface khong phai modal, va detail preview giu selection khi doi tab.
+- Leaflet.markercluster duoc pin 1.5.3 tren unpkg voi SRI. `clusterGroup` chua marker thuong, `selectedLayer` giu marker dang chon noi tren cum; clustering tat tu zoom 14.
 - `scripts/build-static.js` dung allowlist file ro rang; khi them file runtime tinh nhu `js/tthc-catalog.js` hoac
   `data/tthc-catalog.json` phai them vao allowlist, neu khong preview/production se 404.
 - `data/tthc-catalog.json` la snapshot tinh dung cho UI doi chieu; generator uu tien Pinecone live neu local co env hop le,

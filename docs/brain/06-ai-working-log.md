@@ -25,6 +25,14 @@
   - **Fail chập chờn (1-2/3 run, nghi do model non-determinism):** TR05, GV02, DN01, TYPO01, TYPO02 (1 lần dính global_forbidden VNeID), PI01, LOC07 (2/3 lần trả sai ngôn ngữ — wrong_language:expected_en_got_vi).
   - 2 PROVIDER_ERROR ở run 1 (không lặp lại ở run 2/3) — nghi rate-limit thoáng qua, không phải lỗi cấu hình (key đã xác nhận hợp lệ vì phần lớn câu trong cùng run vẫn trả lời được).
   - **Không sửa gì trong lần này** — đúng phạm vi T1.7 chỉ là đo baseline. Danh sách hard-fail lặp lại ở trên là input trực tiếp cho T2A (fail-closed/standaloneQuery) và các task nội dung Giai đoạn 3; phần lớn `ungrounded_fact:*` gợi ý model đang thêm chi tiết không có trong tài liệu retrieve — đáng ưu tiên trước "missing_required_fact".
+## [2026-07-11] T4B — Nâng cấp Civic Modern UI cho bản đồ mobile
+- **Agent:** Codex
+- **Thay đổi:** Thêm `AppNavigation` điều phối 3 tab mobile `Bản đồ / Thủ tục / Hỏi đáp AI`, bottom navigation luôn hiện và tính safe area; bỏ launcher AI/TTHC dạng viên trên mobile nhưng giữ desktop. Đổi detail sheet collapsed 50% thành preview vị trí 164px, giữ selection khi đổi tab, cho nút định vị tự tránh preview và ẩn khi sheet mở rộng. Chuẩn hóa marker thường/chọn 38/48px, tách `selectedLayer`, tích hợp Leaflet.markercluster 1.5.3 dưới zoom 14 với custom count icon và fallback layer group. Chat/catalog mobile trở thành tab surface không trap focus như modal. Không đổi backend/RAG.
+- **File đã sửa:** `index.html`, `app.js`, `styles.css`, `tokens.css`, `output.css`, `js/app-navigation.js` (mới), `js/chatbot.js`, `js/tthc-catalog.js`, `scripts/build-static.js`, `package.json`, `vercel.json`, test UI/E2E, `DESIGN_SYSTEM.md`, `docs/brain/01-architecture.md`, `03-decisions.md`, `04-current-tasks.md`, `07-parallel-task-plan.md`, `06-ai-working-log.md`
+- **Lý do:** Hai launcher nổi chồng nhau và che thông tin vị trí; bottom sheet mặc định che khoảng 42,5% bản đồ; marker dày ở zoom tỉnh làm giảm khả năng đọc. User chốt Civic Modern trust-first và yêu cầu reprioritize T4B trước T4A.
+- **Kiểm tra:** `npm test` 188/188; `npm run test:e2e` 14/14; `npm run build`; visual QA 375×812, 390×844, 768×1024, 1280×800. Không cần regression API 30 câu vì contract/backend chatbot không đổi.
+
+---
 
 ## [2026-07-11] T1.6 — Format báo cáo regression giàu hơn (hard/deferred/soft/latency)
 - **Agent:** Claude Code (Opus 4.8) — nhận task từ Codex theo yêu cầu người dùng
@@ -899,3 +907,30 @@
 - **File da sua:** `api/chat.js`, `api/feedback.js`, `test/feedback.test.js`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** Admin can thay ngay cau tra loi bi bao cao trong Telegram, khong chi thay cau hoi/mo ta; log production cho thay alert cu co the timeout sau 2.5s.
 - **Kiem tra:** `npm test -- test/feedback.test.js test/telegram-alert.test.js`; `npm run check:syntax`; `npm run build`.
+
+---
+
+## [2026-07-11] Thay bo icon SVG dong bo cho bottom navigation
+- **Agent:** Codex
+- **Thay doi:** Thay ba Material Symbol o thanh dieu huong mobile bang bo SVG inline dong bo cho Ban do, Thu tuc va Hoi dap AI; giu cham thong bao AI va mau active/inactive theo `currentColor`.
+- **File da sua:** `index.html`, `styles.css`, `scripts/build-static.js`, `DESIGN_SYSTEM.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Icon raster tham khao co nen chroma va khong dam bao do net o 24px; bo SVG noi bo giu duoc phong cach Civic Modern dong thoi phu hop bottom navigation.
+- **Kiem tra:** `npm test`; `npm run build`; kiem tra thu cong o viewport mobile.
+
+---
+
+## [2026-07-11] Hoan nguyen icon Material Symbols cho bottom navigation
+- **Agent:** Codex
+- **Thay doi:** Hoan nguyen ba icon bottom navigation ve `map`, `menu_book` va `smart_toy`; bo bo SVG thu nghiem va ngoai le icon trong Design System.
+- **File da sua:** `index.html`, `styles.css`, `DESIGN_SYSTEM.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Bo SVG thu nghiem chua dat chat luong thi giac mong muon; Material Symbols cu dong bo va de nhan dien hon trong giao dien hien tai.
+- **Kiem tra:** `npm test`; `npm run build`.
+
+---
+
+## [2026-07-11] Dung asset chatbot cho bottom navigation
+- **Agent:** Codex
+- **Thay doi:** Thay rieng icon `smart_toy` cua tab Hoi dap AI bang asset `assets/icon-bottom.png` 60×60, render 24×24; giu nguyen nhan tab va cham thong bao AI.
+- **File da sua:** `index.html`, `styles.css`, `DESIGN_SYSTEM.md`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** User cung cap bieu tuong chatbot thuong hieu de dung truc tiep o thanh bottom.
+- **Kiem tra:** `npm test`; `npm run build`; kiem tra thu cong viewport mobile va xac nhan asset co trong `dist/assets/`.

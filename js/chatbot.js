@@ -79,7 +79,7 @@ let isChatSending = false;
 let activeCancelController = null;
 let activeAbortMode = null;
 const isLocalHost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const CHAT_MODAL_BREAKPOINT = 768;
+const CHAT_MODAL_BREAKPOINT = 767;
 
 function stopActiveStream(mode = 'stop') {
     activeAbortMode = mode;
@@ -99,10 +99,9 @@ function syncChatWindowPresentation(isOpen) {
     const { toggle, window: chatWindow } = getChatElements();
     if (!toggle || !chatWindow) return;
 
-    const isModal = isOpen && isChatModalViewport();
-    chatWindow.setAttribute('aria-modal', isModal ? 'true' : 'false');
-    toggle.hidden = isModal;
-    document.body.classList.toggle('ai-chat-modal-open', isModal);
+    chatWindow.setAttribute('aria-modal', 'false');
+    toggle.hidden = false;
+    document.body.classList.toggle('ai-chat-modal-open', isOpen && isChatModalViewport());
 }
 
 function formatSourceDate(value) {
@@ -150,16 +149,17 @@ function openChatWindow() {
     setTimeout(() => input?.focus(), 120);
 }
 
-function closeChatWindow() {
+function closeChatWindow({ restoreFocus = true } = {}) {
     if (isChatSending) stopActiveStream('close');
     const { toggle, window: chatWindow } = getChatElements();
     if (!toggle || !chatWindow) return;
+    const wasVisible = chatWindow.classList.contains('ai-chat-window--visible');
     chatWindow.classList.remove('ai-chat-window--visible');
     chatWindow.classList.add('ai-chat-window--hidden');
     toggle.setAttribute('aria-expanded', 'false');
     chatWindow.setAttribute('aria-hidden', 'true');
     syncChatWindowPresentation(false);
-    toggle.focus();
+    if (restoreFocus && wasVisible && toggle.offsetParent !== null) toggle.focus();
 }
 
 function scrollChatToBottom() {
@@ -817,36 +817,25 @@ function initChatbotWidget() {
     toggle.addEventListener('click', (event) => {
         event.stopPropagation();
         const isVisible = chatWindow.classList.contains('ai-chat-window--visible');
-        if (isVisible) closeChatWindow();
+        if (window.AppNavigation?.isMobile?.()) {
+            window.AppNavigation.activate(isVisible ? 'map' : 'chat');
+        } else if (isVisible) closeChatWindow();
         else openChatWindow();
     });
 
     close?.addEventListener('click', (event) => {
         event.stopPropagation();
-        closeChatWindow();
+        if (window.AppNavigation?.isMobile?.()) window.AppNavigation.activate('map');
+        else closeChatWindow();
     });
 
     chatWindow.addEventListener('click', event => event.stopPropagation());
     chatWindow.addEventListener('keydown', event => {
         if (event.key === 'Escape') {
             event.preventDefault();
-            closeChatWindow();
+            if (window.AppNavigation?.isMobile?.()) window.AppNavigation.activate('map');
+            else closeChatWindow();
             return;
-        }
-        if (event.key === 'Tab' && isChatModalViewport()) {
-            const focusable = Array.from(chatWindow.querySelectorAll(
-                'button:not([disabled]), input:not([disabled])'
-            )).filter(el => el.offsetParent !== null);
-            if (focusable.length < 2) return;
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            }
         }
     });
     input?.addEventListener('keydown', handleChatEnter);
@@ -855,6 +844,11 @@ function initChatbotWidget() {
     setChatInputEnabled(isLocalHost, isLocalHost ? CHATBOT_TEXT.placeholder : CHATBOT_TEXT.captchaPlaceholder);
     window.addEventListener('resize', () => {
         if (isChatWindowVisible()) syncChatWindowPresentation(true);
+    });
+
+    window.AppNavigation?.registerSurface('chat', {
+        activate: openChatWindow,
+        deactivate: () => closeChatWindow({ restoreFocus: false })
     });
 
     if (isLocalHost) {
@@ -868,6 +862,11 @@ function initChatbotWidget() {
 
 window.handleChatSend = handleChatSend;
 window.handleChatEnter = handleChatEnter;
+window.ChatbotUI = {
+    open: openChatWindow,
+    close: closeChatWindow,
+    isOpen: isChatWindowVisible
+};
 
 if (typeof module !== 'undefined' && module.exports) {
     module.exports.__test = {

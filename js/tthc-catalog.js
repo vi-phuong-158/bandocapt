@@ -2,7 +2,7 @@
 // Dữ liệu tĩnh từ data/tthc-catalog.json (sinh bởi scripts/generate-tthc-catalog.js).
 // Public API: window.TthcCatalog.open() / openProcedure(procedureId) / close().
 
-const TTHC_MODAL_BREAKPOINT = 768;
+const TTHC_MODAL_BREAKPOINT = 767;
 const TTHC_DETAIL_FALLBACK = 'Xem nội dung chi tiết bên dưới.';
 const TTHC_FEE_FALLBACK = 'Chưa có thông tin chắc chắn trong dữ liệu hiện có.';
 
@@ -350,18 +350,16 @@ function loadAndRender(procedureId) {
 // Đóng cửa sổ chat nếu đang mở (chat và catalog dùng chung góc màn hình, loại trừ lẫn nhau).
 function closeChatIfOpen() {
     const chatWindow = document.getElementById('ai-chat-window');
-    const chatToggle = document.getElementById('ai-chat-toggle-btn');
     if (chatWindow?.classList.contains('ai-chat-window--visible')) {
-        chatToggle?.click(); // dùng toggle để chatbot.js tự dọn state
+        window.ChatbotUI?.close?.({ restoreFocus: false });
     }
 }
 
 function syncCatalogPresentation(isOpen) {
     const { window: catalogWindow } = getCatalogElements();
     if (!catalogWindow) return;
-    const isModal = isOpen && isTthcModalViewport();
-    catalogWindow.setAttribute('aria-modal', isModal ? 'true' : 'false');
-    document.body.classList.toggle('tthc-catalog-modal-open', isModal);
+    catalogWindow.setAttribute('aria-modal', 'false');
+    document.body.classList.toggle('tthc-catalog-modal-open', isOpen && isTthcModalViewport());
 }
 
 function openCatalogWindow(procedureId) {
@@ -382,17 +380,20 @@ function openCatalogWindow(procedureId) {
     setTimeout(() => getCatalogElements().close?.focus(), 120);
 }
 
-function closeCatalogWindow() {
+function closeCatalogWindow({ restoreFocus = true } = {}) {
     const { toggle, window: catalogWindow } = getCatalogElements();
     if (!catalogWindow) return;
+    const wasVisible = isCatalogWindowVisible();
     catalogWindow.classList.remove('tthc-catalog-window--visible');
     catalogWindow.classList.add('tthc-catalog-window--hidden');
     catalogWindow.setAttribute('aria-hidden', 'true');
     toggle?.setAttribute('aria-expanded', 'false');
     document.body.classList.remove('tthc-catalog-open');
     syncCatalogPresentation(false);
-    if (lastFocusedTrigger && document.contains(lastFocusedTrigger)) lastFocusedTrigger.focus();
-    else toggle?.focus();
+    if (!restoreFocus || !wasVisible) return;
+    if (lastFocusedTrigger && document.contains(lastFocusedTrigger) && lastFocusedTrigger.offsetParent !== null) {
+        lastFocusedTrigger.focus();
+    } else if (toggle?.offsetParent !== null) toggle.focus();
 }
 
 function isDetailViewOpen() {
@@ -436,13 +437,16 @@ function initTthcCatalog() {
 
     toggle.addEventListener('click', event => {
         event.stopPropagation();
-        if (isCatalogWindowVisible()) closeCatalogWindow();
+        if (window.AppNavigation?.isMobile?.()) {
+            window.AppNavigation.activate(isCatalogWindowVisible() ? 'map' : 'procedures');
+        } else if (isCatalogWindowVisible()) closeCatalogWindow();
         else openCatalogWindow();
     });
 
     close?.addEventListener('click', event => {
         event.stopPropagation();
-        closeCatalogWindow();
+        if (window.AppNavigation?.isMobile?.()) window.AppNavigation.activate('map');
+        else closeCatalogWindow();
     });
 
     back?.addEventListener('click', event => {
@@ -455,28 +459,22 @@ function initTthcCatalog() {
         if (event.key === 'Escape') {
             event.preventDefault();
             if (isDetailViewOpen()) showListView();
+            else if (window.AppNavigation?.isMobile?.()) window.AppNavigation.activate('map');
             else closeCatalogWindow();
             return;
-        }
-        if (event.key === 'Tab' && isTthcModalViewport()) {
-            const focusable = Array.from(catalogWindow.querySelectorAll(
-                'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
-            )).filter(el => el.offsetParent !== null && !el.hidden);
-            if (focusable.length < 2) return;
-            const first = focusable[0];
-            const last = focusable[focusable.length - 1];
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            }
         }
     });
 
     window.addEventListener('resize', () => {
         if (isCatalogWindowVisible()) syncCatalogPresentation(true);
+    });
+
+    window.AppNavigation?.registerSurface('procedures', {
+        activate: payload => {
+            if (payload?.title) openCatalogByTitleDirect(payload.title);
+            else openCatalogWindow(payload?.procedureId);
+        },
+        deactivate: () => closeCatalogWindow({ restoreFocus: false })
     });
 
     // Ẩn nút mở catalog khi cửa sổ chat đang mở (tránh đè lên nhau ở góc dưới-trái).
@@ -503,7 +501,7 @@ function findProcedureIdByTitle(title) {
 
 // Mở danh mục và điều hướng theo title (lazy-load như openProcedure). Không khớp
 // chính xác thì về list view kèm thông báo — không mở nhầm thủ tục.
-function openCatalogByTitle(title) {
+function openCatalogByTitleDirect(title) {
     openCatalogWindow();
     ensureCatalogLoaded().then(() => {
         const id = findProcedureIdByTitle(title);
@@ -512,10 +510,22 @@ function openCatalogByTitle(title) {
     }).catch(() => {});
 }
 
+function openCatalogByTitle(title) {
+    if (window.AppNavigation?.isMobile?.()) {
+        window.AppNavigation.activate('procedures', { title });
+        return;
+    }
+    openCatalogByTitleDirect(title);
+}
+
 if (typeof window !== 'undefined') {
     window.TthcCatalog = {
-        open: () => openCatalogWindow(),
-        openProcedure: procedureId => openCatalogWindow(procedureId),
+        open: () => window.AppNavigation?.isMobile?.()
+            ? window.AppNavigation.activate('procedures')
+            : openCatalogWindow(),
+        openProcedure: procedureId => window.AppNavigation?.isMobile?.()
+            ? window.AppNavigation.activate('procedures', { procedureId })
+            : openCatalogWindow(procedureId),
         openByTitle: openCatalogByTitle,
         findByTitle: findProcedureIdByTitle,
         // Nạp trước catalog trong nền (không mở panel) để chat resolve guide theo title.
