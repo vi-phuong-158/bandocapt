@@ -5,6 +5,57 @@
 
 ---
 
+## [2026-07-11] Eval-mode output: gate 3-điều-kiện, tái dùng EVAL_BYPASS_TOKEN (T1.3)
+
+- **Quyết định:** Event SSE `done` đính thêm trường `eval` (trace retrieval: standaloneQuery, category,
+  toàn bộ match trước/sau lọc, lý do loại từng match, toàn văn 4 docs cuối) để bộ chấm grounding (T1.5)
+  kiểm được Recall@4/fact-in-source mà không phải gọi Pinecone lần hai. Cổng bật là hàm thuần
+  `shouldAttachEvalDebug` — true CHỈ khi `NODE_ENV !== 'production'` **AND** `captchaToken` khớp
+  `EVAL_BYPASS_TOKEN` **AND** body `evalDebug === true`.
+- **Vì sao tái dùng `EVAL_BYPASS_TOKEN`** (thay vì token eval riêng): token này đã là bí mật chỉ bộ
+  regression biết (đang dùng để bỏ Turnstile + rate limit), non-production-only, và có sẵn cảnh báo
+  khởi động nếu lỡ đặt trên production (`api/chat.js` dòng ~22). Thêm token thứ hai chỉ tăng bề mặt
+  cấu hình mà không tăng an toàn. Cờ `evalDebug` tách riêng để eval-run bình thường (đo latency) không
+  kéo theo payload trace nặng trừ khi chủ động xin.
+- **Đánh đổi:** `eval` chứa toàn văn tài liệu nội bộ → tuyệt đối không được rò production; guard bằng
+  `NODE_ENV` (điều kiện đầu tiên, không có đường vòng) + unit test 2 ca bảo mật. Trace chỉ dựng khi
+  evalMode (`evalTrace = null` mặc định) nên hot-path production không tốn thêm gì. KHÔNG đụng 4 điểm
+  `done` khác (cache-hit, deterministic bare-place…) vì chúng không có dữ liệu retrieval.
+- **Người quyết định:** user (kế hoạch) / Claude Code (Opus 4.8). Chi tiết: `07-parallel-task-plan.md` (T1.3).
+
+---
+
+## [2026-07-11] Nội dung: mốc khai báo 12/24 giờ VẪN áp dụng — chỉ luồng phiếu giấy/NA17 là lỗi thời (T1.1)
+
+- **Bối cảnh:** Review 2026-07-11 phát hiện nguy cơ mâu thuẫn trong bộ chấm regression: nếu vừa
+  cấm F01 hướng dẫn phiếu giấy vừa không phân biệt rõ, bộ chấm có thể vô tình cấm luôn mốc "12 giờ /
+  24 giờ" — trong khi TL01 lại BẮT BUỘC nêu đúng mốc này, và `allowedConstants` trong
+  `api/chat.js` whitelist "12 giờ"/"24 giờ" làm hằng số pháp lý lõi. Ba chỗ này phải nhất quán
+  trước khi codify vào `test/regression-expectations.json` (T1.2).
+- **Quyết định (nội dung, do người dùng chốt):**
+  - **LỖI THỜI (phải chặn):** luồng khai báo bằng **phiếu giấy**, mẫu **NA17**, khai báo qua
+    **fax/điện thoại**, và hướng dẫn **nộp phiếu trực tiếp** tại trụ sở như con đường chính.
+  - **CÒN HIỆU LỰC (giữ nguyên):** **hạn khai báo tạm trú 12 giờ** (hoặc **24 giờ** tại vùng
+    sâu/vùng xa) — mốc thời hạn này ÁP DỤNG cho khai báo **trực tuyến qua KBTT**
+    (`https://kbtt.xuatnhapcanh.gov.vn`). Lỗi thời là *phương thức* (giấy), KHÔNG phải *thời hạn*.
+- **Đồng bộ 3 chỗ (điều kiện hoàn thành T1.1):**
+  1. **F01** (`test/cau-hoi/bo-test-regression-30-cau-nguoi-nuoc-ngoai-tthc.md`): kỳ vọng bổ sung
+     "cấm phiếu giấy / NA17 / fax / nộp trực tiếp; KHÔNG cấm mốc 12–24 giờ". F01 mang trạng thái
+     `DEFERRED_SOURCE_GOVERNANCE` — được phép fail đến hết Giai đoạn 2, chỉ Giai đoạn 3 mới đóng
+     (khi metadata supersession lọc được nguồn giấy lỗi thời khỏi retrieval). CẤM sửa nhanh bằng
+     prompt/regex chặn từ khóa.
+  2. **TL01**: giữ nguyên yêu cầu trả đúng mốc 12 giờ / 24 giờ khi RAG có căn cứ; phân biệt "hạn
+     khai báo" với "thời gian xử lý".
+  3. **`allowedConstants`** (`api/chat.js`, quanh dòng 2298): **GIỮ NGUYÊN** "12 giờ"/"24 giờ" +
+     các bản dịch đã duyệt. T1.1 KHÔNG sửa `api/chat.js` (thuộc LANE-CORE) — chỉ xác minh còn nguyên.
+- **Đánh đổi:** F01 baseline sẽ đỏ (deferred) cho tới Giai đoạn 3 — chấp nhận có chủ đích để
+  không che lỗi nguồn lỗi thời bằng thủ thuật prompt. Runner phải tự gắn nhãn deferred (không tính
+  hard fail) để báo cáo baseline không nhiễu.
+- **Người quyết định:** user (chốt nội dung 12/24h) / Claude Code (Opus 4.8). Chi tiết task:
+  `docs/brain/07-parallel-task-plan.md` (T1.1).
+
+---
+
 ## [2026-07-10] 3 run regression sau Giai doan 2/3 — CHUA dat chuan "sach", phat hien GV02 flaky
 
 - **Ket qua:** Chay 3 lan lien tiep `node scripts/run-regression.js` tren nhanh `feat/chat-ux` (gom code Giai doan 1-3). Khong co `LEGAL_HALLUCINATION` xac nhan o ca 3 lan. Nhung KHONG dat tieu chi "sach" nghiem ngat: Run 1 co 1 FAIL tu cham (GD02 — regex harness doi "tre em" nhung bot viet "tre", noi dung THUC TE dung/khong mien tru, Run 2+3 cung cau PASS → la loi harness, khong phai loi bot) va 1 ERROR `BLOCKED_CONTENT` (GV02); Run 2 co 2 ERROR `BLOCKED_CONTENT` (GV02 + EV01); Run 3 co 1 TRUNCATED (GV02, nhung xu ly dung thiet ke — lui ve ranh gioi cau + notice, khong dut giua cau).

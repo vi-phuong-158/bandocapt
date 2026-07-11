@@ -5,12 +5,53 @@
 
 ---
 
+## [2026-07-11] T1.4 + T1.5 — Bộ chấm regression 2 lớp (deterministic + grounding)
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** Thêm `lib/regression-grader.js` — bộ chấm thuần, đọc `test/regression-expectations.json` (T1.2). **Lớp 1 (T1.4 deterministic):** `required_facts` (match all/any) phải hiện diện; `forbidden_facts` per-ca + `globalForbidden` (guard xuyên suốt: VNeID/luật cư trú/mốc 23h-08h/thông báo lưu trú/đăng ký tạm trú) khớp → hard fail; ngôn ngữ (`detectLanguage` heuristic mật độ dấu, phân biệt vi/en/zh, không nhầm khi câu Anh có tên riêng tiếng Việt); verbosity theo `verbosity_budget` per-ca (soft) + truncated (soft); lỗi provider báo riêng (`providerError`), KHÔNG tính content hard fail. **Lớp 2 (T1.5 grounding):** dùng eval trace của T1.3 — Recall@4 + MRR trên `expected_procedure_ids` (khớp mềm 2 chiều `matt26265`⊆`tthc_matt26265`), source recall trên `expected_source_ids`, và fact-grounding (required_fact `grounding_required=true` đã khẳng định trong answer thì phải có trong `matchedDocs`, nếu không → `ungrounded_fact`). **Verdict:** PASS / HARD_FAIL / DEFERRED_FAIL — ca `status=DEFERRED_SOURCE_GOVERNANCE` (F01) fail thì gắn DEFERRED_FAIL, KHÔNG chặn gate hard-fail. Wiring vào `scripts/run-regression.js`: gửi `evalDebug:true`, bắt `data.eval`, xóa `GRADED_CASES` (7 ca hardcode) + `extractHaystack`, chấm đủ 30 ca; báo cáo tách PASS/HARD_FAIL/DEFERRED_FAIL/PROVIDER_ERROR + dòng gate (0 hard fail) + grounding metric TB; `exitCode=1` chỉ khi có hard fail (deferred/provider error không fail CI).
+- **File đã sửa:** `lib/regression-grader.js` (mới), `test/regression-grader.test.js` (mới, 19 test), `scripts/run-regression.js`, `docs/brain/01-architecture.md` (Code Graph), `docs/brain/07-parallel-task-plan.md` (T1.4/T1.5→DONE), `docs/brain/06-ai-working-log.md`
+- **Lý do:** Bộ chấm cũ chỉ tự chấm 7/30 ca, không tách hard/deferred, không đo grounding — báo cáo baseline không đủ tin cậy làm mốc (điểm P0 của review). T1.4/T1.5 chấm đủ 30 với 2 lớp + tách metric để mọi giai đoạn sau đo được thật.
+- **Kiểm tra:** `node --check` runner + grader OK. `test/regression-grader.test.js` 19/19 (gồm: verdict deferred cho F01, khớp mềm procedure id, ungrounded fact, detectLanguage đa ngôn ngữ, và **invariant tích hợp: 30 ID bảng câu hỏi khớp đúng 30 key expectations**). `npm test` **183/183** (165→183, +18). Chưa chạy live 30 câu (cần API key — thuộc T1.7 bước người dùng); wiring eval trace sẽ được xác nhận thật khi chạy baseline.
+
+## [2026-07-11] T1.3 — Eval-mode output trong event `done` của api/chat.js
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** Thêm trace retrieval cho bộ chấm grounding (T1.5) vào event SSE `done`, gated chặt để production không bao giờ lộ. (1) Hàm thuần `shouldAttachEvalDebug({nodeEnv, evalBypassToken, captchaToken, evalDebugFlag})`: trả true CHỈ khi `NODE_ENV !== 'production'` **AND** `EVAL_BYPASS_TOKEN` được đặt & khớp `captchaToken` **AND** `evalDebug === true` (boolean). (2) Hàm `summarizeMatchForEval(m)`: rút gọn match Pinecone → id/score/procedure_id/source_type/source_file/title + metadata hiệu lực (`review_status`/`valid_from`/`valid_to`/`supersedes`, chuẩn bị Giai đoạn 3) + cờ exactTokenBoost. (3) Trong handler: tính `evalMode` sau `isEvalRun`; dựng `evalTrace` (null khi không phải evalMode) cạnh `matchedDocs`; cuối block retrieval thu thập `matchesRaw`, `matchesFinal` (kèm rank) và `excluded` (lý do loại từng match: `location_vector`/`wrong_branch`/`below_threshold`/`rerank_or_topk_cut`) bằng cách so id qua từng tầng lọc; đính `matchedDocs` (đúng chuỗi vào prompt) vào trace tại điểm `done`; spread `...(evalMode && evalTrace ? {eval} : {})` vào event `done` chính (path streaming, KHÔNG đụng 4 điểm `done` khác vì cache/deterministic không có retrieval). Ghi thêm `standaloneQuery`(=searchQuery) và `classifyQuery`(=userMessage) để T2A soi chỗ query đang lệch. Export 2 hàm.
+- **File đã sửa:** `api/chat.js`, `test/eval-debug-output.test.js` (mới), `docs/brain/07-parallel-task-plan.md` (T1.3→DONE), `docs/brain/06-ai-working-log.md`
+- **Lý do:** Runner hiện chỉ nhận citation chips — không đủ để kiểm grounding (fact có trong nguồn đã retrieve không, expected source có trong top 4 không, Recall@4/MRR). T1.5 cần toàn văn 4 docs + toàn bộ match + lý do loại. Gated 3-điều-kiện-AND để không mở lỗ rò dữ liệu nội bộ trên production.
+- **Kiểm tra:** `node --check api/chat.js` OK. `test/eval-debug-output.test.js` 8/8 (gồm 2 ca bảo mật: production + đủ token/cờ vẫn KHÔNG trả `eval`; production + token trống vẫn false). `npm test` 165/165 (157→165, +8). Không đụng client `js/gemini.js` (client cũ bỏ qua trường `eval` lạ trong `done` an toàn). Chưa smoke live (cần key + evalDebug thật) — sẽ xác nhận khi chạy baseline T1.7.
+
+---
+
+## [2026-07-11] T1.2 — Codify expectations cho đủ 30 ca regression
+- **Agent:** Codex
+- **Thay đổi:** Tạo `test/regression-expectations.json` schema version 1, keyed đủ 30 ID. Mỗi ca khai báo fact bắt buộc/cấm, procedure/source kỳ vọng, ngôn ngữ, thẩm quyền, abstention/clarification và ngân sách 120/250 từ; F01 được gắn `DEFERRED_SOURCE_GOVERNANCE`, chỉ cấm luồng giấy/NA17/fax/nộp trực tiếp và không cấm mốc 12/24 giờ; TL01 bắt buộc cả hai mốc cùng phân biệt hạn khai báo với thời gian xử lý. Đánh dấu T1.2 hoàn tất trong kế hoạch phân làn.
+- **File đã sửa:** `test/regression-expectations.json` (mới), `docs/brain/07-parallel-task-plan.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Cung cấp thước đo có cấu trúc và nhất quán cho T1.4/T1.5, thay cho bộ chấm hardcode chỉ phủ một phần ca regression.
+- **Kiểm tra:** Parse JSON; đối chiếu tự động đúng 30/30 ID với bảng câu hỏi; kiểm tra đủ trường bắt buộc, compile toàn bộ regex, ngân sách hợp lệ và invariant F01/TL01; review tay từng ID; chạy `npm test`.
+
+---
+
 ## [2026-07-11] Xây bộ test mở rộng toàn diện 198 câu + 10 hội thoại cho chatbot
 - **Agent:** Claude Code (Fable 5)
 - **Thay đổi:** Tạo `test/cau-hoi/bo-test-mo-rong-toan-dien-tthc.md` — bộ câu hỏi test mới gồm 198 câu đơn (nhóm N19–N38) và 10 kịch bản hội thoại nhiều lượt (H06–H15), không trùng ID với 2 bộ cũ. Phủ các mảng corpus chưa từng được test: cư trú công dân VN (chiều ngược của split-intent NNN), căn cước/định danh điện tử, hộ chiếu công dân, đăng ký xe, ngành nghề ANTT, vũ khí thô sơ, khiếu nại tố cáo, giấy thông hành/ABTC, người không quốc tịch, khu vực cấm biên giới, xác nhận thông tin XNC, bản đồ/trụ sở nâng cao (địa danh ngoài tỉnh/không tồn tại/giờ làm việc), cặp thủ tục dễ nhầm, lệ phí/mẫu đơn, ngoài phạm vi, đa ngôn ngữ mở rộng (Nhật/Pháp/Nga/phồn thể/trộn ngôn ngữ), input bất thường (PII, script tag, base64, câu siêu dài), prompt injection nâng cao, tình huống khẩn cấp/cảm xúc, và đối tượng NNN bổ sung (du học sinh, tour, miễn thị thực, thường trú). Giữ nguyên khung chấm 6 tiêu chí + 12 mã lỗi của bộ sâu, bổ sung 2 mã mới `EMERGENCY_MISS` và `PII_ECHO`. Kèm bộ rút gọn đề xuất và ghi chú chấm riêng cho từng nhóm mới.
 - **File đã sửa:** `test/cau-hoi/bo-test-mo-rong-toan-dien-tthc.md` (mới), `docs/brain/06-ai-working-log.md`
 - **Lý do:** User yêu cầu bộ test lớn hơn, bao trùm tình huống hơn. Khảo sát cho thấy 2 bộ hiện có (30 câu regression + 130 câu sâu) chỉ phủ mảng người nước ngoài, trong khi catalog TTHC/Pinecone thực tế có 17 lĩnh vực; các câu hỏi công dân, khẩn cấp, edge input và injection nâng cao hoàn toàn chưa có test. Câu hỏi mới được bám theo danh sách thủ tục thật trong `data/tthc-catalog.json` (92 mục) để kỳ vọng khớp corpus.
 - **Kiểm tra:** `grep -c` xác nhận đúng 198 dòng câu hỏi + 10 kịch bản H. File chỉ là tài liệu test (không đổi code/runtime); `scripts/run-regression.js` không parse file này (chỉ parse bảng `| STT |` của bộ 30 câu) nên không ảnh hưởng pipeline hiện có — đã ghi chú rõ trong file cách trích câu sang định dạng runner khi cần chạy tự động.
+
+---
+
+## [2026-07-11] T1.1 — Chốt quyết định nội dung 12/24h + đồng bộ F01/TL01
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** Thực hiện task T1.1 của kế hoạch (file 07). (1) `03-decisions.md`: thêm entry chốt nội dung — chỉ luồng phiếu giấy/NA17/fax/nộp trực tiếp là lỗi thời; mốc hạn khai báo 12 giờ (24 giờ vùng sâu/xa) VẪN áp dụng cho khai báo trực tuyến KBTT. Ghi rõ 3 chỗ phải nhất quán (F01 expectation, TL01 grading, `allowedConstants`) và F01 mang trạng thái `DEFERRED_SOURCE_GOVERNANCE` (đóng ở Giai đoạn 3, cấm prompt-hack). (2) `bo-test-regression-30-cau-*.md`: F01 bổ sung "cấm phiếu giấy/NA17/fax/nộp trực tiếp, không cấm 12–24 giờ, baseline deferred"; TL01 nêu rõ trả đúng 12/24 giờ + phân biệt hạn khai báo với thời gian xử lý. (3) Xác minh `allowedConstants` trong `api/chat.js` (dòng 2298-2304) CÒN NGUYÊN "12 giờ"/"24 giờ" + 3 bản dịch — không sửa (thuộc LANE-CORE, ngoài phạm vi T1.1).
+- **File đã sửa:** `docs/brain/03-decisions.md`, `test/cau-hoi/bo-test-regression-30-cau-nguoi-nuoc-ngoai-tthc.md`, `docs/brain/07-parallel-task-plan.md` (T1.1→DONE), `docs/brain/06-ai-working-log.md`
+- **Lý do:** Gỡ mâu thuẫn tiềm ẩn trong bộ chấm (cấm phiếu giấy dễ kéo theo cấm nhầm mốc giờ mà TL01 lại bắt buộc). Chốt nội dung trước để T1.2 (expectations JSON) codify không lệch.
+- **Kiểm tra:** Chỉ docs + bảng câu hỏi test (không đụng code chạy). Đối chiếu 3 chỗ nhất quán: F01/TL01 trong bảng test đã trỏ về quyết định 2026-07-11; `allowedConstants` xác nhận còn 12/24 giờ. Không cần `npm test`.
+
+## [2026-07-11] Lập kế hoạch task song song cho 2 agent (Claude Code + Codex)
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** Tạo `docs/brain/07-parallel-task-plan.md` — chia "Kế hoạch khắc phục toàn diện 4 giai đoạn" (đã review và chốt cùng người dùng 2026-07-11) thành ~30 task nhỏ, mỗi task gắn: làn sở hữu file (LANE-CORE/EVAL/FE/DATA/DOCS), agent đề xuất, mức trí tuệ cần (CAO/TRUNG/THẤP), phụ thuộc, trạng thái. Kèm "Luật phân làn" chống conflict khi 2 agent chạy song song (quy tắc quan trọng nhất: không bao giờ 2 nhánh cùng sửa `api/chat.js`; task LANE-CORE làm tuần tự). Cập nhật `04-current-tasks.md` mục "Đang làm" trỏ sang file 07 và ghi rõ các backlog cũ được kế hoạch hấp thụ (TASK-UX-01-EXT mục 1, TASK-P0-04-EXT, TASK-FIX-01 mục telemetry, bước 3-run cho feat/rag-accuracy).
+- **File đã sửa:** `docs/brain/07-parallel-task-plan.md` (mới), `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Người dùng muốn dùng đồng thời ChatGPT Codex và Claude Code sửa chung dự án — cần nguồn sự thật chung về task, thứ tự phụ thuộc và quyền sở hữu file để 2 agent không giẫm chân nhau.
+- **Kiểm tra:** Chỉ thay đổi docs, không đụng code — không cần chạy test. Xác nhận task đầu tiên chưa bắt đầu (mọi task ở trạng thái TODO); quyết định nội dung 12/24h sẽ được ghi vào `03-decisions.md` ở task T1.1.
 
 ---
 
