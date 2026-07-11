@@ -934,3 +934,12 @@
 - **File da sua:** `index.html`, `styles.css`, `DESIGN_SYSTEM.md`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** User cung cap bieu tuong chatbot thuong hieu de dung truc tiep o thanh bottom.
 - **Kiem tra:** `npm test`; `npm run build`; kiem tra thu cong viewport mobile va xac nhan asset co trong `dist/assets/`.
+
+---
+
+## [2026-07-11] Hien anh tru so o detail mobile khi co du lieu that
+- **Agent:** Codex
+- **Thay doi:** Preview 164px van khong hien anh. Khi mo detail mobile, hero hien lai neu `imageUrl` la URL Google da allowlist; neu khong co anh that, hero an va preview ten/dia chi tiep tuc lam header. Khong dung logo thay the nhu anh tru so tren mobile.
+- **File da sua:** `app.js`, `styles.css`, `test/e2e/civic-mobile-ui.spec.js`, `docs/brain/06-ai-working-log.md`
+- **Ly do:** Quy tac an hero dang ap dung cho ca detail mo rong, khien anh tru so that khong bao gio hien tren mobile.
+- **Kiem tra:** `npm test`; `npm run build`; `npm run test:e2e`.

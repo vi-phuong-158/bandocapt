@@ -1916,6 +1916,15 @@ body.tthc-catalog-modal-open { overflow: hidden; }
     }
 
     #detail-hero {
+        display: block;
+    }
+
+    #detail-hero[hidden],
+    #detail-panel[data-sheet-state="collapsed"] #detail-hero {
+        display: none;
+    }
+
+    #detail-panel.has-detail-image[data-sheet-state="expanded"] #location-preview {
         display: none;
     }
 

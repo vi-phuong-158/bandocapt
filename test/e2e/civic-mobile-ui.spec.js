@@ -52,6 +52,8 @@ test('mobile preview, location control and persistent navigation do not overlap'
 
     await page.locator('#preview-expand-btn').click();
     await expect(page.locator('#detail-panel')).toHaveAttribute('data-sheet-state', 'expanded');
+    await expect(page.locator('#detail-hero')).toBeHidden();
+    await expect(page.locator('#location-preview')).toBeVisible();
     await expect(page.locator('#map-actions')).not.toBeVisible();
     await expect(page.locator('#mobile-bottom-nav')).toBeVisible();
 });

@@ -19,6 +19,7 @@ const detailPhone = document.getElementById("detail-phone");
 const detailPhoneLink = document.getElementById("detail-phone-link");
 const detailHours = document.getElementById("detail-hours");
 const detailHoursContainer = document.getElementById("detail-hours-container");
+const detailHero = document.getElementById("detail-hero");
 const detailImage = document.getElementById("detail-image");
 const actionDirections = document.getElementById("action-directions");
 const actionCall = document.getElementById("action-call");
@@ -349,6 +350,18 @@ function renderLocationPreview(loc, isPolice) {
   previewDistance.hidden = !distance;
 }
 
+function isAllowedLocationImage(imageUrl) {
+  if (!imageUrl) return false;
+  try {
+    const { hostname } = new URL(imageUrl);
+    return hostname.endsWith('.googleusercontent.com') ||
+      hostname.endsWith('.google.com') ||
+      hostname === 'drive.google.com';
+  } catch {
+    return false;
+  }
+}
+
 function openDetailPanel(loc, trigger = null) {
   detailTrigger = trigger;
   previousSelectedLocation = currentlySelectedLocation;
@@ -373,21 +386,18 @@ detailBadge.textContent = isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD
 detailTitle.textContent = loc.name;
   detailTitle.className = "font-display text-[26px] md:text-[28px] font-bold leading-tight drop-shadow-md text-white";
 
-  const isAllowedImage = loc.imageUrl && (() => {
-    try {
-      const { hostname } = new URL(loc.imageUrl);
-      return hostname.endsWith('.googleusercontent.com') ||
-             hostname.endsWith('.google.com') ||
-             hostname === 'drive.google.com';
-    } catch { return false; }
-  })();
+  const isAllowedImage = isAllowedLocationImage(loc.imageUrl);
   if (isAllowedImage) {
+    detailHero.hidden = false;
+    detailPanel.classList.add("has-detail-image");
     detailImage.src = loc.imageUrl;
     detailImage.alt = 'Ảnh trụ sở';
     detailImage.loading = 'lazy';
     detailImage.referrerPolicy = 'no-referrer';
     detailImage.className = 'w-full h-full object-cover opacity-90 transform-gpu';
   } else {
+    detailHero.hidden = isMobileViewport();
+    detailPanel.classList.remove("has-detail-image");
     detailImage.src = 'assets/logo.png';
     detailImage.alt = 'Biểu trưng Công an nhân dân';
     detailImage.className = 'w-full h-full object-contain p-10 opacity-90 transform-gpu';
@@ -906,6 +916,11 @@ function syncPanelsToViewport() {
   if (activeSheetState === SHEET_STATES.HIDDEN) {
     setSheetState(SHEET_STATES.HIDDEN, { animate: false });
     return;
+  }
+  if (currentlySelectedLocation) {
+    const hasDetailImage = isAllowedLocationImage(currentlySelectedLocation.imageUrl);
+    detailHero.hidden = isMobileViewport() && !hasDetailImage;
+    detailPanel.classList.toggle("has-detail-image", hasDetailImage);
   }
   setSheetState(
     isMobileViewport() ? SHEET_STATES.COLLAPSED : SHEET_STATES.EXPANDED,
