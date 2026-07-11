@@ -163,7 +163,8 @@ Chat source co procedure_id
 {
   "userMessage": "string (max 1000 ky tu)",
   "history": [{ "role": "user|model", "parts": [{ "text": "..." }] }],
-  "captchaToken": "string"
+  "captchaToken": "string",
+  "evalDebug": "boolean (tuy chon, CHI eval-run non-production — xem T1.3)"
 }
 ```
 
@@ -178,6 +179,12 @@ SSE response events:
 - `{ "text": "chunk" }`
 - `{ "done": true, "fullText": "...", "history": [...], "sources": [...] }`
 - `{ "error": "..." }`
+
+**Eval-mode output (T1.3):** event `done` đính thêm trường `eval` (trace retrieval cho bộ chấm
+grounding) CHỈ khi đủ 3 điều kiện AND: `NODE_ENV !== 'production'` + `captchaToken === EVAL_BYPASS_TOKEN`
++ body `evalDebug: true` (`shouldAttachEvalDebug` trong `api/chat.js`). Production KHÔNG BAO GIỜ trả
+`eval`. Cấu trúc: `{ standaloneQuery, classifyQuery, category, matchesRaw[], matchesFinal[] (kèm rank),
+excluded[] (id + lý do: location_vector/wrong_branch/below_threshold/rerank_or_topk_cut), matchedDocs }`.
 
 ### `POST /api/feedback`
 

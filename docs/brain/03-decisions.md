@@ -5,6 +5,26 @@
 
 ---
 
+## [2026-07-11] Eval-mode output: gate 3-điều-kiện, tái dùng EVAL_BYPASS_TOKEN (T1.3)
+
+- **Quyết định:** Event SSE `done` đính thêm trường `eval` (trace retrieval: standaloneQuery, category,
+  toàn bộ match trước/sau lọc, lý do loại từng match, toàn văn 4 docs cuối) để bộ chấm grounding (T1.5)
+  kiểm được Recall@4/fact-in-source mà không phải gọi Pinecone lần hai. Cổng bật là hàm thuần
+  `shouldAttachEvalDebug` — true CHỈ khi `NODE_ENV !== 'production'` **AND** `captchaToken` khớp
+  `EVAL_BYPASS_TOKEN` **AND** body `evalDebug === true`.
+- **Vì sao tái dùng `EVAL_BYPASS_TOKEN`** (thay vì token eval riêng): token này đã là bí mật chỉ bộ
+  regression biết (đang dùng để bỏ Turnstile + rate limit), non-production-only, và có sẵn cảnh báo
+  khởi động nếu lỡ đặt trên production (`api/chat.js` dòng ~22). Thêm token thứ hai chỉ tăng bề mặt
+  cấu hình mà không tăng an toàn. Cờ `evalDebug` tách riêng để eval-run bình thường (đo latency) không
+  kéo theo payload trace nặng trừ khi chủ động xin.
+- **Đánh đổi:** `eval` chứa toàn văn tài liệu nội bộ → tuyệt đối không được rò production; guard bằng
+  `NODE_ENV` (điều kiện đầu tiên, không có đường vòng) + unit test 2 ca bảo mật. Trace chỉ dựng khi
+  evalMode (`evalTrace = null` mặc định) nên hot-path production không tốn thêm gì. KHÔNG đụng 4 điểm
+  `done` khác (cache-hit, deterministic bare-place…) vì chúng không có dữ liệu retrieval.
+- **Người quyết định:** user (kế hoạch) / Claude Code (Opus 4.8). Chi tiết: `07-parallel-task-plan.md` (T1.3).
+
+---
+
 ## [2026-07-11] Nội dung: mốc khai báo 12/24 giờ VẪN áp dụng — chỉ luồng phiếu giấy/NA17 là lỗi thời (T1.1)
 
 - **Bối cảnh:** Review 2026-07-11 phát hiện nguy cơ mâu thuẫn trong bộ chấm regression: nếu vừa
