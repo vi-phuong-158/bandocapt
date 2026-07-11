@@ -5,6 +5,20 @@
 
 ---
 
+## [2026-07-11] T1.7 — 3 baseline live đầu tiên (key thật) — GATE ❌ KHÔNG ĐẠT
+- **Agent:** Claude Code (Opus 4.8) + người dùng (điền key thật vào `.env`)
+- **Thay đổi:** Không sửa code. Chạy `node scripts/run-regression.js` 3 lần liên tiếp trên `main` (sau merge PR #24/T1.6) trong worktree riêng (`../bandocapt-t1.7`, nhánh `eval/t1.7-baseline`) để không đụng việc Codex đang dở trong worktree chính. Commit 3 báo cáo + `regression-latest.md` vào `test/results/`.
+- **File đã sửa:** `test/results/regression-run-2026-07-11_06-31-01.md`, `regression-run-2026-07-11_06-37-33.md`, `regression-run-2026-07-11_06-43-38.md`, `regression-latest.md` (mới), `docs/brain/07-parallel-task-plan.md` (T1.7→DONE, ghi rõ gate đỏ), `docs/brain/06-ai-working-log.md`
+- **Lý do:** T1.4–T1.6 mới chỉ được xác nhận bằng test đơn vị/offline (key rỗng). T1.7 là lần đầu wiring (eval trace T1.3 + grader T1.4/T1.5 + báo cáo T1.6) chạy thật với Gemini/Pinecone/DeepSeek thật — cần biết baseline thật trước khi mở Giai đoạn 2.
+- **Kiểm tra / Kết quả (đây là PHÁT HIỆN, không phải lỗi wiring):**
+  - Cả 3 run: 30/30 ca tự chấm được (wiring OK, không exception). **Gate KHÔNG ĐẠT cả 3 lần**: HARD_FAIL 16/17/13 trên 30 (PASS 13/17/16). DEFERRED_FAIL luôn đúng 1 (F01, như kỳ vọng thiết kế).
+  - Grounding: Recall@4 TB 56.8–62.5%, MRR TB 0.59–0.65, Source recall TB 48–52.2%, Authority accuracy 55–72%.
+  - Latency: TB ~10-11s/câu, p95 tới 25s (đáng chú ý cho T2C sau này).
+  - **Hard fail lặp lại cả 3 lần (tín hiệu thật, không phải nhiễu):** TR01 (missing/ungrounded must_declare+ask_location), GV01 (ungrounded provincial_immigration), GV06 (forbidden ward_accepts_extension + ungrounded not_ward), EV04 (report_and_embassy), VP06 (missing refuse_backdating), DN02 (missing work_permit_does_not_replace), ON01 (ungrounded online_available), TL01 (missing deadline_not_processing — đáng chú ý vì đây chính là ca 12/24h của T1.1), GD02 (ungrounded child_also_declared), KC04 (missing/ungrounded english_guidance), EV07 (ungrounded chinese_evisa).
+  - **Fail chập chờn (1-2/3 run, nghi do model non-determinism):** TR05, GV02, DN01, TYPO01, TYPO02 (1 lần dính global_forbidden VNeID), PI01, LOC07 (2/3 lần trả sai ngôn ngữ — wrong_language:expected_en_got_vi).
+  - 2 PROVIDER_ERROR ở run 1 (không lặp lại ở run 2/3) — nghi rate-limit thoáng qua, không phải lỗi cấu hình (key đã xác nhận hợp lệ vì phần lớn câu trong cùng run vẫn trả lời được).
+  - **Không sửa gì trong lần này** — đúng phạm vi T1.7 chỉ là đo baseline. Danh sách hard-fail lặp lại ở trên là input trực tiếp cho T2A (fail-closed/standaloneQuery) và các task nội dung Giai đoạn 3; phần lớn `ungrounded_fact:*` gợi ý model đang thêm chi tiết không có trong tài liệu retrieve — đáng ưu tiên trước "missing_required_fact".
+
 ## [2026-07-11] T1.6 — Format báo cáo regression giàu hơn (hard/deferred/soft/latency)
 - **Agent:** Claude Code (Opus 4.8) — nhận task từ Codex theo yêu cầu người dùng
 - **Thay đổi:** Chỉ sửa `scripts/run-regression.js` (không đụng grader/logic chấm). (1) **Latency:** đo `Date.now()` bao quanh `runChat` (gồm retrieval + generation), gắn `latencyMs` vào cả nhánh thành công lẫn exception. (2) **Header:** thêm dòng `Authority accuracy` (tỉ lệ ca có kỳ vọng thẩm quyền được nêu đúng — advisory, đọc từ `grade.authority`) và `Latency: TB/median/p95 ms`. (3) **Section phân loại theo verdict** (chèn sau "Tóm tắt tự chấm"): `❌ Hard fail (n) — CHẶN GATE`, `🟡 Deferred fail (n)`, `⚠️ Soft warning (n)` (gộp VERBOSITY n/budget + TRUNCATED + soft khác qua Set, tránh trùng), `🔌 Provider error (n)` — mỗi section chỉ hiện khi có ca, liệt kê ID + lý do để đọc nhanh chỗ cần sửa. (4) **Bảng tổng hợp:** thêm cột `Verdict` và `Latency (ms)`. (5) **Chi tiết từng ca:** thêm dòng `Latency`. Không đổi gate (`exitCode=1` vẫn chỉ khi hard fail) và không đổi output grader.
