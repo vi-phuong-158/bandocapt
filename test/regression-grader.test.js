@@ -329,6 +329,15 @@ test('T1.11 LOC07: trả lời tiếng Anh chứa địa chỉ trụ sở tiến
     const graded = gradeDeterministic(EXPECTATIONS.cases.LOC07, { text: answer, wordCount: 39 });
     assert.equal(graded.hardFailures.length, 0, `${graded.hardFailures}`);
 
+    const observedMarkdownLabels = [
+        '**Công an Phường Thanh Miếu (Thanh Mieu Police Station)**',
+        '',
+        '- 📍 **Address:** Số 1028 Đường Hùng Vương, phường Thanh Miếu, tỉnh Phú Thọ',
+        '- ☎️ **Phone:** 02103863928',
+        '- [📍 Google Maps](https://www.google.com/maps/search/?api=1&query=21.304528,105.415528)',
+    ].join('\n');
+    assert.equal(detectLanguage(observedMarkdownLabels), 'en');
+
     // Chiều ngược: trả lời thuần tiếng Việt cho câu hỏi tiếng Anh VẪN bị bắt wrong_language.
     const viAnswer = 'Trụ sở Công an Phường Thanh Miếu nằm tại số 1028 Đường Hùng Vương, bạn có thể đến trực tiếp để được hướng dẫn thủ tục nhé.';
     const gradedVi = gradeDeterministic(EXPECTATIONS.cases.LOC07, { text: viAnswer, wordCount: 26 });
@@ -408,6 +417,20 @@ test('T1.11 GV02: khi RAG trả hồ sơ thì NA5 là hard fact; sponsor chỉ c
         wordCount: 15,
     });
     assert.ok(missingForm.hardFailures.includes('missing_required_fact:application_form'), `${missingForm.hardFailures}`);
+});
+
+test('T1.11 DN01: hai luồng nghĩa vụ có ngân sách 300 từ, vẫn cảnh báo khi vượt thật', () => {
+    assert.equal(EXPECTATIONS.cases.DN01.verbosity_budget, 300);
+    const withinBudget = gradeDeterministic(EXPECTATIONS.cases.DN01, {
+        text: 'Doanh nghiệp phải khai báo tạm trú và thực hiện thủ tục bảo lãnh thị thực hoặc thẻ tạm trú. Bạn cho biết xã/phường nơi người lao động lưu trú?',
+        wordCount: 286,
+    });
+    assert.ok(!withinBudget.softWarnings.some(w => w.startsWith('VERBOSITY')), `${withinBudget.softWarnings}`);
+    const overBudget = gradeDeterministic(EXPECTATIONS.cases.DN01, {
+        text: 'Doanh nghiệp phải khai báo tạm trú và thực hiện thủ tục bảo lãnh thị thực hoặc thẻ tạm trú. Bạn cho biết xã/phường nơi người lao động lưu trú?',
+        wordCount: 301,
+    });
+    assert.ok(overBudget.softWarnings.some(w => w.startsWith('VERBOSITY')), `${overBudget.softWarnings}`);
 });
 
 test('T1.11 TT04: định tuyến cấp lại thẻ bị mất tới đúng Phòng QLXNC là qualified guidance', () => {

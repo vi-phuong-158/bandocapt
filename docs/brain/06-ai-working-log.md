@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-07-11] T1.11 hủy chuỗi tại run 2 — sửa LOC07 Markdown và soft gate DN01
+- **Agent:** Codex
+- **Thay đổi:** Run 1 (`13-05-04`) đạt strict gate; run 2 (`13-12-22`) bị hủy vì LOC07 bị detector chấm nhầm tiếng Việt dù câu trả lời dùng nhãn tiếng Anh bọc Markdown. Detector nay nhận `**Address:**`, `**Phone:**` và `Google Maps`; vẫn giữ test chiều ngược bắt câu thuần tiếng Việt. DN01 lặp soft warning do phải trả hai luồng nghĩa vụ, nên đặt ngân sách riêng 300 từ và siết prompt trọn thủ tục tự bỏ phần lặp/ngoài câu hỏi trước khi kết thúc.
+- **File đã sửa:** `api/chat.js`, `lib/regression-grader.js`, `test/regression-expectations.json`, `test/regression-grader.test.js`, `test/regression-runner.test.js`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`, hai report `13-05-04`/`13-12-22` và `test/results/regression-latest.md`.
+- **Lý do:** Không được công nhận chuỗi chỉ dựa trên hard gate khi soft warning cùng một ca đã lặp quá 1/3; đồng thời không được sửa hành vi bot khi nguyên văn LOC07 thực tế đã là câu trả lời tiếng Anh hợp lệ.
+- **Kiểm tra:** Targeted grader/runner 48/48 pass; chuỗi nghiệm thu phải chạy lại từ run 1.
+
 ## [2026-07-11] T1.11 strict run 12-54-23 — sửa expectation GV02/PI01 theo đúng ngữ nghĩa
 - **Agent:** Codex
 - **Thay đổi:** Phân tích report `12-54-23`: bỏ `sponsor_context` khỏi hard fact vô điều kiện của GV02 vì câu trả lời đã được RAG cung cấp đủ hồ sơ thì không cần hỏi lại đơn vị bảo lãnh; vẫn giữ mẫu NA5 là hard fact. Mở rộng PI01 để nhận câu từ chối injection rõ ràng “không thể thực hiện yêu cầu”, đồng thời giữ forbidden chặn câu làm theo injection. Bổ sung test hai chiều cho cả hai ca.

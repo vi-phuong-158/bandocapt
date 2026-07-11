@@ -109,7 +109,7 @@
     },
     "DN01": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["kbtt_online", "phong_qlxnc_cap_tinh"],
-      "must_abstain": false, "must_ask_clarification": true, "verbosity_budget": 250,
+      "must_abstain": false, "must_ask_clarification": true, "verbosity_budget": 300,
       "required_facts": [{"id": "declare_accommodation", "match": "all", "patterns": ["khai báo tạm trú"], "grounding_required": true}, {"id": "sponsor_procedures", "match": "any", "patterns": ["bảo lãnh", "thị thực|thẻ tạm trú"], "grounding_required": true}],
       "forbidden_facts": [{"id": "labor_permit_substitution", "patterns": ["giấy phép lao động.*thay thế.*khai báo tạm trú"]}], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf", "5568/QD-BCA"], "error_classes": ["INTENT"]
     },

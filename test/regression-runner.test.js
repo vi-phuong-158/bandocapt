@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const test = require('node:test');
 
 const {
@@ -17,6 +18,9 @@ test('regression word count handles whitespace and CJK text', () => {
 test('regression verbosity limits match the answer-first prompt budgets', () => {
     assert.equal(VERBOSITY_LIMIT_NARROW, 120);
     assert.equal(VERBOSITY_LIMIT_FULL, 250);
+    const chatSource = fs.readFileSync(require.resolve('../api/chat'), 'utf8');
+    assert.match(chatSource, /TỐI ĐA 250 TỪ/);
+    assert.match(chatSource, /tự rút gọn nếu vượt giới hạn/);
 });
 
 test('--strict-gate flag is parsed, default stays lenient (T1.10)', () => {
