@@ -621,8 +621,17 @@ function detectXncAuthorityIntent(text) {
 // =====================================================================
 const GEMINI_CHAT_API_URL =
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse';
+const GEMINI_CHAT_RETRY_API_URL =
+    'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 const GEMINI_EMBED_API_URL =
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent';
+
+function extractGeminiResponseText(data) {
+    return (data?.candidates?.[0]?.content?.parts || [])
+        .map(part => part?.text || '')
+        .join('')
+        .trim();
+}
 
 // NICE-03: FAQ Cache — in-memory, tồn tại trong 1 instance serverless
 const FAQ_CACHE = new Map();
@@ -2176,11 +2185,14 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
     }
 
     // RAG-04: Summarize history dài thay vì cắt cứng
+    const foreignNationalScopeContext = /người nước ngoài|nguoi nuoc ngoai|foreigner|foreign national/i.test(userMessage)
+        ? '\n\n(IMPORTANT: This is about a foreign national. Do not introduce, compare with, or cite Vietnamese-citizen residence procedures such as đăng ký tạm trú, VNeID, or Luật Cư trú. If the retrieved material concerns a different document than the visa asked about, say there is not enough basis for that visa and do not state its fine amount or money range.)'
+        : '';
     const processedHistory = await historySummaryPromise;
 
     const contents = [
         ...processedHistory,
-        { role: 'user', parts: [{ text: userMessage.trim() + languageLockContext }] }
+        { role: 'user', parts: [{ text: userMessage.trim() + languageLockContext + foreignNationalScopeContext }] }
     ];
 
     const payload = {
@@ -2331,6 +2343,27 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
         }
 
         // --- Kiểm tra nếu Gemini bị chặn bởi safety filter (trả về rỗng) ---
+        // No text has reached the browser, so one non-streaming retry cannot duplicate output.
+        if (!fullText.trim() && !useDeepSeek) {
+            try {
+                const retryRes = await fetchWithRetry(`${GEMINI_CHAT_RETRY_API_URL}?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }, 1, 12000);
+                if (retryRes.ok) {
+                    const retryText = extractGeminiResponseText(await retryRes.json());
+                    if (retryText) {
+                        fullText = retryText;
+                        finishReason = 'EMPTY_STREAM_RETRY';
+                        res.write(`data: ${JSON.stringify({ text: retryText })}\n\n`);
+                    }
+                }
+            } catch (retryErr) {
+                console.warn('[api/chat] Empty-stream retry failed:', retryErr.message);
+            }
+        }
+
         if (!fullText.trim()) {
             console.error('[api/chat] BLOCKED_CONTENT finishReason=%s promptFeedback=%s safetyRatings=%s',
                 finishReason || '(none)',
@@ -2511,3 +2544,4 @@ module.exports.isAllowedOrigin = isAllowedOrigin;
 module.exports.shouldSkipRerank = shouldSkipRerank;
 module.exports.extractExactTokens = extractExactTokens;
 module.exports.boostExactTokenMatches = boostExactTokenMatches;
+module.exports.extractGeminiResponseText = extractGeminiResponseText;

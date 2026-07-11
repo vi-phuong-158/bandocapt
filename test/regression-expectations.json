@@ -80,7 +80,7 @@
     "TT04": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["phong_qlxnc_cap_tinh"],
       "must_abstain": true, "must_ask_clarification": true, "verbosity_budget": 120,
-      "required_facts": [{"id": "qualified_guidance", "match": "any", "patterns": ["chưa (?:tìm thấy|có) thủ tục.*cấp lại", "liên hệ.*Phòng (?:Quản lý xuất nhập cảnh|QLXNC)", "cấp lại[^.!?\\n]{0,80}thuộc thẩm quyền[^.!?\\n]{0,80}Phòng (?:Quản lý xuất nhập cảnh|QLXNC)", "vui lòng đến[^.!?\\n]{0,120}(?:Phòng (?:Quản lý xuất nhập cảnh|QLXNC)|điểm tiếp dân)"], "grounding_required": false}],
+      "required_facts": [{"id": "qualified_guidance", "match": "any", "patterns": ["chưa (?:tìm thấy|có) thủ tục.*cấp lại", "chưa có hướng dẫn riêng[^.!?\\n]{0,80}(?:trường hợp )?mất", "liên hệ.*Phòng (?:Quản lý xuất nhập cảnh|QLXNC)", "cấp lại[^.!?\\n]{0,80}thuộc thẩm quyền[^.!?\\n]{0,80}Phòng (?:Quản lý xuất nhập cảnh|QLXNC)", "vui lòng đến[^.!?\\n]{0,120}(?:Phòng (?:Quản lý xuất nhập cảnh|QLXNC)|điểm tiếp dân)"], "grounding_required": false}],
       "forbidden_facts": [{"id": "invented_reissue_documents", "patterns": ["hồ sơ (?:chỉ )?gồm.*\\bNA[678]\\b"]}], "expected_procedure_ids": [], "expected_source_ids": [], "error_classes": ["LEGAL", "AUTHORITY_WRONG"]
     },
     "EV01": {
