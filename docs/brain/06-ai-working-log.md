@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-07-11] T1.11 strict run tiếp theo — sửa 4 false-positive còn lại
+- **Agent:** Codex
+- **Thay đổi:** Phân tích report `12-44-56` và sửa bốn ca bắt oan: GV02 nhận vai trò “tổ chức/doanh nghiệp thực hiện”; TT04 nhận định tuyến an toàn “cấp lại thuộc thẩm quyền Phòng QLXNC” khi không bịa hồ sơ; detector ngôn ngữ nhận các nhãn `Address/Phone/Google Maps Directions` là tiếng Anh dù dữ liệu tên/địa chỉ giữ tiếng Việt; PI01 nhận scope-refusal an toàn trong khi forbidden vẫn chặn câu làm theo injection. Mỗi sửa đều có test chiều đúng và chiều sai.
+- **File đã sửa:** `lib/regression-grader.js`, `test/regression-expectations.json`, `test/regression-grader.test.js`, `docs/brain/07-parallel-task-plan.md`, `docs/brain/06-ai-working-log.md`, `test/results/regression-run-2026-07-11_12-44-56.md`, `test/results/regression-latest.md`.
+- **Lý do:** Strict run có 4 hard fail nhưng nguyên văn câu trả lời đều an toàn/đúng kỳ vọng nội dung; nới đúng paraphrase cần thiết, không được biến gate thành pass bằng cách bỏ các forbidden chiều sai.
+- **Kiểm tra:** Targeted grader/runner 47/47 pass; H16/H17 live 3/3 run đều PASS trước full run; chuỗi full strict bị hủy và phải chạy lại từ run 1.
+
 ## [2026-07-11] Tiếp quản T1.11 — vá expectation lộ ra ở strict run và bảo toàn fixture T1.8
 - **Agent:** Codex (tiếp quản worktree/nhánh từ Claude Code)
 - **Thay đổi:** Hoàn tất patch dang dở sau strict run `12-07-38`: cho H16 công dân opt-out global forbidden dành riêng cho bộ NNN; nới VP06/ON01 theo đúng paraphrase câu trả lời thật; sửa DN02 theo `match:any` để vừa nhận câu “vẫn phải khai báo” của run mới, vừa giữ fixture T1.8 “giấy phép lao động không miễn nghĩa vụ khai báo”. Bổ sung test hai chiều và đồng bộ tài liệu trạng thái/Code Graph.

@@ -54,7 +54,7 @@
 | T1.7b | Baseline mới sau T1.8 (mốc chính thức cho Giai đoạn 2) | EVAL | Claude | THẤP | T1.8 | **DONE** (2026-07-11) — ❌ 5-8/30 hard fail, 4 ca lặp cả 3 lần (TR01/TT01/KC04/LOC07), xem 06-log. Bị thay bằng T1.11 làm mốc chính thức |
 | T1.9 | Sửa định tuyến câu trả lời quốc tịch ("Người Việt Nam" bị coi là địa danh → DETERMINISTIC_NO_MATCH trước RAG) | CORE | Claude | **CAO** | — | **DONE** (2026-07-11) — unit + integration + live H16/H17 3/3 PASS |
 | T1.10 | Thước đo hội thoại nhiều lượt (H16/H17) + `--strict-gate` + sửa expectation KC04 | EVAL | Claude | TRUNG | T1.9 | **DONE** (2026-07-11) |
-| T1.11 | Tái lập 3 baseline strict (0 hard fail + 0 provider error) → gate Giai đoạn 1 | EVAL | Claude/Codex | **CAO** | T1.9, T1.10 | ĐANG CHẠY (2026-07-11) — chuỗi 1 hủy ở run 1; run kế tiếp lộ thêm VP06/DN02/ON01/H16 bắt oan, đã vá + 218 test xanh; chuẩn bị chạy lại từ run 1 |
+| T1.11 | Tái lập 3 baseline strict (0 hard fail + 0 provider error) → gate Giai đoạn 1 | EVAL | Claude/Codex | **CAO** | T1.9, T1.10 | ĐANG CHẠY (2026-07-11) — các run thăm dò tiếp tục lộ paraphrase/detector bắt oan; đã khóa bằng test hai chiều, H16/H17 3/3 PASS; chuỗi strict chính thức phải chạy lại từ run 1 |
 
 **Chi tiết:**
 
