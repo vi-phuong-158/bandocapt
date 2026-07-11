@@ -6,7 +6,16 @@
 
 ## Đang làm
 
-*(Không có)*
+### [ACTIVE] Kế hoạch khắc phục toàn diện 4 giai đoạn (2026-07-11)
+- **Nguồn sự thật:** `docs/brain/07-parallel-task-plan.md` — chia task nhỏ cho 2 agent
+  (Claude Code + ChatGPT Codex) chạy song song, kèm luật phân làn file, mức trí tuệ đề xuất,
+  phụ thuộc và trạng thái từng task.
+- **Bắt buộc:** agent nhận task từ kế hoạch này phải đọc mục "Luật phân làn" trong file 07
+  trước khi bắt đầu, và cập nhật cột Trạng thái khi xong.
+- **Thứ tự:** Giai đoạn 1 (thước đo 30 câu) hoàn thành TRƯỚC mọi sửa hành vi chatbot.
+- Kế hoạch này **hấp thụ** các backlog cũ: TASK-UX-01-EXT mục 1 (→ T1.7), TASK-P0-04-EXT
+  (→ T3.2–T3.4), TASK-FIX-01 mục telemetry trùng key (→ T2C), bước người dùng "3 run
+  regression cho feat/rag-accuracy" (→ T1.7).
 
 ### [ĐIỀU TRA XONG — TASK-GV02-FLAKY] Vì sao GV02 hay lỗi
 - **Kết quả điều tra (2026-07-10):** Chạy GV02 đơn lẻ 10 lần liên tiếp → **10/10 thành công** (137-350 từ). Chạy thêm 2 lần full 30-câu → 1 lần sạch 100%, 1 lần GV02 TRUNCATED. Không bắt được thêm lần `BLOCKED_CONTENT` nào dù đã bật log chẩn đoán (`finishReason`/`promptFeedback`/`safetyRatings`).
