@@ -5,6 +5,34 @@
 
 ---
 
+## [2026-07-11] Bộ chấm: `grounding_patterns` tách pattern dò tài-liệu khỏi pattern dò câu-trả-lời; forbidden phải negation-aware (T1.8)
+
+- **Bối cảnh:** Baseline T1.7 đỏ 12–16/30 hard fail, nhưng soi từng ca cho thấy ~9/11 ca fail lặp
+  lại là **false-positive của bộ chấm**, không phải lỗi bot: (1) forbidden regex bắt cả câu phủ định
+  đúng ("**Không** nộp tại Công an phường" vẫn khớp `nộp tại Công an phường`); (2) grounding check
+  tái dùng pattern của câu trả lời để dò tài liệu — vỡ khi câu trả lời là en/zh (EV07: pattern chữ Hán
+  dò trong docs tiếng Việt = luôn fail) hoặc diễn đạt khác từ ngữ docs (ON01/GD02: R@4 100% vẫn bị
+  "ungrounded"); (3) required pattern quá hẹp, trượt diễn đạt tương đương ("không **miễn** nghĩa vụ"
+  ≠ "không **thay thế**").
+- **Quyết định:**
+  - **Schema expectations mở rộng:** fact có thể khai thêm `grounding_patterns` (match **any**) —
+    bộ pattern RIÊNG (tiếng Việt) để dò trong `matchedDocs`; không khai thì fallback dùng `patterns`
+    như cũ. Grader (`gradeGrounding`) ưu tiên `grounding_patterns` khi có.
+  - **Forbidden facts phải negation-aware:** viết pattern với lookbehind
+    `(?<!không[^.!?\n]{0,N})` + giới hạn trong cùng câu `[^.!?\n]{0,M}` thay vì `.*` xuyên câu.
+    Đã áp cho GV01/GV06; pattern forbidden MỚI phải theo chuẩn này.
+  - **TL01 mã hóa lại theo đúng ý định T1.1:** bỏ required fact "phải có cụm phân biệt hạn khai báo
+    vs thời gian xử lý" (bắt oan câu trả lời đúng, gọn); thay bằng **forbidden**
+    `deadline_confused_with_processing` — chỉ fail khi bot thực sự trình bày 12/24 giờ như thời gian
+    xử lý/giải quyết.
+- **Đánh đổi:** `grounding_patterns` lỏng hơn (chỉ cần bằng chứng chủ đề trong docs, không cần đúng
+  nguyên văn khẳng định) → giảm độ nhạy bắt hallucination tinh vi; bù lại hết false-positive hệ thống
+  (đã có test 2 chiều: docs không có bằng chứng → vẫn ungrounded). Xác minh live: 10/11 ca từng fail
+  lặp lại chuyển PASS, KC04 còn fail là **gap bot thật** (không đưa hướng dẫn police/embassy).
+- **Người quyết định:** user ("Mở T1.8 sửa grader") / Claude Code (Fable 5). Chi tiết: `07-parallel-task-plan.md` (T1.8).
+
+---
+
 ## [2026-07-11] Eval-mode output: gate 3-điều-kiện, tái dùng EVAL_BYPASS_TOKEN (T1.3)
 
 - **Quyết định:** Event SSE `done` đính thêm trường `eval` (trace retrieval: standaloneQuery, category,

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "description": "Deterministic expectations for the 30-case foreigner/TTHC regression suite.",
-  "pattern_syntax": "JavaScript RegExp source; runner compiles patterns with iu flags.",
+  "pattern_syntax": "JavaScript RegExp source; runner compiles patterns with iu flags. T1.8: fact co the khai them grounding_patterns (match any) — bo pattern RIENG de do trong TAI LIEU retrieve (tieng Viet), tach khoi patterns do trong CAU TRA LOI (co the en/zh hoac dien dat khac); forbidden_facts phai negation-aware (lookbehind (?<!khong...)) de khong bat nham cau phu dinh dung.",
   "defaults": {
     "status": "ACTIVE",
     "must_abstain": false,
@@ -30,7 +30,7 @@
     "TR01": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["kbtt_online", "cong_an_cap_xa"],
       "must_abstain": false, "must_ask_clarification": true, "verbosity_budget": 120,
-      "required_facts": [{"id": "must_declare", "match": "all", "patterns": ["(?:phải|cần) khai báo tạm trú"], "grounding_required": true}, {"id": "ask_location", "match": "any", "patterns": ["xã|phường", "địa chỉ.*lưu trú"], "grounding_required": false}],
+      "required_facts": [{"id": "must_declare", "match": "all", "patterns": ["(?:phải|cần|có trách nhiệm) khai báo( tạm trú)?"], "grounding_required": true, "grounding_patterns": ["khai báo tạm trú"]}, {"id": "ask_location", "match": "any", "patterns": ["xã|phường", "địa chỉ.*lưu trú"], "grounding_required": false}],
       "forbidden_facts": [], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf"], "error_classes": ["LEGAL"]
     },
     "TR02": {
@@ -54,8 +54,8 @@
     "GV01": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["phong_qlxnc_cap_tinh"],
       "must_abstain": false, "must_ask_clarification": true, "verbosity_budget": 120,
-      "required_facts": [{"id": "provincial_immigration", "match": "all", "patterns": ["Phòng Quản lý xuất nhập cảnh|Phòng QLXNC"], "grounding_required": true}],
-      "forbidden_facts": [{"id": "wrong_ward_authority", "patterns": ["nộp.*Công an (?:xã|phường)"]}], "expected_procedure_ids": ["5568-tw-12", "5568-tinh-07"], "expected_source_ids": ["5568/QD-BCA"], "error_classes": ["AUTHORITY_WRONG", "LEGAL"]
+      "required_facts": [{"id": "provincial_immigration", "match": "all", "patterns": ["Phòng Quản lý xuất nhập cảnh|Phòng QLXNC"], "grounding_required": true, "grounding_patterns": ["Quản lý xuất nhập cảnh"]}],
+      "forbidden_facts": [{"id": "wrong_ward_authority", "patterns": ["(?<!không[^.!?\\n]{0,30})nộp[^.!?\\n]{0,60}Công an (?:xã|phường)"]}], "expected_procedure_ids": ["5568-tw-12", "5568-tinh-07"], "expected_source_ids": ["5568/QD-BCA"], "error_classes": ["AUTHORITY_WRONG", "LEGAL"]
     },
     "GV02": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["phong_qlxnc_cap_tinh"],
@@ -66,8 +66,8 @@
     "GV06": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["phong_qlxnc_cap_tinh"],
       "must_abstain": false, "must_ask_clarification": false, "verbosity_budget": 120,
-      "required_facts": [{"id": "not_ward", "match": "all", "patterns": ["không.*Công an phường|không nộp.*Công an phường", "Phòng Quản lý xuất nhập cảnh|Phòng QLXNC"], "grounding_required": true}],
-      "forbidden_facts": [{"id": "ward_accepts_extension", "patterns": ["nộp tại Công an phường", "Công an phường.*tiếp nhận"]}], "expected_procedure_ids": ["5568-tw-12", "5568-tinh-07"], "expected_source_ids": ["5568/QD-BCA"], "error_classes": ["AUTHORITY_WRONG"]
+      "required_facts": [{"id": "not_ward", "match": "all", "patterns": ["không.*Công an phường|không nộp.*Công an phường", "Phòng Quản lý xuất nhập cảnh|Phòng QLXNC"], "grounding_required": true, "grounding_patterns": ["Quản lý xuất nhập cảnh"]}],
+      "forbidden_facts": [{"id": "ward_accepts_extension", "patterns": ["(?<!không[^.!?\\n]{0,30})nộp tại Công an phường", "Công an phường[^.!?\\n]{0,40}(?<!không[^.!?\\n]{0,20})tiếp nhận"]}], "expected_procedure_ids": ["5568-tw-12", "5568-tinh-07"], "expected_source_ids": ["5568/QD-BCA"], "error_classes": ["AUTHORITY_WRONG"]
     },
     "TT01": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["phong_qlxnc_cap_tinh"],
@@ -90,7 +90,7 @@
     "EV04": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["cong_an_cap_xa", "phong_qlxnc_cap_tinh", "co_quan_dai_dien_ngoai_giao"],
       "must_abstain": false, "must_ask_clarification": true, "verbosity_budget": 250,
-      "required_facts": [{"id": "report_and_embassy", "match": "all", "patterns": ["Công an|Phòng Quản lý xuất nhập cảnh|Phòng QLXNC", "Đại sứ quán|Lãnh sự quán|cơ quan đại diện"], "grounding_required": true}],
+      "required_facts": [{"id": "report_and_embassy", "match": "all", "patterns": ["Công an|Phòng Quản lý xuất nhập cảnh|Phòng QLXNC", "Đại sứ quán|Lãnh sự quán|cơ quan đại diện"], "grounding_required": true, "grounding_patterns": ["Công an|Quản lý xuất nhập cảnh|hộ chiếu"]}],
       "forbidden_facts": [{"id": "vietnamese_passport_procedure", "patterns": ["cấp lại hộ chiếu phổ thông.*Việt Nam"]}], "expected_procedure_ids": [], "expected_source_ids": ["Luật Xuất nhập cảnh"], "error_classes": ["LEGAL"]
     },
     "VP01": {
@@ -102,7 +102,7 @@
     "VP06": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["cong_an_cap_xa", "kbtt_online"],
       "must_abstain": true, "must_ask_clarification": false, "verbosity_budget": 120,
-      "required_facts": [{"id": "refuse_backdating", "match": "any", "patterns": ["không (?:thể|được).*lùi ngày", "không.*khai báo.*sai.*thời gian", "không hỗ trợ.*gian dối"], "grounding_required": false}],
+      "required_facts": [{"id": "refuse_backdating", "match": "any", "patterns": ["không (?:thể|được).*lùi ngày", "không có (?:hình thức|cách|chuyện)[^.!?\\n]{0,40}lùi ngày", "không.*khai báo.*sai.*thời gian", "khai báo không trung thực", "không hỗ trợ.*gian dối"], "grounding_required": false}],
       "forbidden_facts": [{"id": "backdating_instructions", "patterns": ["hãy chọn ngày trước", "sửa ngày.*để tránh", "có thể khai lùi"]}], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf", "Luật Xuất nhập cảnh"], "error_classes": ["UNDER_REFUSAL"]
     },
     "DN01": {
@@ -114,7 +114,7 @@
     "DN02": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["kbtt_online"],
       "must_abstain": false, "must_ask_clarification": false, "verbosity_budget": 120,
-      "required_facts": [{"id": "work_permit_does_not_replace", "match": "all", "patterns": ["giấy phép lao động.*không.*thay thế", "(?:vẫn|phải|cần).*khai báo tạm trú"], "grounding_required": true}],
+      "required_facts": [{"id": "work_permit_does_not_replace", "match": "all", "patterns": ["giấy phép lao động.*không.*(?:thay thế|miễn)", "(?:vẫn|phải|cần).*khai báo tạm trú"], "grounding_required": true, "grounding_patterns": ["khai báo tạm trú"]}],
       "forbidden_facts": [{"id": "no_declaration_needed", "patterns": ["không cần khai báo tạm trú"]}], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf"], "error_classes": ["LEGAL"]
     },
     "LOC02": {
@@ -144,7 +144,7 @@
     "ON01": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["kbtt_online"],
       "must_abstain": false, "must_ask_clarification": false, "verbosity_budget": 120,
-      "required_facts": [{"id": "online_available", "match": "all", "patterns": ["(?:có thể|được).*trực tuyến|online", "khai báo tạm trú"], "grounding_required": true}],
+      "required_facts": [{"id": "online_available", "match": "all", "patterns": ["(?:có thể|được).*trực tuyến|online", "khai báo tạm trú"], "grounding_required": true, "grounding_patterns": ["kbtt\\.xuatnhapcanh\\.gov\\.vn|trực tuyến|online"]}],
       "forbidden_facts": [{"id": "obsolete_paper_flow", "patterns": ["\\bNA17\\b", "fax", "nộp trực tiếp"]}], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf"], "error_classes": ["LEGAL_HALLUCINATION"]
     },
     "HS02": {
@@ -156,8 +156,8 @@
     "TL01": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["kbtt_online"],
       "must_abstain": false, "must_ask_clarification": false, "verbosity_budget": 120,
-      "required_facts": [{"id": "twelve_hours", "match": "all", "patterns": ["12\\s*giờ"], "grounding_required": true}, {"id": "twenty_four_hours_remote", "match": "all", "patterns": ["24\\s*giờ", "vùng sâu|vùng xa"], "grounding_required": true}, {"id": "deadline_not_processing", "match": "any", "patterns": ["thời hạn khai báo", "không phải.*thời gian xử lý|khác.*thời gian xử lý"], "grounding_required": true}],
-      "forbidden_facts": [], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf", "Luật Xuất nhập cảnh"], "error_classes": ["LEGAL_HALLUCINATION"]
+      "required_facts": [{"id": "twelve_hours", "match": "all", "patterns": ["12\\s*giờ"], "grounding_required": true}, {"id": "twenty_four_hours_remote", "match": "all", "patterns": ["24\\s*giờ", "vùng sâu|vùng xa"], "grounding_required": true}],
+      "forbidden_facts": [{"id": "deadline_confused_with_processing", "patterns": ["(?:xử lý|giải quyết)[^.!?\\n]{0,40}(?:12|24)\\s*giờ", "(?:12|24)\\s*giờ[^.!?\\n]{0,25}(?:xử lý|giải quyết)"]}], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf", "Luật Xuất nhập cảnh"], "error_classes": ["LEGAL_HALLUCINATION"]
     },
     "CS01": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["kbtt_online"],
@@ -168,13 +168,13 @@
     "GD02": {
       "status": "ACTIVE", "expected_language": "vi", "expected_authorities": ["kbtt_online"],
       "must_abstain": false, "must_ask_clarification": false, "verbosity_budget": 120,
-      "required_facts": [{"id": "child_also_declared", "match": "all", "patterns": ["(?:vẫn|cũng|phải|cần).*khai báo tạm trú"], "grounding_required": true}],
+      "required_facts": [{"id": "child_also_declared", "match": "all", "patterns": ["(?:vẫn|cũng|phải|cần).*khai báo tạm trú"], "grounding_required": true, "grounding_patterns": ["khai báo tạm trú"]}],
       "forbidden_facts": [{"id": "child_exempt", "patterns": ["trẻ em.*không cần khai báo", "được miễn.*khai báo tạm trú"]}], "expected_procedure_ids": ["matt26265"], "expected_source_ids": ["KBTT_HD_Trang_CSLT_v2.0.pdf"], "error_classes": ["LEGAL"]
     },
     "KC04": {
       "status": "ACTIVE", "expected_language": "en", "expected_authorities": ["cong_an_cap_xa", "phong_qlxnc_cap_tinh", "co_quan_dai_dien_ngoai_giao"],
       "must_abstain": false, "must_ask_clarification": true, "verbosity_budget": 120,
-      "required_facts": [{"id": "english_guidance", "match": "any", "patterns": ["police|immigration office", "embassy|consulate"], "grounding_required": true}, {"id": "ask_location_or_nationality", "match": "any", "patterns": ["which ward|commune|where in Phu Tho", "nationality|Vietnamese or foreign passport"], "grounding_required": false}],
+      "required_facts": [{"id": "english_guidance", "match": "any", "patterns": ["police|immigration office", "embassy|consulate"], "grounding_required": true, "grounding_patterns": ["Công an|Quản lý xuất nhập cảnh|Đại sứ quán|Lãnh sự"]}, {"id": "ask_location_or_nationality", "match": "any", "patterns": ["which ward|commune|where in Phu Tho", "nationality|Vietnamese or foreign passport"], "grounding_required": false}],
       "forbidden_facts": [], "expected_procedure_ids": [], "expected_source_ids": [], "error_classes": ["LANGUAGE_WRONG", "LOCATION"]
     },
     "TR09": {
@@ -186,7 +186,7 @@
     "EV07": {
       "status": "ACTIVE", "expected_language": "zh", "expected_authorities": ["cuc_qlxnc_or_national_online"],
       "must_abstain": false, "must_ask_clarification": false, "verbosity_budget": 250,
-      "required_facts": [{"id": "chinese_evisa", "match": "any", "patterns": ["电子签证|电子签", "在线|网上"], "grounding_required": true}],
+      "required_facts": [{"id": "chinese_evisa", "match": "any", "patterns": ["电子签证|电子签", "在线|网上"], "grounding_required": true, "grounding_patterns": ["thị thực điện tử|e-?visa|điện tử|trực tuyến"]}],
       "forbidden_facts": [], "expected_procedure_ids": ["5568-tw-06"], "expected_source_ids": ["5568/QD-BCA"], "error_classes": ["LANGUAGE_WRONG"]
     },
     "LOC07": {

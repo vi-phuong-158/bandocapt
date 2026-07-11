@@ -50,6 +50,7 @@
 | T1.5 | Lớp chấm grounding + Recall@4/MRR | EVAL | Claude | TRUNG | T1.2, T1.3, T1.4 | **DONE** (2026-07-11) |
 | T1.6 | Format báo cáo mới (hard/deferred/soft/latency) | EVAL | Claude (nhận từ Codex) | THẤP | T1.4 | **DONE** (2026-07-11) |
 | T1.7 | Chạy 3 baseline + commit báo cáo | EVAL | Người dùng + Claude | THẤP | T1.4–T1.6 | **DONE** (2026-07-11) — gate ❌ 12-16/30 hard fail, xem 06-log |
+| T1.8 | Sửa false-positive bộ chấm (negation-aware forbidden, `grounding_patterns`, mã hóa lại TL01) | EVAL | Claude | TRUNG | T1.7 | **DONE** (2026-07-11) — 10/11 ca fail lặp chuyển PASS live |
 
 **Chi tiết:**
 
@@ -60,6 +61,7 @@
 - **T1.5** — Fact grounding (required fact tồn tại trong docs đã retrieve), expected source trong top 4, Recall@4/MRR theo ID. Cần output `eval` từ T1.3. Lưu ý: fail nhóm tạm trú do nguồn giấy còn active phải tự gắn nhãn deferred theo expectations, không đỏ rực báo cáo.
 - **T1.6** — Tách section báo cáo: hard fail / deferred fail / TRUNCATED / VERBOSITY / provider error / Recall@4/MRR / p50-p95 theo stage. Spec rõ, cơ học.
 - **T1.7** — Cần API key thật (bước người dùng). 3 run liên tiếp, commit vào `test/results/`. Baseline này đồng thời đóng TASK-UX-01-EXT mục 1 và bước "3 run cho feat/rag-accuracy" trong `04-current-tasks.md`.
+- **T1.8** — Soi 11 ca fail lặp cả 3 run baseline → ~9 là false-positive của bộ chấm, không phải lỗi bot. Sửa: (1) forbidden regex negation-aware (GV01/GV06 — "Không nộp tại Công an phường" không còn bị bắt oan); (2) schema thêm `grounding_patterns` — pattern riêng dò tài liệu tiếng Việt, tách khỏi pattern dò câu trả lời (EV07/KC04 en-zh, TR01/ON01/GD02/DN02/EV04 diễn đạt khác); (3) nới required cho diễn đạt tương đương (VP06/DN02/TR01); (4) TL01: bỏ required "cụm phân biệt", thay bằng forbidden `deadline_confused_with_processing`. Sau sửa, lỗi bot THẬT còn lại cho GĐ2/3: KC04 (không đưa hướng dẫn police/embassy), TR01 chập chờn `ask_location`, TYPO02 chập chờn gợi ý VNeID, LOC07 chập chờn sai ngôn ngữ, TR01 từng gợi ý phiếu NA17. Xem 03-decisions 2026-07-11.
 
 **LLM judge:** làm SAU khi T1.4+T1.5 ổn định, chỉ advisory cho 5–8 ca khó, không chặn gate. Chưa tạo task — mở khi cần.
 
