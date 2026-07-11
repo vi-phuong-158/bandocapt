@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-07-12] T1.11 gate ĐA SỐ 2/3 + sửa 2 lỗi bot thật (H17 Đại sứ quán, TT04 answer-first)
+- **Agent:** Claude Code (Opus 4.8)
+- **Thay đổi:** (1) Nghiệm thu: strict per-run KHÔNG hội tụ (4 run đầy đủ liên tiếp mỗi run một ca khác flaky). User chốt **gate ĐA SỐ**: runner thêm `--majority`/`--runs N` (mặc định 3, ngưỡng ⌊N/2⌋+1) + hàm thuần `aggregateMajority` (majority = hard fail thật/chặn gate; rớt lẻ = flaky/advisory; provider error theo đa số dưới strict). Refactor `executeSuiteOnce`/`buildReportMd`/`writeReport`. Báo cáo tổng hợp `regression-majority-*.md`. (2) Sửa 2 LỖI BOT THẬT phát hiện qua run (KHÔNG nới grader): thêm luật prompt trong `api/chat.js` — người nước ngoài mất hộ chiếu BẮT BUỘC nêu cả trình báo QLXNC LẪN liên hệ Đại sứ quán/Lãnh sự quán (H17); mất/cấp lại thẻ tạm trú không hỏi lại quốc tịch, trả lời-trước thẩm quyền QLXNC, không bịa NA6/NA8 (TT04).
+- **File đã sửa:** `scripts/run-regression.js`, `test/regression-runner.test.js`, `api/chat.js`, `docs/brain/03-decisions.md`, `docs/brain/07-parallel-task-plan.md`, `docs/brain/01-architecture.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Grader regex trên output LLM không tất định không thể ổn định đạt "0 hard fail × 3 run liên tiếp"; đa số tách nhiễu 1-run khỏi lỗi hệ thống. H17/TT04 là lỗi bot tái diễn (không phải thước đo) — sửa ở prompt cho đúng nguyên tắc "không nới grader để né lỗi thật".
+- **Kiểm tra:** `npm test` 225/225 pass (thêm test `aggregateMajority` majority-vs-flaky + provider, `parseArgs --runs/--majority`). Live 5 ca affected (TT04/EV04/KC04/H16/H17) 0 hard fail: H17 nay nêu rõ Đại sứ quán/Lãnh sự quán; TT04 trả lời-trước QLXNC không hỏi thừa quốc tịch. **Còn phải chạy 3-run majority đầy đủ để có phán quyết gate chính thức.**
+
 ## [2026-07-11] T1.11 hủy chuỗi tại run 2 — sửa LOC07 Markdown và soft gate DN01
 - **Agent:** Codex
 - **Thay đổi:** Run 1 (`13-05-04`) đạt strict gate; run 2 (`13-12-22`) bị hủy vì LOC07 bị detector chấm nhầm tiếng Việt dù câu trả lời dùng nhãn tiếng Anh bọc Markdown. Detector nay nhận `**Address:**`, `**Phone:**` và `Google Maps`; vẫn giữ test chiều ngược bắt câu thuần tiếng Việt. DN01 lặp soft warning do phải trả hai luồng nghĩa vụ, nên đặt ngân sách riêng 300 từ và siết prompt trọn thủ tục tự bỏ phần lặp/ngoài câu hỏi trước khi kết thúc.
