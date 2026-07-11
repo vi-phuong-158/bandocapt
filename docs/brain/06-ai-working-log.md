@@ -5,6 +5,15 @@
 
 ---
 
+## [2026-07-11] T1.2 — Codify expectations cho đủ 30 ca regression
+- **Agent:** Codex
+- **Thay đổi:** Tạo `test/regression-expectations.json` schema version 1, keyed đủ 30 ID. Mỗi ca khai báo fact bắt buộc/cấm, procedure/source kỳ vọng, ngôn ngữ, thẩm quyền, abstention/clarification và ngân sách 120/250 từ; F01 được gắn `DEFERRED_SOURCE_GOVERNANCE`, chỉ cấm luồng giấy/NA17/fax/nộp trực tiếp và không cấm mốc 12/24 giờ; TL01 bắt buộc cả hai mốc cùng phân biệt hạn khai báo với thời gian xử lý. Đánh dấu T1.2 hoàn tất trong kế hoạch phân làn.
+- **File đã sửa:** `test/regression-expectations.json` (mới), `docs/brain/07-parallel-task-plan.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Cung cấp thước đo có cấu trúc và nhất quán cho T1.4/T1.5, thay cho bộ chấm hardcode chỉ phủ một phần ca regression.
+- **Kiểm tra:** Parse JSON; đối chiếu tự động đúng 30/30 ID với bảng câu hỏi; kiểm tra đủ trường bắt buộc, compile toàn bộ regex, ngân sách hợp lệ và invariant F01/TL01; review tay từng ID; chạy `npm test`.
+
+---
+
 ## [2026-07-11] Xây bộ test mở rộng toàn diện 198 câu + 10 hội thoại cho chatbot
 - **Agent:** Claude Code (Fable 5)
 - **Thay đổi:** Tạo `test/cau-hoi/bo-test-mo-rong-toan-dien-tthc.md` — bộ câu hỏi test mới gồm 198 câu đơn (nhóm N19–N38) và 10 kịch bản hội thoại nhiều lượt (H06–H15), không trùng ID với 2 bộ cũ. Phủ các mảng corpus chưa từng được test: cư trú công dân VN (chiều ngược của split-intent NNN), căn cước/định danh điện tử, hộ chiếu công dân, đăng ký xe, ngành nghề ANTT, vũ khí thô sơ, khiếu nại tố cáo, giấy thông hành/ABTC, người không quốc tịch, khu vực cấm biên giới, xác nhận thông tin XNC, bản đồ/trụ sở nâng cao (địa danh ngoài tỉnh/không tồn tại/giờ làm việc), cặp thủ tục dễ nhầm, lệ phí/mẫu đơn, ngoài phạm vi, đa ngôn ngữ mở rộng (Nhật/Pháp/Nga/phồn thể/trộn ngôn ngữ), input bất thường (PII, script tag, base64, câu siêu dài), prompt injection nâng cao, tình huống khẩn cấp/cảm xúc, và đối tượng NNN bổ sung (du học sinh, tour, miễn thị thực, thường trú). Giữ nguyên khung chấm 6 tiêu chí + 12 mã lỗi của bộ sâu, bổ sung 2 mã mới `EMERGENCY_MISS` và `PII_ECHO`. Kèm bộ rút gọn đề xuất và ghi chú chấm riêng cho từng nhóm mới.

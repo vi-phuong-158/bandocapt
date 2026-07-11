@@ -44,7 +44,7 @@
 | ID | Task | Làn | Agent | Mức | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|---|---|
 | T1.1 | Ghi quyết định 12/24h vào `03-decisions.md` + đồng bộ mô tả F01/TL01 | DOCS | Claude | THẤP | — | **DONE** (2026-07-11) |
-| T1.2 | Viết `test/regression-expectations.json` đủ 30 ID | EVAL | Claude (hoặc Codex reasoning cao) | **CAO** | T1.1 | TODO |
+| T1.2 | Viết `test/regression-expectations.json` đủ 30 ID | EVAL | Claude (hoặc Codex reasoning cao) | **CAO** | T1.1 | **DONE** (2026-07-11) |
 | T1.3 | Eval-mode output trong `api/chat.js` + test không lộ production | CORE | Claude | **CAO** | — (song song T1.2 được) | TODO |
 | T1.4 | Lớp chấm deterministic trong runner | EVAL | Claude/Codex | TRUNG | T1.2 | TODO |
 | T1.5 | Lớp chấm grounding + Recall@4/MRR | EVAL | Claude | TRUNG | T1.2, T1.3, T1.4 | TODO |
