@@ -552,3 +552,12 @@
 - **Người quyết định:** user (plan T1.9–T1.11) / Claude Code
 
 ---
+
+## [2026-07-11] T1.11: Gate nghiệm thu Giai đoạn 1 chuyển sang ĐA SỐ 2/3 (thay strict per-run)
+
+- **Quyết định:** Tiêu chí nghiệm thu gate Giai đoạn 1 đổi từ "0 hard fail mỗi run × 3 run liên tiếp" sang **đa số**: chạy N run đầy đủ (mặc định 3), một ca chỉ tính HARD FAIL THẬT (chặn gate) khi rớt ≥ ⌊N/2⌋+1 run; rớt lẻ tẻ (1..ngưỡng-1 run) là **flaky** — báo advisory, KHÔNG chặn. Provider error cũng áp quy tắc đa số dưới `--strict-gate`. Cài trong `scripts/run-regression.js` qua `--majority`/`--runs N` + hàm thuần `aggregateMajority`; báo cáo tổng hợp `test/results/regression-majority-*.md`. Lỗi bot THẬT (vd VP01 bịa mức phạt) vẫn phải sửa ở prompt, không được nới grader để né.
+- **Lý do:** Grader regex chấm trên output LLM không tất định về mặt cấu trúc không thể ổn định đạt "0 hard fail × 3 run liên tiếp": mỗi run một ca KHÁC diễn đạt câu đúng theo cách lệch pattern (bằng chứng: 4 run đầy đủ liên tiếp fail EV04/TT04/VP01/H17, mỗi run một ca khác). Vòng "rớt → nới regex cho khớp câu vừa nói → reset" hoặc không hội tụ, hoặc làm rỗng gate. Đa số tách nhiễu 1-run của model khỏi lỗi hệ thống (ca fail ≥2/3 mới là tín hiệu thật) — trung thực về thống kê, đúng cách các ca đang dao động ~1/3.
+- **Đánh đổi:** Gate không còn bắt được lỗi chỉ xuất hiện 1/3 lần — chấp nhận, vì đó là nhiễu diễn đạt/độ nhiễu model, không phải hồi quy ổn định; các ca flaky vẫn được liệt kê advisory để theo dõi. Không thay việc sửa lỗi bot thật ở prompt. Muốn chặt hơn có thể nâng N (5/7…) hoặc thêm LLM-judge (đã xếp "làm SAU").
+- **Người quyết định:** user (chọn "gate đa số 2/3") / Claude Code (Opus 4.8)
+
+---
