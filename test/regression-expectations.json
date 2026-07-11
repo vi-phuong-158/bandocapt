@@ -496,10 +496,9 @@
       "required_facts": [
         {
           "id": "fine_requires_basis",
-          "match": "all",
+          "match": "any",
           "patterns": [
-            "Nghị định 282/2025/NĐ-CP",
-            "(?:Điều 21|chưa có căn cứ đủ chắc|không đề cập trực tiếp|chưa thể khẳng định)"
+            "(?:Điều 21|chưa có căn cứ đủ chắc|không đề cập trực tiếp|chưa thể khẳng định|Không có căn cứ trong dữ liệu)"
           ],
           "grounding_required": true
         }
