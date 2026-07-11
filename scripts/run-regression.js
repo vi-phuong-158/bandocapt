@@ -223,8 +223,10 @@ async function main() {
     for (let i = 0; i < questions.length; i += 1) {
         const q = questions[i];
         console.log(`[${i + 1}/${questions.length}] Running ID: ${q.id} - ${q.question}`);
+        const t0 = Date.now();
         try {
             const result = await runChat(q.question);
+            const latencyMs = Date.now() - t0;
             const wordCount = countWords(result.text);
             const expectation = EXPECTATIONS.cases[q.id];
             const verbosityLimit = (expectation && typeof expectation.verbosity_budget === 'number')
@@ -249,6 +251,7 @@ async function main() {
                 finishReason: result.finishReason,
                 eval: result.eval,
                 wordCount,
+                latencyMs,
                 verbosity: wordCount > verbosityLimit,
                 verbosityLimit,
                 grade: graded,
@@ -262,6 +265,7 @@ async function main() {
                 console.log(`  -> Error: ${result.error}`);
             }
         } catch (e) {
+            const latencyMs = Date.now() - t0;
             console.error(`  -> Exception: ${e.message}`);
             const wordCount = 0;
             const verbosityLimit = NARROW_QUESTION_IDS.has(q.id) ? VERBOSITY_LIMIT_NARROW : VERBOSITY_LIMIT_FULL;
@@ -274,6 +278,7 @@ async function main() {
                 finishReason: '',
                 eval: null,
                 wordCount,
+                latencyMs,
                 verbosity: false,
                 verbosityLimit,
                 grade: evaluateCase({ id: q.id, response: '', sources: [], error: e.message, wordCount: 0, truncated: false, eval: null })
@@ -301,6 +306,14 @@ async function main() {
     const meanRecall = avg(recallVals);
     const meanMrr = avg(mrrVals);
     const meanSourceRecall = avg(sourceRecallVals);
+    // Authority accuracy (advisory, không vào gate): tỉ lệ ca có kỳ vọng thẩm quyền được nêu đúng.
+    const authorityResults = gradedResults.filter(r => r.grade.authority && r.grade.authority.expected.length > 0);
+    const authorityHits = authorityResults.filter(r => r.grade.authority.hit).length;
+    // Latency (ms) — đo bao quanh runChat, gồm cả retrieval + generation.
+    const latencies = results.map(r => r.latencyMs).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
+    const latAvg = latencies.length ? Math.round(latencies.reduce((s, n) => s + n, 0) / latencies.length) : 0;
+    const latMedian = latencies.length ? latencies[Math.floor(latencies.length / 2)] : 0;
+    const latP95 = latencies.length ? latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * 0.95))] : 0;
     const now = new Date();
     const stamp = now.toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '_');
     const reportPath = path.resolve(__dirname, `../test/results/regression-run-${stamp}.md`);
@@ -313,7 +326,9 @@ async function main() {
     reportMd += `- Số ca tự chấm: ${gradedResults.length}/30\n`;
     reportMd += `- **PASS: ${passCount}** — **HARD_FAIL: ${hardFailCount}** — DEFERRED_FAIL: ${deferredFailCount} — PROVIDER_ERROR: ${providerErrorCount}\n`;
     reportMd += `- **Gate (0 hard fail): ${hardFailCount === 0 ? '✅ ĐẠT' : '❌ KHÔNG ĐẠT'}** — deferred (F01) không chặn gate tới Giai đoạn 3\n`;
-    reportMd += `- Grounding: Recall@4 TB ${pct(meanRecall)} · MRR TB ${meanMrr === null ? 'N/A' : meanMrr.toFixed(3)} · Source recall TB ${pct(meanSourceRecall)}\n\n`;
+    reportMd += `- Grounding: Recall@4 TB ${pct(meanRecall)} · MRR TB ${meanMrr === null ? 'N/A' : meanMrr.toFixed(3)} · Source recall TB ${pct(meanSourceRecall)}\n`;
+    reportMd += `- Authority accuracy: ${authorityResults.length ? `${authorityHits}/${authorityResults.length} (${pct(authorityHits / authorityResults.length)})` : 'N/A'}\n`;
+    reportMd += `- Latency: TB ${latAvg} ms · median ${latMedian} ms · p95 ${latP95} ms\n\n`;
 
     if (gradedResults.length > 0) {
         reportMd += `## Tóm tắt tự chấm\n`;
@@ -329,6 +344,48 @@ async function main() {
         reportMd += '\n';
     }
 
+    // Phân loại chi tiết theo verdict — đọc nhanh phần cần sửa, không phải cuộn qua 30 câu.
+    const hardFails = gradedResults.filter(r => r.grade.status === 'HARD_FAIL');
+    const deferredFails = gradedResults.filter(r => r.grade.status === 'DEFERRED_FAIL');
+    const softCases = results.filter(r => r.grade && (r.grade.softWarnings.length > 0 || r.verbosity || r.truncated));
+    const providerErrors = results.filter(r => r.grade && r.grade.providerError);
+
+    if (hardFails.length > 0) {
+        reportMd += `## ❌ Hard fail (${hardFails.length}) — CHẶN GATE\n`;
+        for (const r of hardFails) {
+            reportMd += `- **${r.id}** — ${r.grade.failures.join('; ') || 'không rõ nguyên nhân'}\n`;
+        }
+        reportMd += '\n';
+    }
+    if (deferredFails.length > 0) {
+        reportMd += `## 🟡 Deferred fail (${deferredFails.length}) — không chặn gate tới Giai đoạn 3\n`;
+        for (const r of deferredFails) {
+            reportMd += `- **${r.id}** — ${r.grade.failures.join('; ') || 'không rõ nguyên nhân'}\n`;
+        }
+        reportMd += '\n';
+    }
+    if (softCases.length > 0) {
+        reportMd += `## ⚠️ Soft warning (${softCases.length}) — không fail gate\n`;
+        for (const r of softCases) {
+            const tags = new Set(r.grade.softWarnings);
+            if (r.verbosity) tags.add('VERBOSITY');
+            if (r.truncated) tags.add('TRUNCATED');
+            const detail = [];
+            if (tags.has('VERBOSITY')) detail.push(`VERBOSITY ${r.wordCount}/${r.verbosityLimit} từ`);
+            if (tags.has('TRUNCATED')) detail.push(`TRUNCATED (${r.finishReason || 'n/a'})`);
+            for (const w of tags) if (w !== 'VERBOSITY' && w !== 'TRUNCATED') detail.push(w);
+            reportMd += `- **${r.id}** — ${detail.join('; ')}\n`;
+        }
+        reportMd += '\n';
+    }
+    if (providerErrors.length > 0) {
+        reportMd += `## 🔌 Provider error (${providerErrors.length}) — báo riêng, không tính content hard fail\n`;
+        for (const r of providerErrors) {
+            reportMd += `- **${r.id}** — ${r.grade.providerError}\n`;
+        }
+        reportMd += '\n';
+    }
+
     // Bảng tổng hợp độ dài/ngắt câu — để so sánh trước–sau khi sửa prompt mà không phải đọc từng câu.
     const wordCounts = results.map(r => r.wordCount).filter(n => Number.isFinite(n)).sort((a, b) => a - b);
     const avgWords = wordCounts.length ? Math.round(wordCounts.reduce((s, n) => s + n, 0) / wordCounts.length) : 0;
@@ -336,9 +393,10 @@ async function main() {
     reportMd += `## Tổng hợp\n\n`;
     reportMd += `- Số câu: ${results.length} — TB: **${avgWords} từ**, median: **${medianWords} từ**\n`;
     reportMd += `- VERBOSITY (vượt ngân sách từ): ${results.filter(r => r.verbosity).length} — TRUNCATED (chạm trần token): ${results.filter(r => r.truncated).length} — ERROR: ${results.filter(r => r.error).length}\n\n`;
-    reportMd += `| ID | Số từ | Ngân sách | VERBOSITY | TRUNCATED | ERROR |\n|---|---:|---:|---|---|---|\n`;
+    reportMd += `| ID | Verdict | Số từ | Ngân sách | Latency (ms) | VERBOSITY | TRUNCATED | ERROR |\n|---|---|---:|---:|---:|---|---|---|\n`;
     for (const r of results) {
-        reportMd += `| ${r.id} | ${r.wordCount} | ${r.verbosityLimit} | ${r.verbosity ? '⚠️' : ''} | ${r.truncated ? '❌' : ''} | ${r.error || ''} |\n`;
+        const verdict = r.grade ? r.grade.status : '';
+        reportMd += `| ${r.id} | ${verdict} | ${r.wordCount} | ${r.verbosityLimit} | ${Number.isFinite(r.latencyMs) ? r.latencyMs : ''} | ${r.verbosity ? '⚠️' : ''} | ${r.truncated ? '❌' : ''} | ${r.error || ''} |\n`;
     }
     reportMd += `\n---\n\n`;
 
@@ -347,6 +405,7 @@ async function main() {
         reportMd += `- **Kỳ vọng:** ${result.expectation}\n`;
         reportMd += `- **Lỗi cần bắt:** \`${result.errorToCatch}\`\n`;
         reportMd += `- **Độ dài:** ${result.wordCount} từ / ngân sách ${result.verbosityLimit}${result.verbosity ? ' — ⚠️ VERBOSITY' : ''}${result.truncated ? ` — ❌ TRUNCATED (${result.finishReason})` : ''}\n`;
+        if (Number.isFinite(result.latencyMs)) reportMd += `- **Latency:** ${result.latencyMs} ms\n`;
         if (result.grade) {
             reportMd += `- **Tự chấm:** ${result.grade.status}\n`;
             if (result.grade.failures.length > 0) {
