@@ -13,7 +13,7 @@ test('mobile bottom navigation exposes exactly the three civic app tabs', () => 
     const html = read('index.html');
     const tabs = Array.from(html.matchAll(/data-app-tab="([^"]+)"/g), match => match[1]);
 
-    assert.deepEqual(tabs, ['map', 'procedures', 'chat']);
+    assert.deepEqual(tabs, ['map', 'chat', 'procedures']);
     assert.match(html, /id="mobile-bottom-nav"[\s\S]*aria-label="Điều hướng chính"/);
     assert.match(html, /data-app-tab="map"[\s\S]*aria-current="page"/);
 });

@@ -52,6 +52,20 @@
   - Grounding ổn định quanh Recall@4 ~57-60%, Source recall ~48-50% — không đổi nhiều so với mốc cũ (dự kiến, vì grounding thật của corpus không đổi, chỉ có cách CHẤM grounding hết sai).
   - **Không sửa code lần này** — thuần đo lại. 4 ca fail thật ở trên là input cho T2A/Giai đoạn 3.
 
+## [2026-07-11] Thay đổi icon và tạo hiệu ứng trượt ngang mượt mà cho Mobile Bottom Navigation
+- **Agent:** Codex
+- **Thay đổi:**
+  - Thay thế các icon font Bản đồ (`map`) và Thủ tục (`menu_book`) ở mobile bottom navigation trong `index.html` bằng các icon hình ảnh thực tế `assets/icon-bando.png` và `assets/icon-thutuc.png`.
+  - Di chuyển Hỏi đáp AI (`chat`) ra giữa thanh điều hướng bottom nav (thứ tự tab mới: Bản đồ -> Hỏi đáp AI -> Thủ tục).
+  - Thêm class `.mobile-nav-custom-icon` trong `styles.css` để khống chế kích thước icon tùy chỉnh ở mức `24px x 24px` cân đối với icon Chatbot.
+  - Cấu hình hiệu ứng trượt ngang (horizontal slide transitions) trên mobile cho `#ai-chat-window` và `#tthc-catalog-window` dựa trên thuộc tính `data-active-tab` của `body`.
+  - Cập nhật test case `test/civic-ui.test.js` để mong đợi thứ tự tab mới `['map', 'chat', 'procedures']`.
+  - Thêm `assets/icon-bando.png` và `assets/icon-thutuc.png` vào allowlist của `scripts/build-static.js` để copy sang `dist/` khi build.
+  - Thêm hiệu ứng phóng to 1.15 lần và chuyển động nhún nhảy (pop animation) cho các tab icon khi được chọn (`aria-current="page"`).
+- **File đã sửa:** `index.html`, `styles.css`, `test/civic-ui.test.js`, `scripts/build-static.js`
+- **Lý do:** Yêu cầu từ người dân muốn thay thế icon bottom nav bằng các icon hình ảnh trực quan hơn, đưa chatbot AI vào vị trí trung tâm nổi bật, tăng trải nghiệm premium cho ứng dụng bằng các transition mượt mà như app native trên mobile và làm nổi bật trực quan phản hồi khi tab được chọn. Đồng thời sửa lỗi 404 hình ảnh do thiếu file trong build tĩnh.
+- **Kiểm tra:** `npm test` thành công 195/195 tests. `npm run build` thành công tạo static artifact trong `dist/`.
+
 ---
 
 ## [2026-07-11] T1.8 — Sửa false-positive bộ chấm sau soi baseline T1.7

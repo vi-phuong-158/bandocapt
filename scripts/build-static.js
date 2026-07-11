@@ -14,6 +14,8 @@ const files = [
     'assets/logo.png',
     'assets/icon.png',
     'assets/icon-bottom.png',
+    'assets/icon-bando.png',
+    'assets/icon-thutuc.png',
     'js/chatbot.js',
     'js/app-navigation.js',
     'js/gemini.js',
