@@ -16,9 +16,11 @@
 - Kế hoạch này **hấp thụ** các backlog cũ: TASK-UX-01-EXT mục 1 (→ T1.7), TASK-P0-04-EXT
   (→ T3.2–T3.4), TASK-FIX-01 mục telemetry trùng key (→ T2C), bước người dùng "3 run
   regression cho feat/rag-accuracy" (→ T1.7).
-- **T1.9/T1.10 đã hoàn thành; T1.11 đang nghiệm thu:** đã khóa lỗi câu trả lời quốc tịch bị coi là
-  địa danh, thêm H16/H17 và strict gate. Chuỗi baseline phải chạy lại từ đầu sau mỗi hard/provider
-  fail; trạng thái chi tiết và bằng chứng nằm trong `07-parallel-task-plan.md` + `test/results/`.
+- **[DONE 2026-07-12] T1.11 — Giai đoạn 1 ĐÃ ĐÓNG:** gate ĐA SỐ 2/3 ĐẠT 2 lần liên tiếp (0 hard fail
+  cả hai lần). VP06 (từ chối khai lùi ngày tạm trú) sửa xong PASS 3/3. F01 vẫn deferred theo đúng
+  thiết kế 2026-07-11 (không chặn tới Giai đoạn 3). **Giai đoạn 2 (runtime safety + quick wins) đã mở
+  khóa** — xem bảng T2A–T2D trong `07-parallel-task-plan.md`. Chi tiết bằng chứng: `06-ai-working-log.md`
+  (2026-07-12) + `test/results/regression-majority-*.md`.
 
 ### [ĐIỀU TRA XONG — TASK-GV02-FLAKY] Vì sao GV02 hay lỗi
 - **Kết quả điều tra (2026-07-10):** Chạy GV02 đơn lẻ 10 lần liên tiếp → **10/10 thành công** (137-350 từ). Chạy thêm 2 lần full 30-câu → 1 lần sạch 100%, 1 lần GV02 TRUNCATED. Không bắt được thêm lần `BLOCKED_CONTENT` nào dù đã bật log chẩn đoán (`finishReason`/`promptFeedback`/`safetyRatings`).

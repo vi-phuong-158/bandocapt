@@ -54,7 +54,7 @@
 | T1.7b | Baseline mới sau T1.8 (mốc chính thức cho Giai đoạn 2) | EVAL | Claude | THẤP | T1.8 | **DONE** (2026-07-11) — ❌ 5-8/30 hard fail, 4 ca lặp cả 3 lần (TR01/TT01/KC04/LOC07), xem 06-log. Bị thay bằng T1.11 làm mốc chính thức |
 | T1.9 | Sửa định tuyến câu trả lời quốc tịch ("Người Việt Nam" bị coi là địa danh → DETERMINISTIC_NO_MATCH trước RAG) | CORE | Claude | **CAO** | — | **DONE** (2026-07-11) — unit + integration + live H16/H17 3/3 PASS |
 | T1.10 | Thước đo hội thoại nhiều lượt (H16/H17) + `--strict-gate` + sửa expectation KC04 | EVAL | Claude | TRUNG | T1.9 | **DONE** (2026-07-11) |
-| T1.11 | Nghiệm thu gate Giai đoạn 1 — chuyển strict per-run → **gate ĐA SỐ 2/3** | EVAL | Claude/Codex/Gemini | **CAO** | T1.9, T1.10 | ĐANG CHẠY (2026-07-11) — strict per-run KHÔNG hội tụ (4 run liên tiếp mỗi run một ca khác flaky: EV04/TT04/VP01/H17). User chốt gate đa số; runner `--majority` + `aggregateMajority` đã có + unit test; đang chạy 3-run majority chính thức |
+| T1.11 | Nghiệm thu gate Giai đoạn 1 — chuyển strict per-run → **gate ĐA SỐ 2/3** | EVAL | Claude/Codex/Gemini | **CAO** | T1.9, T1.10 | **DONE** (2026-07-12) — Gate ĐA SỐ 2/3 ĐẠT 2 lần liên tiếp (`regression-majority-2026-07-12_00-29-22.md`: 0 hard fail/0 flaky; `...00-46-42.md`: 0 hard fail/11 flaky advisory do nhiễu 429 chạy song song, không phải lỗi bot). VP06 (từ chối khai lùi ngày) sửa xong PASS 3/3. F01 vẫn `DEFERRED_SOURCE_GOVERNANCE` theo đúng thiết kế — KHÔNG chặn Giai đoạn 1/2, đóng ở Giai đoạn 3. **→ Giai đoạn 1 ĐÓNG, mở khóa Giai đoạn 2.** |
 
 **Chi tiết:**
 
