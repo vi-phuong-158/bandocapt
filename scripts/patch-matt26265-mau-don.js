@@ -8,8 +8,9 @@ const { Pinecone } = require('@pinecone-database/pinecone');
 // buildVerifiedFactsLine trong api/chat.js), tạo rủi ro rò forbidden obsolete_paper_flow.
 // Chỉ sửa mau_don, GIỮ NGUYÊN vector values + text + content_hash (không cần re-embed, tránh
 // đụng quota Gemini embedding đang cạn theo ngày).
+// Mặc định chỉ xem trước. Phải truyền --apply mới được ghi Pinecone.
 const RECORD_ID = 'tthc_matt26265';
-const NEW_MAU_DON = 'Khai báo điện tử trên hệ thống KBTT (không dùng phiếu giấy).';
+const NEW_MAU_DON = 'N/A';
 
 async function main() {
     if (!process.env.PINECONE_API_KEY) {
@@ -33,14 +34,27 @@ async function main() {
         throw new Error('Fetched record has no vector values — cannot upsert without re-embedding.');
     }
 
-    const stamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '_');
-    const prePath = path.join(backupDir, `${stamp}-pre-patch-mau-don-${RECORD_ID}.json`);
-    fs.writeFileSync(prePath, JSON.stringify({ id: RECORD_ID, ...beforeRecord }, null, 2), 'utf8');
-
     if (!/na17|phiếu|phieu/i.test(beforeRecord.metadata?.mau_don || '')) {
         console.log(JSON.stringify({ skipped: true, reason: 'mau_don already clean', mau_don: beforeRecord.metadata?.mau_don }, null, 2));
         return;
     }
+
+    if (!process.argv.includes('--apply')) {
+        console.log(JSON.stringify({
+            mode: 'dry-run',
+            recordId: RECORD_ID,
+            indexName,
+            namespace,
+            mau_don_before: beforeRecord.metadata?.mau_don,
+            mau_don_after: NEW_MAU_DON,
+            note: 'Chạy lại với --apply để backup và ghi Pinecone.'
+        }, null, 2));
+        return;
+    }
+
+    const stamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '_');
+    const prePath = path.join(backupDir, `${stamp}-pre-patch-mau-don-${RECORD_ID}.json`);
+    fs.writeFileSync(prePath, JSON.stringify({ id: RECORD_ID, ...beforeRecord }, null, 2), 'utf8');
 
     const patchedMetadata = {
         ...beforeRecord.metadata,

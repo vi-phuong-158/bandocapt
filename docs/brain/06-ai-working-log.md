@@ -1058,3 +1058,34 @@
 - **File da sua:** `app.js`, `styles.css`, `test/e2e/civic-mobile-ui.spec.js`, `docs/brain/06-ai-working-log.md`
 - **Ly do:** Quy tac an hero dang ap dung cho ca detail mo rong, khien anh tru so that khong bao gio hien tren mobile.
 - **Kiem tra:** `npm test`; `npm run build`; `npm run test:e2e`.
+
+---
+
+## [2026-07-12] Fix review PR #30: an toan patch metadata Pinecone
+- **Agent:** Codex
+- **Thay doi:** `scripts/patch-matt26265-mau-don.js` mac dinh dry-run, yeu cau `--apply` de ghi; doi
+  `mau_don` thanh `N/A` de khong hien thi mo ta cach khai truc tuyen nhu ma mau don. Them syntax check
+  cho cac script chan doan/patch Pinecone va cap nhat Code Graph/decision.
+- **File da sua:** `scripts/patch-matt26265-mau-don.js`, `package.json`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Ly do:** Review PR #30 phat hien script co the ghi production khi chay nham va gia tri `mau_don`
+  khong dung schema.
+- **Kiem tra:** Dry-run xac nhan `mau_don` cu; chay `--apply` thanh cong tren namespace
+  `chatbot-tthc-xnc`, tao backup `2026-07-12_08-47-07-{pre,post}-patch-mau-don-tthc_matt26265.json`,
+  giu nguyen vector/text. `npm test` va `npm run build` chay sau patch.
+
+---
+
+## [2026-07-12] Chay lai gate regression majority sau review PR #30
+- **Agent:** Codex
+- **Thay doi:** Chay `node scripts/run-regression.js --majority --delay-ms 2000` theo 3 run tuan tu;
+  sinh bao cao run va tong hop majority moi.
+- **File da sua:** `test/results/regression-run-2026-07-12_10-09-52.md`,
+  `test/results/regression-run-2026-07-12_10-16-39.md`,
+  `test/results/regression-run-2026-07-12_10-23-45.md`,
+  `test/results/regression-majority-2026-07-12_10-23-45.md`, `test/results/regression-latest.md`,
+  `test/results/regression-majority-latest.md`, `docs/brain/06-ai-working-log.md`.
+- **Ly do:** Kiem tra chatbot sau khi du lieu `mau_don` cua F01 duoc chuan hoa va cac blocker review
+  PR #30 da duoc khac phuc.
+- **Kiem tra:** Gate da so 2/3 DAT, khong co hard fail da so. EV01 flaky 1/3, GV02 provider error 1/3,
+  F01 deferred 1/3 la advisory; H16/H17 PASS 3/3.

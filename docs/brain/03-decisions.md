@@ -48,14 +48,20 @@
   metadata-only upsert không cần gọi embedding API nên không bị chặn. Backup trước/sau tại
   `data/pinecone-backups/2026-07-12_05-44-00-{pre,post}-patch-mau-don-tthc_matt26265.json`; script
   báo lỗi verify do đọc-lại-ngay gặp eventual consistency của Pinecone, nhưng fetch độc lập sau đó xác
-  nhận `mau_don` mới đã lên live. `mau_don` mới: "Khai báo điện tử trên hệ thống KBTT (không dùng
-  phiếu giấy)."
+  nhận `mau_don` mới đã lên live. Giá trị trung gian này được thay bằng `N/A` lúc 08-47 để giữ đúng
+  schema metadata; backup trước/sau cuối cùng là
+  `data/pinecone-backups/2026-07-12_08-47-07-{pre,post}-patch-mau-don-tthc_matt26265.json`.
 - **Còn lại — chờ quota reset để đóng hẳn Giai đoạn 3:** vẫn giữ F01 `DEFERRED_SOURCE_GOVERNANCE` (xem
   mục "Bước đóng Giai đoạn 3" ở trên) — patch `mau_don` giảm rủi ro nhưng KHÔNG thay thế việc xác nhận
   live 3/3 sạch. Metadata-supersession đầy đủ (tag vector lỗi thời qua `review_status`/`supersedes`) để
   dành lớp sâu hơn, chưa cần cho F01.
 - **Người quyết định:** user (yêu cầu "xử lý dứt điểm F01", xác nhận rõ ràng thao tác ghi Pinecone
   trước khi chạy) / Claude Code (Sonnet 5).
+
+- **Cập nhật review PR #30:** Script patch `mau_don` mặc định dry-run; chỉ ghi Pinecone khi truyền
+  `--apply`. Metadata mới dùng `N/A` thay vì mô tả cách khai trực tuyến để `buildVerifiedFactsLine`
+  không đưa thông tin đó vào nhãn `MAU_DON` như một biểu mẫu. Hướng dẫn KBTT vẫn nằm trong `text` đã
+  re-embed của record.
 
 ---
 
