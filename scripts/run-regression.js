@@ -3,6 +3,8 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 process.env.NODE_ENV = 'development';
 process.env.VERCEL_ENV = 'development';
 process.env.EVAL_BYPASS_TOKEN = 'test-bypass-token';
+// T1.11: tắt FAQ cache khi chạy regression — gate ĐA SỐ cần N lần sinh độc lập.
+process.env.EVAL_SKIP_FAQ_CACHE = '1';
 process.env.CHAT_LOG_HASH_SALT = 'dummy-salt-for-testing';
 if (!process.env.CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE) process.env.CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE = '1';
 

@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-07-12] T1.11 gate ĐA SỐ ĐẠT — sửa VP06 (từ chối khai lùi ngày) + tắt FAQ cache khi eval
+- **Agent:** Claude Code (Fable 5 / Opus 4.8)
+- **Thay đổi:** (1) 3-run majority đầu (`17-47-51`) KHÔNG ĐẠT — VP06 hard fail 3/3: bot né kiểu "chưa có thông tin" thay vì từ chối yêu cầu khai báo LÙI NGÀY tạm trú. Thêm luật vào mục `## TỪ CHỐI` của `SYSTEM_PROMPT_BASE` (`api/chat.js`): hỏi cách khai lùi ngày/sửa ngày/khai sai thời gian → trả lời thẳng "không có cách nào khai báo lùi ngày", khai muộn thì khai ngay với CA xã/phường hoặc trang KBTT trực tuyến NNN, có thể bị xử phạt; và cấm nhắc VNeID/Luật Cư trú (kênh công dân VN → vướng `global_forbidden`). (2) Phát hiện FAQ cache (NICE-03) làm run 2..N phát lại nguyên văn run 1 (latency 1ms) → gate ĐA SỐ chỉ còn "1 run nhân 3". Thêm cờ `EVAL_SKIP_FAQ_CACHE=1` (chặn ở production) tắt cache-hit; `scripts/run-regression.js` set cờ này để 3 run là 3 lần sinh độc lập.
+- **File đã sửa:** `api/chat.js`, `scripts/run-regression.js`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** VP06 là lỗi bot THẬT, ổn định — theo nguyên tắc "không nới grader để né lỗi thật" phải sửa ở prompt. FAQ cache phá tính độc lập của phép đo đa số nên phải bypass khi eval.
+- **Kiểm tra:** `npm test` 225/225 pass. 3-run majority đầy đủ (`regression-majority-2026-07-12_00-29-22.md`): **Gate ĐA SỐ ✅ ĐẠT** — 0 hard fail đa số, 0 flaky; VP06 PASS 3/3; F01 deferred (obsolete_paper_flow, đóng ở Giai đoạn 3, không chặn). Trước khi tắt cache, TT04/DN01/EV01 flaky lẻ tẻ đã tự tan khi mỗi run sinh độc lập. Run 3-run xác nhận lần 2 (`regression-majority-2026-07-12_00-46-42.md`, chạy chồng thời gian với run trên nên dính 429 → embedding fail, một phần run 3 mất RAG): vẫn **Gate ĐẠT**, VP06 PASS 3/3, 11 ca flaky 1/3 đều là advisory không chặn — lưu ý KHÔNG chạy 2 suite song song kẻo rate limit làm nhiễu kết quả.
+
 ## [2026-07-12] T1.11 gate ĐA SỐ 2/3 + sửa 2 lỗi bot thật (H17 Đại sứ quán, TT04 answer-first)
 - **Agent:** Claude Code (Opus 4.8)
 - **Thay đổi:** (1) Nghiệm thu: strict per-run KHÔNG hội tụ (4 run đầy đủ liên tiếp mỗi run một ca khác flaky). User chốt **gate ĐA SỐ**: runner thêm `--majority`/`--runs N` (mặc định 3, ngưỡng ⌊N/2⌋+1) + hàm thuần `aggregateMajority` (majority = hard fail thật/chặn gate; rớt lẻ = flaky/advisory; provider error theo đa số dưới strict). Refactor `executeSuiteOnce`/`buildReportMd`/`writeReport`. Báo cáo tổng hợp `regression-majority-*.md`. (2) Sửa 2 LỖI BOT THẬT phát hiện qua run (KHÔNG nới grader): thêm luật prompt trong `api/chat.js` — người nước ngoài mất hộ chiếu BẮT BUỘC nêu cả trình báo QLXNC LẪN liên hệ Đại sứ quán/Lãnh sự quán (H17); mất/cấp lại thẻ tạm trú không hỏi lại quốc tịch, trả lời-trước thẩm quyền QLXNC, không bịa NA6/NA8 (TT04).

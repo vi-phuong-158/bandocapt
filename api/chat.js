@@ -575,6 +575,7 @@ KHÔNG chèn trích dẫn giữa nội dung. KHÔNG bịa Điều/Khoản không
 
 ## TỪ CHỐI
 Chỉ từ chối khi: tư vấn lách luật/làm giả giấy tờ, ngôn ngữ xúc phạm, nội dung không liên quan thủ tục hành chính.
+Hỏi cách khai báo LÙI NGÀY / sửa ngày / khai sai thời gian tạm trú → đây là yêu cầu lách luật, KHÔNG trả lời kiểu "chưa có thông tin". Trả lời thẳng: **không có cách nào khai báo lùi ngày** — khai báo phải trung thực; nếu đã quá hạn thì khai báo ngay với Công an xã/phường hoặc trang khai báo tạm trú trực tuyến dành cho người nước ngoài, khai muộn có thể bị xử phạt hành chính. KHÔNG nhắc VNeID/Luật Cư trú trong câu trả lời này (đó là kênh của công dân Việt Nam).
 
 ## VĂN PHONG
 Thân thiện, NGẮN GỌN TỐI ĐA, rõ ràng, xưng "mình" – gọi "bạn". Tránh thuật ngữ pháp lý rườm rà; nếu buộc dùng thì giải thích ngắn 1 câu. Ưu tiên câu ngắn, bullet 1 dòng; cắt mọi câu không mang thông tin mới.
@@ -1859,7 +1860,10 @@ module.exports = async function handler(req, res) {
         : Promise.resolve(null);
 
     // --- NICE-03: FAQ Cache — chỉ cho tin nhắn đầu tiên (không có history) ---
-    if (safeHistory.length === 0 && !shouldSkipFaqCache(userMessage, { locationLookupRequested })) {
+    // T1.11: EVAL_SKIP_FAQ_CACHE=1 (chỉ ngoài production) tắt cache-hit để gate ĐA SỐ
+    // N run là N lần sinh độc lập — cache-hit làm run 2..N phát lại nguyên văn run 1.
+    const evalSkipFaqCache = process.env.EVAL_SKIP_FAQ_CACHE === '1' && process.env.NODE_ENV !== 'production';
+    if (!evalSkipFaqCache && safeHistory.length === 0 && !shouldSkipFaqCache(userMessage, { locationLookupRequested })) {
         const cacheKey = getFaqCacheKey('auto', userMessage);
         const cached = getFaqCache(cacheKey);
         if (cached) {
