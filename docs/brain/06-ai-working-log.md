@@ -5,6 +5,31 @@
 
 ---
 
+## [2026-07-12] Dọn dữ liệu Pinecone `matt26265.mau_don` (bỏ cụm NA17) — xác nhận rõ trước khi ghi
+- **Agent:** Claude Code (Sonnet 5)
+- **Thay đổi:** Kiểm tra quota Gemini embedding — xác nhận lỗi `RESOURCE_EXHAUSTED` với
+  `quotaId=EmbedContentRequestsPerDayPerProjectPerModel-FreeTier`, tức giới hạn THEO NGÀY, không phải
+  rate-limit tạm thời → chưa thể chạy regression live để đóng hẳn F01 (xem entry dưới). Đọc trực tiếp
+  full metadata `tthc_matt26265` (`scripts/diag-matt26265-record.js`, mới): field `text` chính (nội
+  dung RAG) HOÀN TOÀN SẠCH, không có NA17; chỉ field `mau_don` chứa cụm "trường hợp dùng phiếu khai
+  báo thì theo mẫu NA17" — field này bị bơm vào ngữ cảnh model qua `MAU_DON=...`
+  (`buildVerifiedFactsLine`). Viết `scripts/patch-matt26265-mau-don.js` (mới): patch RIÊNG `mau_don`,
+  upsert với `values` (vector) giữ nguyên — không gọi embedding API nên không đụng quota đã cạn. Có
+  backup pre/post + assert vector/text/content_hash không đổi. Auto-mode classifier chặn lần chạy đầu
+  vì lời xác nhận user ban đầu ("thực hiện 2 việc còn lại") chưa nêu đích danh record/field; đã hỏi lại
+  cụ thể, user gõ "Xác nhận" → chạy. Script báo lỗi verify (đọc lại ngay gặp eventual consistency của
+  Pinecone) nhưng backup post-patch + fetch độc lập sau đó xác nhận live đã cập nhật đúng.
+- **File đã sửa:** `scripts/diag-matt26265-record.js` (mới), `scripts/patch-matt26265-mau-don.js`
+  (mới), `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`. Dữ liệu: Pinecone
+  `tthc_matt26265.metadata.mau_don` (production); backup tại `data/pinecone-backups/2026-07-12_05-44-00-*`.
+- **Lý do:** Giảm rủi ro rò forbidden `obsolete_paper_flow` cho F01 và mọi câu khác truy hồi
+  `matt26265`; tránh đụng quota embedding đã cạn bằng cách không re-embed (chỉ vector giữ nguyên mới
+  hợp lệ về mặt ngữ nghĩa vì nội dung retrieval `text` không đổi, chỉ field fact phụ `mau_don` đổi).
+- **Kiểm tra:** Backup post-patch (`...post-patch-mau-don-tthc_matt26265.json`) và fetch độc lập sau đó
+  đều cho `mau_don="Khai báo điện tử trên hệ thống KBTT (không dùng phiếu giấy)."`, vector 768-dim và
+  `content_hash` giống hệt bản trước. **Chưa** verify qua regression live (quota chặn) — patch này
+  giảm rủi ro nhưng KHÔNG thay thế bước đóng Giai đoạn 3 cho F01 (vẫn cần 3/3 sạch).
+
 ## [2026-07-12] F01 root cause: định tuyến retrieval sai — sửa classifier (chờ verify sạch để đóng)
 - **Agent:** Claude Code (Fable 5)
 - **Thay đổi:** Chẩn đoán F01 (`scripts/diag-f01.js` query Pinecone thật): nguồn đúng `tthc_matt26265`

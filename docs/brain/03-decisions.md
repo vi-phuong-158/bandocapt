@@ -37,13 +37,25 @@
   giới hạn theo ngày). Khi 429 thì RAG bị bỏ → mọi ca fail grounding, không riêng F01. **Bước đóng
   Giai đoạn 3:** khi quota hồi, chạy `node scripts/run-regression.js --majority` sạch (không chạy song
   song) xác nhận F01 PASS ≥2/3 → mới flip F01 sang `ACTIVE` trong `test/regression-expectations.json`.
-- **Còn lại (cần user duyệt):** bản ghi `matt26265` vẫn nhúng `mau_don="...trường hợp dùng phiếu khai
-  báo thì theo mẫu NA17"` — nếu model trích nguyên văn có thể chạm forbidden `obsolete_paper_flow`
-  (lượt sạch `05-09-20` KHÔNG rò, rủi ro thấp nhờ branch filter + prompt steer KBTT online). Dọn/re-embed
-  là DỮ LIỆU PRODUCTION (Pinecone), PHẢI có xác nhận user trước khi chạy (dùng
-  `scripts/repair-pinecone-temp-residence.js`, bỏ cụm NA17 khỏi `mau_don`). Metadata-supersession đầy
-  đủ (tag vector lỗi thời) để dành lớp sâu hơn, chưa cần cho F01.
-- **Người quyết định:** user (yêu cầu "xử lý dứt điểm F01") / Claude Code (Fable 5).
+- **[CẬP NHẬT 05-44] Đã dọn dữ liệu production, user xác nhận rõ trước khi ghi:** bản ghi
+  `tthc_matt26265` (namespace `chatbot-tthc-xnc`) có field `mau_don="Khai báo điện tử trên hệ thống
+  KBTT; trường hợp dùng phiếu khai báo thì theo mẫu NA17."` — field này bị bơm vào ngữ cảnh model qua
+  `MAU_DON=...` (`buildVerifiedFactsLine`, `api/chat.js`), rủi ro rò forbidden `obsolete_paper_flow`.
+  Patch **chỉ sửa `mau_don`** (bỏ cụm NA17/phiếu) qua `scripts/patch-matt26265-mau-don.js` — **KHÔNG
+  re-embed**: `values` (vector 768-dim), `text`, `content_hash` giữ nguyên 100% (script assert cả 3
+  không đổi sau upsert). Tránh re-embed vì quota Gemini `embed_content` đã cạn theo NGÀY
+  (`EmbedContentRequestsPerDayPerProjectPerModel-FreeTier`, xác nhận qua lỗi RESOURCE_EXHAUSTED) —
+  metadata-only upsert không cần gọi embedding API nên không bị chặn. Backup trước/sau tại
+  `data/pinecone-backups/2026-07-12_05-44-00-{pre,post}-patch-mau-don-tthc_matt26265.json`; script
+  báo lỗi verify do đọc-lại-ngay gặp eventual consistency của Pinecone, nhưng fetch độc lập sau đó xác
+  nhận `mau_don` mới đã lên live. `mau_don` mới: "Khai báo điện tử trên hệ thống KBTT (không dùng
+  phiếu giấy)."
+- **Còn lại — chờ quota reset để đóng hẳn Giai đoạn 3:** vẫn giữ F01 `DEFERRED_SOURCE_GOVERNANCE` (xem
+  mục "Bước đóng Giai đoạn 3" ở trên) — patch `mau_don` giảm rủi ro nhưng KHÔNG thay thế việc xác nhận
+  live 3/3 sạch. Metadata-supersession đầy đủ (tag vector lỗi thời qua `review_status`/`supersedes`) để
+  dành lớp sâu hơn, chưa cần cho F01.
+- **Người quyết định:** user (yêu cầu "xử lý dứt điểm F01", xác nhận rõ ràng thao tác ghi Pinecone
+  trước khi chạy) / Claude Code (Sonnet 5).
 
 ---
 
