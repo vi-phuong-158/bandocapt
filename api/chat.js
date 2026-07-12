@@ -1113,6 +1113,14 @@ function detectSplitTempResidenceIntent(text) {
         return 'tam_tru_khai_bao';
     }
 
+    // F01: người nước ngoài dùng cụm CÔNG DÂN "đăng ký tạm trú" — thực chất vẫn là khai báo tạm
+    // trú NNN. Định tuyến vào nhánh này để retrieval lấy đúng nguồn KBTT (matt26265, loai=tam_tru)
+    // và để bộ lọc nhánh phạt/loại tài liệu cư trú công dân. KHÔNG bắt "gia hạn/thẻ tạm trú".
+    if (/(đăng ký tạm trú|dang ky tam tru)/i.test(lower)
+        && /(người nước ngoài|nguoi nuoc ngoai|foreigner|foreign national)/i.test(lower)) {
+        return 'tam_tru_khai_bao';
+    }
+
     return null;
 }
 

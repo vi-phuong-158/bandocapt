@@ -623,6 +623,16 @@ test('classifyQuestion splits temporary residence declaration and residence card
         classifyQuestion('Người nước ngoài làm việc tại công ty ở Phú Thọ muốn làm thẻ tạm trú cần gì?'),
         'tam_tru_the'
     );
+    // F01: NNN dùng cụm công dân "đăng ký tạm trú" vẫn route vào nhánh khai báo NNN.
+    assert.equal(
+        classifyQuestion('Tôi là người nước ngoài, cần đăng ký tạm trú'),
+        'tam_tru_khai_bao'
+    );
+    // Không được nuốt câu gia hạn (thuộc thị thực) dù có "người nước ngoài".
+    assert.equal(
+        classifyQuestion('Người nước ngoài sắp hết hạn visa thì gia hạn tạm trú ở đâu?'),
+        'thi_thuc'
+    );
 });
 
 test('structured facts keep fee and charge fields independent', () => {

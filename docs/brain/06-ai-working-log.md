@@ -5,6 +5,26 @@
 
 ---
 
+## [2026-07-12] F01 root cause: định tuyến retrieval sai — sửa classifier (chờ verify sạch để đóng)
+- **Agent:** Claude Code (Fable 5)
+- **Thay đổi:** Chẩn đoán F01 (`scripts/diag-f01.js` query Pinecone thật): nguồn đúng `tthc_matt26265`
+  (`KBTT_HD_Trang_CSLT_v2.0.pdf`, loai=tam_tru) xếp #2 khi KHÔNG filter — không mất tín hiệu. Vấn đề:
+  câu hỏi dùng cụm CÔNG DÂN "đăng ký tạm trú" (không phải "khai báo tạm trú") → `detectSplitTempResidenceIntent`
+  trả null → `classifyQuestion` fallback khớp "người nước ngoài" → phân loại `xuat_nhap_canh` → filter
+  Pinecone loại mất `matt26265` (tam_tru) → R@4=0 + nhánh lọc phạt-tài-liệu-công-dân không chạy. Sửa:
+  thêm 1 nhánh trong `detectSplitTempResidenceIntent` (`api/chat.js`) — NNN + "đăng ký tạm trú" →
+  `tam_tru_khai_bao` (không bắt "gia hạn/thẻ"). Thêm 2 assertion test (đăng-ký→khai_bao; gia-hạn→thị_thực).
+  Ghi `docs/brain/03-decisions.md`. Không đụng grep/regex chặn output (đúng ràng buộc 2026-07-11 T1.1).
+- **File đã sửa:** `api/chat.js`, `test/p0-fixes.test.js`, `docs/brain/03-decisions.md`,
+  `docs/brain/06-ai-working-log.md`, `scripts/diag-f01.js` (mới, diagnostic).
+- **Lý do:** F01 là lỗi ĐỊNH TUYẾN retrieval (không phải nguồn mất tín hiệu hay lỗi output) — sửa ở
+  classifier để surfacing đúng nguồn KBTT và kích hoạt bộ lọc tài liệu công dân, đúng tiêu chí Giai đoạn 3.
+- **Kiểm tra:** `npm test` 225/225. F01 live lượt DUY NHẤT không 429 (`05-09-20`): category
+  `tam_tru_khai_bao`, branch filter 8→1, **PASS** (không rò NA17/thuật ngữ công dân). CHƯA lấy được 3/3
+  sạch vì Gemini embedding 429 liên tục (cạn quota do chạy dồn; nghi giới hạn theo ngày). **Giữ F01
+  `DEFERRED_SOURCE_GOVERNANCE`**; bước đóng: quota hồi → chạy `--majority` sạch → F01 PASS ≥2/3 → flip
+  `ACTIVE`. Tồn: `matt26265.mau_don` còn cụm "mẫu NA17" (dọn dữ liệu Pinecone cần user duyệt).
+
 ## [2026-07-12] T1.11 gate ĐA SỐ ĐẠT — sửa VP06 (từ chối khai lùi ngày) + tắt FAQ cache khi eval
 - **Agent:** Claude Code (Fable 5 / Opus 4.8)
 - **Thay đổi:** (1) 3-run majority đầu (`17-47-51`) KHÔNG ĐẠT — VP06 hard fail 3/3: bot né kiểu "chưa có thông tin" thay vì từ chối yêu cầu khai báo LÙI NGÀY tạm trú. Thêm luật vào mục `## TỪ CHỐI` của `SYSTEM_PROMPT_BASE` (`api/chat.js`): hỏi cách khai lùi ngày/sửa ngày/khai sai thời gian → trả lời thẳng "không có cách nào khai báo lùi ngày", khai muộn thì khai ngay với CA xã/phường hoặc trang KBTT trực tuyến NNN, có thể bị xử phạt; và cấm nhắc VNeID/Luật Cư trú (kênh công dân VN → vướng `global_forbidden`). (2) Phát hiện FAQ cache (NICE-03) làm run 2..N phát lại nguyên văn run 1 (latency 1ms) → gate ĐA SỐ chỉ còn "1 run nhân 3". Thêm cờ `EVAL_SKIP_FAQ_CACHE=1` (chặn ở production) tắt cache-hit; `scripts/run-regression.js` set cờ này để 3 run là 3 lần sinh độc lập.

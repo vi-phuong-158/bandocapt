@@ -5,6 +5,48 @@
 
 ---
 
+## [2026-07-12] Sửa root cause F01 bằng định tuyến retrieval (chờ verify sạch để đóng Giai đoạn 3)
+
+- **Bối cảnh:** F01 ("Tôi là người nước ngoài, cần **đăng ký tạm trú**") mang trạng thái
+  `DEFERRED_SOURCE_GOVERNANCE` từ 2026-07-11, được phép fail tới Giai đoạn 3. Chẩn đoán trực tiếp trên
+  Pinecone (script `scripts/diag-f01.js`) cho root cause CHÍNH XÁC, khác giả định "R@4=0 bí ẩn":
+  - Nguồn đúng `tthc_matt26265` (`KBTT_HD_Trang_CSLT_v2.0.pdf`, `loai=tam_tru`) **thực tế xếp #2**
+    (score 0.782) khi query KHÔNG filter — nó KHÔNG mất tín hiệu.
+  - Nhưng câu hỏi dùng cụm CÔNG DÂN "đăng ký tạm trú" (không phải "khai báo tạm trú"), nên
+    `detectSplitTempResidenceIntent` trả null → `classifyQuestion` fallback khớp "người nước ngoài"
+    → phân loại **`xuat_nhap_canh`**. Filter Pinecone khi đó giới hạn `loai_thu_tuc=xuat_nhap_canh`
+    → **loại mất** `matt26265` (tam_tru) khỏi retrieval → R@4=0 ở tầng app. Đồng thời nhánh lọc
+    `filterMatchesByQuestionCategory` (phạt tài liệu cư trú công dân qua `CITIZEN_RESIDENCE_PATTERN`)
+    KHÔNG chạy vì category không thuộc split-branch → bot trả lời từ tài liệu XNC chung + nhét thuật
+    ngữ "đăng ký tạm trú" của công dân (`global_forbidden`).
+  - Không vector nào trong index có `review_status`/`supersedes` (hạ tầng supersession mới chỉ được
+    ĐỌC trong `summarizeMatchForEval`, chưa populate dữ liệu).
+- **Quyết định:** Sửa root cause bằng **định tuyến intent** trong `detectSplitTempResidenceIntent`
+  (`api/chat.js`): người nước ngoài + cụm "đăng ký tạm trú" → route vào nhánh `tam_tru_khai_bao`.
+  Khi đó filter categories thành `['tam_tru','cu_tru']` (surfacing `matt26265`) và nhánh lọc chạy để
+  phạt/loại tài liệu cư trú công dân. Đây là tiêu chí đóng Giai đoạn 3 đã chốt ("lọc được nguồn lỗi
+  thời khỏi retrieval") — sửa ở tầng RETRIEVAL, **không phải** "regex chặn từ khóa ở output" mà quyết
+  định 2026-07-11 (T1.1) cấm.
+- **Bằng chứng fix đúng:** F01 live, lượt DUY NHẤT embedding không 429 (`05-09-20`) cho:
+  `[RAG-03] Filter category: tam_tru_khai_bao` (trước là `xuat_nhap_canh`) →
+  `Split branch filter reduced matches: 8 -> 1` (loại 7 tài liệu công dân/lệch nhánh, giữ `matt26265`)
+  → **Grade: PASS** (không rò NA17, không rò "đăng ký tạm trú" công dân). Unit test classifier pass
+  (đăng-ký-tạm-trú→khai_bao; gia-hạn→thị_thực). `npm test` 225/225.
+- **CHƯA đóng hẳn — giữ `DEFERRED_SOURCE_GOVERNANCE`:** không lấy được 1 lượt 3/3 sạch vì Gemini
+  embedding endpoint 429 liên tục (cạn quota do chạy dồn API trong phiên; chờ 180s không hồi → nghi
+  giới hạn theo ngày). Khi 429 thì RAG bị bỏ → mọi ca fail grounding, không riêng F01. **Bước đóng
+  Giai đoạn 3:** khi quota hồi, chạy `node scripts/run-regression.js --majority` sạch (không chạy song
+  song) xác nhận F01 PASS ≥2/3 → mới flip F01 sang `ACTIVE` trong `test/regression-expectations.json`.
+- **Còn lại (cần user duyệt):** bản ghi `matt26265` vẫn nhúng `mau_don="...trường hợp dùng phiếu khai
+  báo thì theo mẫu NA17"` — nếu model trích nguyên văn có thể chạm forbidden `obsolete_paper_flow`
+  (lượt sạch `05-09-20` KHÔNG rò, rủi ro thấp nhờ branch filter + prompt steer KBTT online). Dọn/re-embed
+  là DỮ LIỆU PRODUCTION (Pinecone), PHẢI có xác nhận user trước khi chạy (dùng
+  `scripts/repair-pinecone-temp-residence.js`, bỏ cụm NA17 khỏi `mau_don`). Metadata-supersession đầy
+  đủ (tag vector lỗi thời) để dành lớp sâu hơn, chưa cần cho F01.
+- **Người quyết định:** user (yêu cầu "xử lý dứt điểm F01") / Claude Code (Fable 5).
+
+---
+
 ## [2026-07-11] Bộ chấm: `grounding_patterns` tách pattern dò tài-liệu khỏi pattern dò câu-trả-lời; forbidden phải negation-aware (T1.8)
 
 - **Bối cảnh:** Baseline T1.7 đỏ 12–16/30 hard fail, nhưng soi từng ca cho thấy ~9/11 ca fail lặp
