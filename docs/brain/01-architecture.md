@@ -28,15 +28,18 @@ bandocapt/
 |- output.css
 |- data.js
 |- data/
-|  `- tthc-catalog.json
+|  |- tthc-catalog.json
+|  `- tthc-index.json
 |- js/
 |  |- chatbot.js
 |  |- gemini.js
+|  |- lazy-features.js
 |  |- location-data.js
 |  `- tthc-catalog.js
 |- lib/
 |  |- output-validator.js
 |  |- published-locations.js
+|  |- request-security.js
 |  |- regression-metrics.js
 |  `- regression-grader.js
 |- api/
@@ -57,23 +60,26 @@ bandocapt/
 
 | Module / file | Vai tro | Duoc goi boi | Phu thuoc vao |
 |---------------|---------|--------------|---------------|
-| `index.html` | Shell UI, tai CSS/JS va DOM | Browser | `output.css`, `styles.css`, `app.js`, `js/chatbot.js`, `js/gemini.js`, `js/tthc-catalog.js` |
+| `index.html` | Shell UI, tai JS nen va lazy loader; asset runtime duoc doi sang URL content-hash trong `dist/` | Browser | `output.css`, `styles.css`, `app.js`, `js/lazy-features.js` |
 | `js/app-navigation.js` | Dieu phoi 3 tab mobile Ban do/Thu tuc/Hoi dap AI, dong bo `aria-current` va ghi nhan lan dau mo AI | `index.html` | public surface callbacks tu `app.js`, `js/chatbot.js`, `js/tthc-catalog.js` |
 | `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker/cluster, preview vi tri mobile | `index.html`, `js/app-navigation.js` | `js/location-data.js`, `api/google-sheet.js`, `data.js`, Leaflet.markercluster |
 | `data.js` | Fallback tinh cho map khi Google Sheets loi | `app.js` | - |
 | `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check, doc them `search_aliases` neu co | `app.js`, `lib/published-locations.js`, test | - |
 | `js/gemini.js` | Goi `POST /api/chat` (parse SSE stream) va `POST /api/feedback` (`sendFeedback`); ky HMAC dung chung qua `signRequestToken` | `js/chatbot.js` | `api/chat.js`, `api/feedback.js` |
-| `js/chatbot.js` | UI chat, toggle panel, render stream, nut doi chieu TTHC khi source co `procedure_id`, va action bar 👍/👎 + form bao cao (sinh `turn_id` client, goi `GeminiAI.sendFeedback`) | `index.html` | `js/gemini.js`, `window.TthcCatalog` neu co |
-| `js/tthc-catalog.js` | UI danh muc TTHC tinh: load JSON, loc/tim kiem, xem chi tiet, public API `window.TthcCatalog` | `index.html`, `js/chatbot.js` | `data/tthc-catalog.json` |
+| `js/lazy-features.js` | Nap chat/catalog khi click/hover; pin SRI marked/DOMPurify, nap Turnstile sau chat va giu proxy deep-link `TthcCatalog` | `index.html` | `js/gemini.js`, `js/chatbot.js`, `js/tthc-catalog.js` |
+| `js/chatbot.js` | UI chat, toggle panel, render stream, nut doi chieu TTHC khi source co `procedure_id`, va action bar 👍/👎 + form bao cao (sinh `turn_id` client, goi `GeminiAI.sendFeedback`) | `js/lazy-features.js` | `js/gemini.js`, `window.TthcCatalog` |
+| `js/tthc-catalog.js` | UI danh muc TTHC tinh: chi warm index nhe; catalog day du chi fetch khi mo panel/chi tiet | `js/lazy-features.js`, `js/chatbot.js` | `data/tthc-index.json`, `data/tthc-catalog.json` |
+| `data/tthc-index.json` | Chi muc nhe `{procedure_id,title,aliases}` de chat doi chieu nhanh | `js/tthc-catalog.js` | `scripts/generate-tthc-catalog.js --index-only` |
 | `data/tthc-catalog.json` | Catalog TTHC tinh de nguoi dung doi chieu cau tra loi AI | `js/tthc-catalog.js` | sinh tu Pinecone live + audit phi, fallback backup khi local khong co key |
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai. T1.9: cau tra loi quoc tich ("Nguoi Viet Nam"...) KHONG phai dia danh — `NATIONALITY_ANSWER_PATTERN` loai khoi heuristic cau ngan; `isNationalityAnswerContext` cho `api/chat.js` ne nhanh tat dinh no_match khi bot vua hoi quoc tich | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
 | `lib/output-validator.js` | Fail-closed output guard: doi chieu va redact SDT/Maps/toa do/so lieu phap ly khong co trong nguon xac minh | `api/chat.js`, test | - |
+| `lib/request-security.js` | CORS, lay IP, HMAC request, sanitize diagnostic va Telegram alert dung chung | `api/chat.js`, `api/feedback.js` | Node crypto, fetch |
 | `lib/regression-metrics.js` | Dem tu Unicode-safe va giu ngan sach verbosity 120/250 dong bo voi prompt answer-first | `scripts/run-regression.js`, test | `Intl.Segmenter` Node 20 |
 | `lib/regression-grader.js` | Bo cham regression 2 lop (T1.4 deterministic: required/forbidden facts, ngon ngu, verbosity; T1.5 grounding: Recall@4/MRR/source recall + fact-in-docs) doc tu `test/regression-expectations.json`; verdict PASS/HARD_FAIL/DEFERRED_FAIL, F01 deferred khong chan gate. T1.8: fact co the khai `grounding_patterns` (match any) — pattern rieng do TAI LIEU, tach khoi pattern do cau tra loi (can cho ca en/zh va dien dat khac docs); forbidden pattern phai negation-aware (xem 03-decisions). T1.11: `detectLanguage` chi do mat do dau tren tu khong viet hoa dau — dia chi tieng Viet trong cau tra loi tieng Anh khong bi cham oan wrong_language | `scripts/run-regression.js`, test | `test/regression-expectations.json`, eval trace tu `api/chat.js` (T1.3) |
-| `api/feedback.js` | Serverless nhan bao cao/phan hoi nguoi dung ve cau tra loi chatbot; tai dung CORS/HMAC/sanitize tu `api/chat.js`; rate limit best-effort IP/ngay + ghi `chat_feedback/<date_key>` tren RTDB voi TTL | `js/gemini.js` | `api/chat.js` (require cheo helper), Firebase RTDB |
+| `api/feedback.js` | Serverless nhan bao cao/phan hoi nguoi dung ve cau tra loi chatbot; tai dung CORS/HMAC/sanitize tu helper chung; rate limit best-effort IP/ngay + ghi `chat_feedback/<date_key>` tren RTDB voi TTL | `js/gemini.js` | `lib/request-security.js`, Firebase RTDB |
 | `scripts/read-feedback.js` | Doc `chat_feedback/<date_key>` tu RTDB, in bao cao theo ngay (loc `--down`) de admin ra soat | Developer / cron | Firebase RTDB, `.env` |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
-| `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone; T2A dung mot `standaloneQuery` cho embedding/classify/exact-token/rerank/XNC va co fail-closed abstention gated khi khong con nguon grounded; split intent `tam_tru_khai_bao`/`tam_tru_the`, stream model, inject `<verified_locations>`, `buildCitationSource` tra them `procedure_id`/`title` cho nut doi chieu TTHC, dang ky groundedness background task | `js/gemini.js` | Pinecone, Gemini API, Firebase, `@vercel/functions`, `lib/published-locations.js` |
+| `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone; T2A `standaloneQuery`/abstention gated; T2C dung deadline chung 55s cho moi stage, provider fallback va telemetry `waitUntil`; stream model da validator | `js/gemini.js` | Pinecone, Gemini/DeepSeek, Firebase, `@vercel/functions`, `lib/published-locations.js`, `lib/request-security.js` |
 | `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live, mac dinh gom `tthc_*` + `guide_*` co noi dung (loc guide rong/noi bo), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
 | `scripts/patch-matt26265-mau-don.js` | Script mot-muc de xoa gia tri `mau_don` loi thoi cua `tthc_matt26265`; mac dinh dry-run, chi backup + upsert khi co `--apply`, giu nguyen vector/text/content_hash | Developer duoc uy quyen | Pinecone, `.env`, `data/pinecone-backups/` |
 | `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets | Google Apps Script | SpreadsheetApp |
@@ -130,10 +136,14 @@ User nhap
   11c. (P1.1.2) Rerank Gemini co dieu kien: bo qua (`shouldSkipRerank`) khi top-1 > 0.75 diem VA cach top-2 >= 0.05 — chi rerank khi con map mo
   11d. (T2A, gated `RAG_FAIL_CLOSED=1`) Neu khong co match RAG vuot nguong, khong co tru so xac minh va khong co khoi XNC: tra abstention tat dinh theo ngon ngu + `abstentionReason`, KHONG goi model generation. Eval-mode van dinh retrieval trace rong de grader khong bo qua grounding.
   12. Inject `<verified_locations>` + `<retrieved_documents>` vao system prompt
+  12b. (T2C) Moi fetch/retry/rerank/provider/stream read dung phan ngan sach con lai cua
+       `CHAT_REQUEST_DEADLINE_MS` (mac dinh 55s); failover chi cho timeout/429/5xx/network/block truoc khi
+       da phat text hop le
   13. Stream Gemini 2.5 Flash / DeepSeek
   14. (T2B-1) Buffer đến hết câu/bullet, validate từng segment rồi mới phát SSE; `done.fullText`
       là phép nối chính xác các segment đã phát. Không đưa raw model text chưa validate lên UI.
-  15. Ghi telemetry toi thieu, gom so luong/loai violation cua output validator; groundedness check chay sau response qua Vercel `waitUntil`
+  15. Ghi telemetry toi thieu, gom so luong/loai violation cua output validator va timing/provider/fallback;
+      telemetry + groundedness check chay sau response qua Vercel `waitUntil`
   16. (P1.2.1) Sau `res.end()`, dang ky `checkGroundednessAsync` bang Vercel `waitUntil`: neu answer
       co so lieu, Gemini Flash doi chieu voi legalCorpus va ghi `groundedness_checks/<date>` vao
       Firebase — chi canh bao, khong chan response
@@ -144,18 +154,20 @@ User nhap
 
 ```text
 index.html load
--> js/tthc-catalog.js init
--> user mo "Danh muc thu tuc hanh chinh"
--> fetch data/tthc-catalog.json same-origin
+-> js/lazy-features.js init (chat/catalog chua tai)
+-> user mo chat: nap marked + DOMPurify (SRI) + gemini + chatbot + Turnstile
+-> user mo "Danh muc thu tuc hanh chinh": nap js/tthc-catalog.js
+-> chat warm fetch data/tthc-index.json same-origin; catalog day du chi fetch khi mo panel/chi tiet
+-> fetch data/tthc-catalog.json same-origin khi can render danh sach
 -> render chip loc linh vuc + tim kiem + danh sach
 -> xem chi tiet thu tuc voi text nguyen van va phi da resolve
 
-Developer chay `npm run gen:catalog`
+Developer chay `npm run gen:catalog` (hoac `npm run gen:catalog:index` neu catalog da duoc cap nhat)
 -> scripts/generate-tthc-catalog.js
 -> neu co PINECONE_API_KEY hop le: list/fetch Pinecone namespace, lay `tthc_*`, group `guide_*` co `Noi dung wiki` theo ten thu tuc
 -> loai guide noi bo/rong, dedupe guide neu trung tieu de voi `tthc_*`, tom tat fee tu than muc phi/le phi, sort theo category/cap
 -> neu khong co env hop le: fallback backup trong repo (va co the `--fetch-missing` cho 4 record thieu)
--> ghi data/tthc-catalog.json
+-> ghi data/tthc-catalog.json + data/tthc-index.json
 
 Chat source co procedure_id
 -> js/chatbot.js render nut "Doi chieu trong danh muc"
@@ -264,6 +276,9 @@ FEEDBACK_DAILY_IP_LIMIT
 FEEDBACK_RETENTION_DAYS
 EMBED_TASK_TYPE
 RAG_FAIL_CLOSED
+LLM_PRIMARY
+LLM_FALLBACK
+CHAT_REQUEST_DEADLINE_MS
 TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID
 ```
@@ -277,6 +292,13 @@ Biến mới (2026-07-12):
 - `RAG_FAIL_CLOSED` (T2A): đặt `1` để bật fail-closed abstention khi thiếu RAG. Chạy được cả
   production nhưng **mặc định TẮT**; không đặt → giữ hành vi cũ (model tự báo "không tìm thấy tài liệu").
   Bật + đo `--majority` (0 hard fail mới, 100% ca thiếu RAG từ chối đúng) trước khi coi là mặc định.
+
+Biến mới (2026-07-13):
+- `LLM_PRIMARY` / `LLM_FALLBACK`: thứ tự provider generation. Mặc định Gemini; DeepSeek chỉ được thử lại
+  trước chunk hợp lệ đầu tiên khi lỗi timeout/429/5xx/network/block. Thiếu key hoặc cấu hình không hợp lệ
+  thì provider đó bị bỏ qua.
+- `CHAT_REQUEST_DEADLINE_MS`: deadline chung của request, mặc định `55000`, phải thấp hơn Vercel
+  `maxDuration` 60s. Mỗi stage dùng `min(stage cap, thời gian còn lại)` và hủy fetch/stream khi hết hạn.
 
 ## Luu y kien truc quan trong
 
@@ -293,8 +315,9 @@ Biến mới (2026-07-12):
 - `output.css` duoc commit va `npm run build` se tai tao lai file nay truoc khi tao `dist/`.
 - Mobile duoi 768px dung bottom navigation co dinh 3 tab; chat/catalog la tab surface khong phai modal, va detail preview giu selection khi doi tab.
 - Leaflet.markercluster duoc pin 1.5.3 tren unpkg voi SRI. `clusterGroup` chua marker thuong, `selectedLayer` giu marker dang chon noi tren cum; clustering tat tu zoom 14.
-- `scripts/build-static.js` dung allowlist file ro rang; khi them file runtime tinh nhu `js/tthc-catalog.js` hoac
-  `data/tthc-catalog.json` phai them vao allowlist, neu khong preview/production se 404.
+- `scripts/build-static.js` dung allowlist file ro rang va doi ten moi input (tru `index.html`) bang content hash;
+  manifest `dist/asset-manifest.json` la cau noi cho deep-link/test. Khi them file runtime tinh nhu
+  `js/tthc-catalog.js` hoac `data/tthc-catalog.json` phai them vao allowlist, neu khong preview/production se 404.
 - `data/tthc-catalog.json` la snapshot tinh dung cho UI doi chieu; generator uu tien Pinecone live neu local co env hop le,
   nhung frontend van chi fetch file same-origin nay va khong goi Pinecone runtime tu browser.
 - `.env.local` co the ton tai key Pinecone rong; generator bo qua gia tri rong va fallback ve `.env` thay vi coi nhu da cau hinh.

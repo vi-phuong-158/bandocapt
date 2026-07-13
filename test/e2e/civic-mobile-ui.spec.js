@@ -62,7 +62,8 @@ test('mobile procedure deep-link activates the Procedures tab and opens the requ
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     const procedureId = await page.evaluate(async () => {
-        const catalog = await fetch('data/tthc-catalog.json').then(response => response.json());
+        const manifest = await fetch('asset-manifest.json').then(response => response.json());
+        const catalog = await fetch(manifest['data/tthc-catalog.json']).then(response => response.json());
         return catalog.procedures[0].procedureId;
     });
 

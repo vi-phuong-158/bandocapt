@@ -82,11 +82,11 @@
 | T2A | Fail-closed + `standaloneQuery` nhất quán | CORE | Claude/Codex tiếp quản | **CAO** | T1.7 | **DONE** (2026-07-13) — code/unit/build xong; majority 3/3 đạt, 0 hard fail đa số; TYPO02 PASS 3/3, GD02 flaky 1/3 advisory |
 | T2B-1 | Buffered validation (SSE theo câu) | CORE | Claude/Codex tiếp quản | **CAO** | T2A | **DONE** (2026-07-13) — 241 unit/integration xanh; majority 3 run đạt 0 hard fail đa số, 0 provider error |
 | T2B-2 | Per-claim citation `[Sx]` sau flag `CLAIM_CITATIONS=off` | CORE | Claude | **CAO** | T2B-1 + 3 run sạch | **DEFERRED** — hard gate đạt nhưng soft-warning/latency gate chưa đạt; không bật flag |
-| T2C | Provider/deadline/telemetry + tách helper khỏi chat.js | CORE | Claude/Codex tiếp quản | TRUNG–CAO | T2B-1 | **IN PROGRESS** — provider/deadline/telemetry đã có; còn stage budgets + tách helper |
-| T2D-1 | Avatar 669KB → WebP/AVIF 128px ≤80KB | FE | Codex | THẤP | — (song song mọi thứ) | TODO |
-| T2D-2 | `tthc-index.json` nhỏ + chat chỉ preload index | FE+DATA | Codex | TRUNG | — (song song được) | TODO |
-| T2D-3 | Lazy-load marked/DOMPurify/Turnstile/chatbot/catalog | FE | Codex | TRUNG | T2D-2 nên xong trước | TODO |
-| T2D-4 | Hash/version static assets + cache immutable | DATA | Codex | TRUNG | T2D-1..3 | TODO |
+| T2C | Provider/deadline/telemetry + tách helper khỏi chat.js | CORE | Claude/Codex tiếp quản | TRUNG–CAO | T2B-1 | **DONE** (2026-07-13) — stage budget dùng deadline chung 55s, retry/failover có abort, telemetry chạy `waitUntil`, và CORS/HMAC/IP/sanitize đã tách thành `lib/request-security.js` |
+| T2D-1 | Avatar 669KB → WebP/AVIF 128px ≤80KB | FE | Codex | THẤP | — (song song mọi thứ) | **DONE** (2026-07-13) — `icon-128.webp` 128px/3.8KB, không copy icon PNG 669KB vào artifact |
+| T2D-2 | `tthc-index.json` nhỏ + chat chỉ preload index | FE+DATA | Codex | TRUNG | — (song song được) | **DONE** (2026-07-13) — index 18KB thay catalog 639KB cho luồng đối chiếu từ chat |
+| T2D-3 | Lazy-load marked/DOMPurify/Turnstile/chatbot/catalog | FE | Codex | TRUNG | T2D-2 nên xong trước | **DONE** (2026-07-13) — loader giữ SRI và API deep-link tương thích bằng proxy |
+| T2D-4 | Hash/version static assets + cache immutable | DATA | Codex | TRUNG | T2D-1..3 | **DONE** (2026-07-13) — build sinh filename SHA-256 ngắn + manifest, cache immutable cho asset/hash |
 
 **Chi tiết:**
 
@@ -97,6 +97,11 @@
 - **T2D-2** — Generator sinh thêm `data/tthc-index.json` (title/alias/procedure_id); `js/chatbot.js` preload index thay vì catalog 639KB; catalog đầy đủ chỉ tải khi mở danh mục/bấm đối chiếu.
 
 **Gate giai đoạn 2:** không hard fail mới; F01 giữ deferred; soft warning ≤1/3 run mỗi case; 100% ca thiếu RAG từ chối đúng; không raw text chưa validate trên UI; p95 không xấu hơn baseline quá 5%. SLO 8s/20s chỉ là target đến khi owner chốt sau baseline.
+
+**Trạng thái chốt 2026-07-13:** T2A, T2B-1, T2C và T2D-1..4 đã hoàn thành trong code/test. T2B-2 là milestone
+độc lập đã **DEFERRED** đúng theo điều kiện không đạt soft-warning/latency, vì vậy `CLAIM_CITATIONS` vẫn tắt.
+Run full sau T2C ngày 2026-07-13 có 0 hard fail (F01 deferred) nhưng lần gọi 3-run bị giới hạn timeout 10 phút
+của môi trường chạy trước khi có majority report mới; không dùng kết quả này để bật flag production.
 
 ---
 

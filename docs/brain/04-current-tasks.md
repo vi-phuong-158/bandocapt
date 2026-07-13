@@ -27,7 +27,12 @@
   và provider errors lẻ tẻ chỉ advisory. T2B-1 được mở khóa. Nguồn trạng thái: `07-parallel-task-plan.md`.
 - **[DONE 2026-07-13] T2B-1:** buffered validation theo câu/bullet có unit + integration test ở
   tầng handler cho ba invariant; majority 3 run trên đúng worktree đạt 0 hard fail đa số và 0
-  provider error. T2B-2 vẫn DEFERRED vì soft-warning/latency gate chưa đạt. T2C đang IN PROGRESS.
+  provider error. T2B-2 vẫn DEFERRED vì soft-warning/latency gate chưa đạt.
+- **[DONE 2026-07-13] T2C + T2D-1..4:** mọi external stage của chat cùng dùng deadline 55s còn lại,
+  provider fallback/telemetry không chặn SSE, và helper request-security đã tách khỏi chat handler. Frontend
+  dùng avatar WebP 3.8KB, index TTHC 18KB, lazy loader có SRI/proxy deep-link, cùng static manifest content-hash.
+  `npm test` 249/249 và `npm run test:e2e` 14/14 xanh. Một full regression sau T2C có 0 hard fail (F01
+  deferred); majority 3-run mới cần chạy ở runner không bị giới hạn 10 phút trước bất kỳ rollout flag nào.
 
 ### [ĐIỀU TRA XONG — TASK-GV02-FLAKY] Vì sao GV02 hay lỗi
 - **Kết quả điều tra (2026-07-10):** Chạy GV02 đơn lẻ 10 lần liên tiếp → **10/10 thành công** (137-350 từ). Chạy thêm 2 lần full 30-câu → 1 lần sạch 100%, 1 lần GV02 TRUNCATED. Không bắt được thêm lần `BLOCKED_CONTENT` nào dù đã bật log chẩn đoán (`finishReason`/`promptFeedback`/`safetyRatings`).

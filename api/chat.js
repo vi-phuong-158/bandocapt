@@ -10,6 +10,13 @@ const { Pinecone } = require('@pinecone-database/pinecone');
 const { waitUntil } = require('@vercel/functions');
 const crypto = require('crypto');
 const {
+    isAllowedOrigin,
+    resolveClientIp,
+    sanitizeDiagnosticText,
+    sendTelegramAlert,
+    verifyRequestSignature,
+} = require('../lib/request-security');
+const {
     getPublishedLocations,
     isLocationLookupRequested,
     isBarePlaceNameQuery,
@@ -123,18 +130,6 @@ function buildTelemetryRetention(type, now = new Date()) {
     };
 }
 
-function sanitizeDiagnosticText(value, maxLength = 4000) {
-    let text = String(value || '');
-
-    text = text.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[redacted:email]');
-    text = text.replace(/\b(Bearer)\s+[A-Za-z0-9._\-+/=]{8,}\b/gi, '$1 [redacted:token]');
-    text = text.replace(/\b((?:access|refresh|id|request|auth)[_-]?token|api[_-]?key|client[_-]?secret|secret|password|pwd|private[_-]?key|x-request-token)\b\s*[:=]\s*["']?[^\s"',;]{6,}["']?/gi, '$1=[redacted:secret]');
-    text = text.replace(/((?:số hộ chiếu|so ho chieu|passport(?:\s*(?:number|no|#))?))\s*[:#-]?\s*([A-Z0-9]{6,12})/gi, '$1: [redacted:passport]');
-    text = text.replace(/\b[A-Z]{1,2}[0-9]{6,8}\b/g, '[redacted:passport]');
-
-    return truncateForLog(text, maxLength);
-}
-
 function isTelemetryExpired(payload, now = new Date()) {
     if (!payload || !payload.expires_at) return false;
     const expiresAt = payload.expires_at instanceof Date ? payload.expires_at : new Date(payload.expires_at);
@@ -150,9 +145,30 @@ function listExpiredTelemetryKeys(entries = {}, now = new Date()) {
 function withRequestTimeout(factory, timeoutMs, label) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(new Error(`${label}_TIMEOUT`)), timeoutMs);
-    return Promise.resolve()
-        .then(() => factory(controller.signal))
+    const abortPromise = new Promise((_, reject) => {
+        controller.signal.addEventListener('abort', () => {
+            reject(controller.signal.reason || new Error(`${label}_TIMEOUT`));
+        }, { once: true });
+    });
+    return Promise.race([
+        Promise.resolve().then(() => factory(controller.signal)),
+        abortPromise,
+    ])
         .finally(() => clearTimeout(timeoutId));
+}
+
+function getRemainingDeadlineMs(deadlineAt, stageMaxMs) {
+    const remainingMs = deadlineAt - Date.now();
+    if (remainingMs <= 0) throw new Error('CHAT_REQUEST_DEADLINE_EXCEEDED');
+    return Math.max(1, Math.min(stageMaxMs, remainingMs));
+}
+
+function fetchWithinDeadline(url, options, deadlineAt, stageMaxMs, label = 'FETCH') {
+    return withRequestTimeout(
+        signal => fetch(url, { ...options, signal }),
+        getRemainingDeadlineMs(deadlineAt, stageMaxMs),
+        label
+    );
 }
 
 async function measureStage(timings, key, fn) {
@@ -259,11 +275,11 @@ function buildDiagnosticTelemetryPayload(data, now = new Date(), randomValue = M
 function writeTelemetryToRealtimeDb(payload, type) {
     // Không fallback sang URL hardcode cross-project: chỉ ghi khi có DB cấu hình rõ ràng.
     const dbUrl = process.env.FIREBASE_DB_URL;
-    if (!dbUrl) return;
+    if (!dbUrl) return Promise.resolve();
     const auth = process.env.FIREBASE_DB_SECRET ? `?auth=${process.env.FIREBASE_DB_SECRET}` : '';
     const dateKey = payload.date_key || new Date().toISOString().slice(0, 10).replace(/-/g, '_');
     const collectionPath = type === 'diagnostic' ? 'chat_logs_diagnostic' : 'chat_logs_metrics';
-    fetch(`${dbUrl}/${collectionPath}/${dateKey}.json${auth}`, {
+    return fetch(`${dbUrl}/${collectionPath}/${dateKey}.json${auth}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...payload, created_at: Date.now(), storage_fallback: 'rtdb' })
@@ -271,14 +287,14 @@ function writeTelemetryToRealtimeDb(payload, type) {
 }
 
 function writeTelemetryToFirestoreCollection(db, collectionName, payload, type) {
-    db.collection(collectionName).add(payload)
+    return db.collection(collectionName).add(payload)
         .catch(e => {
             console.warn(`[telemetry] Không ghi được ${type} log, chuyển sang RTDB fallback:`, e.message);
-            writeTelemetryToRealtimeDb(payload, type);
+            return writeTelemetryToRealtimeDb(payload, type);
         });
 }
 
-function logChatToFirestore(data) {
+async function logChatToFirestore(data) {
     const metricCollection = process.env.FIRESTORE_CHAT_COLLECTION || 'chat_logs';
     const diagnosticCollection = process.env.FIRESTORE_DIAGNOSTIC_COLLECTION || 'chat_logs_diagnostic';
     const now = new Date();
@@ -287,17 +303,19 @@ function logChatToFirestore(data) {
 
     const db = getFirestoreDb();
     if (!db) {
-        writeTelemetryToRealtimeDb(metricPayload, 'metric');
+        const writes = [writeTelemetryToRealtimeDb(metricPayload, 'metric')];
         if (diagnosticPayload) {
-            writeTelemetryToRealtimeDb(diagnosticPayload, 'diagnostic');
+            writes.push(writeTelemetryToRealtimeDb(diagnosticPayload, 'diagnostic'));
         }
+        await Promise.allSettled(writes);
         return;
     }
 
-    writeTelemetryToFirestoreCollection(db, metricCollection, metricPayload, 'metric');
+    const writes = [writeTelemetryToFirestoreCollection(db, metricCollection, metricPayload, 'metric')];
     if (diagnosticPayload) {
-        writeTelemetryToFirestoreCollection(db, diagnosticCollection, diagnosticPayload, 'diagnostic');
+        writes.push(writeTelemetryToFirestoreCollection(db, diagnosticCollection, diagnosticPayload, 'diagnostic'));
     }
+    await Promise.allSettled(writes);
 }
 
 const RATE_LIMIT_ETAG_HEADER = { 'X-Firebase-ETag': 'true' };
@@ -705,85 +723,10 @@ function setFaqCache(key, fullText, sources) {
 // =====================================================================
 // [BẢO MẬT #1] CORS WHITELIST — Chỉ cho phép đúng domain production
 // =====================================================================
-const ALLOWED_ORIGINS = [
-    'https://bandocapt.vercel.app',
-    'http://localhost:5500',
-    'http://127.0.0.1:5500',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-];
-
-function getAllowedOrigins() {
-    const configuredOrigins = (process.env.ALLOWED_ORIGINS || '')
-        .split(',')
-        .map(item => item.trim())
-        .filter(Boolean);
-
-    return new Set([...ALLOWED_ORIGINS, ...configuredOrigins]);
-}
-
-function isAllowedOrigin(origin, req) {
-    if (getAllowedOrigins().has(origin)) return true;
-
-    // P1.3.2: `x-forwarded-host` chỉ đáng tin khi platform (Vercel) tự set — trên hạ tầng khác
-    // header này do client gửi lên, dùng nó để tự-whitelist origin sẽ mở lỗ CORS bypass.
-    if (!process.env.VERCEL) return false;
-
-    try {
-        const originUrl = new URL(origin);
-        const requestHost = req.headers['x-forwarded-host'] || req.headers.host;
-        return Boolean(requestHost) && originUrl.host === requestHost;
-    } catch (_) {
-        return false;
-    }
-}
-
-// P1.3.3: `x-vercel-forwarded-for` do chính platform Vercel set (không thể client giả mạo)
-// nên ưu tiên trước; `x-real-ip` là fallback phổ biến của proxy khác; XFF thô đứng cuối vì
-// client có thể tự thêm giá trị vào đầu chuỗi.
-function resolveClientIp(req) {
-    return (
-        req.headers['x-vercel-forwarded-for']?.split(',')[0].trim() ||
-        req.headers['x-real-ip']?.split(',')[0].trim() ||
-        req.headers['x-forwarded-for']?.split(',')[0].trim() ||
-        req.socket?.remoteAddress ||
-        'unknown'
-    );
-}
-
-function verifyRequestSignature({ token, requestTime, userMessage, userAgent, origin }) {
-    if (!token || !requestTime) return false;
-    if (!/^[0-9a-f]{64}$/.test(token)) return false;
-
-    const timestamp = Number.parseInt(requestTime, 10);
-    if (!Number.isFinite(timestamp)) return false;
-
-    const originHost = (() => {
-        try {
-            return new URL(origin || 'http://localhost').hostname;
-        } catch (_) {
-            return 'localhost';
-        }
-    })();
-
-    const timeDiff = Math.abs(Date.now() - timestamp);
-    if (timeDiff > 5 * 60 * 1000) return false;
-
-    const messageDigest = sha256Hex(userMessage).substring(0, 32);
-    const signData = `${requestTime}:${originHost}:${userAgent.length}:${messageDigest}`;
-    const keyMaterial = `xnc-phu-tho:${originHost}:${userAgent.substring(0, 16)}`;
-    const expectedSig = crypto.createHmac('sha256', keyMaterial).update(signData).digest('hex');
-
-    const expectedBuffer = Buffer.from(expectedSig, 'utf8');
-    const tokenBuffer = Buffer.from(token, 'utf8');
-    return expectedBuffer.length === tokenBuffer.length &&
-        crypto.timingSafeEqual(expectedBuffer, tokenBuffer);
-}
-
 // =====================================================================
 // [BẢO MẬT #5] TURNSTILE CAPTCHA — Chống bot tự động spam
 // =====================================================================
-async function verifyTurnstile(token, ip) {
+async function verifyTurnstile(token, ip, deadlineAt = Date.now() + 8000) {
     const secret = process.env.TURNSTILE_SECRET_KEY;
     if (process.env.NODE_ENV !== 'production' &&
         process.env.EVAL_BYPASS_TOKEN &&
@@ -797,11 +740,11 @@ async function verifyTurnstile(token, ip) {
     if (!token) return false; // Có secret nhưng không có token → reject
 
     try {
-        const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        const res = await fetchWithinDeadline('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({ secret, response: token, remoteip: ip }).toString(),
-        });
+        }, deadlineAt, 8000, 'TURNSTILE');
         if (!res.ok) return false;
         const data = await res.json();
         return data.success === true;
@@ -854,15 +797,11 @@ function sanitizeHistory(raw) {
 // =====================================================================
 // RETRY HELPER — Tự động thử lại khi gặp 429/503
 // =====================================================================
-async function fetchWithRetry(url, options, maxRetries = 2, timeoutMs = 8000) {
+async function fetchWithRetry(url, options, maxRetries = 2, timeoutMs = 8000, deadlineAt = Date.now() + timeoutMs) {
     let lastError;
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-            const response = await withRequestTimeout(
-                signal => fetch(url, { ...options, signal }),
-                timeoutMs,
-                'FETCH'
-            );
+            const response = await fetchWithinDeadline(url, options, deadlineAt, timeoutMs);
             if (response.ok || (response.status !== 429 && response.status !== 503)) {
                 return response;
             }
@@ -880,7 +819,8 @@ async function fetchWithRetry(url, options, maxRetries = 2, timeoutMs = 8000) {
             if (attempt === maxRetries) throw err;
             console.warn(`[api/chat] fetch lỗi mạng (${err.code || err.message}), retry ${attempt}/${maxRetries} sau 1.5s...`);
         }
-        await new Promise(r => setTimeout(r, 1500));
+        const retryDelayMs = getRemainingDeadlineMs(deadlineAt, 1500);
+        await new Promise(r => setTimeout(r, retryDelayMs));
     }
     if (lastError) throw lastError;
 }
@@ -970,7 +910,7 @@ function boostExactTokenMatches(matches, tokens) {
     return [...boosted, ...rest];
 }
 
-async function rerankWithGemini(question, candidates, apiKey, timeoutMs = 8000) {
+async function rerankWithGemini(question, candidates, apiKey, timeoutMs = 8000, deadlineAt = Date.now() + timeoutMs) {
     if (!candidates || candidates.length <= 1) return candidates;
     try {
         const snippets = candidates.map((c, i) =>
@@ -989,7 +929,7 @@ ${snippets}`;
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: { temperature: 0, maxOutputTokens: 50 }
             })
-        }, 1, timeoutMs);
+        }, 1, timeoutMs, deadlineAt);
         if (!res.ok) return candidates; // fallback: giữ nguyên thứ tự
 
         const data = await res.json();
@@ -1020,30 +960,6 @@ ${snippets}`;
 // TELEGRAM_CHAT_ID. Fire-and-forget, không bao giờ throw ra caller. Dùng cho
 // groundedness-fail và feedback 👎 để admin biết ngay khi bot có dấu hiệu sai.
 // =====================================================================
-async function sendTelegramAlert(text, fetchImpl = fetch, timeoutMs = 8000) {
-    const token = process.env.TELEGRAM_BOT_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
-    if (!token || !chatId) return;
-    try {
-        await withRequestTimeout(
-            signal => fetchImpl(`https://api.telegram.org/bot${token}/sendMessage`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    chat_id: chatId,
-                    text: String(text || '').substring(0, 3500),
-                    disable_web_page_preview: true
-                }),
-                signal
-            }),
-            timeoutMs,
-            'TELEGRAM_ALERT'
-        );
-    } catch (e) {
-        console.warn('[P3.4] Telegram alert error (non-blocking):', e.message);
-    }
-}
-
 // =====================================================================
 // P1.2.1: Groundedness check — cảnh báo (không chặn) khi output chứa số liệu
 // khả nghi không khớp tài liệu đã truy xuất. Chạy fire-and-forget SAU res.end()
@@ -1304,7 +1220,7 @@ function buildVerifiedFactsLine(metadata = {}) {
 // tiện ích viết lại giữ nguyên ý định + ngôn ngữ; lỗi/timeout → trả null để
 // caller fallback về heuristic cũ (không tăng rủi ro so với hiện trạng).
 // =====================================================================
-async function rewriteFollowUpQuery(currentMessage, previousUserText, apiKey, timeoutMs = 2000) {
+async function rewriteFollowUpQuery(currentMessage, previousUserText, apiKey, timeoutMs = 2000, deadlineAt = Date.now() + timeoutMs) {
     if (!apiKey || !currentMessage || !previousUserText) return null;
     try {
         const prompt = `Câu hỏi trước của người dùng: "${String(previousUserText).substring(0, 300)}"
@@ -1318,7 +1234,7 @@ Viết lại câu hỏi hiện tại thành MỘT câu độc lập, đầy đ�
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: { temperature: 0, maxOutputTokens: 64 }
             })
-        }, 1, timeoutMs);
+        }, 1, timeoutMs, deadlineAt);
         if (!res.ok) return null;
         const data = await res.json();
         const rewritten = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
@@ -1333,7 +1249,7 @@ Viết lại câu hỏi hiện tại thành MỘT câu độc lập, đầy đ�
 // =====================================================================
 // RAG-04: Conversation summarization thay vì cắt cứng
 // =====================================================================
-async function summarizeHistory(historyItems, apiKey, timeoutMs = 8000) {
+async function summarizeHistory(historyItems, apiKey, timeoutMs = 8000, deadlineAt = Date.now() + timeoutMs) {
     if (!historyItems || historyItems.length <= 4) return historyItems;
     try {
         // Tách: phần cũ cần tóm tắt, phần mới giữ nguyên
@@ -1351,7 +1267,7 @@ async function summarizeHistory(historyItems, apiKey, timeoutMs = 8000) {
                 contents: [{ parts: [{ text: `Tóm tắt cuộc trò chuyện sau trong 100 từ, giữ lại các câu hỏi pháp luật chính và các điều luật đã đề cập:\n${text}` }] }],
                 generationConfig: { temperature: 0, maxOutputTokens: 200 }
             })
-        }, 1, timeoutMs);
+        }, 1, timeoutMs, deadlineAt);
         if (!res.ok) return historyItems;
 
         const data = await res.json();
@@ -1543,7 +1459,10 @@ function getRagAbstentionReply(userLang) {
 }
 
 function getChatProviderOrder() {
-    const primary = String(process.env.LLM_PRIMARY || 'gemini').toLowerCase();
+    const configuredPrimary = String(process.env.LLM_PRIMARY || 'gemini').toLowerCase();
+    const primary = configuredPrimary === 'deepseek' && process.env.DEEPSEEK_API_KEY
+        ? 'deepseek'
+        : 'gemini';
     const fallback = String(process.env.LLM_FALLBACK || (process.env.DEEPSEEK_API_KEY ? 'deepseek' : '')).toLowerCase();
     return [...new Set([primary, fallback].filter(provider =>
         provider === 'gemini' || (provider === 'deepseek' && process.env.DEEPSEEK_API_KEY)
@@ -1646,6 +1565,8 @@ function summarizeMatchForEval(m) {
 
 module.exports = async function handler(req, res) {
     const _startTime = Date.now(); // EVAL-03: track latency
+    const deadlineMs = getPositiveEnvInt('CHAT_REQUEST_DEADLINE_MS', 55000);
+    const deadlineAt = _startTime + deadlineMs;
 
     // --- [BẢO MẬT #1] Kiểm tra CORS — Chỉ chấp nhận origin trong whitelist ---
     const origin = req.headers.origin;
@@ -1751,7 +1672,7 @@ module.exports = async function handler(req, res) {
         });
     }
 
-    const turnstileOk = await verifyTurnstile(captchaToken, clientIP);
+    const turnstileOk = await verifyTurnstile(captchaToken, clientIP, deadlineAt);
     if (!turnstileOk) {
         console.warn(`[api/chat] Turnstile failed; ip_bucket=${hashForLog(clientIP)}`);
         return res.status(403).json({
@@ -1807,7 +1728,7 @@ module.exports = async function handler(req, res) {
         const vnTimeStr = new Date(trueTime.getTime() + 7 * 60 * 60 * 1000).toISOString().replace('Z', '+07:00');
 
         const reservation = await reserveRateLimitQuota({
-            fetchImpl: fetch,
+            fetchImpl: (url, options = {}) => fetchWithinDeadline(url, options, deadlineAt, 8000, 'RATE_LIMIT'),
             usageUrl,
             ipUsageUrl,
             monthlyLimit: MONTHLY_LIMIT,
@@ -1871,7 +1792,7 @@ module.exports = async function handler(req, res) {
             finishReason: 'OUT_OF_SCOPE'
         })}\n\n`);
         res.end();
-        logChatToFirestore({
+        waitUntil(logChatToFirestore({
             question: userMessage,
             answer: fullText,
             language: isLikelyVietnamese(userMessage) ? 'vi' : 'other',
@@ -1885,7 +1806,7 @@ module.exports = async function handler(req, res) {
             ip: clientIP,
             user_agent: req.headers['user-agent'] || '',
             date_key: currentDate
-        });
+        }));
         return;
     }
 
@@ -1909,11 +1830,11 @@ module.exports = async function handler(req, res) {
         time_to_first_validated_sentence_ms: 0,
     };
     const historySummaryPromise = measureStage(stageTimings, 'history_summary_ms', () =>
-        summarizeHistory(safeHistory, apiKey, 8000)
+        summarizeHistory(safeHistory, apiKey, 8000, deadlineAt)
     );
     const locationLookupRequested = isLocationLookupRequested(userMessage, safeHistory);
     const publishedLocationsPromise = locationLookupRequested
-        ? getPublishedLocations().catch(error => ({ error }))
+        ? getPublishedLocations({ timeoutMs: getRemainingDeadlineMs(deadlineAt, 8000) }).catch(error => ({ error }))
         : Promise.resolve(null);
 
     // --- NICE-03: FAQ Cache — chỉ cho tin nhắn đầu tiên (không có history) ---
@@ -1951,7 +1872,7 @@ module.exports = async function handler(req, res) {
             // P2.4: ưu tiên viết lại câu độc lập bằng model tiện ích; lỗi/timeout →
             // fallback BOT-04 (nối keyword thô câu trước) như hiện trạng.
             const rewritten = await measureStage(stageTimings, 'query_rewrite_ms', () =>
-                rewriteFollowUpQuery(searchQuery, prevUserText, apiKey, 2000)
+                rewriteFollowUpQuery(searchQuery, prevUserText, apiKey, 2000, deadlineAt)
             );
             if (rewritten) {
                 searchQuery = rewritten;
@@ -1981,6 +1902,7 @@ module.exports = async function handler(req, res) {
     // gemini-embedding-001 hỗ trợ multilingual — không cần dịch trước (BOT-01)
     // -------------------------------------------------------------
     let embedVector = [];
+    const embeddingStartedAt = Date.now();
     try {
         // P2.2: taskType bất đối xứng — CHỈ bật khi corpus đã được re-embed với
         // RETRIEVAL_DOCUMENT (env EMBED_TASK_TYPE=RETRIEVAL_QUERY, flip cùng lúc đổi
@@ -1998,7 +1920,7 @@ module.exports = async function handler(req, res) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(embedBody)
-        }, 2); // Retry tối đa 2 lần cho embedding
+        }, 2, 8000, deadlineAt); // Retry tối đa 2 lần cho embedding trong ngân sách request
         if (!embedRes.ok) {
             console.warn('[api/chat] Embedding thất bại (status', embedRes.status, '), tiếp tục chat không RAG');
             // KHÔNG return lỗi — tiếp tục chat mà không có RAG context
@@ -2009,6 +1931,8 @@ module.exports = async function handler(req, res) {
     } catch (e) {
         console.warn('[api/chat] Embedding exception, tiếp tục chat không RAG:', e.message);
         // KHÔNG return lỗi — graceful fallback
+    } finally {
+        stageTimings.embedding_ms = Date.now() - embeddingStartedAt;
     }
 
     // -------------------------------------------------------------
@@ -2057,11 +1981,19 @@ module.exports = async function handler(req, res) {
                 };
                 const activeIndex = namespace ? baseIndex.namespace(namespace) : baseIndex;
                 const retrievalStartedAt = Date.now();
-                let queryRes = await activeIndex.query(queryOptions);
+                let queryRes = await withRequestTimeout(
+                    () => activeIndex.query(queryOptions),
+                    getRemainingDeadlineMs(deadlineAt, 10000),
+                    'PINECONE_QUERY'
+                );
 
                 if (category && (!queryRes.matches || queryRes.matches.length === 0)) {
                     const { filter, ...fallbackOptions } = queryOptions;
-                    queryRes = await activeIndex.query(fallbackOptions);
+                    queryRes = await withRequestTimeout(
+                        () => activeIndex.query(fallbackOptions),
+                        getRemainingDeadlineMs(deadlineAt, 10000),
+                        'PINECONE_QUERY_FALLBACK'
+                    );
                     console.warn('[RAG-03] Metadata filter returned 0 matches, retried without filter:', category);
                 }
                 stageTimings.retrieval_ms = Date.now() - retrievalStartedAt;
@@ -2099,7 +2031,7 @@ module.exports = async function handler(req, res) {
                 const reranked = shouldSkipRerank(relevantMatches)
                     ? relevantMatches
                     : await measureStage(stageTimings, 'rerank_ms', () =>
-                        rerankWithGemini(standaloneQuery, relevantMatches, apiKey, 8000)
+                        rerankWithGemini(standaloneQuery, relevantMatches, apiKey, 8000, deadlineAt)
                     );
                 const topMatches = reranked.slice(0, 4); // BOT-02: giới hạn 4 docs sau rerank
 
@@ -2270,7 +2202,7 @@ module.exports = async function handler(req, res) {
             ...(evalMode && evalTrace ? { eval: evalTrace } : {}),
         })}\n\n`);
         res.end();
-        logChatToFirestore({
+        waitUntil(logChatToFirestore({
             question: userMessage,
             answer: fullText,
             language: userLang,
@@ -2284,7 +2216,7 @@ module.exports = async function handler(req, res) {
             ip: clientIP,
             user_agent: req.headers['user-agent'] || '',
             date_key: currentDate
-        });
+        }));
         return;
     }
 
@@ -2351,7 +2283,6 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
     // Provider theo LLM_PRIMARY/LLM_FALLBACK. Chỉ failover trước khi có byte nào phát,
     // và chỉ cho timeout/429/5xx/network để không trả lẫn hai câu trả lời.
     // -------------------------------------------------------------
-    const deadlineMs = getPositiveEnvInt('CHAT_REQUEST_DEADLINE_MS', 55000);
     const providerOrder = getChatProviderOrder();
     let provider = providerOrder[0] || 'gemini';
     let fallbackUsed = false;
@@ -2363,8 +2294,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
         for (let providerIndex = 0; providerIndex < providerOrder.length; providerIndex++) {
             provider = providerOrder[providerIndex];
             useDeepSeek = provider === 'deepseek';
-            const remainingMs = deadlineMs - (Date.now() - _startTime);
-            if (remainingMs <= 0) throw new Error('CHAT_REQUEST_DEADLINE_EXCEEDED');
+            const remainingMs = getRemainingDeadlineMs(deadlineAt, 50000);
             try {
             if (useDeepSeek) {
             // Convert Gemini-style payload -> OpenAI-style messages
@@ -2389,13 +2319,13 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
                     'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
                 },
                 body: JSON.stringify(dsPayload)
-            }, 2, Math.min(50000, remainingMs));
+            }, 2, remainingMs, deadlineAt);
             } else {
             geminiRes = await fetchWithRetry(`${GEMINI_CHAT_API_URL}&key=${apiKey}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
-            }, 2, Math.min(50000, remainingMs));
+            }, 2, remainingMs, deadlineAt);
             }
             if (geminiRes.ok || !isRetryableProviderFailure(geminiRes) || providerIndex === providerOrder.length - 1) break;
             try { await geminiRes.text(); } catch (_) {}
@@ -2486,7 +2416,14 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
         let outputValidatorViolations = [];
 
         while (true) {
-            const { done, value } = await reader.read();
+            const { done, value } = await withRequestTimeout(
+                signal => {
+                    signal.addEventListener('abort', () => reader.cancel().catch(() => {}), { once: true });
+                    return reader.read();
+                },
+                getRemainingDeadlineMs(deadlineAt, 15000),
+                'GENERATION_STREAM'
+            );
             if (done) break;
 
             buffer += decoder.decode(value, { stream: true });
@@ -2535,7 +2472,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
-                }, 1, 12000);
+                }, 1, 12000, deadlineAt);
                 if (retryRes.ok) {
                     const retryText = extractGeminiResponseText(await retryRes.json());
                     if (retryText) {
@@ -2547,6 +2484,50 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
                 }
             } catch (retryErr) {
                 console.warn('[api/chat] Empty-stream retry failed:', retryErr.message);
+            }
+        }
+
+        // Safety/block bất thường của Gemini có thể trả stream rỗng dù HTTP 200. Khi chưa có
+        // text nào phát ra, thử DeepSeek một lần trong ngân sách còn lại; dùng non-stream ở
+        // nhánh hiếm này rồi vẫn đưa toàn bộ qua cùng buffered validator trước khi phát SSE.
+        if (!rawText.trim() && provider !== 'deepseek' && providerOrder.includes('deepseek')) {
+            try {
+                const messages = [{ role: 'system', content: finalSystemPrompt }];
+                for (const content of contents) {
+                    messages.push({
+                        role: content.role === 'model' ? 'assistant' : 'user',
+                        content: content.parts?.map(part => part.text).join('\n') || ''
+                    });
+                }
+                const fallbackRes = await fetchWithRetry('https://api.deepseek.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
+                        messages,
+                        stream: false,
+                        temperature: 0.2,
+                        max_tokens: 3072,
+                        top_p: 0.8
+                    })
+                }, 1, 12000, deadlineAt);
+                if (fallbackRes.ok) {
+                    const fallbackData = await fallbackRes.json();
+                    const fallbackText = fallbackData?.choices?.[0]?.message?.content || '';
+                    if (fallbackText) {
+                        provider = 'deepseek';
+                        fallbackUsed = true;
+                        rawText = fallbackText;
+                        pendingText += fallbackText;
+                        finishReason = fallbackData?.choices?.[0]?.finish_reason || 'BLOCK_FALLBACK';
+                        outputValidatorViolations.push(...emitValidatedSegments({ flush: true }));
+                    }
+                }
+            } catch (fallbackError) {
+                console.warn('[api/chat] Block fallback failed:', fallbackError.message);
             }
         }
 
@@ -2605,7 +2586,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             dateKey: currentDate
         }));
 
-        logChatToFirestore({
+        waitUntil(logChatToFirestore({
             question: userMessage,
             answer: fullText,
             language: isVietnamese ? 'vi' : 'other',
@@ -2629,7 +2610,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             ip: clientIP,
             user_agent: req.headers['user-agent'] || '',
             date_key: currentDate
-        });
+        }));
 
         // NICE-03: Save to FAQ cache (chỉ khi không có history)
         if (shouldCacheFaqResponse(userMessage, {
@@ -2711,3 +2692,4 @@ module.exports.getRagAbstentionReply = getRagAbstentionReply;
 module.exports.getRagAbstentionReason = getRagAbstentionReason;
 module.exports.getChatProviderOrder = getChatProviderOrder;
 module.exports.isRetryableProviderFailure = isRetryableProviderFailure;
+module.exports.getRemainingDeadlineMs = getRemainingDeadlineMs;

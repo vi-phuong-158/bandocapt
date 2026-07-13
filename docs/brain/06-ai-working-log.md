@@ -1145,6 +1145,24 @@
 
 ---
 
+## [2026-07-13] Hoàn tất T2C và quick wins T2D
+- **Agent:** Codex
+- **Thay đổi:** Bổ sung deadline tuyệt đối 55s và stage budget/abort cho toàn pipeline chat, fallback provider
+  trước streaming, telemetry non-blocking đầy đủ; tách CORS/HMAC/IP/sanitize/Telegram thành helper dùng chung.
+  Tối ưu tải đầu bằng avatar WebP 128px, index TTHC nhẹ, lazy-load module/CDN có SRI và static manifest
+  content-hash/cache immutable. Giữ tương thích deep-link catalog bằng lazy proxy.
+- **File đã sửa:** `api/chat.js`, `api/feedback.js`, `lib/request-security.js`, `index.html`,
+  `js/chatbot.js`, `js/tthc-catalog.js`, `js/lazy-features.js`, `assets/icon-128.webp`,
+  `data/tthc-index.json`, `scripts/generate-tthc-catalog.js`, `scripts/build-static.js`, `vercel.json`,
+  `package.json`, các test T2C/T2D/E2E và tài liệu brain.
+- **Lý do:** Hoàn thiện các mục T2C và T2D còn dở của Giai đoạn 2, giới hạn request trước timeout Vercel,
+  giảm first-load mà không làm mất tính năng chat/catalog, và bỏ coupling feedback -> chat handler.
+- **Kiểm tra:** `npm test` 249/249 PASS; `npm run build` PASS; `npm run test:e2e` 14/14 PASS. Full regression
+  sau T2C có 0 hard fail (F01 deferred), nhưng gọi majority 3-run vượt giới hạn 10 phút của môi trường nên
+  không dùng làm quyết định rollout. T2B-2 vẫn DEFERRED theo điều kiện soft-warning/latency.
+
+---
+
 ## [2026-07-13] T2B-1 integration test + live majority gate
 - **Agent:** Codex
 - **Thay đổi:** Bổ sung test tầng handler cho canonical SSE và chống lọt phone/phí/thời hạn chưa

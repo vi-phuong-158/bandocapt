@@ -20,6 +20,7 @@ test.afterEach(() => {
     delete process.env.LLM_PRIMARY;
     delete process.env.LLM_FALLBACK;
     delete process.env.DEEPSEEK_API_KEY;
+    delete process.env.CHAT_REQUEST_DEADLINE_MS;
 });
 
 function createRequest(userMessage) {
@@ -117,4 +118,23 @@ test('T2C only permits failover for provider/network retry classes', () => {
     assert.equal(chat.isRetryableProviderFailure({ status: 500 }), true);
     assert.equal(chat.isRetryableProviderFailure({ status: 400 }), false);
     assert.equal(chat.isRetryableProviderFailure({ status: 401 }), false);
+});
+
+test('T2C remaining deadline is capped per stage and fails after the request budget', () => {
+    assert.ok(chat.getRemainingDeadlineMs(Date.now() + 1000, 100) <= 100);
+    assert.throws(
+        () => chat.getRemainingDeadlineMs(Date.now() - 1, 100),
+        /CHAT_REQUEST_DEADLINE_EXCEEDED/
+    );
+});
+
+test('T2C request deadline aborts a hanging network stage', async () => {
+    process.env.CHAT_REQUEST_DEADLINE_MS = '25';
+    global.fetch = async (url, options = {}) => new Promise((resolve, reject) => {
+        options.signal?.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+    });
+
+    const result = await runHandler(`T2C deadline ${Date.now()}: thủ tục này thế nào?`);
+    assert.equal(result.statusCode, 500);
+    assert.match(result.body, /CHAT_REQUEST_DEADLINE_EXCEEDED|FETCH_TIMEOUT/);
 });

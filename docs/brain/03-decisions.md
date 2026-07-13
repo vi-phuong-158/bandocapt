@@ -3,6 +3,30 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
+## [2026-07-13] T2C/T2D — deadline end-to-end, request helper chung va static lazy-load
+
+- **Quyết định:** Mỗi request `/api/chat` có một deadline tuyệt đối `CHAT_REQUEST_DEADLINE_MS=55000`, nằm
+  trong `maxDuration=60s`. Turnstile, rate limit, rewrite, embedding, Pinecone, rerank, provider và từng
+  lần đọc stream đều chỉ được dùng ngân sách còn lại; stage hết hạn hủy được fetch/reader. Không chờ hết
+  60s rồi mới fail. Failover DeepSeek chỉ được phép cho lỗi retry-class trước khi đã phát chunk hợp lệ.
+- **Telemetry:** Timing/provider/fallback và lý do RAG abstention chạy `waitUntil`, vì telemetry không được
+  kéo dài SSE người dùng. Ghi Firestore/RTDB dùng `Promise.allSettled` để một sink lỗi không làm hỏng sink còn lại.
+- **Tách helper:** CORS, IP, HMAC, sanitize diagnostic và Telegram chuyển vào `lib/request-security.js`.
+  `api/feedback.js` không còn `require('./chat')`; điều này tránh nạp handler/model dependency chỉ để dùng helper.
+- **TTHC/UI:** Dùng avatar `icon-128.webp` 3.8KB. Generator tạo `tthc-index.json` chỉ gồm id/title/alias;
+  chat chỉ warm index, catalog đầy đủ tải lúc người dùng mở. `js/lazy-features.js` nạp marked/DOMPurify (SRI),
+  Turnstile, chat và catalog theo nhu cầu; proxy giữ tương thích `window.TthcCatalog.openProcedure(id)`.
+- **Static cache:** Build đổi tên CSS/JS/JSON/asset theo SHA-256 ngắn, viết `asset-manifest.json`, đặt immutable
+  cache cho asset đã hash và no-cache cho HTML/manifest. Nếu thêm runtime asset, phải thêm allowlist build và
+  kiểm tra reference đã rewrite.
+- **Rollback:** Có thể trả loader/catalog/avatar về bản trước bằng rollback deploy; với runtime generation,
+  bỏ `LLM_FALLBACK` hoặc hạ `CHAT_REQUEST_DEADLINE_MS` không đòi migrate dữ liệu. Không bật
+  `CLAIM_CITATIONS` vì T2B-2 vẫn deferred.
+- **Kiểm tra:** 249 unit/integration và 14 E2E PASS; full regression sau T2C có 0 hard fail (F01 deferred).
+  Majority 3-run mới chưa có vì runner bị giới hạn 10 phút của môi trường, nên chưa dùng kết quả này để rollout flag.
+
+---
+
 ## [2026-07-13] T2B-1 chỉ phát segment đã validate — trạng thái chờ live gate
 
 - **Quyết định:** Buffer raw stream đến ranh giới câu/bullet; chạy `validateAnswer` trên segment hoàn

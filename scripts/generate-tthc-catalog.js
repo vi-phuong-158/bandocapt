@@ -19,6 +19,7 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const BACKUP_DIR = path.join(ROOT, 'data', 'pinecone-backups');
 const OUTPUT_PATH = path.join(ROOT, 'data', 'tthc-catalog.json');
+const INDEX_OUTPUT_PATH = path.join(ROOT, 'data', 'tthc-index.json');
 
 const ORIGINAL_BACKUP_FILE = '2026-07-01-pre-update-backup-original-metadata.json';
 const NEW_RECORD_FILE = '2026-07-01-new-record-matt26265-khai-bao-tam-tru-online.json';
@@ -642,6 +643,7 @@ function parseArgs(argv) {
         source,
         fetchMissing: argv.includes('--fetch-missing'),
         includeGuides: argv.includes('--exclude-guides') ? false : true,
+        indexOnly: argv.includes('--index-only'),
     };
 }
 
@@ -658,8 +660,26 @@ function getMissingFromBackupIds(original, newRecord, audit) {
     return audit.map(entry => entry.procedure_id).filter(id => !knownIds.has(id));
 }
 
+function buildCatalogIndex(catalog) {
+    return {
+        schemaVersion: 1,
+        generatedAt: catalog.generatedAt,
+        procedures: (catalog.procedures || []).map(procedure => ({
+            procedure_id: procedure.procedureId,
+            title: procedure.title,
+            aliases: Array.isArray(procedure.aliases) ? procedure.aliases : [],
+        })),
+    };
+}
+
 async function main() {
     const args = parseArgs(process.argv.slice(2));
+    if (args.indexOnly) {
+        const catalog = JSON.parse(fs.readFileSync(OUTPUT_PATH, 'utf8'));
+        fs.writeFileSync(INDEX_OUTPUT_PATH, JSON.stringify(buildCatalogIndex(catalog)) + '\n', 'utf8');
+        console.log(`[generate-tthc-catalog] Da ghi index ${path.relative(ROOT, INDEX_OUTPUT_PATH)} tu catalog hien co.`);
+        return;
+    }
     const { original, newRecord, audit } = getBackupInputs();
     let catalog;
 
@@ -679,9 +699,12 @@ async function main() {
     }
 
     fs.writeFileSync(OUTPUT_PATH, JSON.stringify(catalog, null, 2) + '\n', 'utf8');
+    const catalogIndex = buildCatalogIndex(catalog);
+    fs.writeFileSync(INDEX_OUTPUT_PATH, JSON.stringify(catalogIndex) + '\n', 'utf8');
 
     console.log(
         `[generate-tthc-catalog] Da ghi ${catalog.procedures.length} thu tuc vao ${path.relative(ROOT, OUTPUT_PATH)} ` +
+        `va index ${path.relative(ROOT, INDEX_OUTPUT_PATH)} ` +
         `(source=${catalog.sourceMode}, guides=${catalog.includeGuides ? 'on' : 'off'}).`
     );
 
@@ -700,6 +723,7 @@ module.exports = {
     buildGuideProcedures,
     buildFeeIndex,
     buildCategorySummary,
+    buildCatalogIndex,
     dedupeProcedures,
     deriveCategoryLabel,
     fetchMissingRecords,
