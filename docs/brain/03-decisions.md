@@ -3,6 +3,110 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
+## [2026-07-13] Khép review Phase 2 — conditional grounding và latency eval trace
+
+- **Quyết định:** Một câu từ chối nêu mức phạt vì thiếu bằng chứng được khai trong
+  `grounding_exempt_patterns`; nó vẫn phải khớp expectation deterministic nhưng không bị yêu cầu xuất hiện
+  trong tài liệu RAG. Claim khẳng định như `Điều 21` vẫn dùng `grounding_patterns` và fail nếu corpus không có.
+- **Quan sát latency:** Event `done.eval` ở chế độ eval bảo mật mang timing từng stage, provider và trạng thái
+  fallback. Runner tổng hợp median/p95 theo stage; production không lộ trường này do vẫn qua cổng eval ba điều kiện.
+- **Runtime:** Failover chỉ nuốt lỗi mạng/timeout đã phân loại. Exception lập trình bị ném lại; SSE không phát
+  chunk text rỗng. Lazy loader hiện cảnh báo có thể bấm thử lại.
+- **Static/Vercel:** Bỏ route alternation raw-regex không hợp lệ, dùng các path pattern tách riêng; reference
+  build chỉ thay token đường dẫn độc lập để không sửa nhầm chuỗi con như `metadata.js`.
+- **Đánh đổi:** Schema expectation có thêm một trường tùy chọn; đổi lại grader mô hình hóa đúng hai nhánh
+  “khẳng định có căn cứ” và “từ chối do thiếu căn cứ”, không cần prompt-hack wording.
+
+## [2026-07-13] T2C/T2D — deadline end-to-end, request helper chung va static lazy-load
+
+- **Quyết định:** Mỗi request `/api/chat` có một deadline tuyệt đối `CHAT_REQUEST_DEADLINE_MS=55000`, nằm
+  trong `maxDuration=60s`. Turnstile, rate limit, rewrite, embedding, Pinecone, rerank, provider và từng
+  lần đọc stream đều chỉ được dùng ngân sách còn lại; stage hết hạn hủy được fetch/reader. Không chờ hết
+  60s rồi mới fail. Failover DeepSeek chỉ được phép cho lỗi retry-class trước khi đã phát chunk hợp lệ.
+- **Telemetry:** Timing/provider/fallback và lý do RAG abstention chạy `waitUntil`, vì telemetry không được
+  kéo dài SSE người dùng. Ghi Firestore/RTDB dùng `Promise.allSettled` để một sink lỗi không làm hỏng sink còn lại.
+- **Tách helper:** CORS, IP, HMAC, sanitize diagnostic và Telegram chuyển vào `lib/request-security.js`.
+  `api/feedback.js` không còn `require('./chat')`; điều này tránh nạp handler/model dependency chỉ để dùng helper.
+- **TTHC/UI:** Dùng avatar `icon-128.webp` 3.8KB. Generator tạo `tthc-index.json` chỉ gồm id/title/alias;
+  chat chỉ warm index, catalog đầy đủ tải lúc người dùng mở. `js/lazy-features.js` nạp marked/DOMPurify (SRI),
+  Turnstile, chat và catalog theo nhu cầu; proxy giữ tương thích `window.TthcCatalog.openProcedure(id)`.
+- **Static cache:** Build đổi tên CSS/JS/JSON/asset theo SHA-256 ngắn, viết `asset-manifest.json`, đặt immutable
+  cache cho asset đã hash và no-cache cho HTML/manifest. Nếu thêm runtime asset, phải thêm allowlist build và
+  kiểm tra reference đã rewrite.
+- **Rollback:** Có thể trả loader/catalog/avatar về bản trước bằng rollback deploy; với runtime generation,
+  bỏ `LLM_FALLBACK` hoặc hạ `CHAT_REQUEST_DEADLINE_MS` không đòi migrate dữ liệu. Không bật
+  `CLAIM_CITATIONS` vì T2B-2 vẫn deferred.
+- **Kiểm tra:** 249 unit/integration và 14 E2E PASS; full regression sau T2C có 0 hard fail (F01 deferred).
+  Majority 3-run tuần tự đã hoàn tất: gate **KHÔNG ĐẠT** do VP01 hard fail 2/3; TT04/EV01/EV04/DN01/TYPO02
+  flaky 1/3. Không dùng kết quả này để rollout flag; VP01 cần được điều tra trước khi chạy lại gate.
+
+---
+
+## [2026-07-13] T2B-1 chỉ phát segment đã validate — trạng thái chờ live gate
+
+- **Quyết định:** Buffer raw stream đến ranh giới câu/bullet; chạy `validateAnswer` trên segment hoàn
+  chỉnh rồi mới phát SSE. `done.fullText` được dựng trực tiếp từ các segment đã phát, không validate
+  lại một bản toàn văn khác.
+- **Bằng chứng cục bộ:** Có test tích hợp tầng handler chứng minh canonical bằng đúng phép nối chunk và
+  không chunk nào để lọt phone/phí/thời hạn chưa xác minh; validator idempotent được test riêng.
+- **Kết quả live gate:** Majority mới `regression-majority-2026-07-13_03-42-51.md` đạt 0 hard fail
+  đa số và 0 provider error; TT01/TT04 flaky 1/3 advisory. T2B-1 chuyển DONE.
+- **Quyết định T2B-2:** Tiếp tục DEFERRED và giữ flag tắt vì soft warnings lặp quá 1/3 ở một số ca,
+  đồng thời p95 hai run vượt mốc baseline +5%; không đủ điều kiện bật per-claim citation.
+
+---
+
+## [2026-07-12] T2A live gate — sửa diễn giải viết tắt cho TYPO02
+
+- **Quan sát:** Chạy `RAG_FAIL_CLOSED=1 node scripts/run-regression.js --majority --runs 3
+  --strict-gate` đủ 3 run. Retrieval hoạt động bình thường; gate rớt do `TYPO02` HARD_FAIL đa số
+  2/3. Câu trả lời đã hiểu đúng "TQ" là Trung Quốc và nói đúng nghĩa vụ, nhưng hai run chỉ viết
+  "phải khai báo" thay vì diễn giải rõ "phải khai báo tạm trú", nên grader không nhận được fact
+  `understand_tq`.
+- **Quyết định:** Bổ sung vào `SYSTEM_PROMPT_BASE` quy tắc: với câu viết tắt/không dấu trong ngữ
+  cảnh người nước ngoài, phải diễn giải lại từ viết tắt và dùng cụm đầy đủ "khai báo tạm trú".
+  Đây là cải thiện độ rõ nghĩa cho người dùng, không nới expectation/grader.
+- **Trạng thái gate:** Lần chạy đầu chưa đạt do TYPO02 2/3; sau khi vá prompt, chạy lại đủ 3 run
+  đạt 0 hard fail đa số. TYPO02 PASS 3/3; GD02 flaky 1/3 và provider errors lẻ tẻ chỉ advisory.
+
+---
+
+## [2026-07-12] T2A — standaloneQuery hợp nhất + fail-closed abstention (gated `RAG_FAIL_CLOSED`, mặc định TẮT)
+
+- **Bối cảnh:** Mở Giai đoạn 2 sau khi Giai đoạn 1 đóng. T2A (LANE-CORE, mức CAO) gồm 2 việc: (1)
+  một query độc lập dùng chung cho embedding/classify/exact-token/rerank/thẩm quyền — trước đây
+  embedding dùng `searchQuery` (đã ghép ngữ cảnh/rewrite) nhưng classify/exact-token/rerank/XNC dùng
+  `userMessage` thô, lệch pha ở câu follow-up ngắn; (2) fail-closed: thiếu RAG → không gọi model trả
+  lời thủ tục mà trả thông báo tất định.
+- **Quyết định:**
+  1. **`standaloneQuery` (= `searchQuery`) dùng chung** cho `classifyQuestion`, `extractExactTokens`,
+     `rerankWithGemini`, `detectXncAuthorityIntent`, và regex `foreignNationalScopeContext`. Câu đơn
+     (không history) → `standaloneQuery === userMessage.trim()` nên **KHÔNG đổi hành vi** cho bộ 30 câu
+     đơn; chỉ khác ở câu follow-up ngắn (< 8 từ, có history — H16/H17). Nhánh khớp trụ sở
+     (`findVerifiedLocationMatches`, `isBarePlaceNameQuery`, `isNationalityAnswerContext`) **cố ý GIỮ**
+     `userMessage` vì cần đúng câu người dùng vừa gõ (bảo toàn fix T1.9).
+  2. **Fail-closed abstention** đặt SAU khi bơm khối XNC, TRƯỚC khi build prompt generation. Hàm thuần
+     `shouldAbstainForMissingRag({hasMatchedDocs, hasVerifiedLocation, hasXncAuthorityBlock})` = true chỉ
+     khi cả ba rỗng. Khi đó trả `getRagAbstentionReply(userLang)` (vi/en/zh/ko, không số liệu, có "liên
+     hệ Công an" để ca must_abstain như TR05 vẫn PASS), event `done` thêm `finishReason:'RAG_ABSTAINED'`
+     + `abstentionReason` (`no_pinecone_config`/`embedding_failed`/`pinecone_error`/`no_relevant_match`).
+  3. **Gated sau env `RAG_FAIL_CLOSED` (mặc định TẮT).** Lý do: gate T2A đòi "0 hard fail mới" +
+     "100% ca thiếu RAG từ chối đúng" — cần đo bằng `--majority`. Quota Gemini embedding đang cạn theo
+     NGÀY (2026-07-12) nên **chưa chạy được regression live**. Mặc định tắt = 0 thay đổi hành vi
+     production, an toàn để merge; bật + đo khi quota hồi, rollback tức thì bằng gỡ env.
+- **Đánh đổi / rủi ro:** Fail-closed có rủi ro over-refuse (baseline Recall@4 ~57-60%, một số câu đang
+  trả nhờ match vừa đủ). Đã khoanh vùng: abstain CHỈ khi RAG rỗng hoàn toàn VÀ không có trụ sở xác minh
+  VÀ không có khối thẩm quyền XNC (loại TT04/H17 lost-passport, câu location, câu có docs). Vẫn PHẢI
+  chạy `--majority` với `RAG_FAIL_CLOSED=1` để xác nhận trước khi bật mặc định — gate này đã đạt ngày
+  2026-07-13; flag production vẫn giữ mặc định TẮT cho đến khi owner quyết định rollout.
+- **Kiểm tra:** `npm test` 236/236. `test/t2a-fail-closed.test.js` phủ cổng thuần, thông báo đa
+  ngôn ngữ, đủ 4 `abstentionReason`, abstain bật/tắt, không gọi generation, eval trace không bị mất,
+  nhánh XNC trực tiếp và follow-up đã rewrite không bị over-refuse. `npm run build` sạch (17 file
+  `dist/`). Live majority sau khi quota hồi: **ĐẠT**, 0 hard fail đa số; report
+  `test/results/regression-majority-2026-07-12_23-20-52.md`. KHÔNG dùng prompt-hack cho F01.
+- **Người quyết định:** user ("thực hiện đi" Giai đoạn 2) / Claude Code (Fable 5). Chi tiết:
+  `07-parallel-task-plan.md` (T2A).
+
 ---
 
 ## [2026-07-12] Sửa root cause F01 bằng định tuyến retrieval (chờ verify sạch để đóng Giai đoạn 3)

@@ -13,6 +13,10 @@ const {
     getVnDateKey,
 } = handler;
 
+test('feedback imports shared request security without loading the chat handler', () => {
+    assert.equal(require.cache[require.resolve('../api/chat')], undefined);
+});
+
 const ORIGINAL_FETCH = global.fetch;
 const ORIGINAL_DB_URL = process.env.FIREBASE_DB_URL;
 const ORIGINAL_DB_SECRET = process.env.FIREBASE_DB_SECRET;

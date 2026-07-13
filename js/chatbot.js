@@ -144,8 +144,11 @@ function openChatWindow() {
     chatWindow.setAttribute('aria-hidden', 'false');
     syncChatWindowPresentation(true);
     renderStarterChips();
-    // P3.3: warm catalog trong nền để citation guide resolve deep-link theo title.
-    window.TthcCatalog?.preload?.();
+    // T2D-2/3: tải module catalog khi chat thực sự mở, rồi chỉ warm index nhỏ để
+    // resolve guide theo title; catalog toàn văn chưa tải ở bước này.
+    window.LazyFeatures?.loadCatalogModule?.()
+        .then(() => window.TthcCatalog?.preload?.())
+        .catch(() => {});
     setTimeout(() => input?.focus(), 120);
 }
 
@@ -207,7 +210,7 @@ function appendAssistantShell() {
 
     const avatar = document.createElement('img');
     avatar.className = 'ai-chat-avatar';
-    avatar.src = 'assets/icon.png';
+    avatar.src = 'assets/icon-128.webp';
     avatar.alt = '';
 
     const bubble = document.createElement('div');
@@ -879,4 +882,7 @@ if (typeof module !== 'undefined' && module.exports) {
     };
 }
 
-document.addEventListener('DOMContentLoaded', initChatbotWidget);
+if (typeof document !== 'undefined' && typeof document.getElementById === 'function') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initChatbotWidget);
+    else initChatbotWidget();
+}

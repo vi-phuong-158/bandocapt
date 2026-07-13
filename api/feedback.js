@@ -2,7 +2,7 @@
  * api/feedback.js — Vercel Serverless Function
  * Nhận báo cáo / phản hồi của người dùng về câu trả lời của chatbot để admin đọc và điều chỉnh.
  *
- * Tái dùng nguyên các lớp bảo mật của api/chat.js (CORS whitelist, HMAC request signing,
+ * Tái dùng nguyên các lớp bảo mật trong lib/request-security.js (CORS whitelist, HMAC request signing,
  * sanitize PII) để không dựng cơ chế mới và không lệch pha với chat. Lưu vào Firebase
  * Realtime DB `chat_feedback/<date_key>` — cùng hạ tầng telemetry fallback đang dùng.
  *
@@ -21,7 +21,7 @@ const {
     verifyRequestSignature,
     sanitizeDiagnosticText,
     sendTelegramAlert,
-} = require('./chat');
+} = require('../lib/request-security');
 
 const FEEDBACK_RTDB_PATH = 'chat_feedback';
 const FEEDBACK_IP_COUNT_PATH = 'feedback_ip_counts';

@@ -5,6 +5,66 @@
 
 ---
 
+## [2026-07-13] Khắc phục toàn bộ review PR #31
+- **Agent:** Codex
+- **Thay đổi:** Sửa route Vercel không hợp lệ; mô hình hóa conditional grounding cho VP01; đưa timing/provider/fallback
+  vào eval report; giới hạn provider failover ở lỗi mạng/timeout; bỏ SSE text rỗng; hiện lỗi lazy-load có thể thử lại;
+  thay static reference theo token đường dẫn thay vì chuỗi con.
+- **File đã sửa:** `vercel.json`, `api/chat.js`, `lib/regression-grader.js`, `scripts/run-regression.js`,
+  `scripts/build-static.js`, `js/lazy-features.js`, `styles.css`, expectations/test liên quan, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Đóng các blocker và góp ý runtime/UX trong review Giai đoạn 2 mà không vá prompt cho một fixture.
+- **Kiểm tra:** `npm run ci` PASS 252/252, build static 19 input/18 asset hash, audit không có mức High.
+  Majority `regression-majority-2026-07-13_09-19-09.md` **ĐẠT**, VP01 PASS 3/3, không hard fail đa số;
+  TR05/TT04/DN01/LOC07 flaky 1/3 và GV02 provider error 1/3. Run Gemini chủ đạo có p95 17.04s; hai run
+  sau gần như toàn bộ fallback DeepSeek do Gemini 429, p95 khoảng 28.2s. Vercel Preview deployment
+  `dpl_6B9b8XCCKsx4xNeaQhQyRW1ZsX9t` đạt trạng thái READY, xác nhận route config mới hợp lệ. Vercel cảnh báo
+  Node 20 sẽ hết hỗ trợ sau 2026-10-01; đây là follow-up nâng runtime riêng, không chặn deployment hiện tại.
+
+## [2026-07-13] T2A live gate lần 2 — ĐẠT majority 3/3
+- **Agent:** Codex
+- **Thay đổi:** Sau khi vá diễn giải viết tắt cho TYPO02, chạy lại đủ 3 run tuần tự với
+  `RAG_FAIL_CLOSED=1 --majority --runs 3 --strict-gate`. TYPO02 PASS cả 3 run; không có hard fail
+  đa số. Cập nhật T2A sang DONE và mở khóa T2B-1; giữ `RAG_FAIL_CLOSED` mặc định TẮT chờ owner
+  quyết định rollout production.
+- **File đã sửa:** `api/chat.js`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Xác nhận fail-closed không tạo hard fail mới sau khi sửa lỗi wording TYPO02.
+- **Kiểm tra:** Report `test/results/regression-majority-2026-07-12_23-20-52.md`: **Gate ĐA SỐ ĐẠT**,
+  0 hard fail đa số; TYPO02 PASS 3/3; GD02 flaky 1/3 và provider errors lẻ tẻ chỉ advisory. Unit
+  suite trước gate: `npm test` 236/236; build trước gate đã sạch.
+
+## [2026-07-12] T2A live gate lần 1 — TYPO02 rớt đa số, vá diễn giải viết tắt
+- **Agent:** Codex
+- **Thay đổi:** Chạy đủ 3 run với `RAG_FAIL_CLOSED=1`, `--majority --runs 3 --strict-gate`. Retrieval
+  và abstention không gây lỗi mới; gate rớt `TYPO02` ở 2/3 run vì câu trả lời nói "phải khai báo"
+  nhưng không nói rõ "phải khai báo tạm trú", dù đã hiểu đúng `TQ` là Trung Quốc. Thêm quy tắc vào
+  `SYSTEM_PROMPT_BASE` yêu cầu diễn giải viết tắt/không dấu và dùng cụm đầy đủ trong câu trả lời.
+- **File đã sửa:** `api/chat.js`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Sửa lỗi độ rõ nghĩa thật của câu trả lời, không nới grader. `EV01` chỉ flaky 1/3 và
+  `GV01` provider error lẻ 1/3, không phải nguyên nhân chặn gate.
+- **Kiểm tra:** Gate chạy đủ 3/3; report `test/results/regression-majority-2026-07-12_15-40-05.md`:
+  TYPO02 HARD_FAIL 2/3, gate không đạt. Cần chạy lại đủ 3 run từ đầu sau patch; T2B-1 tiếp tục khóa.
+
+## [2026-07-12] Hoàn thiện T2A — fail-closed + `standaloneQuery` nhất quán
+- **Agent:** Codex (tiếp quản phần Claude Code đang dở)
+- **Thay đổi:** Hoàn thiện nhánh T2A trong `api/chat.js`: dùng một `standaloneQuery` cho
+  embedding/classification/exact-token/rerank/thẩm quyền XNC; thêm fail-closed abstention gated
+  `RAG_FAIL_CLOSED=1`; phân loại đủ 4 lý do; giữ nguyên nhánh trụ sở/XNC grounded. Vá khoảng trống
+  nghiệm thu quan trọng: event `done` của abstention trong eval-mode nay vẫn đính retrieval trace
+  (`matchesFinal=[]`, `matchedDocs=''`) để grader không bỏ qua grounding/Recall. Test chứng minh nhánh
+  abstention không gọi model generation và follow-up ngắn sau rewrite vẫn kích hoạt đúng XNC.
+- **File đã sửa:** `api/chat.js`, `test/t2a-fail-closed.test.js`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/05-testing-and-deploy.md`,
+  `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Đóng phần code/test/docs của T2A mà Claude đã triển khai gần xong, đồng thời tránh gate
+  live PASS giả do abstention làm mất `eval` trace. Không mở T2B-1 trước khi T2A đạt live gate.
+- **Kiểm tra:** `node --check api/chat.js` OK; `npm test` **236/236**; `npm run build` sạch, tạo 17
+  file trong `dist/`. Live `--majority` với `RAG_FAIL_CLOSED=1` chưa chạy lại vì quota Gemini embedding
+  theo ngày đang cạn (đã xác nhận trong entry trước); flag mặc định TẮT và trạng thái là
+  `DONE-CODE / CHỜ LIVE GATE`.
+
 ## [2026-07-12] Dọn dữ liệu Pinecone `matt26265.mau_don` (bỏ cụm NA17) — xác nhận rõ trước khi ghi
 - **Agent:** Claude Code (Sonnet 5)
 - **Thay đổi:** Kiểm tra quota Gemini embedding — xác nhận lỗi `RESOURCE_EXHAUSTED` với
@@ -1089,3 +1149,56 @@
   PR #30 da duoc khac phuc.
 - **Kiem tra:** Gate da so 2/3 DAT, khong co hard fail da so. EV01 flaky 1/3, GV02 provider error 1/3,
   F01 deferred 1/3 la advisory; H16/H17 PASS 3/3.
+
+---
+
+## [2026-07-13] T2B-1 + phần runtime T2C
+- **Agent:** Codex
+- **Thay đổi:** SSE chỉ phát segment đã kết thúc câu/bullet sau khi qua output validator; canonical `fullText` là phép nối chính xác các segment đã phát. Bổ sung cấu hình `LLM_PRIMARY`/`LLM_FALLBACK`, deadline tổng `CHAT_REQUEST_DEADLINE_MS` (mặc định 55s), failover trước stream cho network/429/5xx và telemetry provider/fallback/query rewrite/thời điểm câu hợp lệ đầu tiên.
+- **File đã sửa:** `api/chat.js`, `lib/output-validator.js`, `test/output-validator.test.js`, `test/t2b-t2c.test.js`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Không để claim chưa xác minh xuất hiện thoáng qua trên UI, đồng thời đo và kiểm soát độ bền của đường gọi model.
+- **Kiểm tra:** `npm test` 240/240; `npm run build` sạch. Còn phải chạy gate regression 3 lần trước khi xác nhận T2B-1 đủ điều kiện mở T2B-2.
+
+---
+
+## [2026-07-13] Hoàn tất T2C và quick wins T2D
+- **Agent:** Codex
+- **Thay đổi:** Bổ sung deadline tuyệt đối 55s và stage budget/abort cho toàn pipeline chat, fallback provider
+  trước streaming, telemetry non-blocking đầy đủ; tách CORS/HMAC/IP/sanitize/Telegram thành helper dùng chung.
+  Tối ưu tải đầu bằng avatar WebP 128px, index TTHC nhẹ, lazy-load module/CDN có SRI và static manifest
+  content-hash/cache immutable. Giữ tương thích deep-link catalog bằng lazy proxy.
+- **File đã sửa:** `api/chat.js`, `api/feedback.js`, `lib/request-security.js`, `index.html`,
+  `js/chatbot.js`, `js/tthc-catalog.js`, `js/lazy-features.js`, `assets/icon-128.webp`,
+  `data/tthc-index.json`, `scripts/generate-tthc-catalog.js`, `scripts/build-static.js`, `vercel.json`,
+  `package.json`, các test T2C/T2D/E2E và tài liệu brain.
+- **Lý do:** Hoàn thiện các mục T2C và T2D còn dở của Giai đoạn 2, giới hạn request trước timeout Vercel,
+  giảm first-load mà không làm mất tính năng chat/catalog, và bỏ coupling feedback -> chat handler.
+- **Kiểm tra:** `npm test` 249/249 PASS; `npm run build` PASS; `npm run test:e2e` 14/14 PASS. Full regression
+  sau T2C có 0 hard fail (F01 deferred). Majority 3-run tuần tự hoàn tất nhưng gate không đạt do VP01
+  hard fail đa số 2/3; TT04/EV01/EV04/DN01/TYPO02 flaky 1/3. T2B-2 vẫn DEFERRED theo điều kiện soft-warning/latency.
+
+---
+
+## [2026-07-13] Majority 3-run T2C sau khi quota hồi
+- **Agent:** Codex
+- **Thay đổi:** Chạy `RAG_FAIL_CLOSED=1 EVAL_SKIP_FAQ_CACHE=1 node scripts/run-regression.js --majority --runs 3 --delay-ms 2000`
+  tuần tự trên commit T2C/T2D; lưu 3 run và báo cáo majority.
+- **File đã sửa:** `test/results/regression-run-2026-07-13_06-12-08.md`,
+  `test/results/regression-run-2026-07-13_06-22-09.md`, `test/results/regression-run-2026-07-13_06-31-08.md`,
+  `test/results/regression-majority-2026-07-13_06-31-08.md`, cùng các file `*-latest.md`.
+- **Kết quả:** Gate 2/3 **KHÔNG ĐẠT** do VP01 hard fail đa số 2/3 (`fine_requires_basis`); TT04, EV01,
+  EV04, DN01, TYPO02 flaky 1/3; F01 deferred PASS 3/3. Không bật rollout flag; VP01 là blocker tiếp theo.
+
+---
+
+## [2026-07-13] T2B-1 integration test + live majority gate
+- **Agent:** Codex
+- **Thay đổi:** Bổ sung test tầng handler cho canonical SSE và chống lọt phone/phí/thời hạn chưa
+  xác minh; chạy majority 3 run trên đúng snapshot T2B-1/T2C hiện tại; đồng bộ trạng thái kế hoạch.
+- **File đã sửa:** `test/t2b-t2c.test.js`, `test/results/regression-run-2026-07-13_03-24-25.md`,
+  `test/results/regression-run-2026-07-13_03-33-31.md`, `test/results/regression-run-2026-07-13_03-42-51.md`,
+  `test/results/regression-majority-2026-07-13_03-42-51.md`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Majority T2A cũ không bảo chứng cho đường streaming mới; cần bằng chứng live đúng snapshot.
+- **Kiểm tra:** `npm test` 241/241; `npm run build`; majority đạt 0 hard fail đa số, 0 provider error,
+  H16/H17 PASS 3/3. TT01/TT04 flaky 1/3. Soft-warning/latency gate chưa đạt nên T2B-2 DEFERRED.

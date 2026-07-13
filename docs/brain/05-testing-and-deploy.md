@@ -35,6 +35,10 @@ EVAL_BYPASS_TOKEN=test-bypass-token
 NODE_ENV=development
 RATE_LIMIT_MONTHLY=10000
 RATE_LIMIT_DAILY_IP=50
+RAG_FAIL_CLOSED=0
+LLM_PRIMARY=gemini
+LLM_FALLBACK=deepseek
+CHAT_REQUEST_DEADLINE_MS=55000
 ```
 
 ## Chạy local (dev)
@@ -99,6 +103,20 @@ POST /api/chat
 captchaToken: "test-bypass-token"   # = EVAL_BYPASS_TOKEN env
 NODE_ENV: development
 ```
+
+## T2C/T2D: kiem tra runtime va static artifact
+
+```bash
+npm run gen:catalog:index  # sinh lai index nhe tu data/tthc-catalog.json da commit
+npm run build              # tao dist/asset-manifest.json va URL content-hash
+npm run test:e2e           # kiem tra lazy chat/catalog, deep-link va mobile
+```
+
+- `CHAT_REQUEST_DEADLINE_MS` mac dinh 55s, phai nho hon `maxDuration` 60s trong `vercel.json`.
+- Sau build, ten `data/tthc-catalog.json` va module runtime da duoc hash. Doc duong dan that tu
+  `dist/asset-manifest.json`, khong hardcode ten file nguon khi smoke-test `dist/`.
+- Kiem tra lan click dau tien vao Chat/Danh muc va `window.TthcCatalog.openProcedure(id)`: cac module nay
+  chu y nap theo nhu cau de giam first load.
 
 ## Google Workspace / Apps Script cho pipeline bản đồ
 

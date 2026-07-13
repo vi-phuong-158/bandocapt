@@ -310,6 +310,22 @@ test('T1.8 grounding_patterns: ON01 docs diễn đạt khác câu trả lời v�
     assert.equal(out.groundingFailures.length, 0, `${out.groundingFailures}`);
 });
 
+test('T2 review VP01: abstention paraphrase passes without requiring the abstention sentence in RAG docs', () => {
+    const expectation = EXPECTATIONS.cases.VP01;
+    const answer = 'Chưa có thông tin về mức phạt cụ thể trong dữ liệu để khẳng định chính xác.';
+    const deterministic = gradeDeterministic(expectation, { text: answer, wordCount: 14 });
+    const grounding = gradeGrounding(expectation, { matchedDocs: '', matchesFinal: [] }, { text: answer });
+    assert.equal(deterministic.hardFailures.length, 0, `${deterministic.hardFailures}`);
+    assert.equal(grounding.groundingFailures.length, 0, `${grounding.groundingFailures}`);
+});
+
+test('T2 review VP01: an asserted Điều 21 still requires matching evidence in retrieved docs', () => {
+    const grounding = gradeGrounding(EXPECTATIONS.cases.VP01, {
+        matchedDocs: 'Tài liệu không liên quan.', matchesFinal: [],
+    }, { text: 'Theo Điều 21, người vi phạm bị xử phạt.' });
+    assert.ok(grounding.groundingFailures.includes('ungrounded_fact:fine_requires_basis'));
+});
+
 // --------------------------------------------------------------------
 // T1.11: fixture nguyên văn từ baseline T1.7b — 3 ca fail bền vững do THƯỚC ĐO.
 // --------------------------------------------------------------------

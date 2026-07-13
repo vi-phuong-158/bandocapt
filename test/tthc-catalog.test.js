@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const {
     buildCatalog,
+    buildCatalogIndex,
     buildGuideProcedures,
     dedupeProcedures,
     deriveCategoryLabel,
@@ -20,6 +21,15 @@ const {
     parseGuideProcedureRecord,
     readEnvAssignments,
 } = require('../scripts/generate-tthc-catalog');
+
+test('buildCatalogIndex keeps only procedure id, title and aliases', () => {
+    const index = buildCatalogIndex({
+        generatedAt: '2026-07-13T00:00:00.000Z',
+        procedures: [{ procedureId: 'p1', title: 'Thủ tục A', aliases: ['Tên cũ'], text: 'nặng' }],
+    });
+    assert.deepEqual(index.procedures, [{ procedure_id: 'p1', title: 'Thủ tục A', aliases: ['Tên cũ'] }]);
+    assert.equal(JSON.stringify(index).includes('nặng'), false);
+});
 
 const { buildCitationSource } = require('../api/chat');
 

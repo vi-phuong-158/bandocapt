@@ -21,6 +21,21 @@
   thiết kế 2026-07-11 (không chặn tới Giai đoạn 3). **Giai đoạn 2 (runtime safety + quick wins) đã mở
   khóa** — xem bảng T2A–T2D trong `07-parallel-task-plan.md`. Chi tiết bằng chứng: `06-ai-working-log.md`
   (2026-07-12) + `test/results/regression-majority-*.md`.
+- **[DONE 2026-07-13] T2A:** đã hợp nhất `standaloneQuery`, thêm fail-closed abstention gated
+  `RAG_FAIL_CLOSED=1`, giữ eval trace ở nhánh từ chối, bổ sung luật diễn giải viết tắt `TQ` và test
+  failure-path. Gate majority chạy đủ 3 run đạt: 0 hard fail đa số, TYPO02 PASS 3/3; GD02 flaky 1/3
+  và provider errors lẻ tẻ chỉ advisory. T2B-1 được mở khóa. Nguồn trạng thái: `07-parallel-task-plan.md`.
+- **[DONE 2026-07-13] T2B-1:** buffered validation theo câu/bullet có unit + integration test ở
+  tầng handler cho ba invariant; majority 3 run trên đúng worktree đạt 0 hard fail đa số và 0
+  provider error. T2B-2 vẫn DEFERRED vì soft-warning/latency gate chưa đạt.
+- **[DONE 2026-07-13] T2C + T2D-1..4:** mọi external stage của chat cùng dùng deadline 55s còn lại,
+  provider fallback/telemetry không chặn SSE, và helper request-security đã tách khỏi chat handler. Frontend
+  dùng avatar WebP 3.8KB, index TTHC 18KB, lazy loader có SRI/proxy deep-link, cùng static manifest content-hash.
+  `npm test` 249/249 và `npm run test:e2e` 14/14 xanh. Một full regression sau T2C có 0 hard fail (F01
+  deferred). Review PR #31 đã được sửa và majority 3-run mới **ĐẠT**: VP01 PASS 3/3, không hard fail đa số;
+  TR05/TT04/DN01/LOC07 flaky 1/3, GV02 provider error 1/3. Timing xác định generation/failover DeepSeek sau
+  Gemini 429 là nguyên nhân p95 hai run cuối tăng; T2B-2/`CLAIM_CITATIONS` tiếp tục deferred và rollout flag
+  production vẫn chờ owner.
 
 ### [ĐIỀU TRA XONG — TASK-GV02-FLAKY] Vì sao GV02 hay lỗi
 - **Kết quả điều tra (2026-07-10):** Chạy GV02 đơn lẻ 10 lần liên tiếp → **10/10 thành công** (137-350 từ). Chạy thêm 2 lần full 30-câu → 1 lần sạch 100%, 1 lần GV02 TRUNCATED. Không bắt được thêm lần `BLOCKED_CONTENT` nào dù đã bật log chẩn đoán (`finishReason`/`promptFeedback`/`safetyRatings`).
