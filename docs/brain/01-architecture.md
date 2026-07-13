@@ -73,7 +73,7 @@ bandocapt/
 | `api/feedback.js` | Serverless nhan bao cao/phan hoi nguoi dung ve cau tra loi chatbot; tai dung CORS/HMAC/sanitize tu `api/chat.js`; rate limit best-effort IP/ngay + ghi `chat_feedback/<date_key>` tren RTDB voi TTL | `js/gemini.js` | `api/chat.js` (require cheo helper), Firebase RTDB |
 | `scripts/read-feedback.js` | Doc `chat_feedback/<date_key>` tu RTDB, in bao cao theo ngay (loc `--down`) de admin ra soat | Developer / cron | Firebase RTDB, `.env` |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
-| `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone, split intent `tam_tru_khai_bao`/`tam_tru_the`, fail-closed branch filter, stream model, inject `<verified_locations>`, `buildCitationSource` tra them `procedure_id`/`title` cho nut doi chieu TTHC, dang ky groundedness background task | `js/gemini.js` | Pinecone, Gemini API, Firebase, `@vercel/functions`, `lib/published-locations.js` |
+| `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone; T2A dung mot `standaloneQuery` cho embedding/classify/exact-token/rerank/XNC va co fail-closed abstention gated khi khong con nguon grounded; split intent `tam_tru_khai_bao`/`tam_tru_the`, stream model, inject `<verified_locations>`, `buildCitationSource` tra them `procedure_id`/`title` cho nut doi chieu TTHC, dang ky groundedness background task | `js/gemini.js` | Pinecone, Gemini API, Firebase, `@vercel/functions`, `lib/published-locations.js` |
 | `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live, mac dinh gom `tthc_*` + `guide_*` co noi dung (loc guide rong/noi bo), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
 | `scripts/patch-matt26265-mau-don.js` | Script mot-muc de xoa gia tri `mau_don` loi thoi cua `tthc_matt26265`; mac dinh dry-run, chi backup + upsert khi co `--apply`, giu nguyen vector/text/content_hash | Developer duoc uy quyen | Pinecone, `.env`, `data/pinecone-backups/` |
 | `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets | Google Apps Script | SpreadsheetApp |
@@ -128,9 +128,11 @@ User nhap
   11. Loai runtime moi match `tru_so` khoi prompt va citation
   11b. Neu `detectXncAuthorityIntent` dung (thi thuc/gia han/the tam tru/e-visa/NNN mat ho chieu): bom tinh `XNC_RECEPTION_VERIFIED_BLOCK` (3 diem tiep dan Phong QLXNC, chi dia chi + SDT, chua co toa do) vao `<verified_locations>`, doc lap matcher
   11c. (P1.1.2) Rerank Gemini co dieu kien: bo qua (`shouldSkipRerank`) khi top-1 > 0.75 diem VA cach top-2 >= 0.05 — chi rerank khi con map mo
+  11d. (T2A, gated `RAG_FAIL_CLOSED=1`) Neu khong co match RAG vuot nguong, khong co tru so xac minh va khong co khoi XNC: tra abstention tat dinh theo ngon ngu + `abstentionReason`, KHONG goi model generation. Eval-mode van dinh retrieval trace rong de grader khong bo qua grounding.
   12. Inject `<verified_locations>` + `<retrieved_documents>` vao system prompt
   13. Stream Gemini 2.5 Flash / DeepSeek
-  14. Validate ban cuoi: redact token lien he/phap ly khong co trong nguon xac minh
+  14. (T2B-1) Buffer đến hết câu/bullet, validate từng segment rồi mới phát SSE; `done.fullText`
+      là phép nối chính xác các segment đã phát. Không đưa raw model text chưa validate lên UI.
   15. Ghi telemetry toi thieu, gom so luong/loai violation cua output validator; groundedness check chay sau response qua Vercel `waitUntil`
   16. (P1.2.1) Sau `res.end()`, dang ky `checkGroundednessAsync` bang Vercel `waitUntil`: neu answer
       co so lieu, Gemini Flash doi chieu voi legalCorpus va ghi `groundedness_checks/<date>` vao
@@ -185,6 +187,12 @@ SSE response events:
 - `{ "text": "chunk" }`
 - `{ "done": true, "fullText": "...", "history": [...], "sources": [...] }`
 - `{ "error": "..." }`
+
+**Fail-closed abstention (T2A, gated `RAG_FAIL_CLOSED=1`, mặc định TẮT):** khi thiếu RAG hoàn toàn
+(không match Pinecone vượt threshold + không có trụ sở xác minh + không có khối thẩm quyền XNC), event
+`done` mang `finishReason:'RAG_ABSTAINED'` + `abstentionReason` (`no_pinecone_config`/`embedding_failed`/
+`pinecone_error`/`no_relevant_match`); `fullText` là thông báo tất định theo ngôn ngữ, không gọi model.
+Client (`js/gemini.js`) parse `done` chung nên field `abstentionReason` được bỏ qua an toàn, text vẫn render.
 
 **Eval-mode output (T1.3):** event `done` đính thêm trường `eval` (trace retrieval cho bộ chấm
 grounding) CHỈ khi đủ 3 điều kiện AND: `NODE_ENV !== 'production'` + `captchaToken === EVAL_BYPASS_TOKEN`
@@ -255,6 +263,7 @@ RATE_LIMIT_DAILY_IP
 FEEDBACK_DAILY_IP_LIMIT
 FEEDBACK_RETENTION_DAYS
 EMBED_TASK_TYPE
+RAG_FAIL_CLOSED
 TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID
 ```
@@ -263,6 +272,11 @@ Biến mới (2026-07-10):
 - `EMBED_TASK_TYPE` (P2.2): khi đặt `RETRIEVAL_QUERY`, query embedding dùng taskType bất đối xứng —
   CHỈ bật đồng bộ với corpus đã re-embed `RETRIEVAL_DOCUMENT` (`setup/reembed-corpus.js`) sang namespace mới.
 - `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID` (P3.4): opt-in cảnh báo groundedness-fail và feedback 👎; thiếu → no-op.
+
+Biến mới (2026-07-12):
+- `RAG_FAIL_CLOSED` (T2A): đặt `1` để bật fail-closed abstention khi thiếu RAG. Chạy được cả
+  production nhưng **mặc định TẮT**; không đặt → giữ hành vi cũ (model tự báo "không tìm thấy tài liệu").
+  Bật + đo `--majority` (0 hard fail mới, 100% ca thiếu RAG từ chối đúng) trước khi coi là mặc định.
 
 ## Luu y kien truc quan trong
 

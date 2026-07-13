@@ -17,7 +17,7 @@ const {
     findVerifiedLocationMatches,
     formatVerifiedLocationsPrompt,
 } = require('../lib/published-locations');
-const { validateAnswer, trimToSentenceBoundary, getTruncationNotice } = require('../lib/output-validator');
+const { validateAnswer, takeCompleteSegment, trimToSentenceBoundary, getTruncationNotice } = require('../lib/output-validator');
 
 // Kiểm tra biến môi trường nhạy cảm không được phép tồn tại ở production.
 if (process.env.NODE_ENV === 'production' && process.env.EVAL_BYPASS_TOKEN) {
@@ -211,8 +211,13 @@ function buildTelemetryPayload(data, now = new Date()) {
         embedding_ms: data.embedding_ms,
         retrieval_ms: data.retrieval_ms,
         rerank_ms: data.rerank_ms,
+        query_rewrite_ms: data.query_rewrite_ms,
         history_summary_ms: data.history_summary_ms,
         generation_ms: data.generation_ms,
+        time_to_first_validated_sentence_ms: data.time_to_first_validated_sentence_ms,
+        provider: data.provider || '',
+        fallback_used: Boolean(data.fallback_used),
+        rag_abstention_reason: data.rag_abstention_reason || '',
         total_ms: data.total_ms,
         output_validator_violation_count: data.output_validator_violations?.length || 0,
         output_validator_violation_types: Array.from(new Set((data.output_validator_violations || []).map(item => item.type))),
@@ -509,6 +514,7 @@ Nhưng MỖI LƯỢT trả lời chỉ trả đúng phần người dân đang h
 - THỜI HẠN KHAI BÁO TẠM TRÚ NGƯỜI NƯỚC NGOÀI: nêu chuẩn "12 giờ (địa bàn thông thường) hoặc 24 giờ (vùng sâu, vùng xa) kể từ khi người nước ngoài đến". KHÔNG nói "24 giờ" chung chung như mốc duy nhất.
 - KHÔNG tự đưa số ngày tạm trú của công dân Việt Nam (vd "30 ngày", "60 ngày") nếu con số đó không có trực tiếp trong <retrieved_documents>.
 - Câu hỏi chung kiểu "người nước ngoài tạm trú cần giấy tờ gì": hiểu là hỏi CHUNG về khai báo/tạm trú, KHÔNG mặc định là thủ tục "cấp thẻ tạm trú"; nếu mơ hồ thì nêu các trường hợp phổ biến hoặc hỏi lại để làm rõ.
+- Khi người dùng viết tắt/không dấu trong ngữ cảnh người nước ngoài (vd "TQ" = Trung Quốc), phải diễn giải lại ý hiểu bằng cụm đầy đủ trong câu trả lời — đặc biệt dùng rõ "khai báo tạm trú" thay vì chỉ viết "khai báo" — để xác nhận đúng nghĩa câu hỏi trước khi nêu nghĩa vụ.
 - CẤM SUY DIỄN "THỦ TỤC TƯƠNG TỰ": Nếu <retrieved_documents> chỉ có dữ liệu cho một biến thể thủ tục (vd "cấp mới") nhưng người dùng hỏi biến thể khác (vd "cấp lại", "làm lại do mất", "cấp đổi", "gia hạn"), TUYỆT ĐỐI KHÔNG lấy nguyên hồ sơ/trình tự/thời gian/lệ phí của biến thể có dữ liệu rồi trình bày như thể đó là câu trả lời cho biến thể được hỏi, kể cả khi có ghi chú "về bản chất tương tự". Phải nói rõ: "Dữ liệu hiện tại chỉ có thủ tục [biến thể có data], chưa có thủ tục riêng cho [biến thể người dùng hỏi]. Vui lòng liên hệ trực tiếp cơ quan có thẩm quyền để được hướng dẫn chính xác." — KHÔNG liệt kê hồ sơ/bước của biến thể khác ngay sau đó như một gợi ý ngầm coi là đáp án.
 - THẨM QUYỀN XUẤT NHẬP CẢNH: Thủ tục thị thực, gia hạn tạm trú, cấp/gia hạn thẻ tạm trú, e-visa và NGƯỜI NƯỚC NGOÀI mất hộ chiếu thuộc thẩm quyền PHÒNG QUẢN LÝ XUẤT NHẬP CẢNH (cấp tỉnh) — KHÔNG hướng người dân về Công an xã/phường cho các thủ tục này, kể cả khi <verified_locations> có khớp một xã/phường theo địa danh người dùng nhắc.
 - NGƯỜI NƯỚC NGOÀI MẤT HỘ CHIẾU (sau khi đã xác định là người nước ngoài): câu trả lời BẮT BUỘC gồm CẢ HAI vế — (a) trình báo tại Phòng Quản lý xuất nhập cảnh (cấp tỉnh); và (b) liên hệ CƠ QUAN ĐẠI DIỆN NGOẠI GIAO của nước mình (Đại sứ quán/Lãnh sự quán) để xin cấp lại hộ chiếu/giấy thông hành, vì chỉ cơ quan đại diện nước họ mới cấp lại được hộ chiếu. TUYỆT ĐỐI KHÔNG bỏ sót vế Đại sứ quán/Lãnh sự quán, kể cả khi <retrieved_documents> không nêu chi tiết (đây là hướng dẫn chung, không phải bịa địa chỉ/SĐT cụ thể).
@@ -1513,6 +1519,48 @@ function getOutOfScopeReply(userMessage) {
     return 'I could not find reliable information for this question. Please contact your local police station (Ward/Commune Police) for direct assistance.';
 }
 
+// T2A: Cổng fail-closed thuần — true khi KHÔNG có bất kỳ nguồn grounded nào để trả lời
+// (RAG rỗng + không có trụ sở xác minh + không có khối thẩm quyền XNC). Tách hàm để
+// unit-test được toàn bộ nhánh mà không cần gọi LLM/Pinecone thật.
+function shouldAbstainForMissingRag({ hasMatchedDocs, hasVerifiedLocation, hasXncAuthorityBlock } = {}) {
+    return !hasMatchedDocs && !hasVerifiedLocation && !hasXncAuthorityBlock;
+}
+
+// T2A: Thông báo tất định khi thiếu RAG — theo ngôn ngữ người dùng, gợi ý mở danh mục
+// TTHC + liên hệ Công an. KHÔNG chứa số liệu/mã mẫu để không kích hoạt redact và để các
+// ca must_abstain (vd TR05: "liên hệ Công an", "chưa tìm thấy ... căn cứ") vẫn PASS.
+function getRagAbstentionReply(userLang) {
+    if (userLang === 'zh') {
+        return '我在资料库中暂未找到可靠的文件来准确回答此问题。请打开“行政程序目录”进行查询，或联系您居住地的坊/社公安以获得直接指导。';
+    }
+    if (userLang === 'ko') {
+        return '지식 베이스에서 이 질문에 정확히 답변할 검증된 문서를 찾지 못했습니다. “행정 절차 목록”에서 조회하시거나 거주지 관할 방/사 공안에 문의하여 안내를 받으시기 바랍니다.';
+    }
+    if (userLang === 'vi') {
+        return 'Mình chưa tìm thấy tài liệu hoặc căn cứ phù hợp trong kho dữ liệu để trả lời chính xác câu hỏi này. Bạn vui lòng mở mục "Danh mục thủ tục hành chính" để tra cứu, hoặc liên hệ Công an phường/xã nơi cư trú để được hướng dẫn trực tiếp.';
+    }
+    return 'I could not find verified documents in the knowledge base to answer this accurately. Please open the "Administrative Procedures" catalog to look it up, or contact your local Ward/Commune Police for direct guidance.';
+}
+
+function getChatProviderOrder() {
+    const primary = String(process.env.LLM_PRIMARY || 'gemini').toLowerCase();
+    const fallback = String(process.env.LLM_FALLBACK || (process.env.DEEPSEEK_API_KEY ? 'deepseek' : '')).toLowerCase();
+    return [...new Set([primary, fallback].filter(provider =>
+        provider === 'gemini' || (provider === 'deepseek' && process.env.DEEPSEEK_API_KEY)
+    ))];
+}
+
+function isRetryableProviderFailure(response) {
+    return !response || response.status === 429 || response.status >= 500;
+}
+
+function getRagAbstentionReason({ hasPineconeConfig, embedVectorLength, pineconeErrored } = {}) {
+    if (!hasPineconeConfig) return 'no_pinecone_config';
+    if (!embedVectorLength) return 'embedding_failed';
+    if (pineconeErrored) return 'pinecone_error';
+    return 'no_relevant_match';
+}
+
 function localizeFinalAnswer(text, isVietnamese, userLang) {
     if (isVietnamese) return text;
     let result = String(text || '');
@@ -1858,6 +1906,7 @@ module.exports = async function handler(req, res) {
         history_summary_ms: 0,
         generation_ms: 0,
         total_ms: 0,
+        time_to_first_validated_sentence_ms: 0,
     };
     const historySummaryPromise = measureStage(stageTimings, 'history_summary_ms', () =>
         summarizeHistory(safeHistory, apiKey, 8000)
@@ -1916,6 +1965,13 @@ module.exports = async function handler(req, res) {
         }
     }
 
+    // T2A: Một query độc lập duy nhất cho retrieval/classification/thẩm quyền — thay vì
+    // embedding dùng searchQuery (đã ghép ngữ cảnh) còn classify/exact-token/rerank/XNC
+    // dùng userMessage thô (lệch pha ở câu follow-up ngắn). Câu đơn (không history) thì
+    // standaloneQuery === userMessage.trim() nên không đổi hành vi. Nhánh khớp trụ sở giữ
+    // userMessage cố ý (bare-place & nationality-answer cần đúng câu người dùng vừa gõ).
+    const standaloneQuery = searchQuery;
+
     // Heuristic: Phát hiện ngôn ngữ người dùng (dùng cho language lock)
     const userLang = detectUserLanguage(searchQuery);
     const isVietnamese = userLang === 'vi';
@@ -1960,10 +2016,11 @@ module.exports = async function handler(req, res) {
     // -------------------------------------------------------------
     let matchedDocs = '';
     let matchedSources = []; // UI-05: citation chips
+    let pineconeErrored = false; // T2A: phân biệt lý do abstain (pinecone_error vs no_relevant_match)
     // [EVAL-DEBUG T1.3] Trace retrieval, chỉ dựng khi evalMode; production giữ null → không lộ.
     const evalTrace = evalMode ? {
-        standaloneQuery: searchQuery,   // query dùng cho embedding (T2A sẽ hợp nhất với classify/rerank)
-        classifyQuery: userMessage,     // hiện classify/rerank vẫn dùng userMessage — ghi lại để soi lệch
+        standaloneQuery,                // T2A: query độc lập dùng chung embedding/classify/rerank/XNC
+        classifyQuery: standaloneQuery, // đã hợp nhất — trace giữ lại để soi
         category: null,
         matchesRaw: [],
         matchesFinal: [],
@@ -1983,7 +2040,7 @@ module.exports = async function handler(req, res) {
 
             if (embedVector.length > 0) {
                 // RAG-03: Metadata filter theo lĩnh vực
-                const category = classifyQuestion(userMessage);
+                const category = classifyQuestion(standaloneQuery);
                 const filterCategories = getFilterCategoriesForQuestionCategory(category);
                 const queryOptions = {
                     vector: embedVector,
@@ -2022,7 +2079,7 @@ module.exports = async function handler(req, res) {
 
                 // P2.3: Đôn match khớp token chính xác (mã mẫu / số hiệu văn bản) lên đầu
                 // TRƯỚC bước lọc ngưỡng — để không bỏ sót đúng văn bản người dùng gọi tên.
-                const exactTokens = extractExactTokens(userMessage);
+                const exactTokens = extractExactTokens(standaloneQuery);
                 const prioritizedMatches = boostExactTokenMatches(branchFilteredMatches, exactTokens);
                 if (exactTokens.length > 0) {
                     const boostedCount = prioritizedMatches.filter(m => m._exactTokenBoost).length;
@@ -2042,7 +2099,7 @@ module.exports = async function handler(req, res) {
                 const reranked = shouldSkipRerank(relevantMatches)
                     ? relevantMatches
                     : await measureStage(stageTimings, 'rerank_ms', () =>
-                        rerankWithGemini(userMessage, relevantMatches, apiKey, 8000)
+                        rerankWithGemini(standaloneQuery, relevantMatches, apiKey, 8000)
                     );
                 const topMatches = reranked.slice(0, 4); // BOT-02: giới hạn 4 docs sau rerank
 
@@ -2093,6 +2150,7 @@ module.exports = async function handler(req, res) {
                 }
             }
         } catch (e) {
+            pineconeErrored = true;
             console.error('[api/chat] Lỗi tìm kiếm Pinecone:', e);
             // Tiếp tục cho bot dẫu Pinecone lỗi để bot có thể báo lỗi lịch sự
         }
@@ -2164,9 +2222,70 @@ module.exports = async function handler(req, res) {
 
     // Bơm dữ liệu trụ sở Phòng QLXNC (cấp tỉnh) khi câu hỏi thuộc thẩm quyền xuất nhập cảnh.
     // Độc lập với matcher từ khóa để tránh model bịa địa chỉ/SĐT đơn vị cấp tỉnh.
-    const hasXncAuthorityIntent = detectXncAuthorityIntent(userMessage);
+    const hasXncAuthorityIntent = detectXncAuthorityIntent(standaloneQuery);
     if (hasXncAuthorityIntent) {
         verifiedLocationPrompt = `${verifiedLocationPrompt}\n\n${XNC_RECEPTION_VERIFIED_BLOCK}`;
+    }
+
+    // -------------------------------------------------------------
+    // T2A: Fail-closed khi KHÔNG có bất kỳ ngữ cảnh grounded nào (RAG rỗng + không có
+    // trụ sở xác minh + không có khối thẩm quyền XNC) → KHÔNG gọi model sinh câu trả lời
+    // thủ tục (tránh model tự "nhớ" số liệu), trả thông báo tất định theo ngôn ngữ +
+    // gợi ý danh mục. Gated sau env RAG_FAIL_CLOSED để đo over-refuse bằng regression
+    // trước khi bật mặc định (xem 03-decisions 2026-07-12). Nhánh thuần trụ sở đã return
+    // sớm ở trên nên không lọt vào đây.
+    // -------------------------------------------------------------
+    if (process.env.RAG_FAIL_CLOSED === '1' && shouldAbstainForMissingRag({
+        hasMatchedDocs: matchedDocs.length > 0,
+        hasVerifiedLocation: verifiedLocationMatches.length > 0,
+        hasXncAuthorityBlock: hasXncAuthorityIntent,
+    })) {
+        const abstentionReason = getRagAbstentionReason({
+            hasPineconeConfig: Boolean(process.env.PINECONE_API_KEY),
+            embedVectorLength: embedVector.length,
+            pineconeErrored,
+        });
+        const fullText = getRagAbstentionReply(userLang);
+        const historyToClient = [
+            { role: 'user', parts: [{ text: userMessage.trim() }] },
+            { role: 'model', parts: [{ text: fullText }] }
+        ];
+        if (evalMode && evalTrace) {
+            evalTrace.matchedDocs = matchedDocs;
+        }
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+        });
+        res.write(`data: ${JSON.stringify({ text: fullText })}\n\n`);
+        res.write(`data: ${JSON.stringify({
+            done: true,
+            fullText,
+            history: historyToClient,
+            sources: [],
+            finishReason: 'RAG_ABSTAINED',
+            abstentionReason,
+            ...(evalMode && evalTrace ? { eval: evalTrace } : {}),
+        })}\n\n`);
+        res.end();
+        logChatToFirestore({
+            question: userMessage,
+            answer: fullText,
+            language: userLang,
+            sources: [],
+            has_rag_context: false,
+            finish_reason: 'RAG_ABSTAINED',
+            rag_abstention_reason: abstentionReason,
+            truncated: false,
+            latency_ms: Date.now() - _startTime,
+            total_ms: Date.now() - _startTime,
+            ip: clientIP,
+            user_agent: req.headers['user-agent'] || '',
+            date_key: currentDate
+        });
+        return;
     }
 
     // -------------------------------------------------------------
@@ -2198,7 +2317,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
     }
 
     // RAG-04: Summarize history dài thay vì cắt cứng
-    const foreignNationalScopeContext = /người nước ngoài|nguoi nuoc ngoai|foreigner|foreign national/i.test(userMessage)
+    const foreignNationalScopeContext = /người nước ngoài|nguoi nuoc ngoai|foreigner|foreign national/i.test(standaloneQuery)
         ? '\n\n(IMPORTANT: This is about a foreign national. Do not introduce, compare with, or cite Vietnamese-citizen residence procedures such as đăng ký tạm trú, VNeID, or Luật Cư trú. If the retrieved material concerns a different document than the visa asked about, say there is not enough basis for that visa and do not state its fine amount or money range.)'
         : '';
     const processedHistory = await historySummaryPromise;
@@ -2229,13 +2348,25 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
 
     // -------------------------------------------------------------
     // Bước 4: GỌI LLM STREAMING (SSE) — Nhả từng chữ ra client
-    // Ưu tiên DeepSeek nếu có DEEPSEEK_API_KEY, fallback Gemini
+    // Provider theo LLM_PRIMARY/LLM_FALLBACK. Chỉ failover trước khi có byte nào phát,
+    // và chỉ cho timeout/429/5xx/network để không trả lẫn hai câu trả lời.
     // -------------------------------------------------------------
-    const useDeepSeek = !!process.env.DEEPSEEK_API_KEY;
+    const deadlineMs = getPositiveEnvInt('CHAT_REQUEST_DEADLINE_MS', 55000);
+    const providerOrder = getChatProviderOrder();
+    let provider = providerOrder[0] || 'gemini';
+    let fallbackUsed = false;
+    let useDeepSeek = provider === 'deepseek';
     const generationStartedAt = Date.now();
     try {
         let geminiRes;
-        if (useDeepSeek) {
+        let providerError;
+        for (let providerIndex = 0; providerIndex < providerOrder.length; providerIndex++) {
+            provider = providerOrder[providerIndex];
+            useDeepSeek = provider === 'deepseek';
+            const remainingMs = deadlineMs - (Date.now() - _startTime);
+            if (remainingMs <= 0) throw new Error('CHAT_REQUEST_DEADLINE_EXCEEDED');
+            try {
+            if (useDeepSeek) {
             // Convert Gemini-style payload -> OpenAI-style messages
             const messages = [{ role: 'system', content: finalSystemPrompt }];
             for (const c of contents) {
@@ -2258,14 +2389,24 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
                     'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
                 },
                 body: JSON.stringify(dsPayload)
-            }, 2, 50000); // P1.4.2: 50s hợp lệ vì vercel.json functions.api/chat.js.maxDuration = 60
-        } else {
+            }, 2, Math.min(50000, remainingMs));
+            } else {
             geminiRes = await fetchWithRetry(`${GEMINI_CHAT_API_URL}&key=${apiKey}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
-            }, 2); // Retry tối đa 2 lần cho chat
+            }, 2, Math.min(50000, remainingMs));
+            }
+            if (geminiRes.ok || !isRetryableProviderFailure(geminiRes) || providerIndex === providerOrder.length - 1) break;
+            try { await geminiRes.text(); } catch (_) {}
+            fallbackUsed = true;
+            } catch (error) {
+                providerError = error;
+                if (providerIndex === providerOrder.length - 1) throw error;
+                fallbackUsed = true;
+            }
         }
+        if (!geminiRes && providerError) throw providerError;
 
         if (!geminiRes.ok) {
             const status = geminiRes.status;
@@ -2305,7 +2446,9 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
         // --- Đọc stream từ Gemini và chuyển tiếp cho browser ---
         const reader = geminiRes.body.getReader();
         const decoder = new TextDecoder();
+        let rawText = '';
         let fullText = '';
+        let pendingText = '';
         let buffer = '';
         let finishReason = '';
         // P3.5: giữ lại promptFeedback/safetyRatings thô của Gemini để log khi BLOCKED_CONTENT —
@@ -2313,6 +2456,34 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
         // (safety filter thật hay lý do khác). Chỉ log metadata Gemini, không log nội dung câu hỏi/PII.
         let debugPromptFeedback = null;
         let debugSafetyRatings = null;
+        const allowedPhones = new Set(verifiedLocationMatches.map(item => item.phone).filter(Boolean));
+        const allowedMapsUrls = new Set(verifiedLocationMatches.map(item => item.googleMapsUrl).filter(Boolean));
+        const allowedCoords = new Set(verifiedLocationMatches
+            .filter(item => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lng)))
+            .map(item => `${item.lat},${item.lng}`));
+        if (hasXncAuthorityIntent) {
+            ['0211.3.558.668', '069.2.645.166', '0218.3.855.311'].forEach(phone => allowedPhones.add(phone));
+        }
+        const validateStreamSegment = segment => validateAnswer(localizeFinalAnswer(segment, isVietnamese, userLang), {
+            phones: allowedPhones,
+            mapsUrls: allowedMapsUrls,
+            coords: allowedCoords,
+            legalCorpus: `${matchedDocs}\n${verifiedLocationPrompt}`,
+            allowedConstants: ['12 giờ', '24 giờ', '12 hours', '24 hours', '12小时', '24小时', '12시간', '24시간', 'Điều 33'],
+        });
+        const emitValidatedSegments = ({ flush = false } = {}) => {
+            const { segment, remainder } = takeCompleteSegment(pendingText, { flush });
+            pendingText = remainder;
+            if (!segment) return [];
+            const validation = validateStreamSegment(segment);
+            if (!stageTimings.time_to_first_validated_sentence_ms) {
+                stageTimings.time_to_first_validated_sentence_ms = Date.now() - _startTime;
+            }
+            fullText += validation.sanitizedText;
+            res.write(`data: ${JSON.stringify({ text: validation.sanitizedText })}\n\n`);
+            return validation.violations;
+        };
+        let outputValidatorViolations = [];
 
         while (true) {
             const { done, value } = await reader.read();
@@ -2346,8 +2517,9 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
                         if (candidate?.safetyRatings) debugSafetyRatings = candidate.safetyRatings;
                     }
                     if (chunkText) {
-                        fullText += chunkText;
-                        res.write(`data: ${JSON.stringify({ text: chunkText })}\n\n`);
+                        rawText += chunkText;
+                        pendingText += chunkText;
+                        outputValidatorViolations.push(...emitValidatedSegments());
                     }
                 } catch (parseErr) {
                     // Bỏ qua chunk parse lỗi
@@ -2357,7 +2529,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
 
         // --- Kiểm tra nếu Gemini bị chặn bởi safety filter (trả về rỗng) ---
         // No text has reached the browser, so one non-streaming retry cannot duplicate output.
-        if (!fullText.trim() && !useDeepSeek) {
+        if (!rawText.trim() && !useDeepSeek) {
             try {
                 const retryRes = await fetchWithRetry(`${GEMINI_CHAT_RETRY_API_URL}?key=${apiKey}`, {
                     method: 'POST',
@@ -2367,9 +2539,10 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
                 if (retryRes.ok) {
                     const retryText = extractGeminiResponseText(await retryRes.json());
                     if (retryText) {
-                        fullText = retryText;
+                        rawText = retryText;
+                        pendingText += retryText;
                         finishReason = 'EMPTY_STREAM_RETRY';
-                        res.write(`data: ${JSON.stringify({ text: retryText })}\n\n`);
+                        outputValidatorViolations.push(...emitValidatedSegments({ flush: true }));
                     }
                 }
             } catch (retryErr) {
@@ -2377,7 +2550,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             }
         }
 
-        if (!fullText.trim()) {
+        if (!rawText.trim()) {
             console.error('[api/chat] BLOCKED_CONTENT finishReason=%s promptFeedback=%s safetyRatings=%s',
                 finishReason || '(none)',
                 JSON.stringify(debugPromptFeedback),
@@ -2387,45 +2560,16 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             return;
         }
 
-        fullText = localizeFinalAnswer(fullText, isVietnamese, userLang);
+        // Phần chưa đủ ranh giới chỉ được phát sau khi stream kết thúc và vẫn phải qua validator.
         // Chạm trần token cắt giữa câu: lùi về ranh giới câu hoàn chỉnh + báo rõ cho người dùng
         // thay vì để văn bản đứt ngang. Làm TRƯỚC validateAnswer để validator vẫn quét đúng bản
         // gửi đi. Gemini báo 'MAX_TOKENS', DeepSeek (OpenAI format) báo 'length'.
         const wasTruncatedByTokenLimit = finishReason === 'MAX_TOKENS' || finishReason === 'length';
         if (wasTruncatedByTokenLimit) {
-            fullText = trimToSentenceBoundary(fullText) + getTruncationNotice(isVietnamese ? 'vi' : userLang);
+            pendingText = trimToSentenceBoundary(pendingText) + getTruncationNotice(isVietnamese ? 'vi' : userLang);
         }
-        const allowedPhones = new Set(verifiedLocationMatches.map(item => item.phone).filter(Boolean));
-        const allowedMapsUrls = new Set(verifiedLocationMatches.map(item => item.googleMapsUrl).filter(Boolean));
-        const allowedCoords = new Set(verifiedLocationMatches
-            .filter(item => Number.isFinite(Number(item.lat)) && Number.isFinite(Number(item.lng)))
-            .map(item => `${item.lat},${item.lng}`));
-        if (hasXncAuthorityIntent) {
-            ['0211.3.558.668', '069.2.645.166', '0218.3.855.311'].forEach(phone => allowedPhones.add(phone));
-        }
-        const validationResult = validateAnswer(fullText, {
-            phones: allowedPhones,
-            mapsUrls: allowedMapsUrls,
-            coords: allowedCoords,
-            legalCorpus: `${matchedDocs}\n${verifiedLocationPrompt}`,
-            // P0.3: Chỉ còn hằng số pháp lý lõi thật sự bất biến (không phụ thuộc văn bản nào được
-            // truy xuất). Số hiệu văn bản KHÔNG hardcode ở đây nữa — chúng đã nằm trong legalCorpus
-            // (matchedDocs) khi tài liệu tương ứng thực sự được Pinecone trả về; nếu văn bản đó
-            // không được truy xuất mà model vẫn nêu số hiệu thì đúng ý đồ thiết kế là phải bị redact
-            // (fail-closed), tránh nợ bảo trì khi thêm văn bản mới vào Pinecone mà quên sửa code.
-            // P0.5-fix: DURATION_PATTERN giờ redact thật (P0.2) — nếu model trả lời bằng EN/ZH/KO,
-            // "12 giờ/24 giờ" được dịch sang "12 hours/24 hours/12小时/24小时/..." và so khớp chuỗi
-            // với legalCorpus tiếng Việt sẽ luôn fail, xóa oan sự thật đã xác minh. Liệt kê thêm các
-            // bản dịch của đúng 2 hằng số hạn khai báo (không mở rộng sang số khác) để giữ đa ngôn ngữ.
-            allowedConstants: [
-                '12 giờ', '24 giờ',
-                '12 hours', '24 hours',
-                '12小时', '24小时',
-                '12시간', '24시간',
-                'Điều 33',
-            ],
-        });
-        fullText = validationResult.sanitizedText;
+        outputValidatorViolations.push(...emitValidatedSegments({ flush: true }));
+        const validationResult = { violations: outputValidatorViolations };
 
         // --- Gửi event kết thúc kèm history ---
         const updatedHistory = [
@@ -2474,8 +2618,12 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             embedding_ms: stageTimings.embedding_ms,
             retrieval_ms: stageTimings.retrieval_ms,
             rerank_ms: stageTimings.rerank_ms,
+            query_rewrite_ms: stageTimings.query_rewrite_ms,
             history_summary_ms: stageTimings.history_summary_ms,
             generation_ms: stageTimings.generation_ms,
+            time_to_first_validated_sentence_ms: stageTimings.time_to_first_validated_sentence_ms,
+            provider,
+            fallback_used: fallbackUsed,
             total_ms: stageTimings.total_ms,
             output_validator_violations: validationResult.violations,
             ip: clientIP,
@@ -2558,3 +2706,8 @@ module.exports.shouldSkipRerank = shouldSkipRerank;
 module.exports.extractExactTokens = extractExactTokens;
 module.exports.boostExactTokenMatches = boostExactTokenMatches;
 module.exports.extractGeminiResponseText = extractGeminiResponseText;
+module.exports.shouldAbstainForMissingRag = shouldAbstainForMissingRag;
+module.exports.getRagAbstentionReply = getRagAbstentionReply;
+module.exports.getRagAbstentionReason = getRagAbstentionReason;
+module.exports.getChatProviderOrder = getChatProviderOrder;
+module.exports.isRetryableProviderFailure = isRetryableProviderFailure;

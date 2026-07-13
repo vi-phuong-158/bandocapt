@@ -35,6 +35,7 @@ EVAL_BYPASS_TOKEN=test-bypass-token
 NODE_ENV=development
 RATE_LIMIT_MONTHLY=10000
 RATE_LIMIT_DAILY_IP=50
+RAG_FAIL_CLOSED=0
 ```
 
 ## Chạy local (dev)

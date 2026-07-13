@@ -79,10 +79,10 @@
 
 | ID | Task | Làn | Agent | Mức | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|---|---|
-| T2A | Fail-closed + `standaloneQuery` nhất quán | CORE | Claude | **CAO** | T1.7 | TODO |
-| T2B-1 | Buffered validation (SSE theo câu) | CORE | Claude | **CAO** | T2A | TODO |
-| T2B-2 | Per-claim citation `[Sx]` sau flag `CLAIM_CITATIONS=off` | CORE | Claude | **CAO** | T2B-1 + 3 run sạch | TODO (hoãn được) |
-| T2C | Provider/deadline/telemetry + tách helper khỏi chat.js | CORE | Claude | TRUNG–CAO | T2B-1 | TODO |
+| T2A | Fail-closed + `standaloneQuery` nhất quán | CORE | Claude/Codex tiếp quản | **CAO** | T1.7 | **DONE** (2026-07-13) — code/unit/build xong; majority 3/3 đạt, 0 hard fail đa số; TYPO02 PASS 3/3, GD02 flaky 1/3 advisory |
+| T2B-1 | Buffered validation (SSE theo câu) | CORE | Claude/Codex tiếp quản | **CAO** | T2A | **DONE** (2026-07-13) — 241 unit/integration xanh; majority 3 run đạt 0 hard fail đa số, 0 provider error |
+| T2B-2 | Per-claim citation `[Sx]` sau flag `CLAIM_CITATIONS=off` | CORE | Claude | **CAO** | T2B-1 + 3 run sạch | **DEFERRED** — hard gate đạt nhưng soft-warning/latency gate chưa đạt; không bật flag |
+| T2C | Provider/deadline/telemetry + tách helper khỏi chat.js | CORE | Claude/Codex tiếp quản | TRUNG–CAO | T2B-1 | **IN PROGRESS** — provider/deadline/telemetry đã có; còn stage budgets + tách helper |
 | T2D-1 | Avatar 669KB → WebP/AVIF 128px ≤80KB | FE | Codex | THẤP | — (song song mọi thứ) | TODO |
 | T2D-2 | `tthc-index.json` nhỏ + chat chỉ preload index | FE+DATA | Codex | TRUNG | — (song song được) | TODO |
 | T2D-3 | Lazy-load marked/DOMPurify/Turnstile/chatbot/catalog | FE | Codex | TRUNG | T2D-2 nên xong trước | TODO |

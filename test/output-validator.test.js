@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { validateAnswer } = require('../lib/output-validator');
+const { takeCompleteSegment } = require('../lib/output-validator');
 
 function allowed(overrides = {}) {
     return {
@@ -36,6 +37,26 @@ test('validates fees and form codes against legal corpus', () => {
     assert.match(result.sanitizedText, /145 USD/);
     assert.match(result.sanitizedText, /NA5/);
     assert.doesNotMatch(result.sanitizedText, /200 USD|NA1a/);
+});
+
+test('buffers incomplete streaming claims and releases only complete sentence or bullet', () => {
+    assert.deepEqual(takeCompleteSegment('Phí là 200 USD'), {
+        segment: '', remainder: 'Phí là 200 USD'
+    });
+    assert.deepEqual(takeCompleteSegment('Phí là 200 USD. Tiếp theo'), {
+        segment: 'Phí là 200 USD.', remainder: ' Tiếp theo'
+    });
+    assert.deepEqual(takeCompleteSegment('- Gọi 0210.123.4567\nCòn lại'), {
+        segment: '- Gọi 0210.123.4567\n', remainder: 'Còn lại'
+    });
+});
+
+test('stream segment validation is idempotent and never leaves unverified phone, fee or duration', () => {
+    const segment = 'Gọi 0210.123.4567. Phí 200 USD. Thời hạn 5 ngày làm việc.';
+    const first = validateAnswer(segment, { legalCorpus: '', allowedConstants: [] }).sanitizedText;
+    const second = validateAnswer(first, { legalCorpus: '', allowedConstants: [] }).sanitizedText;
+    assert.equal(second, first);
+    assert.doesNotMatch(first, /0210\.123\.4567|200 USD|5 ngày làm việc/);
 });
 
 test('validates legal references and preserves allowed time constants', () => {
