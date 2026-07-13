@@ -57,9 +57,18 @@ async function openChatWithStub(page, answers) {
         window.__stubAnswers = stubAnswers;
         window.GeminiAI = {
             stream: async (text, history, onChunk) => {
-                const answer = window.__stubAnswers.shift() || 'Hết dữ liệu stub.';
+                const stub = window.__stubAnswers.shift() || 'Hết dữ liệu stub.';
+                const answer = typeof stub === 'string' ? stub : stub.fullText;
                 onChunk(answer);
-                return { ok: true, fullText: answer, history: [], sources: [], truncated: false, finishReason: 'STOP' };
+                return {
+                    ok: true,
+                    fullText: answer,
+                    history: [],
+                    sources: typeof stub === 'string' ? [] : (stub.sources || []),
+                    verifiedLocations: typeof stub === 'string' ? [] : (stub.verifiedLocations || []),
+                    truncated: false,
+                    finishReason: 'STOP'
+                };
             },
             getError: () => 'stub',
         };
@@ -119,4 +128,22 @@ test('narrow answer stays flat (no accordion) and offers the full-guidance chip'
     const chips = page.locator('.ai-chat-quick-reply');
     await expect(chips).toHaveCount(1);
     await expect(chips.first()).toContainText('Hướng dẫn đầy đủ hồ sơ');
+});
+
+test('answer renders procedure comparison and verified station direction deeplinks', async ({ page }) => {
+    await openChatWithStub(page, [{
+        fullText: 'Bạn có thể đối chiếu thủ tục và xem đường đến trụ sở bên dưới.',
+        sources: [{ file: 'Thủ tục hộ chiếu', procedure_id: '5568-tw-01' }],
+        verifiedLocations: [{
+            name: 'Công an Phường Thanh Miếu',
+            address: 'Số 1028 Đường Hùng Vương',
+            mapsUrl: 'https://www.google.com/maps/search/?api=1&query=21.304528,105.415528'
+        }]
+    }]);
+    await sendMessage(page, 'Tôi làm hộ chiếu ở Thanh Miếu');
+
+    await expect(page.getByRole('button', { name: 'Đối chiếu trong danh mục' })).toBeVisible();
+    const directions = page.getByRole('link', { name: 'Chỉ đường đến Công an Phường Thanh Miếu' });
+    await expect(directions).toBeVisible();
+    await expect(directions).toHaveAttribute('href', /google\.com\/maps\/search/);
 });

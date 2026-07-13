@@ -805,6 +805,51 @@
 
 .ai-chat-source-compare .material-symbols-outlined { font-size: 16px; }
 
+.ai-chat-verified-locations {
+    display: grid;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+}
+
+.ai-chat-location-link {
+    min-height: var(--hit-min);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md);
+    background: var(--surface-muted);
+    color: var(--color-primary);
+    text-decoration: none;
+    transition: background var(--dur-fast) var(--ease-smooth), border-color var(--dur-fast) var(--ease-smooth);
+}
+
+.ai-chat-location-link:hover {
+    background: var(--surface-sunken);
+    border-color: var(--color-accent);
+}
+
+.ai-chat-location-link:focus-visible {
+    outline: 3px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+.ai-chat-location-link > span:last-child {
+    display: grid;
+    gap: var(--space-1);
+}
+
+.ai-chat-location-link strong {
+    color: var(--text-body);
+    font-size: var(--text-sm);
+}
+
+.ai-chat-location-link > span:last-child > span {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+}
+
 body.ai-chat-modal-open {
     overflow: hidden;
 }

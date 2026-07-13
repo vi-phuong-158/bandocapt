@@ -725,3 +725,16 @@
 - **Người quyết định:** user (chọn "gate đa số 2/3") / Claude Code (Opus 4.8)
 
 ---
+
+## [2026-07-13] Deeplink thủ tục và trụ sở phải được dựng tất định từ dữ liệu có cấu trúc
+
+- **Quyết định:** Event `done` của `/api/chat` gửi thêm `verifiedLocations` lấy từ các bản ghi
+  `Published_Locations` đã match; client tự dựng link chỉ đường. Nút đối chiếu thủ tục chờ lazy module và
+  index catalog tải xong rồi mới resolve `procedure_id`/title, thay vì chỉ kiểm tra một lần lúc render.
+- **Lý do:** Lazy-load có thể hoàn tất sau câu trả lời làm mất nút thủ tục; link Maps do model tự viết có
+  tính ngẫu nhiên nên có lượt không xuất hiện dù backend đã xác minh được trụ sở.
+- **Đánh đổi:** Hợp đồng SSE thêm một trường tùy chọn; client cũ bỏ qua an toàn. Điểm QLXNC chưa có tọa độ
+  không được tạo deeplink để tránh chỉ đường suy đoán.
+- **Người quyết định:** user / Codex
+
+---

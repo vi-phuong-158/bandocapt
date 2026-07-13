@@ -1202,3 +1202,10 @@
 - **Lý do:** Majority T2A cũ không bảo chứng cho đường streaming mới; cần bằng chứng live đúng snapshot.
 - **Kiểm tra:** `npm test` 241/241; `npm run build`; majority đạt 0 hard fail đa số, 0 provider error,
   H16/H17 PASS 3/3. TT01/TT04 flaky 1/3. Soft-warning/latency gate chưa đạt nên T2B-2 DEFERRED.
+
+## [2026-07-13] Khôi phục deeplink thủ tục và trụ sở trong chatbot
+- **Agent:** Codex
+- **Thay đổi:** Cho nút đối chiếu thủ tục chờ lazy catalog/index; thêm `verifiedLocations` vào SSE `done` và dựng link Google Maps tất định trên client.
+- **File đã sửa:** `api/chat.js`, `js/gemini.js`, `js/chatbot.js`, `styles.css`, `test/chat-deeplinks.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Deeplink thủ tục bị race với lazy-load; deeplink trụ sở trước đây phụ thuộc model tự sinh Markdown nên không ổn định.
+- **Kiểm tra:** `npm test` 254/254, `npm run build` thành công và Playwright E2E 15/15 (gồm ca hiển thị cả hai deeplink).

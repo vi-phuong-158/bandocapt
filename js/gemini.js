@@ -171,6 +171,7 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk, 
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let sources = []; // UI-05: citation sources
+        let verifiedLocations = [];
         let history = null;
         let buffer = '';
         let gotDone = false;
@@ -212,6 +213,7 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk, 
                             fullText = data.fullText || fullText;
                             history = data.history;
                             if (data.sources) sources = data.sources; // UI-05
+                            if (data.verifiedLocations) verifiedLocations = data.verifiedLocations;
                             truncated = Boolean(data.truncated);
                             finishReason = data.finishReason || '';
                         } else if (data.text) {
@@ -242,7 +244,7 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk, 
             };
         }
 
-        return { ok: true, fullText, history, sources, truncated, finishReason };
+        return { ok: true, fullText, history, sources, verifiedLocations, truncated, finishReason };
 
     } catch (err) {
         if (err.name === 'AbortError') {

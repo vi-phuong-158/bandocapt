@@ -434,21 +434,59 @@ function appendSources(bubble, sources) {
             compareBtn.addEventListener('click', onClick);
             item.appendChild(compareBtn);
         };
-        if (source.procedure_id && window.TthcCatalog && !seenProcedureIds.has(source.procedure_id)) {
-            seenProcedureIds.add(source.procedure_id);
-            addCompareBtn(() => window.TthcCatalog.openProcedure(source.procedure_id));
-        } else if (!source.procedure_id && source.title && window.TthcCatalog?.findByTitle) {
-            const resolvedId = window.TthcCatalog.findByTitle(source.title);
-            if (resolvedId && !seenProcedureIds.has(resolvedId)) {
-                seenProcedureIds.add(resolvedId);
-                addCompareBtn(() => window.TthcCatalog.openByTitle(source.title));
+        const appendCompareAction = () => {
+            if (source.procedure_id && window.TthcCatalog && !seenProcedureIds.has(source.procedure_id)) {
+                seenProcedureIds.add(source.procedure_id);
+                addCompareBtn(() => window.TthcCatalog.openProcedure(source.procedure_id));
+            } else if (!source.procedure_id && source.title && window.TthcCatalog?.findByTitle) {
+                const resolvedId = window.TthcCatalog.findByTitle(source.title);
+                if (resolvedId && !seenProcedureIds.has(resolvedId)) {
+                    seenProcedureIds.add(resolvedId);
+                    addCompareBtn(() => window.TthcCatalog.openByTitle(source.title));
+                }
             }
-        }
+        };
+        appendCompareAction();
+        window.LazyFeatures?.loadCatalogModule?.()
+            .then(() => window.TthcCatalog?.preload?.())
+            .then(appendCompareAction)
+            .catch(() => {});
 
         sourceWrap.appendChild(item);
     });
 
     bubble.appendChild(sourceWrap);
+}
+
+function appendVerifiedLocations(bubble, locations) {
+    if (!Array.isArray(locations) || locations.length === 0) return;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'ai-chat-verified-locations';
+    locations.forEach(location => {
+        if (!location?.name || !location?.mapsUrl) return;
+        const link = document.createElement('a');
+        link.className = 'ai-chat-location-link';
+        link.href = location.mapsUrl;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.setAttribute('aria-label', `Chỉ đường đến ${location.name}`);
+
+        const icon = document.createElement('span');
+        icon.className = 'material-symbols-outlined';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = 'directions';
+
+        const copy = document.createElement('span');
+        const title = document.createElement('strong');
+        title.textContent = location.name;
+        const address = document.createElement('span');
+        address.textContent = location.address || 'Mở chỉ đường trên Google Maps';
+        copy.append(title, address);
+        link.append(icon, copy);
+        wrap.appendChild(link);
+    });
+    if (wrap.childElementCount > 0) bubble.appendChild(wrap);
 }
 
 function appendNotice(bubble, text) {
@@ -697,6 +735,7 @@ async function handleChatSend() {
                 sources: result.sources
             });
             appendSources(bubble, result.sources);
+            appendVerifiedLocations(bubble, result.verifiedLocations);
             appendQuickReplies(row, result.fullText || rawText);
         } else {
             bubble.classList.add('ai-chat-bubble--error');
