@@ -100,8 +100,9 @@
 
 **Trạng thái chốt 2026-07-13:** T2A, T2B-1, T2C và T2D-1..4 đã hoàn thành trong code/test. T2B-2 là milestone
 độc lập đã **DEFERRED** đúng theo điều kiện không đạt soft-warning/latency, vì vậy `CLAIM_CITATIONS` vẫn tắt.
-Run full sau T2C ngày 2026-07-13 có 0 hard fail (F01 deferred) nhưng lần gọi 3-run bị giới hạn timeout 10 phút
-của môi trường chạy trước khi có majority report mới; không dùng kết quả này để bật flag production.
+Majority 3-run sau T2C đã chạy tuần tự xong ngày 2026-07-13: **KHÔNG ĐẠT** do VP01 hard fail đa số 2/3;
+TT04/EV01/EV04/DN01/TYPO02 chỉ flaky 1/3, F01 PASS 3/3 theo trạng thái deferred. Không bật flag production
+hay claim Phase 2 release gate đạt cho tới khi VP01 được điều tra và chạy lại đủ 3 run.
 
 ---
 

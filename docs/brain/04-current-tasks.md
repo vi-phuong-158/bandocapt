@@ -32,7 +32,8 @@
   provider fallback/telemetry không chặn SSE, và helper request-security đã tách khỏi chat handler. Frontend
   dùng avatar WebP 3.8KB, index TTHC 18KB, lazy loader có SRI/proxy deep-link, cùng static manifest content-hash.
   `npm test` 249/249 và `npm run test:e2e` 14/14 xanh. Một full regression sau T2C có 0 hard fail (F01
-  deferred); majority 3-run mới cần chạy ở runner không bị giới hạn 10 phút trước bất kỳ rollout flag nào.
+  deferred). Majority 3-run tuần tự đã chạy xong nhưng gate **KHÔNG ĐẠT** do VP01 hard fail đa số 2/3;
+  TT04/EV01/EV04/DN01/TYPO02 flaky 1/3. Cần điều tra VP01 và chạy lại trước rollout flag.
 
 ### [ĐIỀU TRA XONG — TASK-GV02-FLAKY] Vì sao GV02 hay lỗi
 - **Kết quả điều tra (2026-07-10):** Chạy GV02 đơn lẻ 10 lần liên tiếp → **10/10 thành công** (137-350 từ). Chạy thêm 2 lần full 30-câu → 1 lần sạch 100%, 1 lần GV02 TRUNCATED. Không bắt được thêm lần `BLOCKED_CONTENT` nào dù đã bật log chẩn đoán (`finishReason`/`promptFeedback`/`safetyRatings`).

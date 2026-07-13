@@ -1158,8 +1158,20 @@
 - **Lý do:** Hoàn thiện các mục T2C và T2D còn dở của Giai đoạn 2, giới hạn request trước timeout Vercel,
   giảm first-load mà không làm mất tính năng chat/catalog, và bỏ coupling feedback -> chat handler.
 - **Kiểm tra:** `npm test` 249/249 PASS; `npm run build` PASS; `npm run test:e2e` 14/14 PASS. Full regression
-  sau T2C có 0 hard fail (F01 deferred), nhưng gọi majority 3-run vượt giới hạn 10 phút của môi trường nên
-  không dùng làm quyết định rollout. T2B-2 vẫn DEFERRED theo điều kiện soft-warning/latency.
+  sau T2C có 0 hard fail (F01 deferred). Majority 3-run tuần tự hoàn tất nhưng gate không đạt do VP01
+  hard fail đa số 2/3; TT04/EV01/EV04/DN01/TYPO02 flaky 1/3. T2B-2 vẫn DEFERRED theo điều kiện soft-warning/latency.
+
+---
+
+## [2026-07-13] Majority 3-run T2C sau khi quota hồi
+- **Agent:** Codex
+- **Thay đổi:** Chạy `RAG_FAIL_CLOSED=1 EVAL_SKIP_FAQ_CACHE=1 node scripts/run-regression.js --majority --runs 3 --delay-ms 2000`
+  tuần tự trên commit T2C/T2D; lưu 3 run và báo cáo majority.
+- **File đã sửa:** `test/results/regression-run-2026-07-13_06-12-08.md`,
+  `test/results/regression-run-2026-07-13_06-22-09.md`, `test/results/regression-run-2026-07-13_06-31-08.md`,
+  `test/results/regression-majority-2026-07-13_06-31-08.md`, cùng các file `*-latest.md`.
+- **Kết quả:** Gate 2/3 **KHÔNG ĐẠT** do VP01 hard fail đa số 2/3 (`fine_requires_basis`); TT04, EV01,
+  EV04, DN01, TYPO02 flaky 1/3; F01 deferred PASS 3/3. Không bật rollout flag; VP01 là blocker tiếp theo.
 
 ---
 

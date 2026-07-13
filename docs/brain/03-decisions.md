@@ -23,7 +23,8 @@
   bỏ `LLM_FALLBACK` hoặc hạ `CHAT_REQUEST_DEADLINE_MS` không đòi migrate dữ liệu. Không bật
   `CLAIM_CITATIONS` vì T2B-2 vẫn deferred.
 - **Kiểm tra:** 249 unit/integration và 14 E2E PASS; full regression sau T2C có 0 hard fail (F01 deferred).
-  Majority 3-run mới chưa có vì runner bị giới hạn 10 phút của môi trường, nên chưa dùng kết quả này để rollout flag.
+  Majority 3-run tuần tự đã hoàn tất: gate **KHÔNG ĐẠT** do VP01 hard fail 2/3; TT04/EV01/EV04/DN01/TYPO02
+  flaky 1/3. Không dùng kết quả này để rollout flag; VP01 cần được điều tra trước khi chạy lại gate.
 
 ---
 
