@@ -17,9 +17,9 @@
 - **Kiểm tra:** `npm run ci` PASS 252/252, build static 19 input/18 asset hash, audit không có mức High.
   Majority `regression-majority-2026-07-13_09-19-09.md` **ĐẠT**, VP01 PASS 3/3, không hard fail đa số;
   TR05/TT04/DN01/LOC07 flaky 1/3 và GV02 provider error 1/3. Run Gemini chủ đạo có p95 17.04s; hai run
-  sau gần như toàn bộ fallback DeepSeek do Gemini 429, p95 khoảng 28.2s. `vercel pull` nhận cấu hình mới;
-  local `vercel build` đi qua bước parse config nhưng dừng do Windows CLI `spawn cmd.exe ENOENT`, nên trạng thái
-  Preview cuối cùng cần check lại sau push.
+  sau gần như toàn bộ fallback DeepSeek do Gemini 429, p95 khoảng 28.2s. Vercel Preview deployment
+  `dpl_6B9b8XCCKsx4xNeaQhQyRW1ZsX9t` đạt trạng thái READY, xác nhận route config mới hợp lệ. Vercel cảnh báo
+  Node 20 sẽ hết hỗ trợ sau 2026-10-01; đây là follow-up nâng runtime riêng, không chặn deployment hiện tại.
 
 ## [2026-07-13] T2A live gate lần 2 — ĐẠT majority 3/3
 - **Agent:** Codex
