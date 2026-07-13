@@ -125,6 +125,7 @@
         openProcedure: procedureId => loadCatalogModule().then(() => global.TthcCatalog.openProcedure(procedureId)),
         openByTitle: title => loadCatalogModule().then(() => global.TthcCatalog.openByTitle(title)),
         findByTitle: title => loadCatalogModule().then(() => global.TthcCatalog.findByTitle(title)),
+        resolveProcedureId: (procedureId, title) => loadCatalogModule().then(() => global.TthcCatalog.resolveProcedureId(procedureId, title)),
         preload: () => loadCatalogModule().then(() => global.TthcCatalog.preload()),
         close: () => loadCatalogModule().then(() => global.TthcCatalog.close()),
     };

@@ -5,6 +5,18 @@
 
 ---
 
+## [2026-07-13] Bổ sung resolveProcedureId vào lazy proxy TthcCatalog
+- **Agent:** Claude Code
+- **Thay đổi:** Rà soát 2 fix mất link chatbot gần nhất (deeplink thủ tục + chỉ đường trụ sở) —
+  xác nhận đã triệt để (255/255 test PASS). Phát hiện `js/lazy-features.js` chưa expose
+  `resolveProcedureId` trên proxy `window.TthcCatalog` trong khi `js/tthc-catalog.js` đã thêm hàm
+  này; thêm cho đối xứng với `findByTitle`/`openProcedure` để tránh lỗi nếu sau này có code gọi
+  `resolveProcedureId` trước khi module catalog kịp nạp.
+- **File đã sửa:** `js/lazy-features.js`.
+- **Lý do:** Đóng nốt khoảng hở phòng thủ nhỏ, không phải bug đang xảy ra (hiện tại
+  `resolveProcedureId` chỉ được gọi sau khi module đã nạp nên proxy thật đã thay thế).
+- **Kiểm tra:** `node --check js/lazy-features.js`; `npm test` (node --test test/*.test.js) 255/255 PASS.
+
 ## [2026-07-13] Khắc phục toàn bộ review PR #31
 - **Agent:** Codex
 - **Thay đổi:** Sửa route Vercel không hợp lệ; mô hình hóa conditional grounding cho VP01; đưa timing/provider/fallback
