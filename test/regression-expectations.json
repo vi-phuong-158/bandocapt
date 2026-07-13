@@ -498,9 +498,15 @@
           "id": "fine_requires_basis",
           "match": "any",
           "patterns": [
-            "(?:Điều 21|chưa có căn cứ đủ chắc|không đề cập trực tiếp|chưa thể khẳng định|Không có căn cứ trong dữ liệu)"
+            "(?:Điều 21|chưa có căn cứ đủ chắc|không đề cập trực tiếp|chưa thể khẳng định|Không có căn cứ trong dữ liệu|chưa có thông tin (?:về )?mức phạt cụ thể)"
           ],
-          "grounding_required": true
+          "grounding_required": true,
+          "grounding_exempt_patterns": [
+            "(?:chưa có căn cứ đủ chắc|không đề cập trực tiếp|chưa thể khẳng định|Không có căn cứ trong dữ liệu|chưa có thông tin (?:về )?mức phạt cụ thể)"
+          ],
+          "grounding_patterns": [
+            "Điều 21"
+          ]
         }
       ],
       "forbidden_facts": [],

@@ -84,6 +84,7 @@ test('T2B-1 handler emits only validated chunks and done.fullText is their exact
     const emitted = textChunks.join('');
 
     assert.ok(done, result.body);
+    assert.ok(textChunks.every(Boolean), 'SSE must not emit empty text chunks');
     assert.equal(done.fullText, emitted);
     for (const chunk of textChunks) {
         assert.doesNotMatch(chunk, /0210\.123\.4567|200 USD|5 ngày làm việc/);
@@ -118,6 +119,9 @@ test('T2C only permits failover for provider/network retry classes', () => {
     assert.equal(chat.isRetryableProviderFailure({ status: 500 }), true);
     assert.equal(chat.isRetryableProviderFailure({ status: 400 }), false);
     assert.equal(chat.isRetryableProviderFailure({ status: 401 }), false);
+    assert.equal(chat.isRetryableProviderError(new Error('programming bug')), false);
+    assert.equal(chat.isRetryableProviderError(new TypeError('fetch failed')), true);
+    assert.equal(chat.isRetryableProviderError(Object.assign(new Error('socket'), { code: 'ECONNRESET' })), true);
 });
 
 test('T2C remaining deadline is capped per stage and fails after the request budget', () => {

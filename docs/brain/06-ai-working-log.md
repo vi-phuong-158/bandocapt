@@ -5,6 +5,22 @@
 
 ---
 
+## [2026-07-13] Khắc phục toàn bộ review PR #31
+- **Agent:** Codex
+- **Thay đổi:** Sửa route Vercel không hợp lệ; mô hình hóa conditional grounding cho VP01; đưa timing/provider/fallback
+  vào eval report; giới hạn provider failover ở lỗi mạng/timeout; bỏ SSE text rỗng; hiện lỗi lazy-load có thể thử lại;
+  thay static reference theo token đường dẫn thay vì chuỗi con.
+- **File đã sửa:** `vercel.json`, `api/chat.js`, `lib/regression-grader.js`, `scripts/run-regression.js`,
+  `scripts/build-static.js`, `js/lazy-features.js`, `styles.css`, expectations/test liên quan, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Đóng các blocker và góp ý runtime/UX trong review Giai đoạn 2 mà không vá prompt cho một fixture.
+- **Kiểm tra:** `npm run ci` PASS 252/252, build static 19 input/18 asset hash, audit không có mức High.
+  Majority `regression-majority-2026-07-13_09-19-09.md` **ĐẠT**, VP01 PASS 3/3, không hard fail đa số;
+  TR05/TT04/DN01/LOC07 flaky 1/3 và GV02 provider error 1/3. Run Gemini chủ đạo có p95 17.04s; hai run
+  sau gần như toàn bộ fallback DeepSeek do Gemini 429, p95 khoảng 28.2s. `vercel pull` nhận cấu hình mới;
+  local `vercel build` đi qua bước parse config nhưng dừng do Windows CLI `spawn cmd.exe ENOENT`, nên trạng thái
+  Preview cuối cùng cần check lại sau push.
+
 ## [2026-07-13] T2A live gate lần 2 — ĐẠT majority 3/3
 - **Agent:** Codex
 - **Thay đổi:** Sau khi vá diễn giải viết tắt cho TYPO02, chạy lại đủ 3 run tuần tự với

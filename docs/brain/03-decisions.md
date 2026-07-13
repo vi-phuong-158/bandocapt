@@ -3,6 +3,20 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
+## [2026-07-13] Khép review Phase 2 — conditional grounding và latency eval trace
+
+- **Quyết định:** Một câu từ chối nêu mức phạt vì thiếu bằng chứng được khai trong
+  `grounding_exempt_patterns`; nó vẫn phải khớp expectation deterministic nhưng không bị yêu cầu xuất hiện
+  trong tài liệu RAG. Claim khẳng định như `Điều 21` vẫn dùng `grounding_patterns` và fail nếu corpus không có.
+- **Quan sát latency:** Event `done.eval` ở chế độ eval bảo mật mang timing từng stage, provider và trạng thái
+  fallback. Runner tổng hợp median/p95 theo stage; production không lộ trường này do vẫn qua cổng eval ba điều kiện.
+- **Runtime:** Failover chỉ nuốt lỗi mạng/timeout đã phân loại. Exception lập trình bị ném lại; SSE không phát
+  chunk text rỗng. Lazy loader hiện cảnh báo có thể bấm thử lại.
+- **Static/Vercel:** Bỏ route alternation raw-regex không hợp lệ, dùng các path pattern tách riêng; reference
+  build chỉ thay token đường dẫn độc lập để không sửa nhầm chuỗi con như `metadata.js`.
+- **Đánh đổi:** Schema expectation có thêm một trường tùy chọn; đổi lại grader mô hình hóa đúng hai nhánh
+  “khẳng định có căn cứ” và “từ chối do thiếu căn cứ”, không cần prompt-hack wording.
+
 ## [2026-07-13] T2C/T2D — deadline end-to-end, request helper chung va static lazy-load
 
 - **Quyết định:** Mỗi request `/api/chat` có một deadline tuyệt đối `CHAT_REQUEST_DEADLINE_MS=55000`, nằm

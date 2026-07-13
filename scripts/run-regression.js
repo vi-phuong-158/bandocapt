@@ -102,6 +102,24 @@ function aggregateMajority(perRun, threshold) {
     };
 }
 
+function summarizeStageTimings(results) {
+    const stageKeys = [
+        'query_rewrite_ms', 'history_summary_ms', 'embedding_ms', 'retrieval_ms',
+        'rerank_ms', 'generation_ms', 'time_to_first_validated_sentence_ms', 'total_ms',
+    ];
+    return stageKeys.map(stage => {
+        const values = results.map(result => result.eval?.timings?.[stage])
+            .filter(value => Number.isFinite(value) && value >= 0)
+            .sort((a, b) => a - b);
+        return {
+            stage,
+            samples: values.length,
+            median: values.length ? values[Math.floor(values.length / 2)] : null,
+            p95: values.length ? values[Math.min(values.length - 1, Math.floor(values.length * 0.95))] : null,
+        };
+    });
+}
+
 function createRequest(body = {}, headers = {}) {
     return {
         method: 'POST',
@@ -428,6 +446,7 @@ function unifyRunCases({ results, conversationResults }) {
 }
 
 function writeReport(reportMd, { prefix = 'regression-run', latestName = 'regression-latest.md' } = {}) {
+    reportMd = String(reportMd).replace(/[ \t]+$/gm, '');
     const stamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '_');
     const reportPath = path.resolve(__dirname, `../test/results/${prefix}-${stamp}.md`);
     const latestPath = path.resolve(__dirname, `../test/results/${latestName}`);
@@ -488,6 +507,22 @@ function buildReportMd(results, conversationResults, args) {
     reportMd += `- Grounding: Recall@4 TB ${pct(meanRecall)} · MRR TB ${meanMrr === null ? 'N/A' : meanMrr.toFixed(3)} · Source recall TB ${pct(meanSourceRecall)}\n`;
     reportMd += `- Authority accuracy: ${authorityResults.length ? `${authorityHits}/${authorityResults.length} (${pct(authorityHits / authorityResults.length)})` : 'N/A'}\n`;
     reportMd += `- Latency: TB ${latAvg} ms · median ${latMedian} ms · p95 ${latP95} ms\n\n`;
+    const stageTimings = summarizeStageTimings(results).filter(row => row.samples > 0);
+    if (stageTimings.length > 0) {
+        reportMd += `## Latency theo công đoạn (eval-only)\n\n`;
+        reportMd += `| Công đoạn | Mẫu | Median (ms) | p95 (ms) |\n|---|---:|---:|---:|\n`;
+        for (const row of stageTimings) {
+            reportMd += `| ${row.stage} | ${row.samples} | ${row.median} | ${row.p95} |\n`;
+        }
+        const providerCounts = new Map();
+        let fallbackCount = 0;
+        for (const result of results) {
+            const provider = result.eval?.provider;
+            if (provider) providerCounts.set(provider, (providerCounts.get(provider) || 0) + 1);
+            if (result.eval?.fallback_used) fallbackCount += 1;
+        }
+        reportMd += `\n- Provider: ${[...providerCounts].map(([name, count]) => `${name} ${count}`).join(' · ') || 'N/A'} · fallback ${fallbackCount}/${results.length}\n\n`;
+    }
 
     if (gradedResults.length > 0) {
         reportMd += `## Tóm tắt tự chấm\n`;
@@ -711,4 +746,4 @@ if (require.main === module) {
 }
 
 // T1.10/T1.11: xuất helper thuần cho unit test (test/regression-runner.test.js).
-module.exports = { parseArgs, parseQuestions, parseConversations, conversationGradeOptions, aggregateMajority };
+module.exports = { parseArgs, parseQuestions, parseConversations, conversationGradeOptions, aggregateMajority, summarizeStageTimings };

@@ -150,6 +150,8 @@ test('eval-mode: abstention vẫn trả retrieval trace rỗng để grader khô
     assert.equal(done.eval.classifyQuery, PROCEDURE_Q);
     assert.deepEqual(done.eval.matchesFinal, []);
     assert.equal(done.eval.matchedDocs, '');
+    assert.ok(done.eval.timings);
+    assert.ok(Number.isFinite(done.eval.timings.total_ms));
 });
 
 test('RAG_FAIL_CLOSED=1: không cấu hình Pinecone → reason=no_pinecone_config', async () => {

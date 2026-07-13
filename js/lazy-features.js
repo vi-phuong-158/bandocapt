@@ -5,6 +5,20 @@
     let chatPromise = null;
     let catalogPromise = null;
 
+    function showLoadError() {
+        let notice = document.getElementById('lazy-feature-error');
+        if (!notice) {
+            notice = document.createElement('div');
+            notice.id = 'lazy-feature-error';
+            notice.setAttribute('role', 'alert');
+            notice.className = 'lazy-feature-error';
+            document.body.appendChild(notice);
+        }
+        notice.textContent = 'Chưa tải được tính năng. Vui lòng kiểm tra kết nối rồi bấm lại để thử.';
+        clearTimeout(notice._dismissTimer);
+        notice._dismissTimer = setTimeout(() => notice.remove(), 6000);
+    }
+
     function loadScript(src, options = {}) {
         if (scripts.has(src)) return scripts.get(src);
         const promise = new Promise((resolve, reject) => {
@@ -86,7 +100,10 @@
         if (!tab || (loadedModule && !loadedModule.__lazyProxy)) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        activateFeature(tab).catch(error => console.error('[lazy-features]', error.message));
+        activateFeature(tab).catch(error => {
+            console.error('[lazy-features]', error.message);
+            showLoadError();
+        });
     }, true);
 
     document.addEventListener('pointerover', event => {

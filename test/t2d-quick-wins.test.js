@@ -43,6 +43,7 @@ test('T2D-2: chi muc TTHC nhe hon catalog va khong chua noi dung chi tiet', () =
 test('T2D-3: cac module nang chi tai khi nguoi dung kich hoat tinh nang', () => {
     const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
     const loader = fs.readFileSync(path.join(ROOT, 'js', 'lazy-features.js'), 'utf8');
+    const styles = fs.readFileSync(path.join(ROOT, 'styles.css'), 'utf8');
 
     assert.match(html, /js\/lazy-features\.js/);
     assert.doesNotMatch(html, /<script[^>]+js\/chatbot\.js/);
@@ -52,6 +53,9 @@ test('T2D-3: cac module nang chi tai khi nguoi dung kich hoat tinh nang', () => 
     assert.match(loader, /js\/chatbot\.js/);
     assert.match(loader, /js\/tthc-catalog\.js/);
     assert.match(loader, /turnstile\/v0\/api\.js/);
+    assert.match(loader, /lazy-feature-error/);
+    assert.match(loader, /bấm lại để thử/);
+    assert.match(styles, /\.lazy-feature-error[\s\S]*var\(--warn-bg\)/);
 });
 
 test('T2D-4: static build tao URL co content hash va cache headers phu hop', () => {
@@ -68,7 +72,12 @@ test('T2D-4: static build tao URL co content hash va cache headers phu hop', () 
         ])),
         'js/location-data.hash.js data.hash.js'
     );
+    assert.equal(
+        replaceStaticReferences('metadata.js data.js', new Map([['data.js', 'data.hash.js']])),
+        'metadata.js data.hash.js'
+    );
     assert.ok(vercel.headers.some(item => item.source === '/assets/(.*)' && /immutable/.test(item.headers[0].value)));
     assert.ok(vercel.headers.some(item => item.source === '/data/(.*)' && /immutable/.test(item.headers[0].value)));
     assert.ok(vercel.headers.some(item => item.source === '/asset-manifest.json' && /no-cache/.test(item.headers[0].value)));
+    assert.ok(vercel.headers.every(item => !item.source.includes('|')));
 });

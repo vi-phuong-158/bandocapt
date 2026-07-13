@@ -7,7 +7,7 @@ const {
     VERBOSITY_LIMIT_NARROW,
     VERBOSITY_LIMIT_FULL,
 } = require('../lib/regression-metrics');
-const { parseArgs, parseConversations, conversationGradeOptions, aggregateMajority } = require('../scripts/run-regression');
+const { parseArgs, parseConversations, conversationGradeOptions, aggregateMajority, summarizeStageTimings } = require('../scripts/run-regression');
 const { gradeCase, compilePattern } = require('../lib/regression-grader');
 
 test('regression word count handles whitespace and CJK text', () => {
@@ -21,6 +21,16 @@ test('regression verbosity limits match the answer-first prompt budgets', () => 
     const chatSource = fs.readFileSync(require.resolve('../api/chat'), 'utf8');
     assert.match(chatSource, /TỐI ĐA 250 TỪ/);
     assert.match(chatSource, /tự rút gọn nếu vượt giới hạn/);
+});
+
+test('T2 review summarizes eval stage timing with median and p95', () => {
+    const rows = summarizeStageTimings([
+        { eval: { timings: { generation_ms: 100 } } },
+        { eval: { timings: { generation_ms: 300 } } },
+        { eval: { timings: { generation_ms: 200 } } },
+    ]);
+    const generation = rows.find(row => row.stage === 'generation_ms');
+    assert.deepEqual(generation, { stage: 'generation_ms', samples: 3, median: 200, p95: 300 });
 });
 
 test('--strict-gate flag is parsed, default stays lenient (T1.10)', () => {

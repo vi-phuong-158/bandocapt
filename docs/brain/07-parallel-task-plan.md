@@ -99,10 +99,14 @@
 **Gate giai đoạn 2:** không hard fail mới; F01 giữ deferred; soft warning ≤1/3 run mỗi case; 100% ca thiếu RAG từ chối đúng; không raw text chưa validate trên UI; p95 không xấu hơn baseline quá 5%. SLO 8s/20s chỉ là target đến khi owner chốt sau baseline.
 
 **Trạng thái chốt 2026-07-13:** T2A, T2B-1, T2C và T2D-1..4 đã hoàn thành trong code/test. T2B-2 là milestone
-độc lập đã **DEFERRED** đúng theo điều kiện không đạt soft-warning/latency, vì vậy `CLAIM_CITATIONS` vẫn tắt.
-Majority 3-run sau T2C đã chạy tuần tự xong ngày 2026-07-13: **KHÔNG ĐẠT** do VP01 hard fail đa số 2/3;
-TT04/EV01/EV04/DN01/TYPO02 chỉ flaky 1/3, F01 PASS 3/3 theo trạng thái deferred. Không bật flag production
-hay claim Phase 2 release gate đạt cho tới khi VP01 được điều tra và chạy lại đủ 3 run.
+độc lập vẫn **DEFERRED**, vì vậy `CLAIM_CITATIONS` vẫn tắt. Review PR #31 đã được khép: VP01 dùng conditional
+grounding (abstention không bị đòi xuất hiện trong corpus, claim Điều 21 vẫn phải grounded), Vercel route đã tách
+pattern, eval report có timing từng stage/provider/fallback và các lỗi runtime/UI nhỏ đã có test.
+Majority 3-run mới `regression-majority-2026-07-13_09-19-09.md`: **ĐẠT**, VP01 PASS 3/3, không hard fail đa số;
+TR05/TT04/DN01/LOC07 flaky 1/3, GV02 provider error 1/3, F01 deferred 1/3. Run đầu khi Gemini còn quota có
+p95 17.04s (đạt baseline); run 2/3 chuyển gần toàn bộ sang DeepSeek do Gemini 429 nên p95 khoảng 28.2s.
+Đây là số đo failover/provider quota, không phải chi phí validator; giữ T2B-2 deferred và không bật flag production
+trong PR này nếu chưa có quyết định rollout của owner.
 
 ---
 

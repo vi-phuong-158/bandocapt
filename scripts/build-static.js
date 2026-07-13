@@ -43,7 +43,9 @@ function replaceStaticReferences(content, manifest) {
     let rewritten = content;
     const entries = [...manifest.entries()].sort(([a], [b]) => b.length - a.length);
     for (const [source, hashed] of entries) {
-        rewritten = rewritten.split(source).join(hashed);
+        const escaped = source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const referencePattern = new RegExp(`(?<![A-Za-z0-9_-])${escaped}(?![A-Za-z0-9_-])`, 'g');
+        rewritten = rewritten.replace(referencePattern, hashed);
     }
     return rewritten;
 }
