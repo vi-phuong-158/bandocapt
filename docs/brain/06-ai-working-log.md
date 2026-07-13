@@ -1209,3 +1209,17 @@
 - **File đã sửa:** `api/chat.js`, `js/gemini.js`, `js/chatbot.js`, `styles.css`, `test/chat-deeplinks.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`
 - **Lý do:** Deeplink thủ tục bị race với lazy-load; deeplink trụ sở trước đây phụ thuộc model tự sinh Markdown nên không ổn định.
 - **Kiểm tra:** `npm test` 254/254, `npm run build` thành công và Playwright E2E 15/15 (gồm ca hiển thị cả hai deeplink).
+
+## [2026-07-13] Hoàn thiện xử lý link thủ tục và vị trí chatbot
+- **Agent:** Codex
+- **Thay đổi:** Xác minh procedure trước khi dựng nút đối chiếu theo thứ tự ID chính xác rồi fallback
+  title/alias chính xác; hiển thị trạng thái khi thủ tục chưa có hoặc catalog tải lỗi. API giữ trụ sở đã khớp
+  dù thiếu Maps URL để client hiện địa chỉ và cảnh báo thiếu tọa độ thay vì im lặng. Thêm kiểm tra index bao phủ
+  toàn bộ catalog và E2E cho ID cũ, link Maps hợp lệ, vị trí thiếu tọa độ.
+- **File đã sửa:** `api/chat.js`, `js/chatbot.js`, `js/tthc-catalog.js`, `styles.css`,
+  `test/chat-deeplinks.test.js`, `test/tthc-catalog.test.js`, `test/t2d-quick-wins.test.js`,
+  `test/e2e/chat-progressive-disclosure.spec.js`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Ngăn nút dead-end khi metadata dùng ID cũ, không che giấu địa chỉ chỉ vì thiếu tọa độ và giữ
+  nguyên nguyên tắc không suy đoán link.
+- **Kiểm tra:** `npm test` 255/255 PASS; `npm run build` PASS; Playwright deeplink 1/1 PASS.

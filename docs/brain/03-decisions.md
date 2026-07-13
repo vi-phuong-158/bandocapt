@@ -3,6 +3,18 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
+## [2026-07-13] Deeplink fail-safe theo ID -> title/alias và trạng thái thiếu tọa độ
+
+- **Quyết định:** Chat chỉ tạo nút đối chiếu sau khi index TTHC đã tải và `resolveProcedureId` xác nhận
+  đích tồn tại. Thứ tự resolve là `procedure_id` chính xác, sau đó title/alias khớp chính xác đã chuẩn hóa;
+  không fuzzy-match để tránh mở nhầm thủ tục. Source có ID nhưng không resolve được phải hiện trạng thái thiếu.
+- **Vị trí:** `verifiedLocations` giữ cả bản ghi có tên nhưng chưa có `mapsUrl`; client hiển thị tên/địa chỉ
+  cùng thông báo thiếu tọa độ, tuyệt đối không dựng URL suy đoán. Bản ghi có URL xác minh vẫn mở Google Maps.
+- **Kiểm soát dữ liệu:** Unit test bắt index bao phủ đúng toàn bộ ID của catalog; E2E dùng ID cũ để chứng minh
+  fallback title và đồng thời kiểm tra cả vị trí có/không có tọa độ.
+- **Đánh đổi:** Nút đối chiếu xuất hiện sau một lượt tải index bất đồng bộ; đổi lại không còn nút dead-end và
+  không che giấu nguyên nhân thiếu link. Title/alias lệch thực sự vẫn fail-safe và cần sửa dữ liệu nguồn.
+
 ## [2026-07-13] Khép review Phase 2 — conditional grounding và latency eval trace
 
 - **Quyết định:** Một câu từ chối nêu mức phạt vì thiếu bằng chứng được khai trong

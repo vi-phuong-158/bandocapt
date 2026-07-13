@@ -434,23 +434,29 @@ function appendSources(bubble, sources) {
             compareBtn.addEventListener('click', onClick);
             item.appendChild(compareBtn);
         };
+        const addCompareState = text => {
+            if (item.querySelector('.ai-chat-source-compare-state')) return;
+            const state = document.createElement('span');
+            state.className = 'ai-chat-source-compare-state';
+            state.textContent = text;
+            item.appendChild(state);
+        };
         const appendCompareAction = () => {
-            if (source.procedure_id && window.TthcCatalog && !seenProcedureIds.has(source.procedure_id)) {
-                seenProcedureIds.add(source.procedure_id);
-                addCompareBtn(() => window.TthcCatalog.openProcedure(source.procedure_id));
-            } else if (!source.procedure_id && source.title && window.TthcCatalog?.findByTitle) {
-                const resolvedId = window.TthcCatalog.findByTitle(source.title);
-                if (resolvedId && !seenProcedureIds.has(resolvedId)) {
-                    seenProcedureIds.add(resolvedId);
-                    addCompareBtn(() => window.TthcCatalog.openByTitle(source.title));
-                }
+            const resolvedId = window.TthcCatalog?.resolveProcedureId?.(source.procedure_id, source.title)
+                || (!source.procedure_id ? window.TthcCatalog?.findByTitle?.(source.title) : null);
+            if (resolvedId && !seenProcedureIds.has(resolvedId)) {
+                seenProcedureIds.add(resolvedId);
+                addCompareBtn(() => window.TthcCatalog.openProcedure(resolvedId));
+            } else if (source.procedure_id && !resolvedId) {
+                addCompareState('Thủ tục này chưa có trong danh mục đối chiếu.');
             }
         };
-        appendCompareAction();
         window.LazyFeatures?.loadCatalogModule?.()
             .then(() => window.TthcCatalog?.preload?.())
             .then(appendCompareAction)
-            .catch(() => {});
+            .catch(() => {
+                if (source.procedure_id) addCompareState('Chưa tải được danh mục đối chiếu.');
+            });
 
         sourceWrap.appendChild(item);
     });
@@ -464,27 +470,35 @@ function appendVerifiedLocations(bubble, locations) {
     const wrap = document.createElement('div');
     wrap.className = 'ai-chat-verified-locations';
     locations.forEach(location => {
-        if (!location?.name || !location?.mapsUrl) return;
-        const link = document.createElement('a');
-        link.className = 'ai-chat-location-link';
-        link.href = location.mapsUrl;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        link.setAttribute('aria-label', `Chỉ đường đến ${location.name}`);
+        if (!location?.name) return;
+        const hasMapsUrl = Boolean(location.mapsUrl);
+        const locationItem = document.createElement(hasMapsUrl ? 'a' : 'div');
+        locationItem.className = `ai-chat-location-link${hasMapsUrl ? '' : ' ai-chat-location-link--unavailable'}`;
+        if (hasMapsUrl) {
+            locationItem.href = location.mapsUrl;
+            locationItem.target = '_blank';
+            locationItem.rel = 'noopener noreferrer';
+            locationItem.setAttribute('aria-label', `Chỉ đường đến ${location.name}`);
+        }
 
         const icon = document.createElement('span');
         icon.className = 'material-symbols-outlined';
         icon.setAttribute('aria-hidden', 'true');
-        icon.textContent = 'directions';
+        icon.textContent = hasMapsUrl ? 'directions' : 'location_on';
 
         const copy = document.createElement('span');
         const title = document.createElement('strong');
         title.textContent = location.name;
         const address = document.createElement('span');
-        address.textContent = location.address || 'Mở chỉ đường trên Google Maps';
+        address.textContent = location.address || (hasMapsUrl ? 'Mở chỉ đường trên Google Maps' : 'Chưa có địa chỉ xác minh');
         copy.append(title, address);
-        link.append(icon, copy);
-        wrap.appendChild(link);
+        if (!hasMapsUrl) {
+            const status = document.createElement('span');
+            status.textContent = 'Chưa có tọa độ chỉ đường đã xác minh.';
+            copy.appendChild(status);
+        }
+        locationItem.append(icon, copy);
+        wrap.appendChild(locationItem);
     });
     if (wrap.childElementCount > 0) bubble.appendChild(wrap);
 }

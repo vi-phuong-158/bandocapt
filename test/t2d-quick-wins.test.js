@@ -26,6 +26,7 @@ test('T2D-2: chi muc TTHC nhe hon catalog va khong chua noi dung chi tiet', () =
     const catalogPath = path.join(ROOT, 'data', 'tthc-catalog.json');
     const indexPath = path.join(ROOT, 'data', 'tthc-index.json');
     const index = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
+    const catalog = JSON.parse(fs.readFileSync(catalogPath, 'utf8'));
     const catalogModule = fs.readFileSync(path.join(ROOT, 'js', 'tthc-catalog.js'), 'utf8');
 
     assert.ok(fs.statSync(indexPath).size < fs.statSync(catalogPath).size / 10);
@@ -36,8 +37,12 @@ test('T2D-2: chi muc TTHC nhe hon catalog va khong chua noi dung chi tiet', () =
         assert.equal(typeof procedure.title, 'string');
         assert.ok(Array.isArray(procedure.aliases));
     }
+    const indexedIds = index.procedures.map(item => item.procedure_id).sort();
+    const catalogIds = catalog.procedures.map(item => item.procedureId).sort();
+    assert.deepEqual(indexedIds, catalogIds, 'index phải bao phủ đúng toàn bộ procedure_id trong catalog');
     assert.match(catalogModule, /ensureCatalogIndexLoaded/);
-    assert.match(catalogModule, /preload:\s*\(\)\s*=>\s*ensureCatalogIndexLoaded/);
+    assert.match(catalogModule, /preload:\s*\(\)\s*=>\s*ensureCatalogIndexLoaded\(\)/);
+    assert.doesNotMatch(catalogModule, /preload:\s*\(\)\s*=>\s*ensureCatalogIndexLoaded\(\)\.catch/);
 });
 
 test('T2D-3: cac module nang chi tai khi nguoi dung kich hoat tinh nang', () => {

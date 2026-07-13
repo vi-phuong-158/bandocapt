@@ -32,6 +32,19 @@ test('buildCatalogIndex keeps only procedure id, title and aliases', () => {
 });
 
 const { buildCitationSource } = require('../api/chat');
+const { resolveProcedureIdFromList } = require('../js/tthc-catalog').__test;
+
+test('resolve deeplink theo ID rồi fallback title hoặc alias chính xác', () => {
+    const procedures = [
+        { procedure_id: 'p1', title: 'Cấp hộ chiếu', aliases: ['Làm hộ chiếu'] },
+        { procedure_id: 'p2', title: 'Đăng ký tạm trú', aliases: [] },
+    ];
+
+    assert.equal(resolveProcedureIdFromList(procedures, 'p1', ''), 'p1');
+    assert.equal(resolveProcedureIdFromList(procedures, 'id-cu', 'Cấp hộ chiếu'), 'p1');
+    assert.equal(resolveProcedureIdFromList(procedures, '', 'lam ho chieu'), 'p1');
+    assert.equal(resolveProcedureIdFromList(procedures, 'khong-ton-tai', 'Thủ tục khác'), null);
+});
 
 function makeRecord(overrides = {}) {
     return {

@@ -67,8 +67,8 @@ bandocapt/
 | `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check, doc them `search_aliases` neu co | `app.js`, `lib/published-locations.js`, test | - |
 | `js/gemini.js` | Goi `POST /api/chat` (parse SSE stream) va `POST /api/feedback` (`sendFeedback`); ky HMAC dung chung qua `signRequestToken` | `js/chatbot.js` | `api/chat.js`, `api/feedback.js` |
 | `js/lazy-features.js` | Nap chat/catalog khi click/hover; pin SRI marked/DOMPurify, nap Turnstile sau chat, giu proxy deep-link `TthcCatalog`; loi tai hien thong bao retryable cho nguoi dung | `index.html` | `js/gemini.js`, `js/chatbot.js`, `js/tthc-catalog.js` |
-| `js/chatbot.js` | UI chat, toggle panel, render stream; doi module catalog tai xong de tao nut doi chieu TTHC va dung `verifiedLocations` tao link chi duong tru so tat dinh; action bar 👍/👎 + form bao cao | `js/lazy-features.js` | `js/gemini.js`, `window.TthcCatalog` |
-| `js/tthc-catalog.js` | UI danh muc TTHC tinh: chi warm index nhe; catalog day du chi fetch khi mo panel/chi tiet | `js/lazy-features.js`, `js/chatbot.js` | `data/tthc-index.json`, `data/tthc-catalog.json` |
+| `js/chatbot.js` | UI chat, toggle panel, render stream; doi catalog/index de resolve deeplink theo ID -> title/alias, hien trang thai neu catalog thieu; dung `verifiedLocations` tao link chi duong hoac thong bao thieu toa do; action bar 👍/👎 + form bao cao | `js/lazy-features.js` | `js/gemini.js`, `window.TthcCatalog` |
+| `js/tthc-catalog.js` | UI danh muc TTHC tinh: chi warm index nhe; public `resolveProcedureId` uu tien ID chinh xac roi fallback title/alias chinh xac; catalog day du chi fetch khi mo panel/chi tiet | `js/lazy-features.js`, `js/chatbot.js` | `data/tthc-index.json`, `data/tthc-catalog.json` |
 | `data/tthc-index.json` | Chi muc nhe `{procedure_id,title,aliases}` de chat doi chieu nhanh | `js/tthc-catalog.js` | `scripts/generate-tthc-catalog.js --index-only` |
 | `data/tthc-catalog.json` | Catalog TTHC tinh de nguoi dung doi chieu cau tra loi AI | `js/tthc-catalog.js` | sinh tu Pinecone live + audit phi, fallback backup khi local khong co key |
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai. T1.9: cau tra loi quoc tich ("Nguoi Viet Nam"...) KHONG phai dia danh — `NATIONALITY_ANSWER_PATTERN` loai khoi heuristic cau ngan; `isNationalityAnswerContext` cho `api/chat.js` ne nhanh tat dinh no_match khi bot vua hoi quoc tich | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
@@ -169,10 +169,12 @@ Developer chay `npm run gen:catalog` (hoac `npm run gen:catalog:index` neu catal
 -> neu khong co env hop le: fallback backup trong repo (va co the `--fetch-missing` cho 4 record thieu)
 -> ghi data/tthc-catalog.json + data/tthc-index.json
 
-Chat source co procedure_id
--> js/chatbot.js render nut "Doi chieu trong danh muc"
--> window.TthcCatalog.openProcedure(procedure_id)
--> mo dung chi tiet thu tuc neu catalog co id; neu khong thi hien thong bao thieu
+Chat source co procedure_id/title
+-> js/chatbot.js doi lazy catalog + index tai xong
+-> window.TthcCatalog.resolveProcedureId(procedure_id, title)
+-> uu tien ID chinh xac; ID cu/thieu thi fallback title hoac alias khop chinh xac
+-> neu resolve duoc: render nut "Doi chieu trong danh muc" va mo dung chi tiet
+-> neu source co procedure_id nhung khong resolve duoc: hien trang thai chua co trong danh muc
 ```
 
 ## Mo hinh du lieu / API
@@ -201,8 +203,9 @@ SSE response events:
 - `{ "error": "..." }`
 
 `verifiedLocations` chi co khi matcher `Published_Locations` tim thay tru so da xac minh. Client dung truong
-nay de tao deeplink Google Maps, khong phu thuoc model co tu viet URL trong cau tra loi hay khong. Cac diem
-QLXNC chua co toa do chinh thuc khong duoc dua vao truong nay.
+nay de tao deeplink Google Maps, khong phu thuoc model co tu viet URL trong cau tra loi hay khong. `mapsUrl`
+co the rong: khi do client van hien ten/dia chi va thong bao chua co toa do, khong tao link gia. Cac diem QLXNC
+tinh chua nam trong matcher `Published_Locations` van khong duoc dua vao truong nay.
 
 **Fail-closed abstention (T2A, gated `RAG_FAIL_CLOSED=1`, mặc định TẮT):** khi thiếu RAG hoàn toàn
 (không match Pinecone vượt threshold + không có trụ sở xác minh + không có khối thẩm quyền XNC), event

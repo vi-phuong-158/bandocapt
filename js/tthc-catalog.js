@@ -513,16 +513,30 @@ function initTthcCatalog() {
 // P3.3: Tra procedureId theo title khớp CHÍNH XÁC (đã chuẩn hóa). Cho phép
 // citation guide trong chat (không có procedure_id runtime) deep-link tới danh
 // mục qua tiêu đề. Khớp chính xác để KHÔNG bao giờ mở nhầm thủ tục.
-function findProcedureIdByTitle(title) {
-    if (!title) return null;
-    const target = normalizeVi(title).trim();
+function resolveProcedureIdFromList(procedures, procedureId, title) {
+    const items = Array.isArray(procedures) ? procedures : [];
+    const requestedId = String(procedureId || '').trim();
+    if (requestedId) {
+        const exact = items.find(item => String(item.procedure_id || item.procedureId || '').trim() === requestedId);
+        if (exact) return exact.procedure_id || exact.procedureId;
+    }
+
+    const target = normalizeVi(title || '').trim();
     if (!target) return null;
-    const procedures = catalogIndexData?.procedures || catalogData?.procedures || [];
-    const proc = procedures.find(item => {
-        if (normalizeVi(item.title).trim() === target) return true;
+    const proc = items.find(item => {
+        if (normalizeVi(item.title || '').trim() === target) return true;
         return (item.aliases || []).some(alias => normalizeVi(alias).trim() === target);
     });
     return proc ? (proc.procedure_id || proc.procedureId) : null;
+}
+
+function resolveProcedureId(procedureId, title) {
+    const procedures = catalogIndexData?.procedures || catalogData?.procedures || [];
+    return resolveProcedureIdFromList(procedures, procedureId, title);
+}
+
+function findProcedureIdByTitle(title) {
+    return resolveProcedureId('', title);
 }
 
 // Mở danh mục và điều hướng theo title (lazy-load như openProcedure). Không khớp
@@ -554,8 +568,9 @@ if (typeof window !== 'undefined') {
             : openCatalogWindow(procedureId),
         openByTitle: openCatalogByTitle,
         findByTitle: findProcedureIdByTitle,
+        resolveProcedureId,
         // Chat chỉ warm index nhỏ; catalog toàn văn chỉ tải khi người dùng thực sự mở danh mục.
-        preload: () => ensureCatalogIndexLoaded().catch(() => {}),
+        preload: () => ensureCatalogIndexLoaded(),
         close: closeCatalogWindow
     };
 }
@@ -571,7 +586,8 @@ if (typeof module !== 'undefined' && module.exports) {
         escapeHtml,
         TTHC_LABEL_RE,
         TTHC_DETAIL_FALLBACK,
-        TTHC_FEE_FALLBACK
+        TTHC_FEE_FALLBACK,
+        resolveProcedureIdFromList
     };
 }
 

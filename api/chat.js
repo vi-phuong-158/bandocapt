@@ -1421,12 +1421,12 @@ function buildCitationSource(metadata = {}, score = 0) {
 function buildVerifiedLocationLinks(matches = []) {
     if (!Array.isArray(matches)) return [];
     return matches
-        .filter(match => match?.name && match?.googleMapsUrl)
+        .filter(match => match?.name)
         .slice(0, 4)
         .map(match => ({
             name: String(match.name),
             address: String(match.address || ''),
-            mapsUrl: String(match.googleMapsUrl),
+            mapsUrl: String(match.googleMapsUrl || ''),
         }));
 }
 

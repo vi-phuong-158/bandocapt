@@ -133,11 +133,19 @@ test('narrow answer stays flat (no accordion) and offers the full-guidance chip'
 test('answer renders procedure comparison and verified station direction deeplinks', async ({ page }) => {
     await openChatWithStub(page, [{
         fullText: 'Bạn có thể đối chiếu thủ tục và xem đường đến trụ sở bên dưới.',
-        sources: [{ file: 'Thủ tục hộ chiếu', procedure_id: '5568-tw-01' }],
+        sources: [{
+            file: 'Thủ tục hộ chiếu',
+            procedure_id: 'id-cu-khong-con-trong-catalog',
+            title: 'Cấp hộ chiếu phổ thông ở trong nước'
+        }],
         verifiedLocations: [{
             name: 'Công an Phường Thanh Miếu',
             address: 'Số 1028 Đường Hùng Vương',
             mapsUrl: 'https://www.google.com/maps/search/?api=1&query=21.304528,105.415528'
+        }, {
+            name: 'Điểm tiếp dân chưa có tọa độ',
+            address: 'Khu E, Công an tỉnh Phú Thọ',
+            mapsUrl: ''
         }]
     }]);
     await sendMessage(page, 'Tôi làm hộ chiếu ở Thanh Miếu');
@@ -146,4 +154,5 @@ test('answer renders procedure comparison and verified station direction deeplin
     const directions = page.getByRole('link', { name: 'Chỉ đường đến Công an Phường Thanh Miếu' });
     await expect(directions).toBeVisible();
     await expect(directions).toHaveAttribute('href', /google\.com\/maps\/search/);
+    await expect(page.getByText('Chưa có tọa độ chỉ đường đã xác minh.')).toBeVisible();
 });

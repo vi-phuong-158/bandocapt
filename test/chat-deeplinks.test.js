@@ -17,11 +17,15 @@ test('API projects verified location records into deterministic deeplinks', () =
             phone: '02103863928',
             internalField: 'must-not-leak',
         },
-        { name: 'Thiếu URL' },
+        { name: 'Thiếu URL', address: 'Địa chỉ đã xác minh' },
     ]), [{
         name: 'Công an Phường Thanh Miếu',
         address: 'Số 1028 Đường Hùng Vương',
         mapsUrl: 'https://www.google.com/maps/search/?api=1&query=21.304528,105.415528',
+    }, {
+        name: 'Thiếu URL',
+        address: 'Địa chỉ đã xác minh',
+        mapsUrl: '',
     }]);
 });
 
@@ -32,6 +36,8 @@ test('chat client preserves location payload and renders deterministic direction
     assert.match(gemini, /data\.verifiedLocations/);
     assert.match(gemini, /verifiedLocations, truncated/);
     assert.match(chatbot, /appendVerifiedLocations\(bubble, result\.verifiedLocations\)/);
-    assert.match(chatbot, /link\.href = location\.mapsUrl/);
+    assert.match(chatbot, /locationItem\.href = location\.mapsUrl/);
     assert.match(chatbot, /loadCatalogModule[\s\S]*preload[\s\S]*appendCompareAction/);
+    assert.match(chatbot, /resolveProcedureId/);
+    assert.match(chatbot, /Chưa có tọa độ chỉ đường đã xác minh/);
 });
