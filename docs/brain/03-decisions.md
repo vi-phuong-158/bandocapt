@@ -3,6 +3,29 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
+## [2026-07-14] Nâng firebase-admin 13→14, chấp nhận 6 lỗ hổng moderate còn lại
+
+- **Quyết định:** Nâng `firebase-admin` từ `^13.10.0` lên `^14.1.0` (rà soát bảo mật trước pilot
+  lãnh đạo phát hiện `npm audit` báo 9 lỗ hổng moderate, trong đó `uuid` bounds-check chỉ vá được
+  qua nâng major này). `npm audit fix` (không force) đồng thời vá `postcss` (XSS trong CSS
+  stringify, devDependency của tailwindcss) — không breaking, giữ nguyên.
+- **Xác minh an toàn:** Code chỉ dùng API modular tối giản của firebase-admin
+  (`firebase-admin/app: cert/getApps/initializeApp`, `firebase-admin/firestore: getFirestore`,
+  rồi `db.collection(name).add(payload)` — 1 chỗ duy nhất trong `api/chat.js:getFirestoreDb`).
+  Breaking changes chính thức của v14 (Firestore SDK v7, Storage SDK v7, TypeScript 5.1, tối
+  thiểu Node 16) không chạm tới bề mặt API này; Vercel chạy Node 20 nên thỏa điều kiện. `npm test`
+  259/259 PASS, `npm run build` sạch, `npm run ci` audit (`--omit=dev --audit-level=high`) exit 0.
+- **6 lỗ hổng moderate còn lại (chấp nhận, không chặn pilot):** cùng 1 chuỗi `uuid` xuyên qua
+  `@google-cloud/storage` → `teeny-request`/`retry-request`, là dependency bắt buộc của
+  `firebase-admin` (mọi version hiện có trên npm, kể cả bản mới nhất, đều kéo theo). Ứng dụng
+  KHÔNG dùng Cloud Storage (chỉ Firestore + RTDB), nên code path chứa lỗ hổng không bao giờ được
+  gọi tới ở runtime — rủi ro thực tế gần như bằng 0 dù `npm audit` vẫn báo. Chờ firebase-admin tự
+  nâng cấp `@google-cloud/storage` ở bản sau; không tự ý downgrade theo gợi ý `npm audit fix
+  --force` (nó đề xuất hạ về `firebase-admin@10.3.0`, cũ hơn bản đang chạy production).
+- **Đánh đổi:** Bump major dependency luôn có rủi ro API ẩn, nhưng bề mặt sử dụng thực tế trong
+  repo quá hẹp để breaking change chạm tới; đổi lại giảm 9 → 6 lỗ hổng audit và không mắc kẹt ở
+  bản firebase-admin cũ mãi mãi.
+
 ## [2026-07-13] Deeplink fail-safe theo ID -> title/alias và trạng thái thiếu tọa độ
 
 - **Quyết định:** Chat chỉ tạo nút đối chiếu sau khi index TTHC đã tải và `resolveProcedureId` xác nhận

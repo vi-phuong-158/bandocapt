@@ -337,4 +337,7 @@ Biến mới (2026-07-13):
 - Runtime mo ta dia gioi hien hanh theo mo hinh `tinh Phu Tho -> xa/phuong`; alias lich su chi duoc dung neu backend da match tu `search_aliases`.
 - Vector Pinecone `tru_so` van duoc giu trong index de rollback, nhung runtime `api/chat.js` loai bo khoi prompt va citation.
 - `Published_Locations` public khong doc `Form_Responses`; pipeline admin van di qua `Unit_Allowlist` -> `Location_Staging` -> `Published_Locations`.
-- Neu `DEEPSEEK_API_KEY` ton tai thi runtime chat chuyen sang DeepSeek thay Gemini.
+- Provider generation theo `LLM_PRIMARY`/`LLM_FALLBACK` (xem "Bien moi truong 2026-07-13"): mac dinh
+  van la Gemini ke ca khi co `DEEPSEEK_API_KEY` — key nay chi tu dong lam **fallback** (khi
+  `LLM_FALLBACK` khong dat rieng) va **CHI** duoc thu truoc khi da phat chunk hop le dau tien, gap
+  timeout/429/5xx/network/block. Muon DeepSeek lam primary phai dat `LLM_PRIMARY=deepseek` ro rang.

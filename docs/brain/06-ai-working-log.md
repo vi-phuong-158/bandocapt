@@ -5,6 +5,47 @@
 
 ---
 
+## [2026-07-14] Xử lý mục 4/7/8/9/10 rà soát trước pilot lãnh đạo (prune telemetry, contact PII, governance script, docs, npm audit)
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - **Mục 4 — Prune telemetry mở rộng:** `setup/prune-telemetry.js` viết lại: `chat_feedback` thêm vào
+    nhóm xóa theo `expires_at` từng entry (tái dùng `listExpiredTelemetryKeys`); thêm hàm mới
+    `pruneDateSubtree` xóa nguyên nhánh `usage_ips`/`feedback_ip_counts`/`groundedness_checks` khi
+    dateKey (`YYYY_MM_DD`) quá `TELEMETRY_COUNTER_RETENTION_DAYS` (mặc định 7 ngày) — 3 nhánh này chỉ
+    chứa counter số/boolean, không có `expires_at` riêng, dùng `shallow=true` để liệt kê dateKey mà
+    không tải toàn bộ dữ liệu con.
+  - **Mục 7 — Field `contact` không còn tự redact email:** `lib/request-security.js`
+    `sanitizeDiagnosticText` thêm tham số tùy chọn `{ redactEmail = true }`; `api/feedback.js` gọi với
+    `redactEmail: false` riêng cho `contact` (người dùng chủ động để lại để được liên hệ lại) — vẫn giữ
+    redact token/secret/passport. `comment`/`question`/`answer` không đổi hành vi.
+  - **Mục 8 — 2 lỗi tồn PR #32:** `scripts/generate-governance-draft.js`: `extractMauDon` bọc
+    `cleanCandidate` (khớp `extractThoiHan`) để không rò "Xem chi tiết" vào `final_mau_don`;
+    `paperFlag` thêm điều kiện `m.review_status !== 'superseded'` đồng bộ `legacyFlag` bên
+    `inventory-corpus.js`, tránh cờ lại record đã xử lý sau T3.4.
+  - **Mục 9 — Docs mâu thuẫn provider:** `01-architecture.md` sửa câu "có DEEPSEEK_API_KEY thì chuyển
+    sang DeepSeek thay Gemini" (sai) thành mô tả đúng cơ chế `LLM_PRIMARY`/`LLM_FALLBACK`: mặc định vẫn
+    Gemini, DeepSeek chỉ là fallback tự động khi lỗi timeout/429/5xx/network/block trước chunk hợp lệ
+    đầu tiên.
+  - **Mục 10 — npm audit:** `postcss` vá không breaking (8.5.8→8.5.19, dev only) qua `npm audit fix`
+    thường. `firebase-admin` nâng `^13.10.0`→`^14.1.0` (breaking theo npm nhưng code chỉ dùng API tối
+    giản `getFirestore`+`collection().add()`) để vá `uuid` bounds-check — giảm 9→6 lỗ hổng moderate.
+    6 lỗ hổng còn lại là chuỗi `uuid` qua `@google-cloud/storage` (dependency bắt buộc của mọi bản
+    firebase-admin hiện có) — app không dùng Cloud Storage nên code path không bao giờ chạy; chấp nhận
+    rủi ro, ghi quyết định vào `03-decisions.md` (2026-07-14) thay vì tự downgrade theo gợi ý
+    `npm audit fix --force` (đề xuất hạ về firebase-admin 10.3.0, cũ hơn bản đang chạy).
+- **File đã sửa:** `setup/prune-telemetry.js`, `lib/request-security.js`, `api/feedback.js`,
+  `scripts/generate-governance-draft.js`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md` (entry mới), `test/feedback.test.js` (3 test mới), `package.json` +
+  `package-lock.json` (firebase-admin/postcss).
+- **Lý do:** Tiếp nối rà soát toàn diện trước khi trình lãnh đạo đề xuất pilot (mục 1/2/3/5/6/11 xử
+  lý riêng hoặc thuộc phần việc của người dùng).
+- **Kiểm tra:** Prune telemetry xác minh bằng smoke test mock `fetch` (không đụng RTDB thật) — đúng
+  hành vi xóa entry hết hạn / nhánh quá tuổi, giữ nhánh còn hạn. Governance draft: xác minh bằng
+  `writeFileSync` interception (không ghi đè `data/corpus-governance-draft.csv` đã commit) — 0 rò
+  placeholder vào `mau_don`, `paperFlag` trả rỗng đúng cho record `superseded`. `node --test
+  test/feedback.test.js` 24/24 PASS (thêm 2 test mục 7). `npm test` 259/259 PASS. `npm run ci` exit
+  code 0 (test + build + audit `--omit=dev --audit-level=high` xanh — 6 lỗ hổng moderate không chặn).
+
 ## [2026-07-14] Bắt buộc HMAC vô điều kiện ở /api/feedback (rà soát trước pilot lãnh đạo)
 - **Agent:** Claude Code
 - **Thay đổi:** `api/feedback.js` trước đây chỉ đòi `X-Request-Token`/`X-Request-Time` khi request

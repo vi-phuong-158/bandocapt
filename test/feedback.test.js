@@ -77,6 +77,31 @@ test('accepts a valid down-report with category and sanitizes PII', () => {
     assert.doesNotMatch(result.value.comment, /a@b\.com/);
 });
 
+test('keeps email in contact (opt-in liên hệ lại) but still redacts it elsewhere', () => {
+    const result = validateFeedbackBody({
+        turn_id: 't_1_1_abc',
+        rating: 'down',
+        contact: 'lien he qua a@b.com nhe',
+        comment: 'email cua toi la a@b.com',
+    });
+    assert.equal(result.ok, true);
+    assert.match(result.value.contact, /a@b\.com/);
+    assert.doesNotMatch(result.value.contact, /\[redacted:email\]/);
+    assert.match(result.value.comment, /\[redacted:email\]/);
+    assert.doesNotMatch(result.value.comment, /a@b\.com/);
+});
+
+test('contact still redacts tokens/secrets even though email is allowed', () => {
+    const result = validateFeedbackBody({
+        turn_id: 't_1_1_abc',
+        rating: 'down',
+        contact: 'api_key: sk-abcdef123456',
+    });
+    assert.equal(result.ok, true);
+    assert.match(result.value.contact, /\[redacted:secret\]/);
+    assert.doesNotMatch(result.value.contact, /sk-abcdef123456/);
+});
+
 test('rejects invalid rating', () => {
     const result = validateFeedbackBody({ turn_id: 't_1', rating: 'meh' });
     assert.equal(result.ok, false);

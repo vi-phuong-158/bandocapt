@@ -51,7 +51,8 @@ function extractThoiHan(text) {
 }
 function extractMauDon(text) {
     const line = MAU_DON_LINE.exec(text || '');
-    if (line) return line[1].trim();
+    const fromLine = line ? cleanCandidate(line[1]) : '';
+    if (fromLine) return fromLine;
     const codes = (text || '').match(FORM_CODE);
     return codes ? [...new Set(codes.map(c => c.toUpperCase()))].join(', ') : '';
 }
@@ -76,6 +77,7 @@ function feeExisting(m) {
 }
 
 function paperFlag(id, m) {
+    if (m.review_status === 'superseded') return ''; // đã xử lý — khỏi cờ lại (đồng bộ inventory-corpus.js)
     const blob = (m.text || '') + ' ' + (m.mau_don || '');
     if (inv.LEGACY_SIGNALS.test(blob)) return 'strict';
     if (inv.BROAD_PAPER_SIGNALS.test(blob)) return 'broad';

@@ -39,7 +39,7 @@
     "@pinecone-database/pinecone": "^2.2.2",
     "@vercel/functions": "^3.7.5",
     "dotenv": "^17.4.2",
-    "firebase-admin": "^13.10.0",
+    "firebase-admin": "^14.1.0",
     "jszip": "^3.10.1",
     "pptxgenjs": "^4.0.1",
     "react": "^19.2.7",

@@ -9,6 +9,7 @@
  * Ngoại lệ privacy có kiểm soát: khác telemetry mặc định (không lưu Q/A), endpoint này CÓ lưu
  * câu hỏi + câu trả lời của lượt bị báo cáo, vì người dùng CHỦ ĐỘNG bấm gửi (opt-in đồng ý).
  * Nội dung vẫn qua sanitizeDiagnosticText (lọc email/token/số hộ chiếu) và có TTL expires_at.
+ * Ngoại lệ: field `contact` KHÔNG redact email (người dùng chủ động để lại để được liên hệ lại).
  */
 
 'use strict';
@@ -112,7 +113,9 @@ function validateFeedbackBody(body) {
             lang,
             // Sanitize toàn bộ nội dung tự do trước khi lưu (fail-closed với PII).
             comment: sanitizeDiagnosticText(trimString(body.comment, MAX_COMMENT_LENGTH), MAX_COMMENT_LENGTH),
-            contact: sanitizeDiagnosticText(trimString(body.contact, MAX_CONTACT_LENGTH), MAX_CONTACT_LENGTH),
+            // contact là nơi người dùng CHỦ ĐỘNG để lại email/SĐT để được liên hệ lại — không
+            // redact email ở đây (khác comment/question/answer), vẫn lọc token/secret/passport.
+            contact: sanitizeDiagnosticText(trimString(body.contact, MAX_CONTACT_LENGTH), MAX_CONTACT_LENGTH, { redactEmail: false }),
             question: sanitizeDiagnosticText(trimString(body.question, MAX_QA_LENGTH), MAX_QA_LENGTH),
             answer: sanitizeDiagnosticText(trimString(body.answer, MAX_QA_LENGTH), MAX_QA_LENGTH),
             sources: sanitizeFeedbackSources(body.sources),
