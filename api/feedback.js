@@ -222,19 +222,18 @@ module.exports = async function handler(req, res) {
     }
     const { value } = validation;
 
-    // --- HMAC request signing (chống spam endpoint) — chỉ bắt buộc khi có Origin (request từ browser) ---
+    // --- HMAC request signing (chống spam endpoint) — luôn bắt buộc, kể cả khi request không
+    // kèm Origin (vd gọi thẳng bằng curl/Postman), để không bỏ qua bước ký khi thiếu header đó.
     const userAgent = req.headers['user-agent'] || '';
-    if (origin) {
-        const token = req.headers['x-request-token'];
-        const requestTime = req.headers['x-request-time'];
-        if (!token || !requestTime) {
-            return res.status(403).json({ error: 'MISSING_TOKEN', detail: 'Thiếu request token.' });
-        }
-        // Ký trên chuỗi định danh lượt phản hồi — client ký đúng cùng chuỗi này.
-        const signedMessage = `${value.turnId}:${value.rating}`;
-        if (!verifyRequestSignature({ token, requestTime, userMessage: signedMessage, userAgent, origin })) {
-            return res.status(403).json({ error: 'INVALID_TOKEN', detail: 'Request token không hợp lệ.' });
-        }
+    const token = req.headers['x-request-token'];
+    const requestTime = req.headers['x-request-time'];
+    if (!token || !requestTime) {
+        return res.status(403).json({ error: 'MISSING_TOKEN', detail: 'Thiếu request token.' });
+    }
+    // Ký trên chuỗi định danh lượt phản hồi — client ký đúng cùng chuỗi này.
+    const signedMessage = `${value.turnId}:${value.rating}`;
+    if (!verifyRequestSignature({ token, requestTime, userMessage: signedMessage, userAgent, origin })) {
+        return res.status(403).json({ error: 'INVALID_TOKEN', detail: 'Request token không hợp lệ.' });
     }
 
     const clientIP = resolveClientIp(req);

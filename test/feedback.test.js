@@ -184,6 +184,17 @@ test('handler requires request token when origin is present', async () => {
     assert.equal(res.body.error, 'MISSING_TOKEN');
 });
 
+test('handler requires request token even without an Origin header (non-browser caller)', async () => {
+    const res = createResponse();
+    await handler({
+        method: 'POST',
+        headers: {},
+        body: { turn_id: 't_1', rating: 'up' },
+    }, res);
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.error, 'MISSING_TOKEN');
+});
+
 test('handler stores feedback and returns ok with a valid signature', async () => {
     process.env.FIREBASE_DB_URL = 'https://db.example';
     delete process.env.FIREBASE_DB_SECRET;
@@ -218,13 +229,26 @@ test('handler stores feedback and returns ok with a valid signature', async () =
     assert.equal(posts[0].body.category, 'sai_thong_tin');
 });
 
+// Header ký hợp lệ dùng chung cho các test không set Origin (originHost fallback 'localhost'
+// trong verifyRequestSignature) — kể từ khi HMAC bắt buộc vô điều kiện, các test này phải ký
+// đúng mới chạm tới nhánh logic đang kiểm tra (rate limit / persist).
+function signedHeadersNoOrigin(turnId, rating) {
+    const requestTime = String(Date.now());
+    const token = computeToken(`${turnId}:${rating}`, requestTime, 'localhost', '');
+    return { 'x-request-token': token, 'x-request-time': requestTime };
+}
+
 test('handler returns 429 when the daily IP limit is reached', async () => {
     process.env.FIREBASE_DB_URL = 'https://db.example';
     process.env.FEEDBACK_DAILY_IP_LIMIT = '2';
     global.fetch = async () => ({ ok: true, json: async () => 5 }); // count above limit
 
     const res = createResponse();
-    await handler({ method: 'POST', headers: {}, body: { turn_id: 't_1', rating: 'up' } }, res);
+    await handler({
+        method: 'POST',
+        headers: signedHeadersNoOrigin('t_1', 'up'),
+        body: { turn_id: 't_1', rating: 'up' },
+    }, res);
     assert.equal(res.statusCode, 429);
     assert.equal(res.body.error, 'RATE_LIMIT');
     delete process.env.FEEDBACK_DAILY_IP_LIMIT;
@@ -236,7 +260,11 @@ test('handler returns 200 without storing when no DB is configured', async () =>
     global.fetch = async () => { called = true; return { ok: true, json: async () => 0 }; };
 
     const res = createResponse();
-    await handler({ method: 'POST', headers: {}, body: { turn_id: 't_1', rating: 'up' } }, res);
+    await handler({
+        method: 'POST',
+        headers: signedHeadersNoOrigin('t_1', 'up'),
+        body: { turn_id: 't_1', rating: 'up' },
+    }, res);
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body, { ok: true });
     assert.equal(called, false);
@@ -251,7 +279,11 @@ test('handler returns 503 when persistence fails', async () => {
     };
 
     const res = createResponse();
-    await handler({ method: 'POST', headers: {}, body: { turn_id: 't_1', rating: 'up' } }, res);
+    await handler({
+        method: 'POST',
+        headers: signedHeadersNoOrigin('t_1', 'up'),
+        body: { turn_id: 't_1', rating: 'up' },
+    }, res);
     assert.equal(res.statusCode, 503);
     assert.equal(res.body.error, 'SERVICE_UNAVAILABLE');
 });

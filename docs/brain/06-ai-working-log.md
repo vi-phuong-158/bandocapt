@@ -5,6 +5,23 @@
 
 ---
 
+## [2026-07-14] Bắt buộc HMAC vô điều kiện ở /api/feedback (rà soát trước pilot lãnh đạo)
+- **Agent:** Claude Code
+- **Thay đổi:** `api/feedback.js` trước đây chỉ đòi `X-Request-Token`/`X-Request-Time` khi request
+  có header `Origin` (`if (origin) {...}`) — request gọi thẳng (curl/Postman) không kèm Origin thì
+  bỏ qua luôn bước ký, chỉ còn CORS (vô hiệu khi thiếu Origin) và rate-limit fail-open làm hàng rào.
+  Bỏ điều kiện `if (origin)`, giờ luôn bắt buộc HMAC hợp lệ bất kể có Origin hay không.
+- **File đã sửa:** `api/feedback.js` (bỏ nhánh điều kiện quanh HMAC); `test/feedback.test.js` (thêm
+  test "requires token even without Origin header", cập nhật 3 test rate-limit/no-DB/persist-fail
+  để ký token hợp lệ vì giờ đây các nhánh đó chỉ chạm tới được sau khi qua HMAC).
+- **Lý do:** Rà soát toàn diện trước khi trình lãnh đạo đề xuất pilot phát hiện `/api/feedback`
+  không có Turnstile (khác `/api/chat`), và có đường bỏ qua HMAC khi thiếu Origin — kẻ xấu gọi
+  thẳng API có thể bơm rác vào RTDB + dội cảnh báo Telegram. HMAC không phải xác thực mạnh (key
+  suy từ dữ liệu client tự biết) nhưng buộc kẻ tấn công phải implement đúng công thức ký thay vì
+  chỉ POST trần — đủ cho pilot quy mô nhỏ, không cần thêm Turnstile (sẽ phá UX nút 👍/👎 nhanh).
+- **Kiểm tra:** `node --check api/feedback.js`; `node --test test/feedback.test.js` 22/22 PASS;
+  `npm test` 257/257 PASS toàn repo.
+
 ## [2026-07-14] Fix mất nút "Đối chiếu trong danh mục" cho thủ tục nguồn guide (vd đăng ký xe)
 - **Agent:** Claude Code
 - **Thay đổi:** `buildCitationSource` trong `api/chat.js` chỉ đọc `metadata.title` — nhưng vector
