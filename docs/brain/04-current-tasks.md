@@ -37,6 +37,19 @@
   Gemini 429 là nguyên nhân p95 hai run cuối tăng; T2B-2/`CLAIM_CITATIONS` tiếp tục deferred và rollout flag
   production vẫn chờ owner.
 
+- **[DONE 2026-07-14] T3.1 (GĐ3 mở màn):** `scripts/inventory-corpus.js` quét live 530 record →
+  `data/corpus-inventory-report.md` + `.json`. Phát hiện chốt: **0/530 record có `review_status`**;
+  4 lớp (tthc 39 / guide 194 / law 152 / tru_so 145); 38 tthc content_hash stale; strict F01 chỉ 3
+  (guide nhắc NA17 dự phòng) + broad 86 ứng viên người duyệt; facts gần trống. `npm test` 255/255.
+  Bước kế: T3.2 mở rộng CSV draft (facts + governance, ưu tiên 39 tthc), rồi **BƯỚC NGƯỜI DÙNG T3.3**
+  duyệt CSV nhóm rủi ro cao. Nguồn trạng thái: `07-parallel-task-plan.md`.
+- **[DONE 2026-07-14] T3.2 → CHỜ T3.3:** `scripts/generate-governance-draft.js` sinh
+  `data/corpus-governance-draft.csv` (385 dòng, cột `final_*` cho người duyệt) + README hướng dẫn.
+  Loại placeholder ("Xem chi tiết") để không prefill rác. **36/39 tthc thiếu thoi_han thật** trong
+  corpus → để trống, người duyệt lấy từ nguồn. `npm test` 255/255. **BƯỚC NGƯỜI DÙNG:** duyệt CSV
+  (ưu tiên `review_tier=HIGH`) theo `data/corpus-governance-draft-README.md`, rồi báo để chạy T3.4
+  (backfill có backup). Chưa commit (chưa yêu cầu push).
+
 ### [ĐIỀU TRA XONG — TASK-GV02-FLAKY] Vì sao GV02 hay lỗi
 - **Kết quả điều tra (2026-07-10):** Chạy GV02 đơn lẻ 10 lần liên tiếp → **10/10 thành công** (137-350 từ). Chạy thêm 2 lần full 30-câu → 1 lần sạch 100%, 1 lần GV02 TRUNCATED. Không bắt được thêm lần `BLOCKED_CONTENT` nào dù đã bật log chẩn đoán (`finishReason`/`promptFeedback`/`safetyRatings`).
 - **Kết luận:** GV02 đã được xếp đúng ngân sách FULL (250 từ, không phải lỗi phân loại) nhưng chủ đề vốn dài (nhiều mẫu đơn/phí/bước) nên thỉnh thoảng vượt 250 từ và chạm trần cứng 3072 token. Đây là **biến thiên sampling tự nhiên của Gemini ở `temperature: 0.2`** (không đổi trong Giai đoạn 2/3) kết hợp chủ đề dài — KHÔNG liên quan exact-token-boost/query-rewrite/đổi model tiện ích (GV02 không có mã mẫu/số hiệu văn bản nên boost không kích hoạt; không có history nên query-rewrite không chạy). `BLOCKED_CONTENT` là hiện tượng xác suất thấp, nghi liên quan safety classifier nhạy cảm với cụm "người Trung Quốc" + tình trạng cư trú/visa, nhưng không tái hiện được để xác nhận category cụ thể. Chi tiết: `03-decisions.md` (2026-07-10, "Điều tra GV02 flaky").
