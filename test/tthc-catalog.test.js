@@ -438,6 +438,19 @@ test('buildCitationSource trả về procedure_id và title để chatbot liên 
     assert.equal(source.title, 'Cấp hộ chiếu phổ thông ở trong nước');
 });
 
+test('buildCitationSource lấy title từ procedure_title cho vector guide (không có metadata.title)', () => {
+    // Vector guide_* không có metadata.title/procedure_id; tên thủ tục nằm ở procedure_title.
+    // Nếu không fallback, chat trả title rỗng và frontend không dựng được nút đối chiếu (vd đăng ký xe).
+    const source = buildCitationSource({
+        source_file: 'E. PC08 dky xe 2025.docx',
+        source_type: 'guide',
+        procedure_title: 'Đăng ký xe lần đầu trực tuyến toàn trình đối với xe nhập khẩu thực hiện tại Công an cấp xã',
+    }, 0.7);
+
+    assert.equal(source.procedure_id, '');
+    assert.equal(source.title, 'Đăng ký xe lần đầu trực tuyến toàn trình đối với xe nhập khẩu thực hiện tại Công an cấp xã');
+});
+
 test('buildCitationSource trả về procedure_id rỗng khi metadata không có (vd vector văn bản luật)', () => {
     const source = buildCitationSource({
         source_file: 'luat-xnc.json',

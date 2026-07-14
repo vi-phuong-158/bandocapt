@@ -5,6 +5,22 @@
 
 ---
 
+## [2026-07-14] Fix mất nút "Đối chiếu trong danh mục" cho thủ tục nguồn guide (vd đăng ký xe)
+- **Agent:** Claude Code
+- **Thay đổi:** `buildCitationSource` trong `api/chat.js` chỉ đọc `metadata.title` — nhưng vector
+  `guide_*` KHÔNG có trường `title` lẫn `procedure_id`; tên thủ tục nằm ở `metadata.procedure_title`
+  (đã kiểm chứng bằng backup `2026-07-01-DELETED-guide-...json`). Hệ quả: mọi thủ tục nguồn guide trả
+  về source với `title:''` + `procedure_id:''`, frontend `appendCompareAction` không resolve được →
+  KHÔNG hiện nút đối chiếu (im lặng, không cả trạng thái). Toàn bộ 11 thủ tục "Đăng ký xe" đều là
+  guide nên không bao giờ có link; các thủ tục `tthc_*` (có `title`+`procedure_id`) vẫn hiện — nên bug
+  trông như chỉ dính đăng ký xe. Thêm fallback `title: metadata.title || metadata.procedure_title`.
+- **File đã sửa:** `api/chat.js` (`buildCitationSource`); `test/tthc-catalog.test.js` (thêm ca guide).
+- **Lý do:** Thiết kế P3.3 vốn dựa vào title để deeplink guide (guide không có procedure_id runtime),
+  nhưng điền sai tên trường (`title` thay vì `procedure_title`) khiến cả cơ chế title-match vô hiệu.
+- **Kiểm tra:** Mô phỏng `resolveProcedureIdFromList` với title đăng ký xe từ index → resolve OK;
+  `node --test test/tthc-catalog.test.js test/chat-deeplinks.test.js` PASS (28+2). Không chạy được
+  end-to-end trên preview vì cần Pinecone+Gemini backend thật (dev chỉ chạy Tailwind watch).
+
 ## [2026-07-13] Bổ sung resolveProcedureId vào lazy proxy TthcCatalog
 - **Agent:** Claude Code
 - **Thay đổi:** Rà soát 2 fix mất link chatbot gần nhất (deeplink thủ tục + chỉ đường trụ sở) —

@@ -1409,9 +1409,11 @@ function buildCitationSource(metadata = {}, score = 0) {
         effective_date: metadata.effective_date || '',
         last_verified_at: metadata.last_verified_at || '',
         kb_version: metadata.kb_version || '',
-        // Để frontend mở đúng thủ tục trong danh mục đối chiếu (rỗng cho vector luật/địa điểm)
+        // Để frontend mở đúng thủ tục trong danh mục đối chiếu (rỗng cho vector luật/địa điểm).
+        // Vector guide_* KHÔNG có metadata.title/procedure_id — tên thủ tục nằm ở
+        // metadata.procedure_title; catalog khớp deeplink theo title chính xác nên phải điền từ đây.
         procedure_id: metadata.procedure_id || '',
-        title: metadata.title || '',
+        title: metadata.title || metadata.procedure_title || '',
         score
     };
 }
