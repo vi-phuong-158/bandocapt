@@ -21,6 +21,47 @@
   `node --test test/tthc-catalog.test.js test/chat-deeplinks.test.js` PASS (28+2). Không chạy được
   end-to-end trên preview vì cần Pinecone+Gemini backend thật (dev chỉ chạy Tailwind watch).
 
+## [2026-07-14] T3.2 — Generator CSV draft governance + facts (chờ người duyệt T3.3)
+- **Agent:** Claude Code
+- **Thay đổi:** Thêm `scripts/generate-governance-draft.js` — đọc live Pinecone (hoặc backup),
+  sinh `data/corpus-governance-draft.csv` (385 dòng: 39 tthc tier HIGH + 346 law/guide tier BULK,
+  loại 145 tru_so) với cột `final_*` để người duyệt chốt schema hiệu lực + structured facts. Prefill
+  gợi ý an toàn: `review_status` (tthc=pending buộc soi từng dòng, law/guide=approved), `source_priority`
+  theo lớp, `authority` suy từ `cap`, `phi/le_phi` từ metadata sẵn, candidate `thoi_han`/`mau_don` từ
+  text. Thêm `data/corpus-governance-draft-README.md` hướng dẫn duyệt. Refactor `inventory-corpus.js`:
+  guard `require.main` + export helper (classify/regex/priority) để T3.2 tái dùng, tránh lệch regex.
+- **File đã sửa:** `scripts/generate-governance-draft.js` (mới), `scripts/inventory-corpus.js` (export);
+  artifact `data/corpus-governance-draft.csv` + `data/corpus-governance-draft-README.md`; cập nhật
+  `07-parallel-task-plan.md`, `04-current-tasks.md`.
+- **Lý do:** T3.2 chuẩn bị dữ liệu cho người duyệt T3.3 trước khi T3.4 backfill. Lọc candidate
+  placeholder ("Xem chi tiết", "Theo quy định") để KHÔNG prefill rác vào `final_` — người duyệt dễ
+  nhận nhầm. Phát hiện quan trọng: **36/39 tthc không có thời hạn cụ thể trong corpus** (text 5568 ghi
+  "Xem chi tiết"), chỉ 3 dòng có sẵn (matt26265, xa-03, xa-04) — 36 dòng còn lại để `final_thoi_han`
+  TRỐNG buộc người duyệt lấy từ nguồn thật (đúng gap TASK-P0-04-EXT).
+- **Kiểm tra:** `node --check` cả 2 script; chạy live sinh 385 dòng (byTier HIGH 39/BULK 346, paperFlags
+  strict 3/broad 85); xác minh sau lọc placeholder chỉ còn 3/39 candidate thoi_han thật. `npm test`
+  255/255 PASS (export + require.main guard không phá test nào). **DỪNG chờ người duyệt T3.3.**
+
+## [2026-07-14] T3.1 — Script inventory corpus + báo cáo metadata hiệu lực/xung đột nguồn
+- **Agent:** Claude Code
+- **Thay đổi:** Thêm `scripts/inventory-corpus.js` — quét toàn bộ namespace Pinecone (mode live,
+  mặc định) hoặc snapshot backup (`--source=backups`), CHỈ ĐỌC, rồi xuất `data/corpus-inventory.json`
+  (máy đọc, dẫn vào T3.2) + `data/corpus-inventory-report.md` (người duyệt). Báo cáo: độ phủ schema
+  hiệu lực GĐ3, content_hash lệch `sha256(text)`, và xung đột nguồn giấy/NA17 **hai tầng** (strict F01
+  độ tin cậy cao + broad candidate để người duyệt lọc, không âm thầm bỏ sót). Env loader tìm ngược
+  lên cây thư mục để thấy `.env` repo chính khi chạy từ worktree (không sao chép secret).
+- **File đã sửa:** `scripts/inventory-corpus.js` (mới); artifact `data/corpus-inventory.json` +
+  `data/corpus-inventory-report.md`; cập nhật `07-parallel-task-plan.md`, `04-current-tasks.md`.
+- **Lý do:** Mở khóa GĐ3 (sprint nguồn hết hiệu lực). Trước khi backfill/superseded phải biết corpus
+  thật đang thiếu gì. Kết quả live 530 record: **0/530 có review_status** (toàn bộ chưa vào quản trị
+  hiệu lực); 4 lớp (`tthc` 39 → current_procedure, `guide` 194 → supplemental, `law` 152 →
+  legal_basis, `tru_so` 145 → ngoài phạm vi); **38 tthc content_hash stale** (vá phí không tính lại
+  hash); 194 guide khác cơ sở hash; strict F01 chỉ **3** record (đều là guide nhắc NA17 như dự phòng);
+  broad **86** candidate cho người duyệt; structured facts gần trống (`thoi_han`/`mau_don` 1/530).
+- **Kiểm tra:** `node --check` pass; chạy live + offline (backups 34 record) đều sinh báo cáo hợp lệ;
+  xác minh cách tính hash KHỚP hệ thống (record `tthc_matt26265` mới repair không drift); đối chiếu
+  regex strict (3) với quét thô broad (86) để chắc chắn không bỏ sót nguồn giấy. `npm test` 255/255 PASS.
+
 ## [2026-07-13] Bổ sung resolveProcedureId vào lazy proxy TthcCatalog
 - **Agent:** Claude Code
 - **Thay đổi:** Rà soát 2 fix mất link chatbot gần nhất (deeplink thủ tục + chỉ đường trụ sở) —

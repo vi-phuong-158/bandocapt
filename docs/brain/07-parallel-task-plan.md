@@ -114,9 +114,9 @@ trong PR này nếu chưa có quyết định rollout của owner.
 
 | ID | Task | Làn | Agent | Mức | Phụ thuộc | Trạng thái |
 |---|---|---|---|---|---|---|
-| T3.1 | Script inventory corpus + báo cáo thiếu metadata/xung đột | DATA | Codex | TRUNG | T1.7 (song song GĐ2 được) | TODO |
-| T3.2 | Mở rộng CSV draft (schema hiệu lực + structured facts) | DATA | Codex | TRUNG | T3.1 | TODO |
-| T3.3 | Người duyệt chốt CSV nhóm rủi ro cao | — | **Người dùng** | — | T3.2 | TODO |
+| T3.1 | Script inventory corpus + báo cáo thiếu metadata/xung đột | DATA | Claude | TRUNG | T1.7 (song song GĐ2 được) | **DONE** (2026-07-14) — `scripts/inventory-corpus.js` + báo cáo live 530 record: 0/530 governed, 38 tthc hash stale, strict F01=3/broad=86, facts gần trống. Dẫn vào T3.2. |
+| T3.2 | Mở rộng CSV draft (schema hiệu lực + structured facts) | DATA | Claude | TRUNG | T3.1 | **DONE** (2026-07-14) — `scripts/generate-governance-draft.js` → `data/corpus-governance-draft.csv` (385 dòng, 39 tthc HIGH + 346 BULK) + README duyệt. 36/39 tthc thiếu thoi_han thật (để trống). |
+| T3.3 | Người duyệt chốt CSV nhóm rủi ro cao | — | **Người dùng** | — | T3.2 | **CHỜ NGƯỜI DÙNG** — duyệt `data/corpus-governance-draft.csv` theo `data/corpus-governance-draft-README.md`; ưu tiên 39 dòng `review_tier=HIGH`. |
 | T3.4 | Backfill metadata + đánh dấu superseded (`--apply` có backup) | DATA | Claude/Codex | TRUNG | T3.3 | TODO |
 | T3.5 | Re-embed `RETRIEVAL_DOCUMENT` → namespace mới | DATA | Codex | THẤP–TRUNG | T3.4 | TODO |
 | T3.6 | Runtime filter hiệu lực: `approved/current` trước query, check ngày sau query, rerank chỉ nhận match hợp lệ; 2 nguồn hiện hành mâu thuẫn → từ chối + cảnh báo | CORE | Claude | **CAO** | T3.4, T2A | TODO |
@@ -124,6 +124,8 @@ trong PR này nếu chưa có quyết định rollout của owner.
 | T3.8 | Chuyển namespace production + 3 run gate | — | Người dùng + Claude | TRUNG | T3.7 | TODO |
 
 Schema metadata: `review_status` (approved/pending/superseded), `valid_from/valid_to/supersedes`, `source_priority` (current_procedure/legal_basis/supplemental/legacy), `procedure_version/last_verified_at/content_hash`, structured facts `phi/le_phi/thoi_han/mau_don/authority`. Trường không áp dụng ghi `N/A`. TASK-P0-04-EXT nhập vào T3.2–T3.4.
+
+**Phát hiện T3.1 (live 530 record, `data/corpus-inventory-report.md`):** corpus 4 lớp theo tiền tố id — `tthc` 39 (→`current_procedure`), `guide` 194 (→`supplemental`), `law` 152 (→`legal_basis`), `tru_so` 145 (→ ngoài phạm vi hiệu lực, đã có pipeline Published_Locations). **0/530 record có `review_status`** (chưa vào quản trị hiệu lực). Structured facts gần trống (`thoi_han`/`mau_don` 1/530, `phi/le_phi` 39/530 chỉ ở tthc). content_hash: 38 tthc **stale thật** (vá phí không tính lại hash) — T3.5 phải re-hash khi re-embed; 194 guide khác cơ sở hash. Nguồn giấy F01: **strict 3** (guide nhắc NA17 như dự phòng, không phải luồng chính) + **broad 86** ứng viên cho người duyệt lọc. → T3.2 nên: (a) tập trung backfill facts + governance cho 39 tthc trước (rủi ro cao nhất), (b) gán `source_priority` theo lớp, (c) người duyệt T3.3 quyết định superseded cho các ứng viên nguồn giấy.
 
 **Gate:** F01 sạch phiếu giấy/NA17/nộp trực tiếp nhưng vẫn nêu được 12/24h từ nguồn KBTT; 0 hard fail 3 run; 100% record rủi ro cao có metadata duyệt; không source superseded trong prompt/citation; Recall@4 ≥95% và không giảm so baseline. Rollback = đổi namespace + embedding task type; KHÔNG rollback strict abstention/buffered validation.
 
