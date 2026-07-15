@@ -7,8 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const dotenv = require('dotenv');
 const { Pinecone } = require('@pinecone-database/pinecone');
-const { parseCsv } = require('./scrape-phutho-tthc');
-const { categoryKey, textForProcedure } = require('./import-phutho-xa-to-pinecone');
+const { categoryKey, listIds, textForProcedure } = require('./import-phutho-xa-to-pinecone');
 const { normalizeCap } = require('../lib/retrieval-governance');
 
 const ROOT = path.resolve(__dirname, '..');

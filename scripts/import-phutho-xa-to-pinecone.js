@@ -92,6 +92,7 @@ function buildApprovedRecords(snapshot, reviewRows, manifest, verifiedAt, snapsh
                 loai_thu_tuc: categoryKey(source.category),
                 linh_vuc: source.category,
                 cap: 'xa',
+                cap_normalized: 'xa',
                 service_level: row.service_level,
                 authority: source.agency,
                 thoi_han: source.processing_time,
@@ -216,4 +217,4 @@ async function main() {
 
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });
 
-module.exports = { buildApprovedRecords, categoryKey, isVerifiedImportedRecord, textForProcedure };
+module.exports = { buildApprovedRecords, categoryKey, isVerifiedImportedRecord, listIds, textForProcedure };

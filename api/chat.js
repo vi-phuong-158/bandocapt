@@ -1052,9 +1052,7 @@ function classifyQuestion(text) {
     const splitTempResidenceIntent = detectSplitTempResidenceIntent(lower);
 
     if (splitTempResidenceIntent) return splitTempResidenceIntent;
-    if (/căn cước|can cuoc|cccd|cmnd|chung minh nhan dan|định danh điện tử|dinh danh dien tu/.test(lower)) return 'can_cuoc';
-    if (/(đăng ký xe|dang ky xe|biển số xe|bien so xe|giấy đăng ký xe|giay dang ky xe)/.test(lower)) return 'dang_ky_xe';
-    
+
     // 1. Phân loại ưu tiên cao nhất theo intent rõ ràng (map trực tiếp sang metadata hợp lệ)
     if (/gia hạn visa|visa hết hạn|gia hạn tạm trú|gia han tam tru|thi_thuc|thị thực|thi thuc/.test(lower)) return 'thi_thuc';
     if (/(mất hộ chiếu|mat ho chieu|lost passport).*người nước ngoài|(người nước ngoài|nguoi nuoc ngoai).*(mất hộ chiếu|mat ho chieu|lost passport)/.test(lower)) return 'ho_chieu';
@@ -1064,15 +1062,23 @@ function classifyQuestion(text) {
     if (/visa|nhập cảnh|nhap canh|xuất cảnh|xuat canh|quá cảnh|qua canh|na5|na6|na8|giấy phép lao động|giay phep lao dong|người nước ngoài|nguoi nuoc ngoai|doanh nghiệp bảo lãnh|doanh nghiep bao lanh/.test(lower)) return 'xuat_nhap_canh';
     if (/tạm trú|tam tru|thường trú|thuong tru|cư trú|cu tru|lưu trú|luu tru/.test(lower)) return 'cu_tru';
     if (/hộ chiếu|ho chieu|passport|thông hành|thong hanh|vneid|cổng dịch vụ công|cong dich vu cong/.test(lower)) return 'ho_chieu';
-    
+
+    // 3. Lĩnh vực căn cước / đăng ký xe — xếp CUỐI để không cướp intent hộ chiếu/visa/cư trú
+    // khi các từ này chỉ xuất hiện như giấy tờ kèm theo (vd "làm hộ chiếu cần mang CCCD").
+    if (/căn cước|can cuoc|cccd|cmnd|chung minh nhan dan|định danh điện tử|dinh danh dien tu/.test(lower)) return 'can_cuoc';
+    if (/(đăng ký xe|dang ky xe|biển số xe|bien so xe|giấy đăng ký xe|giay dang ky xe)/.test(lower)) return 'dang_ky_xe';
+
     return null; // không filter
 }
 
 function getFilterCategoriesForQuestionCategory(category) {
-    if (category === 'cu_tru') return ['cu_tru', 'linh_vuc_dang_ky_quan_ly_cu_tru', 'quan_ly_xuat_nhap_canh'];
+    // Giữ nguyên các giá trị đang khớp namespace production (cu_tru, xuat_nhap_canh, ho_chieu)
+    // và bổ sung các giá trị lĩnh vực của namespace ứng viên — KHÔNG thay thế.
+    if (category === 'cu_tru') return ['cu_tru', 'xuat_nhap_canh', 'linh_vuc_dang_ky_quan_ly_cu_tru', 'quan_ly_xuat_nhap_canh'];
     if (category === 'can_cuoc') return ['can_cuoc', 'cap_quan_ly_can_cuoc', 'dinh_danh_va_xac_thuc_dien_tu'];
     if (category === 'dang_ky_xe') return ['dang_ky_xe', 'dang_ky_quan_ly_phuong_tien_giao_thong_co_gioi_duong_bo'];
-    if (category === 'xuat_nhap_canh' || category === 'ho_chieu') return ['xuat_nhap_canh', 'quan_ly_xuat_nhap_canh'];
+    if (category === 'xuat_nhap_canh') return ['xuat_nhap_canh', 'quan_ly_xuat_nhap_canh'];
+    if (category === 'ho_chieu') return ['ho_chieu', 'quan_ly_xuat_nhap_canh'];
     if (SPLIT_TEMP_RESIDENCE_CATEGORIES.has(category)) return ['tam_tru', 'cu_tru', 'quan_ly_xuat_nhap_canh'];
     return category ? [category] : [];
 }

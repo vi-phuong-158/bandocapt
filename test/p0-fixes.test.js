@@ -636,6 +636,18 @@ test('classifyQuestion splits temporary residence declaration and residence card
     );
 });
 
+test('classifyQuestion không để căn cước/CCCD cướp intent hộ chiếu/visa/cư trú', () => {
+    const { classifyQuestion } = require('../api/chat');
+
+    // CCCD chỉ là giấy tờ kèm theo, intent chính vẫn là hộ chiếu/visa/cư trú.
+    assert.equal(classifyQuestion('làm hộ chiếu cần mang CCCD không?'), 'ho_chieu');
+    assert.equal(classifyQuestion('gia hạn visa có cần căn cước của người bảo lãnh?'), 'thi_thuc');
+    assert.equal(classifyQuestion('đăng ký tạm trú cần CCCD không'), 'cu_tru');
+    // Nhưng khi căn cước/đăng ký xe là intent chính thì vẫn route đúng.
+    assert.equal(classifyQuestion('thủ tục cấp căn cước cho trẻ em'), 'can_cuoc');
+    assert.equal(classifyQuestion('đăng ký xe máy mới mua ở đâu'), 'dang_ky_xe');
+});
+
 test('structured facts keep fee and charge fields independent', () => {
     const facts = handler.buildVerifiedFactsLine({
         le_phi: 'Không',

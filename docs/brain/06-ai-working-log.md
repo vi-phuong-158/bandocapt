@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-07-15] Sửa lỗi review PR #33 (Phase 3 governance) trước khi merge
+- **Agent:** Claude Code
+- **Thay đổi:** (1) Đưa rule phân loại `can_cuoc`/`dang_ky_xe` xuống cuối `classifyQuestion` để CCCD/căn cước không cướp intent hộ chiếu/visa/cư trú khi chỉ là giấy tờ kèm theo; (2) khôi phục các giá trị filter đang khớp namespace production trong `getFilterCategoriesForQuestionCategory` (`ho_chieu` giữ `ho_chieu`, `cu_tru` giữ `xuat_nhap_canh`) thay vì thay thế bằng giá trị namespace ứng viên; (3) export + import `listIds` cho `import-phutho-web-to-pinecone.js` (đường `--apply` mặc định crash `ReferenceError`), bỏ import `parseCsv` thừa; (4) siết `requestedCap` chỉ nhận cấp khi câu hỏi nêu rõ "cấp xã"/"công an tỉnh", không suy từ token địa danh trần; (5) thêm `cap_normalized` vào metadata namespace xã cho khớp server-side filter.
+- **File đã sửa:** `api/chat.js`, `lib/retrieval-governance.js`, `scripts/import-phutho-web-to-pinecone.js`, `scripts/import-phutho-xa-to-pinecone.js`, `test/p0-fixes.test.js`, `test/retrieval-governance.test.js`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Hai thay đổi classifier + filter mapping có hiệu lực trên namespace production ngay cả khi chưa bật `RAG_GOVERNANCE_FILTER`, gây route sai/loại oan tài liệu; `listIds` chưa định nghĩa làm hỏng import web; `requestedCap` false-positive trên tên địa danh chứa "xã".
+- **Kiểm tra:** `npm run check:syntax` pass; `npm test` 277/277 pass (thêm 2 test regression); chạy tay `classifyQuestion`/`requestedCap` trên các câu hỏi thực tế đều đúng kỳ vọng; `require('./scripts/import-phutho-web-to-pinecone.js')` nạp không lỗi.
+
 ## [2026-07-15] Chuẩn bị lại bộ đối chiếu đầy đủ 43 thủ tục cấp xã
 - **Agent:** Codex
 - **Thay đổi:** Tải mới 157/157 thủ tục từ web (0 lỗi), sửa false-positive “thẻ căn cước hết hiệu lực”, lọc đủ 43 mục cấp xã và sinh CSV/Markdown duyệt. Kết quả: 42 ứng viên hiện hành (41 tạo mới, 1 cập nhật), 1 luồng Phiếu/NA17 đã reject; trường nguồn không công bố chuẩn hóa `N/A`.

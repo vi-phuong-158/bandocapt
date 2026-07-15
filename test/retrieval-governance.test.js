@@ -20,6 +20,15 @@ test('governance preserves an explicit cấp xã constraint', () => {
     assert.deepEqual(governance.filterGovernedMatches(matches, 'làm căn cước tại Công an cấp xã').map(m => m.id), ['xa']);
 });
 
+test('requestedCap chỉ nhận cấp khi câu hỏi nêu rõ, bỏ qua token địa danh', () => {
+    // Tên địa danh chứa "xã"/"tỉnh" không được suy ra ràng buộc cấp.
+    assert.equal(governance.requestedCap('Tôi ở xã Hy Cương, làm hộ chiếu ở đâu?'), '');
+    assert.equal(governance.requestedCap('công an ở xa quá, nộp online được không'), '');
+    // Chỉ nêu rõ "cấp xã"/"công an tỉnh" mới nhận diện.
+    assert.equal(governance.requestedCap('làm căn cước tại Công an cấp xã'), 'xa');
+    assert.equal(governance.requestedCap('nộp ở công an tỉnh Phú Thọ'), 'tinh');
+});
+
 test('governance filter has non-negotiable approval and priority clauses', () => {
     const filter = governance.buildGovernanceFilter([{ loai_thu_tuc: { '$eq': 'cu_tru' } }], 'xa');
     assert.deepEqual(filter.$and.slice(0, 3), [
