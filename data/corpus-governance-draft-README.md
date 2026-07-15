@@ -45,3 +45,30 @@ Cột tham chiếu (không sửa): `existing_phi_le_phi`, `candidate_thoi_han`, 
 
 Lưu lại file (giữ đúng tên cột), báo lại để chạy **T3.4** backfill có backup. Nhóm rủi ro cao
 (39 tthc) nên duyệt trước; law/guide có thể xác nhận nhanh theo prefill.
+
+## Nguồn đối chiếu Công an tỉnh Phú Thọ (2026-07-15)
+
+Đã có thêm hai artifact **chỉ để hỗ trợ duyệt**, không tự thay đổi cột `final_*`:
+
+- `data/tthc-phutho-source.json`: snapshot 18 lĩnh vực / 157 thủ tục từ trang TTHC Công an tỉnh
+  Phú Thọ, có URL nguồn, thời hạn, phí, cơ quan, căn cứ, hồ sơ, trình tự, biểu mẫu và `content_hash`.
+- `data/tthc-phutho-high-review.csv`: đối chiếu riêng 39 dòng `HIGH`. Chỉ 14 dòng khớp chính xác
+  cùng cấp, 3 dòng là gợi ý theo tiêu đề cùng cấp cần kiểm tay, 22 dòng không ghép vì thiếu nguồn
+  tương thích (phần lớn là thủ tục trung ương/giấy thông hành không có trên cổng tỉnh).
+
+**Cảnh báo:** cổng tỉnh vẫn đồng thời đăng mục KBTT trực tuyến và mục mang tên “bằng Phiếu khai báo
+tạm trú”. Vì dự án đã xác định luồng phiếu/NA17 là lỗi thời, không được đổi record đó thành `approved`
+chỉ vì trang còn hiển thị. Dòng có `risk_flags=paper_flow_candidate` phải được người duyệt xử lý riêng.
+
+## Quyết định duyệt nguồn (2026-07-15)
+
+Người duyệt đã chốt các quyết định nguồn tại `data/tthc-phutho-review-decisions.json`:
+
+- Chấp nhận facts từ 17 dòng được ghép với nguồn tỉnh (gồm 14 khớp chính xác và 3 gợi ý đã được
+  duyệt); T3.4 mới là bước merge có backup.
+- Không nhập luồng khai báo tạm trú bằng Phiếu/NA17; coi là `superseded`.
+- Với cấp thị thực, nhận mức phí từ nguồn tỉnh nhưng giữ mẫu `NA5`, vì tệp `NA15` gắn trên web không
+  thuộc thủ tục này.
+- Với cấp lại thẻ thường trú, giữ `NA13`; `NA12` là đơn xin thường trú, không thay thế mẫu này.
+- Giữ record KBTT trực tuyến `tthc_matt26265` hiện tại và cờ xung đột nguồn; không lấy nhãn cấp/cơ
+  quan hoặc 24 giờ/07 ngày từ trang tỉnh để ghi đè.

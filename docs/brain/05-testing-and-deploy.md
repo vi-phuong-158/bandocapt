@@ -80,6 +80,12 @@ git add output.css
 npm test                 # 87 unit/contract test hiện tại (2026-07-02; tăng dần theo thời gian — kiểm tra lại số thật bằng `npm test` nếu nghi ngờ)
 npm run ci               # test + build + production dependency audit mức High
 npm run gen:catalog      # sinh lai data/tthc-catalog.json day du (tthc + guide co noi dung)
+npm run scrape:tthc      # tai snapshot TTHC tinh + CSV doi chieu HIGH (tuan tu, khong ghi Pinecone)
+npm run apply:tthc-phutho -- --apply # T3.4: merge pham vi nguon da duyet, backup + verify Pinecone
+npm run import:tthc-phutho-xa -- --apply # T3.4/T3.5: nhập 42 TTHC cấp xã sang namespace mới, không đổi production
+npm run import:tthc-phutho-xa -- --apply --resume # tiếp tục an toàn sau khi quota/kết nối gián đoạn
+npm run import:tthc-phutho-xa -- --apply --resume --delay-ms 10000 # bản free: giãn 10 giây giữa các embedding
+npm run import:tthc-phutho-web -- --apply --resume --no-seed # nhập toàn bộ web, giữ ngoại lệ Phiếu/NA17
 npm run test:regression:tam-tru  # regression tích hợp 7 ca tạm trú trọng yếu, tự chấm PASS/FAIL
 node scripts/run-regression.js --delay-ms 0  # full 30 câu, có thể lọc bằng --ids TR01,TR02,...
 npm run prune:telemetry  # xóa log RTDB fallback đã quá hạn theo expires_at

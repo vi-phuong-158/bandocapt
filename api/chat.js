@@ -25,6 +25,7 @@ const {
     formatVerifiedLocationsPrompt,
 } = require('../lib/published-locations');
 const { validateAnswer, takeCompleteSegment, trimToSentenceBoundary, getTruncationNotice } = require('../lib/output-validator');
+const { requestedCap, filterGovernedMatches, buildGovernanceFilter, findCurrentSourceConflict } = require('../lib/retrieval-governance');
 
 // Kiểm tra biến môi trường nhạy cảm không được phép tồn tại ở production.
 if (process.env.NODE_ENV === 'production' && process.env.EVAL_BYPASS_TOKEN) {
@@ -1051,6 +1052,8 @@ function classifyQuestion(text) {
     const splitTempResidenceIntent = detectSplitTempResidenceIntent(lower);
 
     if (splitTempResidenceIntent) return splitTempResidenceIntent;
+    if (/căn cước|can cuoc|cccd|cmnd|chung minh nhan dan|định danh điện tử|dinh danh dien tu/.test(lower)) return 'can_cuoc';
+    if (/(đăng ký xe|dang ky xe|biển số xe|bien so xe|giấy đăng ký xe|giay dang ky xe)/.test(lower)) return 'dang_ky_xe';
     
     // 1. Phân loại ưu tiên cao nhất theo intent rõ ràng (map trực tiếp sang metadata hợp lệ)
     if (/gia hạn visa|visa hết hạn|gia hạn tạm trú|gia han tam tru|thi_thuc|thị thực|thi thuc/.test(lower)) return 'thi_thuc';
@@ -1066,8 +1069,11 @@ function classifyQuestion(text) {
 }
 
 function getFilterCategoriesForQuestionCategory(category) {
-    if (category === 'cu_tru') return ['cu_tru', 'xuat_nhap_canh'];
-    if (SPLIT_TEMP_RESIDENCE_CATEGORIES.has(category)) return ['tam_tru', 'cu_tru'];
+    if (category === 'cu_tru') return ['cu_tru', 'linh_vuc_dang_ky_quan_ly_cu_tru', 'quan_ly_xuat_nhap_canh'];
+    if (category === 'can_cuoc') return ['can_cuoc', 'cap_quan_ly_can_cuoc', 'dinh_danh_va_xac_thuc_dien_tu'];
+    if (category === 'dang_ky_xe') return ['dang_ky_xe', 'dang_ky_quan_ly_phuong_tien_giao_thong_co_gioi_duong_bo'];
+    if (category === 'xuat_nhap_canh' || category === 'ho_chieu') return ['xuat_nhap_canh', 'quan_ly_xuat_nhap_canh'];
+    if (SPLIT_TEMP_RESIDENCE_CATEGORIES.has(category)) return ['tam_tru', 'cu_tru', 'quan_ly_xuat_nhap_canh'];
     return category ? [category] : [];
 }
 
@@ -1472,6 +1478,11 @@ function getRagAbstentionReply(userLang) {
         return 'Mình chưa tìm thấy tài liệu hoặc căn cứ phù hợp trong kho dữ liệu để trả lời chính xác câu hỏi này. Bạn vui lòng mở mục "Danh mục thủ tục hành chính" để tra cứu, hoặc liên hệ Công an phường/xã nơi cư trú để được hướng dẫn trực tiếp.';
     }
     return 'I could not find verified documents in the knowledge base to answer this accurately. Please open the "Administrative Procedures" catalog to look it up, or contact your local Ward/Commune Police for direct guidance.';
+}
+
+function getGovernanceConflictReply(userLang) {
+    if (userLang === 'vi') return 'Mình tìm thấy các nguồn hiện hành mâu thuẫn về thủ tục này nên chưa thể tự chọn một thông tin để trả lời. Vui lòng liên hệ Công an cấp xã hoặc đơn vị tiếp nhận để xác minh trước khi thực hiện.';
+    return 'The current official sources conflict for this procedure, so I cannot safely choose one. Please contact the receiving police authority for confirmation before proceeding.';
 }
 
 function getChatProviderOrder() {
@@ -1965,6 +1976,7 @@ module.exports = async function handler(req, res) {
     let matchedDocs = '';
     let matchedSources = []; // UI-05: citation chips
     let pineconeErrored = false; // T2A: phân biệt lý do abstain (pinecone_error vs no_relevant_match)
+    let governanceConflict = null;
     // [EVAL-DEBUG T1.3] Trace retrieval, chỉ dựng khi evalMode; production giữ null → không lộ.
     const evalTrace = evalMode ? {
         standaloneQuery,                // T2A: query độc lập dùng chung embedding/classify/rerank/XNC
@@ -1990,17 +2002,21 @@ module.exports = async function handler(req, res) {
                 // RAG-03: Metadata filter theo lĩnh vực
                 const category = classifyQuestion(standaloneQuery);
                 const filterCategories = getFilterCategoriesForQuestionCategory(category);
+                const governanceEnabled = process.env.RAG_GOVERNANCE_FILTER === '1';
+                const explicitCap = requestedCap(standaloneQuery);
+                const categoryClauses = category ? filterCategories.flatMap(value => [
+                    { loai_thu_tuc: { '$eq': value } },
+                    { linh_vuc: { '$eq': value } }
+                ]) : [];
+                const governanceFilter = governanceEnabled ? buildGovernanceFilter([], explicitCap) : null;
                 const queryOptions = {
                     vector: embedVector,
-                    topK: category ? 8 : 12,       // Lấy rộng hơn cho câu không phân loại vì sẽ loại trừ vector trụ sở.
+                    topK: category ? 8 : 12,
                     includeMetadata: true,
-                    ...(category ? {
-                        filter: {
-                            '$or': filterCategories.flatMap(value => [
-                                { loai_thu_tuc: { '$eq': value } },
-                                { linh_vuc: { '$eq': value } }
-                            ])
-                        }
+                    ...((category || governanceEnabled) ? {
+                        filter: governanceEnabled
+                            ? buildGovernanceFilter(categoryClauses, explicitCap)
+                            : { '$or': categoryClauses }
                     } : {})
                 };
                 const activeIndex = namespace ? baseIndex.namespace(namespace) : baseIndex;
@@ -2013,6 +2029,7 @@ module.exports = async function handler(req, res) {
 
                 if (category && (!queryRes.matches || queryRes.matches.length === 0)) {
                     const { filter, ...fallbackOptions } = queryOptions;
+                    if (governanceEnabled) fallbackOptions.filter = governanceFilter;
                     queryRes = await withRequestTimeout(
                         () => activeIndex.query(fallbackOptions),
                         getRemainingDeadlineMs(deadlineAt, 10000),
@@ -2029,6 +2046,9 @@ module.exports = async function handler(req, res) {
                 }
                 const nonLocationMatches = (queryRes.matches || []).filter(match => !isLocationVectorMetadata(match.metadata));
                 const branchFilteredMatches = filterMatchesByQuestionCategory(nonLocationMatches, category);
+                const governedMatches = governanceEnabled
+                    ? filterGovernedMatches(branchFilteredMatches, standaloneQuery)
+                    : branchFilteredMatches;
                 if (branchFilteredMatches.length > 0 && branchFilteredMatches.length !== nonLocationMatches.length) {
                     console.log('[RAG-03] Split temp-residence branch filter reduced matches:', `${nonLocationMatches.length} -> ${branchFilteredMatches.length}`);
                 }
@@ -2036,7 +2056,7 @@ module.exports = async function handler(req, res) {
                 // P2.3: Đôn match khớp token chính xác (mã mẫu / số hiệu văn bản) lên đầu
                 // TRƯỚC bước lọc ngưỡng — để không bỏ sót đúng văn bản người dùng gọi tên.
                 const exactTokens = extractExactTokens(standaloneQuery);
-                const prioritizedMatches = boostExactTokenMatches(branchFilteredMatches, exactTokens);
+                const prioritizedMatches = boostExactTokenMatches(governedMatches, exactTokens);
                 if (exactTokens.length > 0) {
                     const boostedCount = prioritizedMatches.filter(m => m._exactTokenBoost).length;
                     if (boostedCount > 0) console.log('[P2.3] Exact-token boost:', exactTokens.join(','), `-> ${boostedCount} match`);
@@ -2057,7 +2077,8 @@ module.exports = async function handler(req, res) {
                     : await measureStage(stageTimings, 'rerank_ms', () =>
                         rerankWithGemini(standaloneQuery, relevantMatches, apiKey, 8000, deadlineAt)
                     );
-                const topMatches = reranked.slice(0, 4); // BOT-02: giới hạn 4 docs sau rerank
+                governanceConflict = governanceEnabled ? findCurrentSourceConflict(reranked) : null;
+                const topMatches = governanceConflict ? [] : reranked.slice(0, 4); // BOT-02: giới hạn 4 docs sau rerank
 
                 if (topMatches.length > 0) {
                     matchedDocs = topMatches.map((m, i) => {
@@ -2087,6 +2108,7 @@ module.exports = async function handler(req, res) {
                     const rawMatches = queryRes.matches || [];
                     const idAfterLocation = new Set(nonLocationMatches.map(m => m.id));
                     const idAfterBranch = new Set(branchFilteredMatches.map(m => m.id));
+                    const idAfterGovernance = new Set(governedMatches.map(m => m.id));
                     const idRelevant = new Set(relevantMatches.map(m => m.id));
                     const idFinal = new Set(topMatches.map(m => m.id));
                     evalTrace.category = category || null;
@@ -2095,6 +2117,7 @@ module.exports = async function handler(req, res) {
                         let reason = null;
                         if (!idAfterLocation.has(m.id)) reason = 'location_vector';
                         else if (!idAfterBranch.has(m.id)) reason = 'wrong_branch';
+                        else if (!idAfterGovernance.has(m.id)) reason = 'governance_or_level';
                         else if (!idRelevant.has(m.id)) reason = 'below_threshold';
                         else if (!idFinal.has(m.id)) reason = 'rerank_or_topk_cut';
                         if (reason) evalTrace.excluded.push({ id: m.id, reason });
@@ -2188,6 +2211,36 @@ module.exports = async function handler(req, res) {
     const hasXncAuthorityIntent = detectXncAuthorityIntent(standaloneQuery);
     if (hasXncAuthorityIntent) {
         verifiedLocationPrompt = `${verifiedLocationPrompt}\n\n${XNC_RECEPTION_VERIFIED_BLOCK}`;
+    }
+
+    if (governanceConflict) {
+        const fullText = getGovernanceConflictReply(userLang);
+        const historyToClient = [
+            { role: 'user', parts: [{ text: userMessage.trim() }] },
+            { role: 'model', parts: [{ text: fullText }] }
+        ];
+        if (evalMode && evalTrace) {
+            evalTrace.conflict = governanceConflict;
+            evalTrace.timings = { ...stageTimings, total_ms: Date.now() - _startTime };
+        }
+        res.writeHead(200, {
+            'Content-Type': 'text/event-stream',
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no',
+        });
+        res.write(`data: ${JSON.stringify({ text: fullText })}\n\n`);
+        res.write(`data: ${JSON.stringify({
+            done: true,
+            fullText,
+            history: historyToClient,
+            sources: [],
+            finishReason: 'RAG_CONFLICT',
+            abstentionReason: 'conflicting_current_sources',
+            ...(evalMode && evalTrace ? { eval: evalTrace } : {}),
+        })}\n\n`);
+        res.end();
+        return;
     }
 
     // -------------------------------------------------------------

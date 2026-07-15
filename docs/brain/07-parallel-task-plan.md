@@ -116,10 +116,10 @@ trong PR này nếu chưa có quyết định rollout của owner.
 |---|---|---|---|---|---|---|
 | T3.1 | Script inventory corpus + báo cáo thiếu metadata/xung đột | DATA | Claude | TRUNG | T1.7 (song song GĐ2 được) | **DONE** (2026-07-14) — `scripts/inventory-corpus.js` + báo cáo live 530 record: 0/530 governed, 38 tthc hash stale, strict F01=3/broad=86, facts gần trống. Dẫn vào T3.2. |
 | T3.2 | Mở rộng CSV draft (schema hiệu lực + structured facts) | DATA | Claude | TRUNG | T3.1 | **DONE** (2026-07-14) — `scripts/generate-governance-draft.js` → `data/corpus-governance-draft.csv` (385 dòng, 39 tthc HIGH + 346 BULK) + README duyệt. 36/39 tthc thiếu thoi_han thật (để trống). |
-| T3.3 | Người duyệt chốt CSV nhóm rủi ro cao | — | **Người dùng** | — | T3.2 | **CHỜ NGƯỜI DÙNG** — duyệt `data/corpus-governance-draft.csv` theo `data/corpus-governance-draft-README.md`; ưu tiên 39 dòng `review_tier=HIGH`. |
-| T3.4 | Backfill metadata + đánh dấu superseded (`--apply` có backup) | DATA | Claude/Codex | TRUNG | T3.3 | TODO |
-| T3.5 | Re-embed `RETRIEVAL_DOCUMENT` → namespace mới | DATA | Codex | THẤP–TRUNG | T3.4 | TODO |
-| T3.6 | Runtime filter hiệu lực: `approved/current` trước query, check ngày sau query, rerank chỉ nhận match hợp lệ; 2 nguồn hiện hành mâu thuẫn → từ chối + cảnh báo | CORE | Claude | **CAO** | T3.4, T2A | TODO |
+| T3.3 | Người duyệt chốt CSV nhóm rủi ro cao | — | **Người dùng** | — | T3.2 | **DONE (2026-07-15)** — người dùng duyệt đủ 42 thủ tục cấp xã hiện hành; Phiếu/NA17 reject. Manifest có hash snapshot để nhập an toàn; thủ tục cấp tỉnh/trung ương chờ duyệt sau. |
+| T3.4 | Backfill metadata + đánh dấu superseded (`--apply` có backup) | DATA | Claude/Codex | TRUNG | T3.3 | **DONE (2026-07-15)** — 42/42 thủ tục cấp xã đã nhập/verify trong namespace mới, có backup manifest. |
+| T3.5 | Re-embed `RETRIEVAL_DOCUMENT` → namespace mới | DATA | Codex | THẤP–TRUNG | T3.4 | **DONE (2026-07-15)** — namespace cấp xã đủ 42 và namespace mở rộng toàn web đủ 156/156 vector 768; Phiếu/NA17 loại. |
+| T3.6 | Runtime filter hiệu lực: `approved/current` trước query, check ngày sau query, rerank chỉ nhận match hợp lệ; 2 nguồn hiện hành mâu thuẫn → từ chối + cảnh báo | CORE | Codex | **CAO** | T3.4, T2A | **IN PROGRESS (2026-07-16)** — code + metadata ứng viên đã xong; chờ live regression/shadow để nghiệm thu. |
 | T3.7 | Shadow retrieval namespace cũ/mới + báo cáo so sánh | EVAL | Codex | TRUNG | T3.5, T3.6 | TODO |
 | T3.8 | Chuyển namespace production + 3 run gate | — | Người dùng + Claude | TRUNG | T3.7 | TODO |
 

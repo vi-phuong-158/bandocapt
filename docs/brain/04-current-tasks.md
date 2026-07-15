@@ -49,6 +49,35 @@
   corpus → để trống, người duyệt lấy từ nguồn. `npm test` 255/255. **BƯỚC NGƯỜI DÙNG:** duyệt CSV
   (ưu tiên `review_tier=HIGH`) theo `data/corpus-governance-draft-README.md`, rồi báo để chạy T3.4
   (backfill có backup). Chưa commit (chưa yêu cầu push).
+- **[2026-07-15] T3.3 đã có nguồn đối chiếu tỉnh, vẫn CHỜ NGƯỜI DÙNG:** đã tải 18 lĩnh vực / 157
+  thủ tục từ trang TTHC Công an tỉnh Phú Thọ (0 lỗi) vào `data/tthc-phutho-source.json` và tạo
+  `data/tthc-phutho-high-review.csv`. Kết quả an toàn theo cả title+cấp: 14/39 HIGH khớp chính xác,
+  3/39 là gợi ý cần kiểm tay, 22/39 không có nguồn tương thích (chủ yếu cấp trung ương). Website vẫn
+  có mục phiếu khai báo tạm trú nên snapshot KHÔNG được auto-approved. Người dùng vẫn phải chốt
+  `final_*` trước khi mở T3.4.
+- **[2026-07-15] T3.3 đã chốt các đối chiếu có nguồn:** người dùng duyệt 17 dòng ghép nguồn tỉnh và
+  chốt các ngoại lệ KBTT/NA17/NA5/NA13 tại `data/tthc-phutho-review-decisions.json`. 22 dòng không
+  có nguồn tương thích giữ nguyên. T3.4 có thể thực hiện merge có backup cho phạm vi đã duyệt; chưa
+  được xuất bản trực tiếp.
+- **[2026-07-15] T3.4 đã áp dụng phạm vi được duyệt:** metadata Pinecone của 17 dòng nguồn tỉnh và
+  `tthc_matt26265` đã được cập nhật có backup/verify bằng `scripts/apply-phutho-tthc-approvals.js`.
+  22 dòng không có nguồn tương thích vẫn chưa đổi; T3.5 re-embed là bước riêng nếu muốn đồng bộ text.
+- **[2026-07-15] T3.3 mở rộng theo phạm vi cấp xã:** tải mới vẫn đủ 18 lĩnh vực / 157 thủ tục / 0 lỗi,
+  trong đó 43 mục cấp xã. Đã sinh `data/tthc-phutho-xa-review.csv` + `.md`: 42 ứng viên hiện hành
+  (41 tạo mới, 1 cập nhật record cũ), 1 mục Phiếu/NA17 đã ghi quyết định loại. T3.5 chưa được chạy;
+  phải chờ người dùng duyệt 42 dòng còn lại trong cột `final_decision`.
+- **[DONE 2026-07-15] T3.3 cấp xã:** người dùng đã duyệt 42 thủ tục hiện hành và giữ loại Phiếu/NA17.
+  `data/tthc-phutho-xa-review-decisions.json` khóa 42 `approve` / 1 `reject` kèm hash snapshot.
+  Bước kế tiếp là chuẩn bị script nhập 41 record mới + cập nhật `tthc_xa-01` sang namespace mới có backup;
+  chưa có ghi Pinecone theo quyết định duyệt này.
+- **[DONE 2026-07-15] Nhập cấp xã sang namespace mới:** `chatbot-tthc-xnc-xa-rd-20260715` đã có
+  **42/42** record verify (768 chiều, metadata approved, hash đúng). 16 record được embedding mới với
+  delay 10 giây/lần, 26 record được resume an toàn. Namespace production chưa đổi; bước kế tiếp là T3.6
+  lọc runtime và T3.7 shadow retrieval.
+- **[DONE 2026-07-15] Mở rộng toàn bộ website:** namespace `chatbot-tthc-xnc-web-rd-20260715` đã
+  ghi đủ 156/156 thủ tục hiện hành (114 tỉnh + 42 xã; Phiếu/NA17 loại). Thống kê index xác nhận 156 vector,
+  dimension 768; production chưa đổi.
+  chưa chuyển production.
 
 ### [ĐIỀU TRA XONG — TASK-GV02-FLAKY] Vì sao GV02 hay lỗi
 - **Kết quả điều tra (2026-07-10):** Chạy GV02 đơn lẻ 10 lần liên tiếp → **10/10 thành công** (137-350 từ). Chạy thêm 2 lần full 30-câu → 1 lần sạch 100%, 1 lần GV02 TRUNCATED. Không bắt được thêm lần `BLOCKED_CONTENT` nào dù đã bật log chẩn đoán (`finishReason`/`promptFeedback`/`safetyRatings`).
@@ -202,3 +231,8 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
    dat `PINECONE_NAMESPACE=<ns>` + `EMBED_TASK_TYPE=RETRIEVAL_QUERY` tren Vercel.
 4. **Telegram alert** (tuy chon): dat `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` tren Vercel.
 5. **Push + PR** cac nhanh (chua push — theo quy tac khong tu push `main`).
+## Tiến độ Giai đoạn 3 — 2026-07-16
+
+- **[IN PROGRESS] T3.6:** Đã triển khai runtime governance filter, lọc cấp xã/tỉnh và chặn xung đột nguồn. Namespace ứng viên đã có 157 vector (156 website + KBTT); đang chờ quota embedding mở lại để chạy live regression/shadow T3.7.
+- **[TODO] T3.7:** Shadow retrieval 60 câu cân bằng và 30 câu lõi × 3 lượt.
+- **[TODO — cần người dùng duyệt] T3.8:** Chỉ chuyển production sau báo cáo gate đạt.

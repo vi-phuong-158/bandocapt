@@ -81,6 +81,16 @@ bandocapt/
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
 | `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone; T2A `standaloneQuery`/abstention gated; T2C dung deadline chung 55s cho moi stage, provider fallback va telemetry `waitUntil`; stream model da validator | `js/gemini.js` | Pinecone, Gemini/DeepSeek, Firebase, `@vercel/functions`, `lib/published-locations.js`, `lib/request-security.js` |
 | `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live, mac dinh gom `tthc_*` + `guide_*` co noi dung (loc guide rong/noi bo), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
+| `scripts/scrape-phutho-tthc.js` | Thu thap tuan tu 18 linh vuc/chi tiet TTHC Cong an Phu Tho; sinh snapshot co hash + CSV doi chieu 39 record HIGH, khong tu dong approved/ghi Pinecone | Developer / nguoi duyet T3.3 | `https://congan.phutho.gov.vn/TTHC.aspx`, `data/corpus-governance-draft.csv` |
+| `scripts/generate-phutho-xa-review.js` | Loc day du 43 muc cap xa tu snapshot; doi chieu corpus cu, de xuat tao moi/cap nhat/loai va sinh CSV + Markdown de nguoi dung duyet | Developer / nguoi duyet T3.3 mo rong | `data/tthc-phutho-source.json`, `data/corpus-governance-draft.csv` |
+| `scripts/approve-phutho-xa-review.js` | Khoa quyet dinh duyet 42 thu tuc cap xa hien hanh va 1 luong Phieu/NA17 bi loai thanh manifest co hash snapshot; mac dinh dry-run | Developer / nguoi duyet T3.3 | `data/tthc-phutho-xa-review.csv`, snapshot TTHC |
+| `scripts/import-phutho-xa-to-pinecone.js` | Nhap 42 thu tuc cap xa da duyet vao namespace Pinecone moi voi `RETRIEVAL_DOCUMENT`; kiem hash snapshot, backup manifest, verify vector 768 chieu va ho tro `--resume` | Developer duoc uy quyen | snapshot + manifest duyet, Pinecone, Gemini Embedding |
+| `scripts/import-phutho-web-to-pinecone.js` | Mo rong nhap toan bo thu tuc hien hanh tren snapshot web (cap xa + cap tinh), tai su dung vector cap xa khi co, delay free-tier va resume | Developer duoc uy quyen | `data/tthc-phutho-source.json`, Pinecone, Gemini Embedding |
+| `data/tthc-phutho-source.json` | Snapshot nguon tinh da trich xuat, giu URL/field/attachment/content_hash de doi chieu va phat hien thay doi | T3.3 reviewer | `scripts/scrape-phutho-tthc.js` |
+| `data/tthc-phutho-xa-review.csv` | Bang duyet day du 43 muc cap xa, co facts nguon, doi chieu corpus cu va cot `final_decision` | T3.3 reviewer | `scripts/generate-phutho-xa-review.js` |
+| `data/tthc-phutho-xa-review-decisions.json` | Manifest quyet dinh 42 `approve` / 1 `reject`, gan voi SHA-256 snapshot de T3.4/T3.5 khong nhap sai dot du lieu | T3.4/T3.5 | `scripts/approve-phutho-xa-review.js` |
+| `data/tthc-phutho-high-review.csv` | Bang ghep an toan theo title + cap cho 39 record HIGH; `review_suggestion` van bat buoc kiem tay | T3.3 reviewer | snapshot nguon + governance draft |
+| `scripts/apply-phutho-tthc-approvals.js` | T3.4 chi merge 17 doi chieu da duyet va KBTT giu nguyen; backup pre/post, verify metadata va bat bien text/vector | Developer duoc uy quyen | Pinecone, snapshot + manifest duyet |
 | `scripts/patch-matt26265-mau-don.js` | Script mot-muc de xoa gia tri `mau_don` loi thoi cua `tthc_matt26265`; mac dinh dry-run, chi backup + upsert khi co `--apply`, giu nguyen vector/text/content_hash | Developer duoc uy quyen | Pinecone, `.env`, `data/pinecone-backups/` |
 | `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets | Google Apps Script | SpreadsheetApp |
 | `scripts/run-regression.js` | Runner regression API that, loc theo ID (ca ID hoi thoai H16/H17); gui `evalDebug:true`, cham 30 ca va bao cao latency tong cung p50/p95 theo tung stage eval-only, provider/fallback. `--strict-gate` chan hard fail/provider error; `--majority`/`--runs N` tong hop hard fail da so va flaky advisory | CLI / agent | `api/chat.js`, `lib/regression-grader.js`, `lib/regression-metrics.js`, expectations/conversations va `test/results/` |
@@ -176,6 +186,21 @@ Chat source co procedure_id/title
 -> neu resolve duoc: render nut "Doi chieu trong danh muc" va mo dung chi tiet
 -> neu source co procedure_id nhung khong resolve duoc: hien trang thai chua co trong danh muc
 ```
+
+### Luong bo sung nguon cho T3.3
+
+```text
+Trang TTHC Cong an Phu Tho (18 linh vuc)
+-> scripts/scrape-phutho-tthc.js (tuan tu, delay, retry)
+-> data/tthc-phutho-source.json (157 thu tuc, URL + content_hash)
+-> doi chieu title VA cap thuc hien voi 39 dong HIGH
+-> data/tthc-phutho-high-review.csv
+-> nguoi duyet chot final_* trong corpus-governance-draft.csv
+-> T3.4 moi duoc phep backup + backfill Pinecone
+```
+
+Nguon tinh chi la bang chung duyet. Mot muc con hien tren website khong du de suy ra `approved/current`;
+vi du website van dang dong thoi luong KBTT online va muc co ten phieu khai bao tam tru.
 
 ## Mo hinh du lieu / API
 
@@ -341,3 +366,8 @@ Biến mới (2026-07-13):
   van la Gemini ke ca khi co `DEEPSEEK_API_KEY` — key nay chi tu dong lam **fallback** (khi
   `LLM_FALLBACK` khong dat rieng) va **CHI** duoc thu truoc khi da phat chunk hop le dau tien, gap
   timeout/429/5xx/network/block. Muon DeepSeek lam primary phai dat `LLM_PRIMARY=deepseek` ro rang.
+## [2026-07-16] T3.6 retrieval governance
+
+- Runtime có cờ `RAG_GOVERNANCE_FILTER=1`: Pinecone chỉ nhận record `approved` + `current_procedure`; hậu kiểm thêm ngày hiệu lực và cấp xã/tỉnh. Fallback không được bỏ các điều kiện governance hoặc cấp người dùng nêu rõ.
+- Namespace ứng viên `chatbot-tthc-xnc-web-rd-20260715` có 157 vector: 156 thủ tục website hiện hành và record KBTT trực tuyến `tthc_matt26265`; Phiếu/NA17 không được đưa vào nội dung retrieval.
+- Metadata mới: `cap_normalized`, `canonical_procedure_key`, `submission_channel`, `support_authority`. Hai nguồn hiện hành cùng khóa thủ tục mâu thuẫn fact quan trọng sẽ trả `RAG_CONFLICT`, không gọi model để suy đoán.

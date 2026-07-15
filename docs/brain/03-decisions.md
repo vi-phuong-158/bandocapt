@@ -3,6 +3,61 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
+## [2026-07-15] Mở rộng T3.3 từ đối chiếu corpus cũ sang đầy đủ thủ tục cấp xã
+
+- **Quyết định:** Dự án ưu tiên thủ tục cấp xã. Snapshot web có 157 mục (114 cấp tỉnh, 43 cấp xã),
+  nên bộ duyệt mới phải liệt kê đủ 43 mục cấp xã thay vì chỉ ghép với 39 record TTHC cũ. Trong 43
+  mục: 42 ứng viên hiện hành; mục Phiếu/NA17 vẫn được ghi trong bảng đối chiếu nhưng `reject`/
+  `exclude_superseded` theo quyết định nghiệp vụ đã chốt.
+- **Lý do:** 17 đối chiếu trước chỉ phản ánh độ giao nhau với corpus cũ, không phản ánh số thủ tục đã
+  thu thập. Nếu re-embed ngay sẽ bỏ sót phần lớn thủ tục cấp xã cần cho dự án.
+- **Tác động:** T3.5 phải dùng danh sách cấp xã đã duyệt làm nguồn tạo namespace mới. 114 thủ tục cấp
+  tỉnh và thủ tục trung ương để chờ duyệt sau. Trường website không công bố ghi `N/A`, không tự suy đoán.
+- **Người quyết định:** user / Codex
+
+## [2026-07-15] Duyệt đầy đủ 42 thủ tục cấp xã hiện hành
+
+- **Quyết định:** Người dùng duyệt toàn bộ 42 thủ tục cấp xã hiện hành trong snapshot web và giữ
+  quyết định loại mục “Khai báo tạm trú ... bằng Phiếu/NA17”. Manifest duyệt được khóa theo SHA-256
+  của snapshot để lần nhập tiếp theo không vô tình áp dụng cho dữ liệu web đã thay đổi.
+- **Tác động:** 41 record sẽ được tạo mới, `tthc_xa-01` sẽ được cập nhật. Quyết định này chỉ xác nhận
+  nội dung nguồn; chưa ghi thêm Pinecone và chưa chuyển namespace production.
+- **Người quyết định:** user
+
+## [2026-07-15] Nhập thủ tục cấp xã vào namespace Pinecone tách biệt
+
+- **Quyết định:** Nhập 42 thủ tục đã duyệt vào namespace mới `chatbot-tthc-xnc-xa-rd-20260715`, dùng
+  Gemini `RETRIEVAL_DOCUMENT`, không ghi namespace production hiện hành. Mỗi record mang facts nguồn,
+  metadata `approved/current`, hash nội dung và URL chính thức; Phiếu/NA17 không có trong namespace.
+- **Tình trạng:** Đã hoàn tất 42/42 vector 768 chiều. Lần đầu bị dừng bởi quota Gemini 429 và Pinecone
+  chập chờn; sau đó chạy tiếp với delay 10 giây/lần. Kết quả gồm 16 embedding mới + 26 record được
+  resume/xác minh lại. Resume chỉ bỏ qua record có vector/hash/metadata đã xác minh.
+- **Người quyết định:** user (ủy quyền ghi Pinecone) / Codex
+
+## [2026-07-15] Mở rộng nhập toàn bộ thủ tục hiện hành trên website
+
+- **Quyết định:** Theo yêu cầu mới, mở rộng từ 42 cấp xã lên toàn bộ snapshot website: 157 mục thu thập,
+  trong đó 156 mục hiện hành được nhập (114 cấp tỉnh + 42 cấp xã). Mục Phiếu/NA17 vẫn giữ ngoại lệ
+  `superseded` vì quyết định nghiệp vụ trước xác nhận luồng giấy không còn dùng.
+- **Tình trạng:** Namespace `chatbot-tthc-xnc-web-rd-20260715` đã ghi đủ 156/156 record; thống kê index xác nhận
+  156 vector dimension 768. Phiếu/NA17 vẫn loại theo quyết định duyệt; namespace production chưa đổi.
+- **Người quyết định:** user / Codex
+
+## [2026-07-15] Snapshot TTHC tỉnh chỉ hỗ trợ T3.3, không tự động phê duyệt nguồn
+
+- **Quyết định:** Thu thập tuần tự toàn bộ trang TTHC Công an tỉnh Phú Thọ thành snapshot có URL và
+  `content_hash`; sinh bảng đối chiếu riêng cho 39 record HIGH. Ghép tự động chỉ được coi là `matched`
+  khi tiêu đề chính xác **và cấp thực hiện tương thích**; fuzzy cùng cấp chỉ là `review_suggestion`.
+  Không sửa `final_*`, không ghi Pinecone và không suy ra `review_status=approved` từ việc trang tồn tại.
+- **Lý do:** Nguồn tỉnh bổ sung được thời hạn/phí/biểu mẫu còn thiếu, nhưng không bao phủ thủ tục cấp
+  trung ương. Quan trọng hơn, trang hiện đồng thời đăng cả KBTT online và mục “bằng Phiếu khai báo tạm
+  trú”, trong khi người quản trị đã xác nhận luồng phiếu/NA17 lỗi thời. Crawl toàn bộ rồi auto-approve
+  sẽ tái đưa đúng nguồn F01 cần loại bỏ vào corpus.
+- **Đánh đổi:** Sau crawl 157/157 trang, chỉ 14/39 HIGH khớp chính xác cùng cấp và 3/39 là gợi ý cần
+  kiểm tay; 22/39 giữ unmatched. Tiến độ T3.3 chậm hơn auto-fill nhưng tránh trộn thẩm quyền tỉnh/trung
+  ương và giữ đúng gate nguồn hết hiệu lực.
+- **Người quyết định:** user / Codex
+
 ## [2026-07-14] Nâng firebase-admin 13→14, chấp nhận 6 lỗ hổng moderate còn lại
 
 - **Quyết định:** Nâng `firebase-admin` từ `^13.10.0` lên `^14.1.0` (rà soát bảo mật trước pilot
@@ -773,3 +828,34 @@
 - **Người quyết định:** user / Codex
 
 ---
+## [2026-07-15] Chốt duyệt nguồn TTHC Công an tỉnh Phú Thọ cho T3.3
+
+- **Quyết định:** Người dùng duyệt 17 đối chiếu nguồn tỉnh (14 exact, 3 title suggestion) để dùng cho
+  bước merge T3.4 có backup. Luồng khai báo tạm trú bằng Phiếu/NA17 được coi là lỗi thời và không
+  nhập. Với thủ tục cấp thị thực giữ mã mẫu `NA5` dù website đính kèm `NA15` không phù hợp; với cấp
+  lại thẻ thường trú giữ `NA13`, vì `NA12` là đơn xin thường trú. Giữ nguyên record KBTT trực tuyến
+  `tthc_matt26265`: 12/24 giờ là hạn khai báo, không dùng thông tin 24 giờ/07 ngày trên cổng tỉnh để
+  ghi đè thành thời gian giải quyết.
+- **Lý do:** Quyết định nghiệp vụ trực tiếp của người dùng sau khi đối chiếu nguồn web; tránh để
+  metadata/đính kèm còn tồn tại trên trang tỉnh làm sai luồng chatbot.
+- **Tác động:** `data/tthc-phutho-review-decisions.json` là manifest duyệt cho T3.4. Chưa ghi Pinecone
+  hay xuất bản chatbot trong T3.3.
+
+## [2026-07-15] Áp dụng phạm vi T3.4 đã duyệt vào Pinecone
+
+- **Quyết định:** Cập nhật metadata cho 17 record có đối chiếu nguồn tỉnh đã được duyệt và record KBTT
+  `tthc_matt26265` theo quyết định “giữ nguyên”. Mỗi record có backup trước/sau và được xác minh;
+  không thay `text` hoặc vector, nên T3.5 vẫn phải re-embed nếu muốn đưa nội dung nguồn mới vào retrieval.
+- **Lý do:** Đưa facts đã duyệt (phí, hạn, mẫu, cơ quan và governance) vào runtime nhưng không mở rộng
+  sang 22 record chưa có nguồn tương thích.
+- **Tác động:** 18 record có `review_status=approved`; KBTT giữ hạn khai báo 12/24 giờ, và metadata có
+  cờ xung đột nguồn tỉnh. Các record chưa duyệt vẫn không đổi.
+## [2026-07-16] T3.6 dùng governance filter có cờ rollout
+
+- **Quyết định:** Chỉ bật enforcement khi `RAG_GOVERNANCE_FILTER=1` cùng namespace ứng viên. Điều kiện `review_status=approved`, `source_priority=current_procedure` và cấp được nêu rõ là bất biến cả ở lượt fallback. Nhờ vậy production cũ không bị ảnh hưởng trước T3.8.
+- **Quyết định:** Bổ sung KBTT `tthc_matt26265` vào namespace ứng viên với kênh khai báo điện tử, hạn 12/24 giờ và hỗ trợ Công an cấp xã; metadata và text không nêu Phiếu/NA17. Bản website 2372-17 được giữ làm tham chiếu nhưng bị loại khỏi nhánh F01 để không lẫn hạn 24 giờ/07 ngày.
+- **Rollback:** tắt `RAG_GOVERNANCE_FILTER` và giữ `PINECONE_NAMESPACE=chatbot-tthc-xnc`; không thay dữ liệu production.
+## [2026-07-16] Ngoại lệ vận hành F01: KBTT thay bản website
+
+- **Quyết định người dùng:** Với thủ tục khai báo tạm trú người nước ngoài, chỉ dùng bản KBTT đã chốt; không dùng bản website `2372-17` trong retrieval.
+- **Thực thi:** `tthc_phutho_web_2372-17` được đánh dấu `superseded`/`legacy`, trỏ `superseded_by=tthc_matt26265`. Bản KBTT online là nguồn `approved/current` duy nhất cho F01.
