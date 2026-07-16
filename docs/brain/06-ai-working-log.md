@@ -5,6 +5,20 @@
 
 ---
 
+## [2026-07-16] Review tiến độ kế hoạch đánh giá năng lực chatbot
+- **Agent:** Claude Code
+- **Thay đổi:** Thêm `docs/brain/08-review-nang-luc-chatbot-2026-07-16.md` — review độc lập
+  tiến độ 4 giai đoạn (GĐ1/GĐ2 đóng gate ĐẠT, GĐ3 dừng ở T3.6, GĐ4 một phần) + 7 đề xuất cải
+  thiện độ chính xác xếp theo tác động/effort. Thêm con trỏ trong `04-current-tasks.md`.
+- **File đã sửa:** `docs/brain/08-review-nang-luc-chatbot-2026-07-16.md` (mới),
+  `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Người dùng yêu cầu review tiến độ triển khai kế hoạch đánh giá năng lực chatbot và
+  đề xuất hướng cải thiện độ chính xác; lưu vào brain để làm căn cứ phiên duyệt tập trung.
+- **Kiểm tra:** Chỉ thay đổi docs, không đụng code — đối chiếu số liệu với
+  `test/results/regression-majority-2026-07-13_09-19-09.md`,
+  `test/results/phutho-web-retrieval-2026-07-16.md`, `07-parallel-task-plan.md` và commit
+  `7d95382`.
+
 ## [2026-07-16] Sửa blocker review PR #34 — gate 3 nhánh governance-only theo cờ
 - **Agent:** Claude Code
 - **Thay đổi:** Review PR #34 phát hiện `buildVerifiedFactsLine`, header `Vai trò:` và 2 dòng

@@ -233,6 +233,11 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 5. **Push + PR** cac nhanh (chua push — theo quy tac khong tu push `main`).
 ## Tiến độ Giai đoạn 3 — 2026-07-16
 
+- **[2026-07-16] Review tiến độ toàn kế hoạch:** xem `08-review-nang-luc-chatbot-2026-07-16.md`
+  — GĐ1/GĐ2 đóng gate ĐẠT, GĐ3 dừng ở T3.6; 7 đề xuất cải thiện độ chính xác xếp theo ưu tiên
+  (dẫn đầu: đi nốt T3.6→T3.8, filter theo cấp thực hiện, backfill facts `thoi_han`/`mau_don`).
+  Khuyến nghị gom các bước chờ người dùng thành 1 phiên duyệt tập trung để mở khóa T3.7/T3.8.
+
 - **[IN PROGRESS] T3.6:** Đã triển khai runtime governance filter, lọc cấp xã/tỉnh và chặn xung đột nguồn. Namespace ứng viên đã có 157 vector (156 website + KBTT); đang chờ quota embedding mở lại để chạy live regression/shadow T3.7.
 - **[IN PROGRESS 2026-07-16] PR #34 governance theo role:** thay bypass law/guide bằng policy fail-closed: `tthc`=`approved/current_procedure`, `law`=`approved/legal_basis`, `guide`=`approved/supplemental`; record thiếu/mismatch/pending/superseded/hết hiệu lực bị loại. Script backfill đã có full backup + rollback nhưng **CHƯA CHẠY `--apply`**. 42/194 guide là `Toàn văn thủ tục`, cần review/migration riêng trước khi bật governance trên corpus có law/guide.
 - **[TODO] T3.7:** Shadow retrieval 60 câu cân bằng và 30 câu lõi × 3 lượt.
