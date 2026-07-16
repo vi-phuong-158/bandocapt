@@ -234,5 +234,6 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 ## Tiến độ Giai đoạn 3 — 2026-07-16
 
 - **[IN PROGRESS] T3.6:** Đã triển khai runtime governance filter, lọc cấp xã/tỉnh và chặn xung đột nguồn. Namespace ứng viên đã có 157 vector (156 website + KBTT); đang chờ quota embedding mở lại để chạy live regression/shadow T3.7.
+- **[DONE 2026-07-16] Scope governance filter về đúng tthc:** governance chỉ bắt buộc approved/current cho `source_type='tthc'`; 346 record law/guide bypass (quyết định người dùng, xem `03-decisions.md`). Script `scripts/backfill-law-guide-governance.js` sẵn sàng nhưng **CHƯA CHẠY `--apply`** trên production (thiếu credential trong phiên tạo script) — phải chạy trước khi coi 346 record này đã gắn nhãn tường minh trên Pinecone. Không chặn T3.7/T3.8 (bypass mặc định vẫn đúng dù chưa backfill, vì record thiếu `source_type` cũng bypass).
 - **[TODO] T3.7:** Shadow retrieval 60 câu cân bằng và 30 câu lõi × 3 lượt.
-- **[TODO — cần người dùng duyệt] T3.8:** Chỉ chuyển production sau báo cáo gate đạt.
+- **[TODO — cần người dùng duyệt] T3.8:** Chỉ chuyển production sau báo cáo gate đạt. Khuyến nghị chạy `npm run backfill:law-guide-governance -- --apply` trước T3.8 để nhãn law/guide tường minh trên Pinecone (không bắt buộc về mặt hành vi, nhưng nên có trước khi bật flag lên production).

@@ -5,6 +5,31 @@
 
 ---
 
+## [2026-07-16] Scope governance filter chỉ cho tthc, backfill nhãn law/guide
+- **Agent:** Claude Code
+- **Thay đổi:** (1) `requiresProcedureGovernance` mới trong `lib/retrieval-governance.js` — cổng
+  approved/current/hiệu lực/cấp chỉ áp dụng khi `source_type==='tthc'`; `buildGovernanceFilter`
+  (Pinecone `$filter`) và `filterGovernedMatches` (hậu kiểm) đều bypass cho record khác (law/
+  guide/thiếu source_type). (2) Script mới `scripts/backfill-law-guide-governance.js` gán
+  `source_type`/`source_priority` (`legal_basis`/`supplemental`) tường minh cho 346 record
+  law/guide, tái dùng `classify`/`PRIORITY_BY_CLASS` từ `scripts/inventory-corpus.js`, idempotent,
+  dry-run mặc định, có backup + verify.
+- **File đã sửa:** `lib/retrieval-governance.js`, `scripts/backfill-law-guide-governance.js` (mới),
+  `test/retrieval-governance.test.js`, `test/backfill-law-guide-governance.test.js` (mới),
+  `package.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Lý do:** Người dùng xác nhận 346 record law/guide là luật trích chính xác theo điều + tài
+  liệu hướng dẫn từ nguồn chính thống, có từ trước Giai đoạn 3 — không thuộc phạm vi rủi ro
+  giấy/NA17/hết hiệu lực mà governance filter xử lý (rủi ro đó chỉ tồn tại ở facts vận hành của
+  thủ tục: phí/thời hạn/biểu mẫu). Bắt buộc `approved/current_procedure` lên cả 346 record này
+  sẽ khiến chúng biến mất khỏi retrieval khi bật `RAG_GOVERNANCE_FILTER` trên namespace production
+  (T3.8), dù không có lý do governance để loại chúng.
+- **Kiểm tra:** `npm run check:syntax` pass; `npm test` 285/285 pass (thêm 5 test: 1 bypass case +
+  1 cấu trúc filter mới trong `retrieval-governance.test.js`, 4 trong
+  `backfill-law-guide-governance.test.js`). Script backfill xác nhận báo lỗi đúng khi thiếu
+  `PINECONE_API_KEY` (không có credential trong phiên này). **CHƯA CHẠY `--apply`** — cần
+  `PINECONE_API_KEY` thật, người dùng hoặc phiên sau chạy `npm run backfill:law-guide-governance --
+  --apply` rồi xác minh qua output `verified`/backup manifest.
+
 ## [2026-07-15] Cứng hóa parseDate + bỏ backup Pinecone khỏi git (PR #33)
 - **Agent:** Claude Code
 - **Thay đổi:** (1) `parseDate` phân biệt "không có mốc" (N/A/rỗng → null) với "có nhưng hỏng định dạng" (→ NaN); `isWithinValidity` loại record khi mốc hiệu lực hỏng (fail-closed) đúng mục tiêu governance. (2) Đưa `data/pinecone-backups/` vào `.gitignore` và `git rm --cached` toàn bộ 103 file (vẫn còn trên đĩa + trong git history) theo quyết định người dùng.
