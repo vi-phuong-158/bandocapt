@@ -5,6 +5,71 @@
 
 ---
 
+## [2026-07-16] Sửa blocker review PR #34 — gate 3 nhánh governance-only theo cờ
+- **Agent:** Claude Code
+- **Thay đổi:** Review PR #34 phát hiện `buildVerifiedFactsLine`, header `Vai trò:` và 2 dòng
+  `ragSafetyNotice` mới đều chạy VÔ ĐIỀU KIỆN, không gate theo `governanceEnabled` — trong khi
+  namespace production hiện có 0/530 record mang `source_priority` (`data/corpus-inventory.json`).
+  Hậu quả: bật PR này lên production (flag tắt) sẽ xóa sạch `[FACTS ĐÃ XÁC MINH]` khỏi mọi câu trả
+  lời ngay lập tức — tái hiện được bằng metadata thật (`main`: có facts; PR #34 head: rỗng). Đã
+  hoist `governanceEnabled` ra scope ngoài hàm `handler`, thêm tham số thứ 2
+  `governanceEnabled = false` cho `buildVerifiedFactsLine` (mặc định giữ hành vi cũ), gate header
+  vai trò và 2 dòng nhắc trong `ragSafetyNotice` theo cùng cờ. Nhân tiện sửa
+  `prioritizeCurrentProcedureMatches`: dùng `findIndex` sẽ đá văng match rerank TỐT NHẤT (đứng đầu)
+  để nhường chỗ cho current_procedure — đổi sang `findLastIndex` để loại match yếu nhất (cuối
+  danh sách) thay vào đó.
+- **File đã sửa:** `api/chat.js`, `lib/retrieval-governance.js`, `test/p0-fixes.test.js`,
+  `test/retrieval-governance.test.js`.
+- **Lý do:** Governance được thiết kế "không ảnh hưởng production trước T3.8" (xem quyết định
+  2026-07-16 bên dưới), nhưng code không giữ đúng cam kết đó cho 3 nhánh trên.
+- **Kiểm tra:** `npm run check:syntax` pass. `npm test`: 285/285 pass (1 fail
+  `phutho-xa-review.test.js` do line-ending snapshot trên worktree Windows, xác nhận cũng fail y
+  hệt trước khi sửa — không do thay đổi này). Repro trực tiếp bằng metadata production thật xác
+  nhận `buildVerifiedFactsLine` trả facts đúng khi không truyền cờ (mặc định), trả rỗng khi
+  `governanceEnabled=true` và thiếu `source_priority`.
+
+## [2026-07-16] Sửa PR #34 — governance fail-closed theo vai trò nguồn
+- **Agent:** Codex
+- **Thay đổi:** Thay bypass cho law/guide/record thiếu type bằng policy bắt buộc role đã duyệt:
+  `tthc/current_procedure`, `law/legal_basis`, `guide/supplemental`. Pinecone filter và hậu kiểm
+  dùng cùng rule; context giữ TTHC hiện hành nếu có, ghi role mỗi tài liệu và chỉ role đó tạo
+  `[FACTS ĐÃ XÁC MINH]`. Backfill mặc định gán `pending`, có full backup, xác nhận namespace,
+  retry verify và rollback upsert. Dry-run báo các guide `Toàn văn thủ tục` để review riêng.
+- **File đã sửa:** `lib/retrieval-governance.js`, `api/chat.js`,
+  `scripts/backfill-law-guide-governance.js`, các test governance/backfill, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Kiểm tra trực tiếp phát hiện 42/194 guide là toàn văn thủ tục, nên bypass theo
+  `source_type` có thể đưa nguồn chưa duyệt/superseded vào prompt hoặc citation.
+- **Kiểm tra:** `npm run check:syntax` pass; các test liên quan pass 61/61. `npm test` có 285 pass;
+  1 test snapshot T3.4 fail do hash snapshot khác line ending trong worktree Windows, không thuộc
+  thay đổi PR (GitHub CI trước khi sửa PR xanh 285/285). Dry-run live không chạy được vì worktree
+  không có `PINECONE_API_KEY`; không chạy `--apply` hoặc rollback Pinecone.
+
+## [2026-07-16] Scope governance filter chỉ cho tthc, backfill nhãn law/guide
+- **Agent:** Claude Code
+- **Thay đổi:** (1) `requiresProcedureGovernance` mới trong `lib/retrieval-governance.js` — cổng
+  approved/current/hiệu lực/cấp chỉ áp dụng khi `source_type==='tthc'`; `buildGovernanceFilter`
+  (Pinecone `$filter`) và `filterGovernedMatches` (hậu kiểm) đều bypass cho record khác (law/
+  guide/thiếu source_type). (2) Script mới `scripts/backfill-law-guide-governance.js` gán
+  `source_type`/`source_priority` (`legal_basis`/`supplemental`) tường minh cho 346 record
+  law/guide, tái dùng `classify`/`PRIORITY_BY_CLASS` từ `scripts/inventory-corpus.js`, idempotent,
+  dry-run mặc định, có backup + verify.
+- **File đã sửa:** `lib/retrieval-governance.js`, `scripts/backfill-law-guide-governance.js` (mới),
+  `test/retrieval-governance.test.js`, `test/backfill-law-guide-governance.test.js` (mới),
+  `package.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Lý do:** Người dùng xác nhận 346 record law/guide là luật trích chính xác theo điều + tài
+  liệu hướng dẫn từ nguồn chính thống, có từ trước Giai đoạn 3 — không thuộc phạm vi rủi ro
+  giấy/NA17/hết hiệu lực mà governance filter xử lý (rủi ro đó chỉ tồn tại ở facts vận hành của
+  thủ tục: phí/thời hạn/biểu mẫu). Bắt buộc `approved/current_procedure` lên cả 346 record này
+  sẽ khiến chúng biến mất khỏi retrieval khi bật `RAG_GOVERNANCE_FILTER` trên namespace production
+  (T3.8), dù không có lý do governance để loại chúng.
+- **Kiểm tra:** `npm run check:syntax` pass; `npm test` 285/285 pass (thêm 5 test: 1 bypass case +
+  1 cấu trúc filter mới trong `retrieval-governance.test.js`, 4 trong
+  `backfill-law-guide-governance.test.js`). Script backfill xác nhận báo lỗi đúng khi thiếu
+  `PINECONE_API_KEY` (không có credential trong phiên này). **CHƯA CHẠY `--apply`** — cần
+  `PINECONE_API_KEY` thật, người dùng hoặc phiên sau chạy `npm run backfill:law-guide-governance --
+  --apply` rồi xác minh qua output `verified`/backup manifest.
+
 ## [2026-07-15] Cứng hóa parseDate + bỏ backup Pinecone khỏi git (PR #33)
 - **Agent:** Claude Code
 - **Thay đổi:** (1) `parseDate` phân biệt "không có mốc" (N/A/rỗng → null) với "có nhưng hỏng định dạng" (→ NaN); `isWithinValidity` loại record khi mốc hiệu lực hỏng (fail-closed) đúng mục tiêu governance. (2) Đưa `data/pinecone-backups/` vào `.gitignore` và `git rm --cached` toàn bộ 103 file (vẫn còn trên đĩa + trong git history) theo quyết định người dùng.

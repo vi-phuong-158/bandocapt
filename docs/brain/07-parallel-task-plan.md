@@ -119,7 +119,7 @@ trong PR này nếu chưa có quyết định rollout của owner.
 | T3.3 | Người duyệt chốt CSV nhóm rủi ro cao | — | **Người dùng** | — | T3.2 | **DONE (2026-07-15)** — người dùng duyệt đủ 42 thủ tục cấp xã hiện hành; Phiếu/NA17 reject. Manifest có hash snapshot để nhập an toàn; thủ tục cấp tỉnh/trung ương chờ duyệt sau. |
 | T3.4 | Backfill metadata + đánh dấu superseded (`--apply` có backup) | DATA | Claude/Codex | TRUNG | T3.3 | **DONE (2026-07-15)** — 42/42 thủ tục cấp xã đã nhập/verify trong namespace mới, có backup manifest. |
 | T3.5 | Re-embed `RETRIEVAL_DOCUMENT` → namespace mới | DATA | Codex | THẤP–TRUNG | T3.4 | **DONE (2026-07-15)** — namespace cấp xã đủ 42 và namespace mở rộng toàn web đủ 156/156 vector 768; Phiếu/NA17 loại. |
-| T3.6 | Runtime filter hiệu lực: `approved/current` trước query, check ngày sau query, rerank chỉ nhận match hợp lệ; 2 nguồn hiện hành mâu thuẫn → từ chối + cảnh báo | CORE | Codex | **CAO** | T3.4, T2A | **IN PROGRESS (2026-07-16)** — code + metadata ứng viên đã xong; chờ live regression/shadow để nghiệm thu. |
+| T3.6 | Runtime filter hiệu lực: `approved/current` trước query, check ngày sau query, rerank chỉ nhận match hợp lệ; 2 nguồn hiện hành mâu thuẫn → từ chối + cảnh báo | CORE | Codex | **CAO** | T3.4, T2A | **IN PROGRESS (2026-07-16)** — governance theo role fail-closed đã có code; law/guide chưa duyệt vẫn bị chặn. Cần review/migrate nguồn đã duyệt, rồi live regression/shadow để nghiệm thu. |
 | T3.7 | Shadow retrieval namespace cũ/mới + báo cáo so sánh | EVAL | Codex | TRUNG | T3.5, T3.6 | TODO |
 | T3.8 | Chuyển namespace production + 3 run gate | — | Người dùng + Claude | TRUNG | T3.7 | TODO |
 

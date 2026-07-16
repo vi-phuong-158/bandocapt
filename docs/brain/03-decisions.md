@@ -3,6 +3,27 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
+## [2026-07-16] Governance fail-closed theo vai trò nguồn
+
+- **Quyết định:** Khi `RAG_GOVERNANCE_FILTER=1`, mọi record phải có vai trò nguồn được duyệt và
+  đúng policy: `tthc` = `approved/current_procedure`, `law` = `approved/legal_basis`, `guide` =
+  `approved/supplemental`. Record thiếu/mismatch metadata, `pending`, `superseded`, `legacy` hoặc
+  ngoài hiệu lực bị loại ở cả Pinecone filter lẫn hậu kiểm. Không dùng bypass cho record thiếu
+  `source_type`.
+- **Lý do:** Kiểm tra trực tiếp corpus production cho thấy không thể suy ra an toàn từ prefix:
+  trong 194 `guide`, có 42 record `Toàn văn thủ tục` chứa đủ trình tự, cách nộp, hồ sơ/mẫu, thời
+  hạn, phí và cơ quan. Chúng không được cung cấp facts vận hành cho đến khi được review. Law/guide
+  đã duyệt vẫn được retrieval với vai trò phù hợp, nhưng không ghi đè TTHC hiện hành.
+- **Thực thi:** `filterGovernedMatches` và `buildGovernanceFilter` dùng chung policy role; ràng
+  buộc cấp chỉ áp dụng cho `tthc`/`guide`. Context giữ `current_procedure` nếu có và chỉ role này
+  tạo `[FACTS ĐÃ XÁC MINH]`. Script backfill chỉ gắn type/priority, đặt record chưa có quyết định
+  thành `pending`, có full backup + retry verify + rollback upsert; mọi ghi yêu cầu namespace xác
+  nhận tường minh.
+- **Tác động:** Không đổi cờ hay namespace production trong PR này. Không chạy `--apply` ở PR #34.
+  Review và migration law/guide đã duyệt sang namespace ứng viên là công việc tiếp theo, bắt buộc
+  trước T3.7/T3.8.
+- **Người quyết định:** user
+
 ## [2026-07-15] Backup Pinecone không commit vào git
 
 - **Quyết định:** `data/pinecone-backups/` được đưa vào `.gitignore` và gỡ khỏi tracking. Toàn bộ
