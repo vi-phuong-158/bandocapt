@@ -5,6 +5,79 @@
 
 ---
 
+## [2026-07-15] Cứng hóa parseDate + bỏ backup Pinecone khỏi git (PR #33)
+- **Agent:** Claude Code
+- **Thay đổi:** (1) `parseDate` phân biệt "không có mốc" (N/A/rỗng → null) với "có nhưng hỏng định dạng" (→ NaN); `isWithinValidity` loại record khi mốc hiệu lực hỏng (fail-closed) đúng mục tiêu governance. (2) Đưa `data/pinecone-backups/` vào `.gitignore` và `git rm --cached` toàn bộ 103 file (vẫn còn trên đĩa + trong git history) theo quyết định người dùng.
+- **File đã sửa:** `lib/retrieval-governance.js`, `test/retrieval-governance.test.js`, `.gitignore`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md` + gỡ tracking `data/pinecone-backups/**`.
+- **Lý do:** Mốc hiệu lực hỏng định dạng trước đây fail-open (coi như hiệu lực vĩnh viễn); thư mục backup 21MB (chủ yếu vector dump) phình repo sau mỗi lần chạy.
+- **Kiểm tra:** `npm run check:syntax` pass; `npm test` 278/278 pass (thêm 1 test fail-closed); `git check-ignore data/pinecone-backups/` xác nhận đã ignore, 103 file vẫn còn trên đĩa.
+
+## [2026-07-15] Sửa lỗi review PR #33 (Phase 3 governance) trước khi merge
+- **Agent:** Claude Code
+- **Thay đổi:** (1) Đưa rule phân loại `can_cuoc`/`dang_ky_xe` xuống cuối `classifyQuestion` để CCCD/căn cước không cướp intent hộ chiếu/visa/cư trú khi chỉ là giấy tờ kèm theo; (2) khôi phục các giá trị filter đang khớp namespace production trong `getFilterCategoriesForQuestionCategory` (`ho_chieu` giữ `ho_chieu`, `cu_tru` giữ `xuat_nhap_canh`) thay vì thay thế bằng giá trị namespace ứng viên; (3) export + import `listIds` cho `import-phutho-web-to-pinecone.js` (đường `--apply` mặc định crash `ReferenceError`), bỏ import `parseCsv` thừa; (4) siết `requestedCap` chỉ nhận cấp khi câu hỏi nêu rõ "cấp xã"/"công an tỉnh", không suy từ token địa danh trần; (5) thêm `cap_normalized` vào metadata namespace xã cho khớp server-side filter.
+- **File đã sửa:** `api/chat.js`, `lib/retrieval-governance.js`, `scripts/import-phutho-web-to-pinecone.js`, `scripts/import-phutho-xa-to-pinecone.js`, `test/p0-fixes.test.js`, `test/retrieval-governance.test.js`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Hai thay đổi classifier + filter mapping có hiệu lực trên namespace production ngay cả khi chưa bật `RAG_GOVERNANCE_FILTER`, gây route sai/loại oan tài liệu; `listIds` chưa định nghĩa làm hỏng import web; `requestedCap` false-positive trên tên địa danh chứa "xã".
+- **Kiểm tra:** `npm run check:syntax` pass; `npm test` 277/277 pass (thêm 2 test regression); chạy tay `classifyQuestion`/`requestedCap` trên các câu hỏi thực tế đều đúng kỳ vọng; `require('./scripts/import-phutho-web-to-pinecone.js')` nạp không lỗi.
+
+## [2026-07-15] Chuẩn bị lại bộ đối chiếu đầy đủ 43 thủ tục cấp xã
+- **Agent:** Codex
+- **Thay đổi:** Tải mới 157/157 thủ tục từ web (0 lỗi), sửa false-positive “thẻ căn cước hết hiệu lực”, lọc đủ 43 mục cấp xã và sinh CSV/Markdown duyệt. Kết quả: 42 ứng viên hiện hành (41 tạo mới, 1 cập nhật), 1 luồng Phiếu/NA17 đã reject; trường nguồn không công bố chuẩn hóa `N/A`.
+- **File đã sửa:** `scripts/scrape-phutho-tthc.js`, `scripts/generate-phutho-xa-review.js`, `test/tthc-source-scraper.test.js`, `test/phutho-xa-review.test.js`, `package.json`, `data/tthc-phutho-source.json`, `data/tthc-phutho-high-review.csv`, `data/tthc-phutho-xa-review.csv`, `data/tthc-phutho-xa-review.md`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Đối chiếu cũ chỉ đo độ giao với corpus hiện có nên bỏ sót phần lớn thủ tục cấp xã trên website.
+- **Kiểm tra:** Crawl 18 lĩnh vực / 157 chi tiết / 0 lỗi; `npm run review:tthc-phutho-xa`; `npm test` 268/268 pass.
+
+## [2026-07-15] Khóa quyết định duyệt 42 thủ tục cấp xã
+- **Agent:** Codex
+- **Thay đổi:** Ghi nhận quyết định người dùng thành manifest `42 approve / 1 reject` gắn SHA-256 snapshot; generator đọc lại manifest để tái sinh CSV không mất quyết định duyệt.
+- **File đã sửa:** `scripts/approve-phutho-xa-review.js`, `scripts/generate-phutho-xa-review.js`, `test/phutho-xa-review.test.js`, `package.json`, `data/tthc-phutho-xa-review.csv`, `data/tthc-phutho-xa-review-decisions.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Quyết định duyệt phải bền vững qua các lần sinh lại báo cáo và chỉ áp dụng đúng snapshot người dùng đã xem.
+- **Kiểm tra:** dry-run + apply manifest đều ra 42/1; `npm run review:tthc-phutho-xa`; `npm test` 269/269 pass; `npm run check:syntax` pass.
+
+## [2026-07-15] Nhập 42 thủ tục cấp xã đã duyệt vào Pinecone
+- **Agent:** Codex
+- **Thay đổi:** Thêm importer sang namespace mới với kiểm hash snapshot, metadata/facts chuẩn, embedding `RETRIEVAL_DOCUMENT`, backup manifest, verify vector 768 chiều và resume an toàn.
+- **File đã sửa:** `scripts/import-phutho-xa-to-pinecone.js`, `test/phutho-xa-review.test.js`, `package.json`, `data/pinecone-backups/*-phutho-xa-import-*.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Người dùng đã duyệt 42 thủ tục và ủy quyền cập nhật Pinecone, nhưng cần namespace tách biệt để rollback.
+- **Kiểm tra:** dry-run xác nhận 42 ID và target trống; 26 vector đã fetch lại đạt 768 chiều/hash/approved. Unit importer pass. Dừng ở 16 record còn lại do Gemini quota 429 và Pinecone lỗi kết nối 2 lượt; resume không ghi đè record đã verify.
+
+## [2026-07-15] Giãn nhịp embedding cho gói Gemini miễn phí
+- **Agent:** Codex
+- **Thay đổi:** Importer hỗ trợ `--delay-ms`; tiếp tục 16 record còn lại bằng resume với delay 10 giây/lần để tránh dồn quota.
+- **File đã sửa:** `scripts/import-phutho-xa-to-pinecone.js`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Người dùng xác nhận môi trường Gemini hiện là gói free và yêu cầu chạy nhỏ giọt.
+- **Kiểm tra:** syntax/unit importer trước khi chạy tiếp; chạy `--apply --resume --delay-ms 10000` đã hoàn tất 42/42.
+
+## [2026-07-15] Hoàn tất nhập 42 thủ tục cấp xã với delay gói free
+- **Agent:** Codex
+- **Thay đổi:** Tiếp tục namespace `chatbot-tthc-xnc-xa-rd-20260715` với delay 10 giây/lần; nhập thêm 16 embedding và verify lại 26 record cũ. Đủ 42/42.
+- **File đã sửa:** `scripts/import-phutho-xa-to-pinecone.js`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`, `data/pinecone-backups/*-phutho-xa-import-*.json`.
+- **Lý do:** Hạn mức Gemini free cần nhịp gọi nhỏ; giữ nguyên các vector đã xác minh và chỉ tiếp tục phần thiếu.
+- **Kiểm tra:** importer báo `embedded=16`, `reused=26`, `imported=42`; verify toàn bộ record trong script; namespace production chưa đổi.
+
+## [2026-07-15] Mở rộng nhập toàn bộ thủ tục website
+- **Agent:** Codex
+- **Thay đổi:** Thêm importer web cho 156 thủ tục hiện hành (114 cấp tỉnh + 42 cấp xã), giữ loại Phiếu/NA17; hỗ trợ tái sử dụng vector cấp xã, delay 10 giây và resume.
+- **File đã sửa:** `scripts/import-phutho-web-to-pinecone.js`, `package.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Người dùng mở rộng phạm vi từ cấp xã sang toàn bộ thủ tục trên website.
+- **Kiểm tra:** dry-run 157/156/1; namespace web đã ghi 23/156 trước khi Pinecone treo ở bước list/fetch; production chưa đổi. Resume tiếp tục khi dịch vụ ổn định.
+
+## [2026-07-15] Thu thập nguồn TTHC Công an Phú Thọ phục vụ T3.3
+- **Agent:** Codex
+- **Thay đổi:** Thêm `scripts/scrape-phutho-tthc.js` dùng Node 20 stdlib/fetch, tải tuần tự có delay
+  và retry toàn bộ danh mục/chi tiết; parser hỗ trợ table/section hiện tại, giữ URL biểu mẫu, URL nộp
+  online, facts và `content_hash`. Chạy thật thu được 18 lĩnh vực / 157 thủ tục, 0 lỗi; sinh
+  `data/tthc-phutho-source.json` và `data/tthc-phutho-high-review.csv`. Bộ ghép bắt buộc title+cấp
+  tương thích: 14 exact, 3 suggestion cần người duyệt, 22 unmatched; tuyệt đối không ghép thủ tục
+  tỉnh vào record trung ương. Gắn cờ `paper_flow_candidate` cho mục phiếu khai báo tạm trú.
+- **File đã sửa:** `scripts/scrape-phutho-tthc.js`, `test/tthc-source-scraper.test.js`, `package.json`,
+  hai artifact `data/tthc-phutho-*`, README governance và `docs/brain/01,03,04,05,06,07`.
+- **Lý do:** 36/39 record HIGH thiếu thời hạn thật; nguồn tỉnh có thể bổ sung dữ liệu để người dùng
+  hoàn thành T3.3 nhưng không đủ thẩm quyền để auto-approve, đặc biệt khi website còn giữ nguồn giấy
+  đã xác định lỗi thời.
+- **Kiểm tra:** Crawl 157/157 chi tiết, errors=0; 0 thiếu title/agency, 153 có trình tự, 157 có hồ sơ,
+  87 có attachment. `npm test` 264/264 PASS (gồm 5 test scraper); `npm run build` PASS, syntax gate
+  đã bao phủ script mới và static artifact vẫn tạo đủ 19 input/18 asset hash.
+
 ## [2026-07-14] Xử lý mục 4/7/8/9/10 rà soát trước pilot lãnh đạo (prune telemetry, contact PII, governance script, docs, npm audit)
 - **Agent:** Claude Code
 - **Thay đổi:**
@@ -1350,3 +1423,56 @@
 - **Lý do:** Ngăn nút dead-end khi metadata dùng ID cũ, không che giấu địa chỉ chỉ vì thiếu tọa độ và giữ
   nguyên nguyên tắc không suy đoán link.
 - **Kiểm tra:** `npm test` 255/255 PASS; `npm run build` PASS; Playwright deeplink 1/1 PASS.
+## [2026-07-15] Chốt duyệt đối chiếu nguồn TTHC Phú Thọ
+- **Agent:** Codex
+- **Thay đổi:** Ghi manifest quyết định người duyệt cho 17 đối chiếu nguồn tỉnh; chặn luồng Phiếu/NA17,
+  giữ `NA5` cho cấp thị thực và `NA13` cho cấp lại thẻ thường trú; giữ KBTT trực tuyến hiện tại, không
+  ghi đè hạn khai báo 12/24 giờ bằng metadata mâu thuẫn trên cổng tỉnh.
+- **File đã sửa:** `data/tthc-phutho-review-decisions.json`, `data/corpus-governance-draft-README.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Lưu vết quyết định nghiệp vụ của người dùng, làm đầu vào rõ ràng cho T3.4 có backup.
+- **Kiểm tra:** Đối chiếu manifest với 17 dòng matched/review_suggestion trong
+  `data/tthc-phutho-high-review.csv`; không ghi Pinecone hoặc thay đổi dữ liệu chatbot.
+## [2026-07-15] T3.4 cập nhật Pinecone từ nguồn TTHC Phú Thọ đã duyệt
+- **Agent:** Codex
+- **Thay đổi:** Thêm script có chế độ dry-run/apply để merge đúng 17 đối chiếu đã duyệt và KBTT giữ
+  nguyên. Đã chạy `--apply`: ghi governance/facts, backup trước/sau từng record và xác minh metadata;
+  text/vector không đổi. Bổ sung retry ngắn cho độ trễ nhất quán sau update của Pinecone.
+- **File đã sửa:** `scripts/apply-phutho-tthc-approvals.js`, `package.json`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/05-testing-and-deploy.md`,
+  `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`,
+  `data/pinecone-backups/*-phutho-t3-4-*.json`.
+- **Lý do:** Áp dụng đúng phạm vi người dùng đã duyệt mà không ảnh hưởng 22 record chưa có nguồn tương thích.
+- **Kiểm tra:** Dry-run 17/17; apply xác minh 18/18 (gồm KBTT), metadata ghi lại được, text/vector bất biến.
+
+## [2026-07-15] Hoàn tất nhập toàn bộ TTHC website vào namespace mới
+- **Agent:** Codex
+- **Thay đổi:** Sửa importer để không phụ thuộc thao tác list/fetch namespace bị treo; thêm timeout/retry cho embedding và upsert. Nhập đủ 156 thủ tục hiện hành vào namespace `chatbot-tthc-xnc-web-rd-20260715`; loại 1 mục Phiếu/NA17 theo quyết định duyệt.
+- **File đã sửa:** `scripts/import-phutho-web-to-pinecone.js`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Hoàn tất T3.5 theo phạm vi toàn bộ website mà không thay namespace production.
+- **Kiểm tra:** `describeIndexStats` xác nhận namespace web có 156 vector, dimension 768; namespace xã 42; production giữ nguyên.
+
+## [2026-07-16] Kiểm thử truy vấn namespace TTHC website
+- **Agent:** Codex
+- **Thay đổi:** Chạy 6 truy vấn đại diện trực tiếp trên namespace web, kiểm tra top-k, cấp thực hiện, trạng thái duyệt và mã biểu mẫu; lưu báo cáo tại `test/results/phutho-web-retrieval-2026-07-16.md`.
+- **File đã sửa:** `test/results/phutho-web-retrieval-2026-07-16.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Xác minh chất lượng retrieval trước khi cân nhắc chuyển namespace production.
+- **Kiểm tra:** XNC, khai báo tạm trú, hộ chiếu và NA12/NA13 trả đúng; câu hỏi rộng về căn cước/đăng ký xe còn cần filter theo cấp thực hiện ở T3.6/T3.7.
+## [2026-07-16] T3.6 governance filter và namespace ứng viên
+- **Agent:** Codex
+- **Thay đổi:** Thêm `lib/retrieval-governance.js`; runtime có filter approved/current, hiệu lực và cấp xã/tỉnh khi bật cờ rollout; fallback giữ governance. Thêm chặn mâu thuẫn nguồn hiện hành. Chuẩn hóa 156 metadata website và thêm KBTT online không Phiếu/NA17 vào namespace ứng viên.
+- **File đã sửa:** `api/chat.js`, `lib/retrieval-governance.js`, `scripts/prepare-phutho-web-governance.js`, `scripts/seed-kbtt-to-phutho-web.js`, `scripts/import-phutho-web-to-pinecone.js`, `test/retrieval-governance.test.js`, `package.json`, tài liệu brain.
+- **Lý do:** Đóng T3.6 trước khi làm shadow/release; tránh sai cấp xã/cấp tỉnh và nguồn giấy lỗi thời.
+- **Kiểm tra:** Namespace ứng viên 157 vector; KBTT có dimension 768, `cap_normalized=xa`, `retrieval_intent` đúng và biểu mẫu điện tử. `npm run check:syntax` và `npm test`: 275/275 pass.
+## [2026-07-16] Chốt nguồn F01 theo bản KBTT của người dùng
+- **Agent:** Codex
+- **Thay đổi:** Đánh dấu bản website 2372-17 là `superseded`/`legacy` trong namespace ứng viên và trỏ tới `tthc_matt26265`.
+- **Lý do:** Người dùng xác nhận phải dùng bản KBTT đã chốt, không dùng bản website cho thủ tục này.
+- **Kiểm tra:** Runtime governance chỉ nhận `approved/current`, nên 2372-17 không còn có thể vào retrieval.
+
+## [2026-07-16] Khắc phục các điểm chặn merge PR #33
+- **Agent:** Codex
+- **Thay đổi:** Bổ sung metadata `xuat_nhap_canh` cho truy vấn hai nhánh tạm trú; cho phép citation HTTPS từ cổng Công an tỉnh Phú Thọ; importer website từ chối namespace production và namespace không rỗng nếu chưa `--resume`.
+- **File đã sửa:** `api/chat.js`, `scripts/import-phutho-web-to-pinecone.js`, `test/p0-fixes.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Đảm bảo thủ tục cấp thẻ tạm trú được truy hồi từ namespace ứng viên, URL nguồn chính thức được giữ lại, và không thể upsert nhầm dữ liệu Pinecone.
+- **Kiểm tra:** Unit test cho category/citation/namespace guard; tiếp theo chạy toàn bộ test, build và E2E.

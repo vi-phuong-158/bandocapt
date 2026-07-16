@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "decided_at": "2026-07-15",
+  "decided_by": "project_user",
+  "source_snapshot": "data/tthc-phutho-source.json",
+  "source_review": "data/tthc-phutho-high-review.csv",
+  "approved_source_matches": [
+    "tthc_5568-tinh-01", "tthc_5568-tinh-02", "tthc_5568-tinh-03",
+    "tthc_5568-tinh-04", "tthc_5568-tinh-05", "tthc_5568-tinh-06",
+    "tthc_5568-tinh-07", "tthc_5568-tinh-08", "tthc_5568-tinh-09",
+    "tthc_5568-tinh-10", "tthc_5568-tinh-11", "tthc_5568-tinh-12",
+    "tthc_5568-tinh-13", "tthc_tinh-01", "tthc_tinh-03",
+    "tthc_tinh-04", "tthc_xa-01"
+  ],
+  "approved_actions": {
+    "legacy_paper_temporary_residence": {
+      "action": "superseded_do_not_ingest",
+      "source_url": "https://congan.phutho.gov.vn/article/thu-tuc-hanh-chinh/Thu-tuc-Khai-bao-tam-tru-cho-nguoi-nuoc-ngoai-tai-2373-17",
+      "reason": "Luồng khai báo bằng Phiếu/NA17 không còn được sử dụng trong thực tế."
+    },
+    "tthc_5568-tinh-04": {
+      "fee": "accept_phutho_source",
+      "form": "retain_NA5",
+      "reason": "Nguồn web gắn tệp NA15 không đúng với thủ tục cấp thị thực."
+    },
+    "tthc_5568-tinh-10": {
+      "form": "retain_NA13",
+      "reason": "NA12 là đơn xin thường trú cho người nước ngoài; NA13 là mẫu đúng cho cấp lại thẻ thường trú."
+    },
+    "tthc_matt26265": {
+      "action": "retain_current_and_flag_source_conflict",
+      "reason": "Giữ hạn khai báo 12/24 giờ; không ghi đè cơ quan hoặc biến 24 giờ/07 ngày trên trang tỉnh thành thời gian giải quyết."
+    }
+  },
+  "unmatched_records": {
+    "action": "no_change",
+    "reason": "Không có nguồn cấp tương thích trên cổng tỉnh; cần nguồn khác trước khi cập nhật."
+  },
+  "publication": "T3.3 approved source decisions only; T3.4 must back up, merge the approved facts, then verify before Pinecone publication."
+}

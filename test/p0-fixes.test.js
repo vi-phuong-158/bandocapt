@@ -549,6 +549,7 @@ test('citation allowlist blocks non-https and unlisted domains', () => {
     assert.equal(isAllowedCitationUrl('https://thuvienphapluat.vn/van-ban/123'), false, 'commercial legal portal rejected');
     assert.equal(isAllowedCitationUrl('https://luatvietnam.vn/van-ban/123'), false, 'commercial portal rejected');
     assert.equal(isAllowedCitationUrl('https://xuatnhapcanh.gov.vn/van-ban/123'), true, 'official immigration domain allowed');
+    assert.equal(isAllowedCitationUrl('https://congan.phutho.gov.vn/TTHC.aspx'), true, 'official Phu Tho police domain allowed');
 
     const source = buildCitationSource({
         van_ban: 'Luật XNC',
@@ -634,6 +635,43 @@ test('classifyQuestion splits temporary residence declaration and residence card
         classifyQuestion('Người nước ngoài sắp hết hạn visa thì gia hạn tạm trú ở đâu?'),
         'thi_thuc'
     );
+});
+
+test('classifyQuestion không để căn cước/CCCD cướp intent hộ chiếu/visa/cư trú', () => {
+    const { classifyQuestion } = require('../api/chat');
+
+    // CCCD chỉ là giấy tờ kèm theo, intent chính vẫn là hộ chiếu/visa/cư trú.
+    assert.equal(classifyQuestion('làm hộ chiếu cần mang CCCD không?'), 'ho_chieu');
+    assert.equal(classifyQuestion('gia hạn visa có cần căn cước của người bảo lãnh?'), 'thi_thuc');
+    assert.equal(classifyQuestion('đăng ký tạm trú cần CCCD không'), 'cu_tru');
+    // Nhưng khi căn cước/đăng ký xe là intent chính thì vẫn route đúng.
+    assert.equal(classifyQuestion('thủ tục cấp căn cước cho trẻ em'), 'can_cuoc');
+    assert.equal(classifyQuestion('đăng ký xe máy mới mua ở đâu'), 'dang_ky_xe');
+});
+
+test('temporary residence intent queries include the candidate immigration category', () => {
+    const { getFilterCategoriesForQuestionCategory } = require('../api/chat');
+
+    assert.deepEqual(
+        getFilterCategoriesForQuestionCategory('tam_tru_the'),
+        ['tam_tru', 'cu_tru', 'xuat_nhap_canh', 'quan_ly_xuat_nhap_canh']
+    );
+    assert.deepEqual(
+        getFilterCategoriesForQuestionCategory('tam_tru_khai_bao'),
+        ['tam_tru', 'cu_tru', 'xuat_nhap_canh', 'quan_ly_xuat_nhap_canh']
+    );
+});
+
+test('web importer rejects unsafe namespace targets unless resuming', () => {
+    const { assertSafeTargetNamespace, assertTargetIsReady } = require('../scripts/import-phutho-web-to-pinecone');
+
+    assert.doesNotThrow(() => assertSafeTargetNamespace('chatbot-tthc-xnc-web-rd-20260715', 'chatbot-tthc-xnc'));
+    assert.throws(
+        () => assertSafeTargetNamespace('chatbot-tthc-xnc', 'chatbot-tthc-xnc'),
+        /Namespace đích phải mới/
+    );
+    assert.throws(() => assertTargetIsReady(['existing-record'], false), /đã có 1 record/);
+    assert.doesNotThrow(() => assertTargetIsReady(['existing-record'], true));
 });
 
 test('structured facts keep fee and charge fields independent', () => {

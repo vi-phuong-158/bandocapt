@@ -1,0 +1,311 @@
+{
+  "schema_version": 1,
+  "decided_at": "2026-07-15T15:26:34.169Z",
+  "decided_by": "project_user",
+  "source_snapshot": "data/tthc-phutho-source.json",
+  "source_snapshot_sha256": "29cd53977e7b93f5df9fe16f27bb278db0ea89af18a30ae07f9792143657a2f2",
+  "approval_scope": "all 42 current commune-level procedures; exclude paper/NA17 procedure",
+  "decisions_by_site_id": {
+    "1365-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1365-19",
+      "action": "create_new",
+      "source_content_hash": "dc323850d7b1f98f0072a22d1416c39f54820cf9632289e3d2cb9c735e8015ac"
+    },
+    "291-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_291-19",
+      "action": "create_new",
+      "source_content_hash": "41150df6065a873017a1bc2030bf9cf34622f50bd4812b3254216332da4efb1a"
+    },
+    "1366-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1366-19",
+      "action": "create_new",
+      "source_content_hash": "732e2ddc8e265e3c8165bbfff2327ca796175bf1560ca8463f7d03ad102946e9"
+    },
+    "292-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_292-19",
+      "action": "create_new",
+      "source_content_hash": "5f7ceae4890743cd111319cc71e5d5ca8aad3cb35f8ee1426e214e7adb769d29"
+    },
+    "1362-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1362-19",
+      "action": "create_new",
+      "source_content_hash": "a2c2b6f94ffaea64bb97300c64506afdca1975f52549a83f06b663f01ef608df"
+    },
+    "289-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_289-19",
+      "action": "create_new",
+      "source_content_hash": "c11dc9d3e45143d877bc974773df3f9736b54cc351418dc9dbcb56ae2601dac8"
+    },
+    "1368-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1368-19",
+      "action": "create_new",
+      "source_content_hash": "8e12ba3ef534fd5a45ac81af48ca30890bf5e093e765c318be79f6e23c668db5"
+    },
+    "2410-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_2410-19",
+      "action": "create_new",
+      "source_content_hash": "81ab125737d9d34c5af2638a8f67ef651a5504ce9252e20f9edb30935e9f8206"
+    },
+    "281-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_281-19",
+      "action": "create_new",
+      "source_content_hash": "390631b92c596afee64968f8abd45cdcd3d90b8dd5fe953c3ca2620f6c6719bf"
+    },
+    "282-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_282-19",
+      "action": "create_new",
+      "source_content_hash": "ca8f8a54403580702cd837c1cefa79817bc1f92094f6436d4ed7a6b5ab630a56"
+    },
+    "1358-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1358-19",
+      "action": "create_new",
+      "source_content_hash": "efccbd1e2a6fb5788d5e9ef976f8f7a6f600690c71e97a18369dd391d7f9a9fb"
+    },
+    "1367-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1367-19",
+      "action": "create_new",
+      "source_content_hash": "92cce8da4be6f720b1e24df0ce8b9dec1fd538783496b94617a0144312cc518f"
+    },
+    "2409-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_2409-19",
+      "action": "create_new",
+      "source_content_hash": "d0f1e0eb146a69cf31fed8856cce5dfbb0d597f1d71550fb7e1a6d595742bed5"
+    },
+    "1359-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1359-19",
+      "action": "create_new",
+      "source_content_hash": "bf4b0387ea817bf840c25a84c23cea1fac21f6a67ced98a2202e3794da112cfc"
+    },
+    "1360-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1360-19",
+      "action": "create_new",
+      "source_content_hash": "9a20a92dcfc84f8409946b889e7785d6b0ca97944eade6b567984a3183e56804"
+    },
+    "1361-19": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1361-19",
+      "action": "create_new",
+      "source_content_hash": "14ca53c33385a8d7ac40667edf99ed54764ef0929c8667188840efb33b8ff765"
+    },
+    "2360-49": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_2360-49",
+      "action": "create_new",
+      "source_content_hash": "f9bea84b4c3c4a7e7242c854f98d493538006e8646a682345ab2d2d878869b0e"
+    },
+    "1320-49": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1320-49",
+      "action": "create_new",
+      "source_content_hash": "70affee02d1c45e04d2324a90baecb9b9980c0698028db94a64d241c426ef9e3"
+    },
+    "2370-49": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_2370-49",
+      "action": "create_new",
+      "source_content_hash": "6895bc4dade6fdd1deb412d2ad61a5a05dc86c36dead9c83530cc2c0639a649f"
+    },
+    "2368-49": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_2368-49",
+      "action": "create_new",
+      "source_content_hash": "05a85052b3fd289c6a32bf3cf84dd0bbab7ec9950096402ed9cb00ff9d10c54b"
+    },
+    "2371-49": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_2371-49",
+      "action": "create_new",
+      "source_content_hash": "109e93d212e936acea600eb1154b42c07fbf6724632fbe6e361a0518647376b5"
+    },
+    "2369-49": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_2369-49",
+      "action": "create_new",
+      "source_content_hash": "4a1b8f6ec1a534e8e947dd2fa1d2ced1a91edfcef1d8c74d1482f397843ab625"
+    },
+    "152-8": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_152-8",
+      "action": "create_new",
+      "source_content_hash": "e2c49513d654c88ef8541ae975dab2b60cff8d316682be2eaac691a2374ab560"
+    },
+    "153-8": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_153-8",
+      "action": "create_new",
+      "source_content_hash": "428f71a9d09945ed5d952b7952efbe26dd119b4bbf7d65f76ea237e9016c2932"
+    },
+    "261-39": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_261-39",
+      "action": "create_new",
+      "source_content_hash": "fff0d83471eeb4dc08d6a3d80fdf43398962d2f6d36c2d68ecb330314d04c83b"
+    },
+    "259-39": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_259-39",
+      "action": "create_new",
+      "source_content_hash": "05cfbf8480b7eb9f82f84d275d7ba18d3531ec46b563d0a7fff0ad3b73693981"
+    },
+    "256-39": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_256-39",
+      "action": "create_new",
+      "source_content_hash": "c2b6a8cd301394dfc0460a644b8275692f6ab317e203cb541061f4fdb39621c6"
+    },
+    "262-39": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_262-39",
+      "action": "create_new",
+      "source_content_hash": "9e161854499fe0ae4b6dfe0f22c69a39b7b8a4a4d9e2c7777b8e564b9ffa2e3d"
+    },
+    "265-39": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_265-39",
+      "action": "create_new",
+      "source_content_hash": "37c84d6c0003af08350faf0cd66de91f27400f39856f589a58f5eb3264725dea"
+    },
+    "257-39": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_257-39",
+      "action": "create_new",
+      "source_content_hash": "0fdac75122615ba01637ce8574e8ca49c332e427baaff080e03f9b90adb0e577"
+    },
+    "255-39": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_255-39",
+      "action": "create_new",
+      "source_content_hash": "05b6adef19ed3108f05e02697550f4600bcd3cec7835ff983b5a7ba37d8461c3"
+    },
+    "264-39": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_264-39",
+      "action": "create_new",
+      "source_content_hash": "0819557606c89debfcf96d214c79636993b91c4b302571602ab8253636b585fe"
+    },
+    "258-39": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_258-39",
+      "action": "create_new",
+      "source_content_hash": "5a1f8195921dbd8e9de71d2085ca351c137e1357032f8e2daaf17c7808a2cde8"
+    },
+    "263-39": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_263-39",
+      "action": "create_new",
+      "source_content_hash": "c1d122f690e4a1c2da16a68dfd937999e4385101eb7c7897e965204c6bb164db"
+    },
+    "260-39": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_260-39",
+      "action": "create_new",
+      "source_content_hash": "fbafca5ce53824521808cef55dde9384d2bdd3a7943382db986c0c24ee42f5cc"
+    },
+    "1347-15": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1347-15",
+      "action": "create_new",
+      "source_content_hash": "088ec50cab472ff77e6ac63e738726abade946a1644645434a77aeb45c29ce3d"
+    },
+    "1346-15": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1346-15",
+      "action": "create_new",
+      "source_content_hash": "b2caeb5fd335b91130ecb2a0269e357b3eb7a4e9af015d920651cdf5be74d65d"
+    },
+    "154-18": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_154-18",
+      "action": "create_new",
+      "source_content_hash": "59ed17a4f2425c9e70babb77b018410e402ab61ad754a4cad8f9e2aaa4ad414c"
+    },
+    "2378-17": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_2378-17",
+      "action": "create_new",
+      "source_content_hash": "04e60584396c9e72128096a4774ed5a13ab2ecb3bc8ca19502e8f74a5c2ca76a"
+    },
+    "1343-17": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1343-17",
+      "action": "create_new",
+      "source_content_hash": "1a120d01a68337758e0e3f4e129681dd66d7f64ebe685803d2ea62b7350dc781"
+    },
+    "1325-17": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_phutho_xa_1325-17",
+      "action": "create_new",
+      "source_content_hash": "8d318bc3df5d2cd283c3742ddb4dbe764750a40f83c304a02b547d7fb2871dc3"
+    },
+    "2456-17": {
+      "final_decision": "approve",
+      "reviewer_note": "Người dùng duyệt thủ tục cấp xã hiện hành ngày 2026-07-15.",
+      "proposed_id": "tthc_xa-01",
+      "action": "update_existing",
+      "source_content_hash": "a75968707dcba29784e7a04dd57bc8eaccf7f02f7e3b30210a665fa8a4068b76"
+    },
+    "2373-17": {
+      "final_decision": "reject",
+      "reviewer_note": "Luồng Phiếu/NA17 không còn sử dụng trong thực tế.",
+      "proposed_id": "tthc_phutho_xa_2373-17",
+      "action": "exclude_superseded",
+      "source_content_hash": "612a00673eb18a0e8cba637607821e29335fa95b4cbe32d8322db4207b02da0c"
+    }
+  }
+}
