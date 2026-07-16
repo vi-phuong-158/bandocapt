@@ -5,6 +5,13 @@
 
 ---
 
+## [2026-07-15] Cứng hóa parseDate + bỏ backup Pinecone khỏi git (PR #33)
+- **Agent:** Claude Code
+- **Thay đổi:** (1) `parseDate` phân biệt "không có mốc" (N/A/rỗng → null) với "có nhưng hỏng định dạng" (→ NaN); `isWithinValidity` loại record khi mốc hiệu lực hỏng (fail-closed) đúng mục tiêu governance. (2) Đưa `data/pinecone-backups/` vào `.gitignore` và `git rm --cached` toàn bộ 103 file (vẫn còn trên đĩa + trong git history) theo quyết định người dùng.
+- **File đã sửa:** `lib/retrieval-governance.js`, `test/retrieval-governance.test.js`, `.gitignore`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md` + gỡ tracking `data/pinecone-backups/**`.
+- **Lý do:** Mốc hiệu lực hỏng định dạng trước đây fail-open (coi như hiệu lực vĩnh viễn); thư mục backup 21MB (chủ yếu vector dump) phình repo sau mỗi lần chạy.
+- **Kiểm tra:** `npm run check:syntax` pass; `npm test` 278/278 pass (thêm 1 test fail-closed); `git check-ignore data/pinecone-backups/` xác nhận đã ignore, 103 file vẫn còn trên đĩa.
+
 ## [2026-07-15] Sửa lỗi review PR #33 (Phase 3 governance) trước khi merge
 - **Agent:** Claude Code
 - **Thay đổi:** (1) Đưa rule phân loại `can_cuoc`/`dang_ky_xe` xuống cuối `classifyQuestion` để CCCD/căn cước không cướp intent hộ chiếu/visa/cư trú khi chỉ là giấy tờ kèm theo; (2) khôi phục các giá trị filter đang khớp namespace production trong `getFilterCategoriesForQuestionCategory` (`ho_chieu` giữ `ho_chieu`, `cu_tru` giữ `xuat_nhap_canh`) thay vì thay thế bằng giá trị namespace ứng viên; (3) export + import `listIds` cho `import-phutho-web-to-pinecone.js` (đường `--apply` mặc định crash `ReferenceError`), bỏ import `parseCsv` thừa; (4) siết `requestedCap` chỉ nhận cấp khi câu hỏi nêu rõ "cấp xã"/"công an tỉnh", không suy từ token địa danh trần; (5) thêm `cap_normalized` vào metadata namespace xã cho khớp server-side filter.

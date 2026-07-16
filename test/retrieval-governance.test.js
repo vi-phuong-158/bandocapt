@@ -12,6 +12,14 @@ test('governance only retains approved current records valid today', () => {
     assert.deepEqual(governance.filterGovernedMatches(matches, 'thủ tục cấp xã', new Date('2026-07-16T12:00:00+07:00')).map(m => m.id), ['ok']);
 });
 
+test('mốc hiệu lực hỏng định dạng bị loại (fail-closed), N/A thì không', () => {
+    const now = new Date('2026-07-16T12:00:00+07:00');
+    const base = { review_status: 'approved', source_priority: 'current_procedure' };
+    assert.equal(governance.isWithinValidity({ ...base, valid_to: 'N/A' }, now), true);
+    assert.equal(governance.isWithinValidity({ ...base, valid_to: '31/12/2027' }, now), false);
+    assert.equal(governance.isWithinValidity({ ...base, valid_from: 'khong-ro', valid_to: 'N/A' }, now), false);
+});
+
 test('governance preserves an explicit cấp xã constraint', () => {
     const matches = [
         { id: 'xa', metadata: { review_status: 'approved', source_priority: 'current_procedure', cap_normalized: 'xa' } },

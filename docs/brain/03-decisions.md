@@ -3,6 +3,17 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
+## [2026-07-15] Backup Pinecone không commit vào git
+
+- **Quyết định:** `data/pinecone-backups/` được đưa vào `.gitignore` và gỡ khỏi tracking. Toàn bộ
+  dump pre/post (chứa vector 768 chiều) và manifest vẫn sinh ra trên máy vận hành mỗi lần chạy
+  script import/apply, nhưng không còn commit vào repo.
+- **Lý do:** ~103 file / 21MB, chủ yếu là vector dump, khiến repo phình nhanh và cộng dồn sau mỗi
+  lần chạy. Audit trail vẫn còn trên máy vận hành + trong git history của các commit trước đó.
+- **Tác động:** Agent/script sau vẫn ghi backup ra thư mục này như cũ; chỉ khác là không kỳ vọng
+  chúng xuất hiện trong `git status`. Nếu cần lưu audit trail lâu dài, chuyển sang lưu trữ ngoài git.
+- **Người quyết định:** user
+
 ## [2026-07-15] Mở rộng T3.3 từ đối chiếu corpus cũ sang đầy đủ thủ tục cấp xã
 
 - **Quyết định:** Dự án ưu tiên thủ tục cấp xã. Snapshot web có 157 mục (114 cấp tỉnh, 43 cấp xã),
