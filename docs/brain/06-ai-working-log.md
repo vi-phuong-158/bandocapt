@@ -5,6 +5,23 @@
 
 ---
 
+## [2026-07-16] Sửa PR #34 — governance fail-closed theo vai trò nguồn
+- **Agent:** Codex
+- **Thay đổi:** Thay bypass cho law/guide/record thiếu type bằng policy bắt buộc role đã duyệt:
+  `tthc/current_procedure`, `law/legal_basis`, `guide/supplemental`. Pinecone filter và hậu kiểm
+  dùng cùng rule; context giữ TTHC hiện hành nếu có, ghi role mỗi tài liệu và chỉ role đó tạo
+  `[FACTS ĐÃ XÁC MINH]`. Backfill mặc định gán `pending`, có full backup, xác nhận namespace,
+  retry verify và rollback upsert. Dry-run báo các guide `Toàn văn thủ tục` để review riêng.
+- **File đã sửa:** `lib/retrieval-governance.js`, `api/chat.js`,
+  `scripts/backfill-law-guide-governance.js`, các test governance/backfill, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/07-parallel-task-plan.md`.
+- **Lý do:** Kiểm tra trực tiếp phát hiện 42/194 guide là toàn văn thủ tục, nên bypass theo
+  `source_type` có thể đưa nguồn chưa duyệt/superseded vào prompt hoặc citation.
+- **Kiểm tra:** `npm run check:syntax` pass; các test liên quan pass 61/61. `npm test` có 285 pass;
+  1 test snapshot T3.4 fail do hash snapshot khác line ending trong worktree Windows, không thuộc
+  thay đổi PR (GitHub CI trước khi sửa PR xanh 285/285). Dry-run live không chạy được vì worktree
+  không có `PINECONE_API_KEY`; không chạy `--apply` hoặc rollback Pinecone.
+
 ## [2026-07-16] Scope governance filter chỉ cho tthc, backfill nhãn law/guide
 - **Agent:** Claude Code
 - **Thay đổi:** (1) `requiresProcedureGovernance` mới trong `lib/retrieval-governance.js` — cổng

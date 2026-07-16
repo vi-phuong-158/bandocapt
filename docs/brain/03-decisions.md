@@ -3,31 +3,25 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
-## [2026-07-16] Phạm vi governance filter chỉ áp dụng cho tthc, không áp cho law/guide
+## [2026-07-16] Governance fail-closed theo vai trò nguồn
 
-- **Quyết định:** Cổng `review_status=approved`/`source_priority=current_procedure`/hiệu lực/cấp
-  của Giai đoạn 3 (T3.6) **chỉ bắt buộc với `source_type='tthc'`**. 346 record `law_*` (152,
-  luật trích theo điều — Luật Cư trú/Xử phạt/XNC) và `guide_*` (194, tài liệu hướng dẫn cấp xã
-  2025 có cấu trúc) được giữ nguyên, không cần qua vòng duyệt approved/current như thủ tục.
-- **Lý do:** Rủi ro mà Giai đoạn 3 xử lý (nguồn giấy/NA17, hết hiệu lực) là rủi ro của **thủ tục
-  vận hành** (phí/thời hạn/biểu mẫu thay đổi theo quyết định hành chính) — không áp dụng cho văn
-  bản luật (ổn định, trích theo điều, đã xác minh khớp 3 chủ đề đúng phạm vi dự án: cư trú/xử
-  phạt/xuất nhập cảnh, 0/152 hash drift) hay tài liệu hướng dẫn nội bộ đã có từ trước Giai đoạn 3.
-  Xác minh gián tiếp qua `data/corpus-inventory.json`: cấu trúc ID nhất quán, risk-flag rất thấp
-  (law 4/152, guide 3/194 — đều mức "nhắc như dự phòng"), không có dấu hiệu ô nhiễm nguồn. Không
-  có quyền truy cập Pinecone trực tiếp để đọc `text` đầy đủ nên đây là xác minh gián tiếp, không
-  phải đối chiếu nguyên văn.
-- **Thực thi:** `lib/retrieval-governance.js` — `requiresProcedureGovernance(metadata)` trả về
-  `true` chỉ khi `source_type==='tthc'`; `buildGovernanceFilter`/`filterGovernedMatches` bypass
-  cổng governance cho mọi record khác (kể cả record thiếu hẳn `source_type` — mặc định an toàn,
-  giữ hành vi hiện tại). `scripts/backfill-law-guide-governance.js` gán tường minh
-  `source_type`/`source_priority` cho 346 record law/guide (idempotent, dry-run mặc định,
-  `--apply` cần `PINECONE_API_KEY`, có backup + verify, không đổi vector/text).
-- **Tác động:** Không đổi cờ `RAG_GOVERNANCE_FILTER` hay namespace production. Khi flag được bật
-  cho namespace production (sau T3.8), law/guide vẫn được retrieval bình thường như trước Giai
-  đoạn 3; chỉ tthc mới bị lọc theo approved/current. `--apply` của script backfill **chưa được
-  chạy** trong phiên này (thiếu credential) — cần chạy thủ công trước khi coi 346 record là đã
-  gắn nhãn tường minh trên Pinecone.
+- **Quyết định:** Khi `RAG_GOVERNANCE_FILTER=1`, mọi record phải có vai trò nguồn được duyệt và
+  đúng policy: `tthc` = `approved/current_procedure`, `law` = `approved/legal_basis`, `guide` =
+  `approved/supplemental`. Record thiếu/mismatch metadata, `pending`, `superseded`, `legacy` hoặc
+  ngoài hiệu lực bị loại ở cả Pinecone filter lẫn hậu kiểm. Không dùng bypass cho record thiếu
+  `source_type`.
+- **Lý do:** Kiểm tra trực tiếp corpus production cho thấy không thể suy ra an toàn từ prefix:
+  trong 194 `guide`, có 42 record `Toàn văn thủ tục` chứa đủ trình tự, cách nộp, hồ sơ/mẫu, thời
+  hạn, phí và cơ quan. Chúng không được cung cấp facts vận hành cho đến khi được review. Law/guide
+  đã duyệt vẫn được retrieval với vai trò phù hợp, nhưng không ghi đè TTHC hiện hành.
+- **Thực thi:** `filterGovernedMatches` và `buildGovernanceFilter` dùng chung policy role; ràng
+  buộc cấp chỉ áp dụng cho `tthc`/`guide`. Context giữ `current_procedure` nếu có và chỉ role này
+  tạo `[FACTS ĐÃ XÁC MINH]`. Script backfill chỉ gắn type/priority, đặt record chưa có quyết định
+  thành `pending`, có full backup + retry verify + rollback upsert; mọi ghi yêu cầu namespace xác
+  nhận tường minh.
+- **Tác động:** Không đổi cờ hay namespace production trong PR này. Không chạy `--apply` ở PR #34.
+  Review và migration law/guide đã duyệt sang namespace ứng viên là công việc tiếp theo, bắt buộc
+  trước T3.7/T3.8.
 - **Người quyết định:** user
 
 ## [2026-07-15] Backup Pinecone không commit vào git

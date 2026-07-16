@@ -676,6 +676,8 @@ test('web importer rejects unsafe namespace targets unless resuming', () => {
 
 test('structured facts keep fee and charge fields independent', () => {
     const facts = handler.buildVerifiedFactsLine({
+        source_type: 'tthc',
+        source_priority: 'current_procedure',
         le_phi: 'Không',
         phi: '10 USD/lần',
         thoi_han: '03 ngày làm việc',
@@ -684,6 +686,11 @@ test('structured facts keep fee and charge fields independent', () => {
     assert.match(facts, /LE_PHI=Không/);
     assert.match(facts, /PHI=10 USD\/lần/);
     assert.match(facts, /THOI_GIAN_GIAI_QUYET=03 ngày làm việc/);
+    assert.equal(handler.buildVerifiedFactsLine({
+        source_type: 'guide',
+        source_priority: 'supplemental',
+        le_phi: 'Không'
+    }), '');
 });
 
 test('filterMatchesByQuestionCategory removes residence card chunks from declaration queries', () => {
