@@ -3,6 +3,34 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
+## [2026-07-16] Kiểm tra trùng lặp corpus law/guide — không tìm thấy trùng nội dung
+
+- **Quyết định/Kết luận:** Quét trực tiếp 346 record `law`/`guide` trên namespace production
+  (`chatbot-tthc-xnc`, chỉ đọc) để kiểm tra trùng lặp theo yêu cầu người dùng (nguồn tự biên soạn
+  từ luật + tài liệu đã xác minh). Không phát hiện thủ tục nào bị nhập trùng nội dung.
+- **Chi tiết đối chiếu:**
+  - Các nhóm 11–12 record cùng `procedure_title` (Đăng ký thường trú, Tách hộ, Đăng ký tạm trú,
+    Gia hạn tạm trú, v.v.) là các mục con ("Trình tự thực hiện", "Cách thức thực hiện", "Thành phần
+    hồ sơ"...) của CÙNG 1 thủ tục bị chia nhỏ để embedding — mỗi mục `content_hash` khác nhau, không
+    phải trùng lặp.
+  - `guide_cap_xa_2025_g_03_*` và `g_04_*` cùng tên "Khai thác thông tin người gốc Việt Nam... CSDL
+    quốc gia về dân cư" nhưng là 2 biến thể hợp lệ theo đối tượng thực hiện (cá nhân vs cơ quan/tổ
+    chức) — mẫu hình phổ biến trong TTHC, không phải lỗi.
+  - `g_05` tên gần giống nhưng nói về CSDL Căn cước (khác CSDL quốc gia về dân cư theo Luật Căn cước
+    2023) — thủ tục khác, không trùng.
+  - `law_cu_tru_ieu_3__126` và `__129` cùng gắn `van_ban="Quy chế phối hợp"` + `dieu="Điều 3."`
+    nhưng nội dung khác hẳn (một là điều khoản thi hành cuối văn bản, một là "Nguyên tắc phối hợp"
+    ở Chương I) — đây là 2 văn bản "Quy chế phối hợp" KHÁC NHAU vô tình trùng tên gọi chung chung,
+    không phải cùng 1 văn bản bị nhập 2 lần. `van_ban` hiện không kèm số hiệu/ngày ban hành nên
+    không tự phân biệt được — cần lưu ý khi audit tiếp, nhưng không phải lỗi trùng lặp cần sửa ngay.
+  - So khớp chính xác `procedure_title` (194 guide) với "Tên thủ tục" trong text của 39 record
+    `tthc` — **0 trùng khớp**. Guide không mô tả lại thủ tục nào TTHC chính thức đã có.
+- **Tác động:** Không có hành động sửa dữ liệu nào cần thực hiện từ kết quả này. Kết luận này chỉ
+  xác nhận chất lượng corpus law/guide trước khi review/duyệt (`pending` → `approved`) theo lộ
+  trình đã chốt trong entry "Governance fail-closed theo vai trò nguồn" bên dưới; không ảnh hưởng
+  quyết định đó.
+- **Người xác nhận nguồn:** user (tự biên soạn từ luật + tài liệu đã xác minh).
+
 ## [2026-07-16] Governance fail-closed theo vai trò nguồn
 
 - **Quyết định:** Khi `RAG_GOVERNANCE_FILTER=1`, mọi record phải có vai trò nguồn được duyệt và
