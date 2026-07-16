@@ -74,7 +74,9 @@ test('context keeps an approved current procedure when rerank would otherwise om
         { id: 'law', metadata: { source_type: 'law', review_status: 'approved', source_priority: 'legal_basis' } },
         { id: 'current', metadata: { source_type: 'tthc', review_status: 'approved', source_priority: 'current_procedure' } }
     ];
-    assert.deepEqual(governance.prioritizeCurrentProcedureMatches(matches, 2).map(match => match.id), ['current', 'law']);
+    // Phải nhường chỗ bằng cách loại match rerank yếu nhất (law, đứng cuối), giữ lại match
+    // đứng đầu (guide) — không được đá văng kết quả rerank tốt nhất ra khỏi context.
+    assert.deepEqual(governance.prioritizeCurrentProcedureMatches(matches, 2).map(match => match.id), ['guide', 'current']);
 });
 
 test('governance detects conflicting current sources for one procedure family', () => {

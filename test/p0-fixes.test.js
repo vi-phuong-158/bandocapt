@@ -686,11 +686,22 @@ test('structured facts keep fee and charge fields independent', () => {
     assert.match(facts, /LE_PHI=Không/);
     assert.match(facts, /PHI=10 USD\/lần/);
     assert.match(facts, /THOI_GIAN_GIAI_QUYET=03 ngày làm việc/);
+    // Gate theo vai trò chỉ áp dụng khi governance đang bật (namespace production hiện chưa có
+    // source_priority — nếu gate chạy vô điều kiện thì mọi facts đã xác minh biến mất khỏi
+    // production trước khi backfill/T3.8 hoàn tất).
     assert.equal(handler.buildVerifiedFactsLine({
         source_type: 'guide',
         source_priority: 'supplemental',
         le_phi: 'Không'
-    }), '');
+    }, true), '');
+    assert.match(handler.buildVerifiedFactsLine({
+        source_type: 'guide',
+        source_priority: 'supplemental',
+        le_phi: 'Không'
+    }, false), /LE_PHI=Không/);
+    assert.match(handler.buildVerifiedFactsLine({
+        le_phi: 'Không'
+    }), /LE_PHI=Không/);
 });
 
 test('filterMatchesByQuestionCategory removes residence card chunks from declaration queries', () => {

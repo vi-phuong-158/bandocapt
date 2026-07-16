@@ -5,6 +5,29 @@
 
 ---
 
+## [2026-07-16] Sửa blocker review PR #34 — gate 3 nhánh governance-only theo cờ
+- **Agent:** Claude Code
+- **Thay đổi:** Review PR #34 phát hiện `buildVerifiedFactsLine`, header `Vai trò:` và 2 dòng
+  `ragSafetyNotice` mới đều chạy VÔ ĐIỀU KIỆN, không gate theo `governanceEnabled` — trong khi
+  namespace production hiện có 0/530 record mang `source_priority` (`data/corpus-inventory.json`).
+  Hậu quả: bật PR này lên production (flag tắt) sẽ xóa sạch `[FACTS ĐÃ XÁC MINH]` khỏi mọi câu trả
+  lời ngay lập tức — tái hiện được bằng metadata thật (`main`: có facts; PR #34 head: rỗng). Đã
+  hoist `governanceEnabled` ra scope ngoài hàm `handler`, thêm tham số thứ 2
+  `governanceEnabled = false` cho `buildVerifiedFactsLine` (mặc định giữ hành vi cũ), gate header
+  vai trò và 2 dòng nhắc trong `ragSafetyNotice` theo cùng cờ. Nhân tiện sửa
+  `prioritizeCurrentProcedureMatches`: dùng `findIndex` sẽ đá văng match rerank TỐT NHẤT (đứng đầu)
+  để nhường chỗ cho current_procedure — đổi sang `findLastIndex` để loại match yếu nhất (cuối
+  danh sách) thay vào đó.
+- **File đã sửa:** `api/chat.js`, `lib/retrieval-governance.js`, `test/p0-fixes.test.js`,
+  `test/retrieval-governance.test.js`.
+- **Lý do:** Governance được thiết kế "không ảnh hưởng production trước T3.8" (xem quyết định
+  2026-07-16 bên dưới), nhưng code không giữ đúng cam kết đó cho 3 nhánh trên.
+- **Kiểm tra:** `npm run check:syntax` pass. `npm test`: 285/285 pass (1 fail
+  `phutho-xa-review.test.js` do line-ending snapshot trên worktree Windows, xác nhận cũng fail y
+  hệt trước khi sửa — không do thay đổi này). Repro trực tiếp bằng metadata production thật xác
+  nhận `buildVerifiedFactsLine` trả facts đúng khi không truyền cờ (mặc định), trả rỗng khi
+  `governanceEnabled=true` và thiếu `source_priority`.
+
 ## [2026-07-16] Sửa PR #34 — governance fail-closed theo vai trò nguồn
 - **Agent:** Codex
 - **Thay đổi:** Thay bypass cho law/guide/record thiếu type bằng policy bắt buộc role đã duyệt:
