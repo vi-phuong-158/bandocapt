@@ -28,6 +28,16 @@ function formCodes(source) {
     return [...new Set((text.match(/\b(?:NA|TK|TT|M|XC|HC)\d{1,3}[A-Z]?\b/gi) || []).map(x => x.toUpperCase()))].sort().join(', ') || 'N/A';
 }
 function proposedId(siteId) { return `tthc_phutho_web_${String(siteId).replace(/[^a-z0-9-]+/gi, '-')}`; }
+function assertSafeTargetNamespace(targetNamespace, productionNamespace) {
+    if (!targetNamespace || targetNamespace === productionNamespace) {
+        throw new Error('Namespace đích phải mới và khác namespace production.');
+    }
+}
+function assertTargetIsReady(existingIds, resume) {
+    if (existingIds.length && !resume) {
+        throw new Error(`Namespace đích đã có ${existingIds.length} record; dùng namespace mới hoặc --resume.`);
+    }
+}
 function buildWebRecords(snapshot, verifiedAt) {
     const active = (snapshot.procedures || []).filter(source => !(source.risk_flags || []).includes('paper_flow_candidate'));
     return active.map(source => {
@@ -115,16 +125,19 @@ async function main() {
     const apply = process.argv.includes('--apply'); const resume = process.argv.includes('--resume');
     const delayFlag = process.argv.indexOf('--delay-ms'); const delayMs = delayFlag >= 0 ? Math.max(0, Number(process.argv[delayFlag + 1]) || 0) : 10000;
     const targetFlag = process.argv.indexOf('--target'); const targetNamespace = targetFlag >= 0 ? process.argv[targetFlag + 1] : 'chatbot-tthc-xnc-web-rd-20260715';
+    const productionNamespace = process.env.PINECONE_NAMESPACE || 'chatbot-tthc-xnc';
+    assertSafeTargetNamespace(targetNamespace, productionNamespace);
     const snapshotBuffer = fs.readFileSync(SNAPSHOT_PATH); const snapshot = JSON.parse(snapshotBuffer);
     const limitFlag = process.argv.indexOf('--limit'); const requestedLimit = limitFlag >= 0 ? Number(process.argv[limitFlag + 1]) : 0;
     const records = buildWebRecords(snapshot, new Date().toISOString()).slice(0, requestedLimit > 0 ? requestedLimit : undefined);
     const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY }); const indexName = process.env.PINECONE_INDEX_NAME || 'chatbot-tthc-xnc'; const host = process.env.PINECONE_INDEX_HOST || undefined;
     const target = pc.index(indexName, host).namespace(targetNamespace);
-    if (!apply) { console.log(JSON.stringify({ mode: 'dry-run', targetNamespace, totalWebsite: snapshot.procedures.length, activeImported: records.length, excludedPaper: snapshot.procedures.length - records.length, existingTarget: 'deferred_to_apply_fetch', delayMs }, null, 2)); return; }
+    const existingIds = await listIds(target);
+    assertTargetIsReady(existingIds, resume);
+    if (!apply) { console.log(JSON.stringify({ mode: 'dry-run', targetNamespace, totalWebsite: snapshot.procedures.length, activeImported: records.length, excludedPaper: snapshot.procedures.length - records.length, existingTargetRecords: existingIds.length, delayMs }, null, 2)); return; }
     const skipTargetFetch = process.argv.includes('--skip-target-fetch');
     const expectedIds = records.map(record => record.id);
     const existingTarget = resume && !skipTargetFetch ? await fetchAll(target, expectedIds) : {};
-    if (!resume && Object.keys(existingTarget).length > 0) throw new Error(`Namespace đích đã có ${Object.keys(existingTarget).length} record; dùng --resume.`);
     const noSeed = process.argv.includes('--no-seed');
     const oldNs = process.env.PINECONE_XA_NAMESPACE || 'chatbot-tthc-xnc-xa-rd-20260715';
     let bySourceHash = new Map();
@@ -148,4 +161,4 @@ async function main() {
     console.log(JSON.stringify({ mode: 'apply', targetNamespace, totalWebsite: snapshot.procedures.length, imported: records.length, embedded, reused, backup: path.relative(ROOT, backupPath), excludedPaper: snapshot.procedures.length - records.length, verified, next: 'T3.6/T3.7: kiểm thử retrieval toàn bộ website trước khi đổi production.' }, null, 2));
 }
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });
-module.exports = { buildWebRecords, categoryKey, proposedId };
+module.exports = { assertSafeTargetNamespace, assertTargetIsReady, buildWebRecords, categoryKey, proposedId };

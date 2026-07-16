@@ -371,3 +371,5 @@ Biến mới (2026-07-13):
 - Runtime có cờ `RAG_GOVERNANCE_FILTER=1`: Pinecone chỉ nhận record `approved` + `current_procedure`; hậu kiểm thêm ngày hiệu lực và cấp xã/tỉnh. Fallback không được bỏ các điều kiện governance hoặc cấp người dùng nêu rõ.
 - Namespace ứng viên `chatbot-tthc-xnc-web-rd-20260715` có 157 vector: 156 thủ tục website hiện hành và record KBTT trực tuyến `tthc_matt26265`; Phiếu/NA17 không được đưa vào nội dung retrieval.
 - Metadata mới: `cap_normalized`, `canonical_procedure_key`, `submission_channel`, `support_authority`. Hai nguồn hiện hành cùng khóa thủ tục mâu thuẫn fact quan trọng sẽ trả `RAG_CONFLICT`, không gọi model để suy đoán.
+  - Hai intent tạm trú (`tam_tru_khai_bao`, `tam_tru_the`) phải truy vấn cả metadata `xuat_nhap_canh` của snapshot website; hậu kiểm split-intent vẫn chỉ giữ tài liệu đúng nhánh. Citation cho nguồn TTHC cho phép chính xác domain `congan.phutho.gov.vn`.
+  - Importer website luôn liệt kê namespace đích trước dry-run/apply, từ chối namespace production hoặc namespace đã có record nếu không có `--resume`; chỉ `--resume` mới fetch các ID dự kiến để tái sử dụng vector.

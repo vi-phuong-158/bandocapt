@@ -1079,7 +1079,7 @@ function getFilterCategoriesForQuestionCategory(category) {
     if (category === 'dang_ky_xe') return ['dang_ky_xe', 'dang_ky_quan_ly_phuong_tien_giao_thong_co_gioi_duong_bo'];
     if (category === 'xuat_nhap_canh') return ['xuat_nhap_canh', 'quan_ly_xuat_nhap_canh'];
     if (category === 'ho_chieu') return ['ho_chieu', 'quan_ly_xuat_nhap_canh'];
-    if (SPLIT_TEMP_RESIDENCE_CATEGORIES.has(category)) return ['tam_tru', 'cu_tru', 'quan_ly_xuat_nhap_canh'];
+    if (SPLIT_TEMP_RESIDENCE_CATEGORIES.has(category)) return ['tam_tru', 'cu_tru', 'xuat_nhap_canh', 'quan_ly_xuat_nhap_canh'];
     return category ? [category] : [];
 }
 
@@ -1384,6 +1384,7 @@ const CITATION_ALLOWED_DOMAINS = [
     'chinhphu.vn',
     'vanban.chinhphu.vn',
     'mps.gov.vn',
+    'congan.phutho.gov.vn',
     'xuatnhapcanh.gov.vn',
     'dichvucong.gov.vn',
     'dichvucong.bocongan.gov.vn',

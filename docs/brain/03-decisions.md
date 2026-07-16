@@ -870,3 +870,10 @@
 
 - **Quyết định người dùng:** Với thủ tục khai báo tạm trú người nước ngoài, chỉ dùng bản KBTT đã chốt; không dùng bản website `2372-17` trong retrieval.
 - **Thực thi:** `tthc_phutho_web_2372-17` được đánh dấu `superseded`/`legacy`, trỏ `superseded_by=tthc_matt26265`. Bản KBTT online là nguồn `approved/current` duy nhất cho F01.
+
+## [2026-07-16] Bảo toàn retrieval thẻ tạm trú và namespace ứng viên
+
+- **Quyết định:** Cả hai nhánh intent tạm trú truy vấn thêm `xuat_nhap_canh`, vì importer website chuẩn hóa lĩnh vực “Quản lý xuất nhập cảnh” thành giá trị này. Hậu kiểm split-intent vẫn fail-closed để không cho KBTT/NA17 lẫn sang nhánh thẻ tạm trú. Citation chấp nhận URL HTTPS tại `congan.phutho.gov.vn`.
+- **Quyết định:** Importer website từ chối namespace bằng `PINECONE_NAMESPACE` và luôn liệt kê namespace đích; namespace đã có record chỉ được tiếp tục với `--resume`.
+- **Lý do:** Tránh bỏ sót thủ tục cấp thẻ tạm trú hợp lệ trong namespace ứng viên, mất liên kết nguồn chính thức, hoặc upsert nhầm vào namespace production/đã có dữ liệu.
+- **Tác động:** Không đổi cờ `RAG_GOVERNANCE_FILTER` hay namespace production; áp dụng cho dry-run/apply importer và retrieval ứng viên.

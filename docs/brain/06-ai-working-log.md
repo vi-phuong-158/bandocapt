@@ -1469,3 +1469,10 @@
 - **Thay đổi:** Đánh dấu bản website 2372-17 là `superseded`/`legacy` trong namespace ứng viên và trỏ tới `tthc_matt26265`.
 - **Lý do:** Người dùng xác nhận phải dùng bản KBTT đã chốt, không dùng bản website cho thủ tục này.
 - **Kiểm tra:** Runtime governance chỉ nhận `approved/current`, nên 2372-17 không còn có thể vào retrieval.
+
+## [2026-07-16] Khắc phục các điểm chặn merge PR #33
+- **Agent:** Codex
+- **Thay đổi:** Bổ sung metadata `xuat_nhap_canh` cho truy vấn hai nhánh tạm trú; cho phép citation HTTPS từ cổng Công an tỉnh Phú Thọ; importer website từ chối namespace production và namespace không rỗng nếu chưa `--resume`.
+- **File đã sửa:** `api/chat.js`, `scripts/import-phutho-web-to-pinecone.js`, `test/p0-fixes.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Đảm bảo thủ tục cấp thẻ tạm trú được truy hồi từ namespace ứng viên, URL nguồn chính thức được giữ lại, và không thể upsert nhầm dữ liệu Pinecone.
+- **Kiểm tra:** Unit test cho category/citation/namespace guard; tiếp theo chạy toàn bộ test, build và E2E.
