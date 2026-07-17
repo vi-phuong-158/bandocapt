@@ -5,6 +5,35 @@
 
 ---
 
+## [2026-07-17] T3.6 — Cap thực hiện thành ưu tiên MỀM (sửa abstain oàn đăng ký xe cấp xã)
+- **Agent:** Claude Code
+- **Thay đổi:** Đo live namespace ứng viên `chatbot-tthc-xnc-web-rd-20260715` phát hiện lỗi thật
+  (báo cáo `phutho-web-retrieval-2026-07-16.md` chạy query THÔ nên chưa lộ đúng bản chất): khi
+  `RAG_GOVERNANCE_FILTER=1`, câu "đăng ký xe **tại Công an cấp xã**" → `requestedCap='xa'` →
+  filter đòi `cap_normalized=xa` → **0 match** (10 thủ tục đăng ký xe trong namespace web đều
+  gắn Cấp Tỉnh) → bot **từ chối hoàn toàn** (fail-closed), tệ hơn cả trả nhầm cấp tỉnh. Ngược
+  lại, "căn cước cấp xã" đã route đúng sẵn (filter khớp `cap_quan_ly_can_cuoc`). Sửa: cap từ
+  ràng buộc CỨNG → ưu tiên MỀM. (1) `lib/retrieval-governance.js:filterGovernedMatches` tách
+  governance-role/hiệu lực (cứng) khỏi cap; nếu không có match đúng cấp thì trả nhóm governed
+  cấp khác thay vì rỗng. (2) `api/chat.js` đổi thứ tự nới fallback governance:
+  `(lĩnh vực+cap) → (lĩnh vực, bỏ cap) → (bỏ cả hai)` — giữ lĩnh vực lâu hơn cấp; dọn biến thừa
+  `governanceFilter`. Non-governance path (production hiện tại) giữ nguyên hành vi cũ.
+- **File đã sửa:** `lib/retrieval-governance.js`, `api/chat.js`, `test/retrieval-governance.test.js`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/08-review-nang-luc-chatbot-2026-07-16.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Người dùng chọn hướng "cap thành ưu tiên mềm" và xác nhận nghiệp vụ: đăng ký xe thực
+  tế nộp ở Công an cấp xã (nên `cap_normalized=tinh` trong namespace web là dữ liệu SAI — gắn cờ
+  cho phiên duyệt T3.3/T3.4, KHÔNG tự sửa Pinecone ở đây).
+- **Kiểm tra:** `node --test test/retrieval-governance.test.js` 9/9 pass (thêm 2 ca soft-cap).
+  `npm test` 287/288 — 1 fail `phutho-xa-review.test.js` là lỗi CÓ SẴN trên `main` (lệch hash
+  snapshot dữ liệu duyệt, không liên quan). Probe live sau sửa: "đăng ký xe cấp xã" từ 0 match →
+  8 match (stage `cap-relaxed`, trả bản cấp tỉnh + doc mang "Cấp thực hiện" để model nêu cấp
+  thật); "căn cước cấp xã" vẫn đúng cấp xã (stage `cat+cap`, không hồi quy).
+- **Còn mở (cho T3.7 / phiên duyệt):** (a) DỮ LIỆU: namespace ứng viên thiếu đăng ký xe cấp xã —
+  cần seed từ snapshot đã duyệt (T3.3/T3.4). (b) filter category `quan_ly_xuat_nhap_canh`/
+  `ho_chieu` không khớp `loai_thu_tuc=xuat_nhap_canh` của web namespace nên rơi về governance-only
+  (vẫn đúng nhờ vector) — tinh chỉnh map lĩnh vực cho web namespace là việc riêng của T3.7.
+
 ## [2026-07-16] Review tiến độ kế hoạch đánh giá năng lực chatbot
 - **Agent:** Claude Code
 - **Thay đổi:** Thêm `docs/brain/08-review-nang-luc-chatbot-2026-07-16.md` — review độc lập

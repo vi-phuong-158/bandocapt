@@ -3,6 +3,25 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
+## [2026-07-17] T3.6 — Cấp thực hiện là ưu tiên MỀM, không phải ràng buộc cứng
+
+- **Quyết định:** Trong nhánh governance (`RAG_GOVERNANCE_FILTER=1`), ràng buộc theo cấp thực hiện
+  (`cap_normalized`) chỉ được áp dụng như ưu tiên MỀM: nếu KHÔNG có thủ tục nào đúng cấp người dùng
+  nêu, hệ thống trả về thủ tục ở cấp khác (vẫn qua governance role + hiệu lực) thay vì rỗng. Vai trò
+  nguồn + hiệu lực vẫn fail-closed cứng.
+- **Vì sao:** Đo live namespace `chatbot-tthc-xnc-web-rd-20260715` cho thấy câu "đăng ký xe tại Công
+  an cấp xã" bị filter cap cứng loại sạch (0 match) → bot từ chối hoàn toàn, vì snapshot web gắn 10
+  thủ tục đăng ký xe = Cấp Tỉnh trong khi thực tế dân nộp ở cấp xã (người dùng xác nhận nghiệp vụ).
+  Từ chối một câu hỏi hợp lệ tệ hơn việc trả thủ tục ở cấp thực tế kèm ghi chú cấp.
+- **Đánh đổi:** Cap không còn "khóa" tuyệt đối theo lời người dùng; nếu dữ liệu cấp bị sai, kết quả
+  vẫn hiện (kèm cấp thật trong doc để model không khẳng định sai cấp). Đây là lựa chọn có chủ đích:
+  ưu tiên không-abstain-oàn hơn là chính xác-cấp-tuyệt-đối khi hai nguồn tỉnh còn mâu thuẫn.
+- **Ranh giới:** Đây là fix ở tầng retrieval, KHÔNG sửa dữ liệu. Việc namespace ứng viên thiếu đăng
+  ký xe cấp xã là lỗi DỮ LIỆU, xử lý riêng ở T3.3/T3.4 (seed từ snapshot đã duyệt). Cap cứng vẫn
+  được tôn trọng khi CÓ thủ tục đúng cấp (vd căn cước cấp xã route đúng, không bị nới oan).
+- **Kiểm chứng:** `test/retrieval-governance.test.js` +2 ca; probe live xác nhận đăng ký xe cấp xã
+  0→8 match, căn cước cấp xã giữ nguyên đúng cấp. Xem `06-ai-working-log.md` (2026-07-17).
+
 ## [2026-07-16] Kiểm tra trùng lặp corpus law/guide — không tìm thấy trùng nội dung
 
 - **Quyết định/Kết luận:** Quét trực tiếp 346 record `law`/`guide` trên namespace production

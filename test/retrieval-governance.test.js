@@ -28,6 +28,30 @@ test('governance preserves an explicit cấp constraint for tthc/guide but not l
     assert.deepEqual(governance.filterGovernedMatches(matches, 'làm căn cước tại Công an cấp xã', NOW).map(match => match.id), ['tthc-xa', 'law-no-cap']);
 });
 
+test('cap là ưu tiên mềm: không có thủ tục đúng cấp thì trả nhóm cấp khác thay vì rỗng', () => {
+    const matches = [
+        { id: 'xe-tinh-1', metadata: { source_type: 'tthc', review_status: 'approved', source_priority: 'current_procedure', cap_normalized: 'tinh' } },
+        { id: 'xe-tinh-2', metadata: { source_type: 'tthc', review_status: 'approved', source_priority: 'current_procedure', cap_normalized: 'tinh' } }
+    ];
+    // Hỏi "đăng ký xe cấp xã" nhưng corpus web chỉ có bản cấp tỉnh → không loại sạch để
+    // bot phải từ chối oàn, vẫn trả bản cấp tỉnh để nêu được cấp thực hiện thật.
+    assert.deepEqual(
+        governance.filterGovernedMatches(matches, 'đăng ký xe tại Công an cấp xã', NOW).map(match => match.id),
+        ['xe-tinh-1', 'xe-tinh-2']
+    );
+});
+
+test('cap mềm vẫn ưu tiên đúng cấp khi có, và không nới khi câu hỏi không nêu cấp', () => {
+    const matches = [
+        { id: 'xa', metadata: { source_type: 'tthc', review_status: 'approved', source_priority: 'current_procedure', cap_normalized: 'xa' } },
+        { id: 'tinh', metadata: { source_type: 'tthc', review_status: 'approved', source_priority: 'current_procedure', cap_normalized: 'tinh' } }
+    ];
+    // Nêu cấp xã VÀ có bản cấp xã → chỉ giữ cấp xã (không nới oan sang cấp tỉnh).
+    assert.deepEqual(governance.filterGovernedMatches(matches, 'căn cước tại công an cấp xã', NOW).map(match => match.id), ['xa']);
+    // Không nêu cấp → giữ cả hai, để rerank/vector quyết định.
+    assert.deepEqual(governance.filterGovernedMatches(matches, 'làm căn cước ở đâu', NOW).map(match => match.id), ['xa', 'tinh']);
+});
+
 test('mốc hiệu lực hỏng định dạng bị loại fail-closed, N/A thì không', () => {
     const approvedGuide = { source_type: 'guide', review_status: 'approved', source_priority: 'supplemental' };
     assert.equal(governance.isWithinValidity({ ...approvedGuide, valid_to: 'N/A' }, NOW), true);

@@ -2022,7 +2022,6 @@ module.exports = async function handler(req, res) {
                     { loai_thu_tuc: { '$eq': value } },
                     { linh_vuc: { '$eq': value } }
                 ]) : [];
-                const governanceFilter = governanceEnabled ? buildGovernanceFilter([], explicitCap) : null;
                 const queryOptions = {
                     vector: embedVector,
                     topK: category ? 8 : 12,
@@ -2035,20 +2034,30 @@ module.exports = async function handler(req, res) {
                 };
                 const activeIndex = namespace ? baseIndex.namespace(namespace) : baseIndex;
                 const retrievalStartedAt = Date.now();
-                let queryRes = await withRequestTimeout(
-                    () => activeIndex.query(queryOptions),
+                const queryWith = (options, label) => withRequestTimeout(
+                    () => activeIndex.query(options),
                     getRemainingDeadlineMs(deadlineAt, 10000),
-                    'PINECONE_QUERY'
+                    label
                 );
+                const isEmpty = res => !res.matches || res.matches.length === 0;
+                let queryRes = await queryWith(queryOptions, 'PINECONE_QUERY');
 
-                if (category && (!queryRes.matches || queryRes.matches.length === 0)) {
-                    const { filter, ...fallbackOptions } = queryOptions;
-                    if (governanceEnabled) fallbackOptions.filter = governanceFilter;
-                    queryRes = await withRequestTimeout(
-                        () => activeIndex.query(fallbackOptions),
-                        getRemainingDeadlineMs(deadlineAt, 10000),
-                        'PINECONE_QUERY_FALLBACK'
-                    );
+                if (governanceEnabled) {
+                    // Nới lỏng theo thứ tự (lĩnh vực+cap) -> (lĩnh vực, bỏ cap) -> (bỏ cả hai).
+                    // Giữ lĩnh vực lâu hơn cấp: trả sai lĩnh vực tệ hơn trả đúng lĩnh vực khác
+                    // cấp. Cap là ưu tiên MỀM — câu "đăng ký xe cấp xã" mà corpus chỉ có bản
+                    // cấp tỉnh vẫn nêu được thủ tục thật thay vì từ chối oàn.
+                    if (explicitCap && isEmpty(queryRes)) {
+                        queryRes = await queryWith({ ...queryOptions, filter: buildGovernanceFilter(categoryClauses, '') }, 'PINECONE_QUERY_CAP_RELAXED');
+                        console.warn('[T3.6] Cap filter 0 match, nới bỏ ràng buộc cấp:', explicitCap);
+                    }
+                    if (category && isEmpty(queryRes)) {
+                        queryRes = await queryWith({ ...queryOptions, filter: buildGovernanceFilter([], '') }, 'PINECONE_QUERY_FALLBACK');
+                        console.warn('[RAG-03] Category filter 0 match, nới về governance-only:', category);
+                    }
+                } else if (category && isEmpty(queryRes)) {
+                    const { filter, ...noFilter } = queryOptions;
+                    queryRes = await queryWith(noFilter, 'PINECONE_QUERY_FALLBACK');
                     console.warn('[RAG-03] Metadata filter returned 0 matches, retried without filter:', category);
                 }
                 stageTimings.retrieval_ms = Date.now() - retrievalStartedAt;
