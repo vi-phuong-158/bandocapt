@@ -25,6 +25,76 @@
 - **Lưu ý phát hành:** đây là thay đổi behavior-sensitive (system prompt). Sau khi merge **phải
   chạy lại regression 30 câu** trước khi phát hành để xác nhận không lệch hành vi.
 
+## [2026-07-17] Seed e-visa vào namespace ứng viên + luật cấm bịa căn cứ (EV01/LOC02)
+- **Agent:** Claude Code
+- **Thay đổi (người dùng đã duyệt seed trước khi thực hiện):**
+  1. **Seed e-visa:** script mới `scripts/seed-evisa-to-phutho-web.js` copy `tthc_5568-tw-06`
+     ("Cấp thị thực điện tử theo đề nghị của người nước ngoài", cấp trung ương) từ namespace
+     production cũ sang `chatbot-tthc-xnc-web-rd-20260715`, TÁI DÙNG vector gốc (không gọi
+     embedding), metadata governance `approved/current_procedure`, `loai_thu_tuc=xuat_nhap_canh`
+     theo quy ước importer web. Backup + verify:
+     `data/pinecone-backups/2026-07-17-14-22-47-seed-evisa-*.json`, `verified: true`.
+  2. **EV01 grounding_patterns:** thêm `["thị thực điện tử"]` — văn bản gốc diễn đạt kênh online
+     bằng "Trang thông tin cấp thị thực điện tử/Cổng dịch vụ công", không chứa chữ "trực tuyến"
+     (cùng lớp fix T1.8).
+  3. **SYSTEM_PROMPT (mục TRÍCH DẪN):** 2 luật mới — (a) mục Căn cứ CHỈ nêu văn bản xuất hiện
+     nguyên văn trong <retrieved_documents>, cấm lấy từ kiến thức nền; (b) câu hỏi về người nước
+     ngoài cấm trích Luật Cư trú/nghị định cư trú công dân. Nguyên nhân trực tiếp LOC02 (DeepSeek
+     bịa "Luật Cư trú 68/2020/QH14; Nghị định 154/2024/NĐ-CP").
+  4. `package.json`: thêm `seed:evisa-phutho-web` + check:syntax cho script mới.
+- **File đã sửa:** `scripts/seed-evisa-to-phutho-web.js` (mới), `api/chat.js`,
+  `test/regression-expectations.json`, `package.json`.
+- **Kiểm tra:** `npm test` 299/299. Probe live DeepSeek + namespace ứng viên + governance:
+  `--ids EV01,LOC02` → **cả 2 PASS** (`test/results/regression-run-2026-07-17_14-24-31.md`);
+  EV01 record seed lên top-1 (0.783), trả đủ hồ sơ/phí/thời hạn đúng tài liệu; LOC02 không còn
+  bịa căn cứ. **CHƯA chạy majority gate 3 run** — chờ người dùng xác nhận theo yêu cầu.
+- **Còn mở:** (1) EV01 answer nêu URL `https://evisa.xuatnhapcanh.gov.vn` KHÔNG có trong tài
+  liệu (URL đúng cổng chính thức nhưng là kiến thức nền) — cân nhắc bổ sung `official_url` vào
+  record seed (cần duyệt) hoặc luật prompt cấm tự thêm URL. (2) Phát hiện SYSTEM_PROMPT có đoạn
+  hỏng mã hóa/ghép dòng quanh mục "PHÂN BIỆT 3 LOẠI THỜI HẠN" và "THẨM QUYỀN XNC" (chuỗi
+  "KHÔNG được d- CẤM SUY DIỄN...", ký tự "�u TK05", 2 luật bị lặp) — có sẵn trên main từ trước,
+  chưa sửa vì ngoài scope; nên dọn trong lượt riêng.
+
+## [2026-07-17] Chẩn đoán 4 hard-fail run 09:10 (DeepSeek) + fix bộ chấm TYPO02
+- **Agent:** Claude Code
+- **Thay đổi:** Điều tra `regression-run-2026-07-17_09-10-02.md` (DeepSeek primary 29/30, retrieval
+  namespace ứng viên + governance current-first). Kết luận nguyên nhân 4 HARD_FAIL:
+  1. **TYPO02 (lỗi BỘ CHẤM, không phải bot):** grader tái dùng pattern câu trả lời
+     `(?:phải|cần).*khai báo tạm trú` để dò tài liệu, nhưng record KBTT mới (`tthc_matt26265`,
+     seed bởi `scripts/seed-kbtt-to-phutho-web.js`) không chứa từ "phải/cần" → grounding không bao
+     giờ đạt dù R@4 100%. Cùng lớp lỗi T1.8 đã fix cho TR01/DN02/EV04. **Đã sửa:** thêm
+     `grounding_patterns: ["khai báo tạm trú"]` cho fact `understand_tq`.
+  2. **EV01 (lỗi DỮ LIỆU, cấu trúc — sẽ fail mọi run):** namespace ứng viên không có record `tthc`
+     nào về e-visa (website tỉnh 157 thủ tục không có — thủ tục cấp trung ương; nội dung e-visa chỉ
+     nằm trong 8 record `law` supplemental). Tầng current-procedure-first chỉ query `source_type=tthc`,
+     chỉ fallback law/guide khi 0 match — EV01 luôn có 4 tthc khác match nên law không bao giờ lên.
+     Cần seed record e-visa đã duyệt (5568-tw-06) vào namespace ứng viên (như đã seed KBTT) — cùng
+     nhóm LX02/CANG01 "chờ seed guide". CHƯA làm (ghi Pinecone cần người dùng duyệt).
+  3. **DN01 (retrieval recall đa ý định + verbosity):** KBTT không lọt top-4 (toàn thẻ tạm trú/gia
+     hạn/thị thực/thông báo lưu trú) → claim "khai báo tạm trú" ungrounded; đồng thời 299/300 từ
+     TRUNCATED. DN01 vốn flaky 1/3 từ T2C.
+  4. **LOC02 (hallucination trích dẫn DeepSeek):** phần Thanh Miếu đúng, nhưng model tự bịa căn cứ
+     "Luật Cư trú 68/2020/QH14; Nghị định 154/2024/NĐ-CP" (luật công dân → global forbidden) vì
+     retrieval không có KBTT cho cách hỏi gián tiếp. Hướng fix: luật cứng "Căn cứ chỉ lấy từ
+     <retrieved_documents>" trong SYSTEM_PROMPT và/hoặc bật CLAIM_CITATIONS (T2B-2 deferred).
+  Ghi chú thêm: R@4/MRR/Source 0% hàng loạt (GV01 lấy đúng tài liệu vẫn 0%) vì
+  `expected_procedure_ids`/`expected_source_ids` còn id namespace CŨ (5568-tw-*, KBTT_HD_*.pdf) —
+  cần map sang id mới trước khi đọc metric trên namespace ứng viên. F01 deferred đúng thiết kế.
+- **File đã sửa:** `test/regression-expectations.json` (TYPO02 grounding_patterns).
+- **Lý do:** Người dùng yêu cầu tìm nguyên nhân/cách khắc phục 4 hard-fail và dùng DeepSeek (trả
+  phí) thay Gemini free cho generation.
+- **Kiểm tra:** `node --test test/regression-grader.test.js test/regression-runner.test.js` 54/54;
+  live `LLM_PRIMARY=deepseek PINECONE_NAMESPACE=chatbot-tthc-xnc-web-rd-20260715
+  RAG_GOVERNANCE_FILTER=1 node scripts/run-regression.js --ids TYPO02` → **PASS**
+  (`test/results/regression-run-2026-07-17_09-41-17.md`).
+
+## [2026-07-17] T3.8 cutover thử, rollback và current-procedure-first
+- **Agent:** Codex
+- **Thay đổi:** Seed 346 law/guide đã duyệt vào namespace ứng viên; thêm script migration có dry-run/confirm/backup/verify; chuẩn hóa hash snapshot CRLF/LF; thêm tầng retrieval ưu tiên current procedure và supplemental fallback; thử cutover Vercel rồi rollback khi gate suy giảm.
+- **File đã sửa:** `api/chat.js`, `lib/retrieval-governance.js`, `scripts/shadow-retrieval.js`, `scripts/seed-approved-law-guide-to-candidate.js`, `scripts/import-phutho-xa-to-pinecone.js`, `package.json`, các test liên quan và tài liệu `docs/brain/`.
+- **Lý do:** 346 nguồn rộng làm top-k bị loãng (73 PASS/18 WARN). Tách tầng khôi phục mốc retrieval trong khi vẫn giữ nguồn đã duyệt làm fallback.
+- **Kiểm tra:** Dry-run 346 (194 guide/152 law), không collision; backup ~7,4 MB; shadow current-first 88 PASS/2 WARN/0 FAIL + XE03 retry PASS; `npm run ci` đạt 299/299 và build sạch. Majority generation bị chặn bởi Gemini 429 quota 20 request/ngày và có hard-fail run 1, nên Production đã rollback về namespace cũ.
+
 > nhật ký các lần AI (Claude Code / Codex) sửa code. Mỗi agent PHẢI thêm entry sau mỗi lần
 > chạm vào code. Đọc ngược từ trên xuống để biết gần đây ai đã làm gì và vì sao.
 

@@ -62,8 +62,13 @@ function textForProcedure(source, row) {
     ].join('\n\n');
 }
 
+function snapshotSha256(snapshotBuffer) {
+    const normalized = Buffer.from(snapshotBuffer).toString('utf8').replace(/\r\n/g, '\n');
+    return crypto.createHash('sha256').update(normalized).digest('hex');
+}
+
 function buildApprovedRecords(snapshot, reviewRows, manifest, verifiedAt, snapshotBuffer) {
-    const snapshotHash = crypto.createHash('sha256').update(snapshotBuffer || Buffer.from(JSON.stringify(snapshot, null, 2) + '\n')).digest('hex');
+    const snapshotHash = snapshotSha256(snapshotBuffer || Buffer.from(JSON.stringify(snapshot, null, 2) + '\n'));
     if (snapshotHash !== manifest.source_snapshot_sha256) {
         throw new Error('Snapshot đã đổi sau khi duyệt. Tạo lại bảng đối chiếu và xin duyệt lại trước khi nhập.');
     }
@@ -217,4 +222,4 @@ async function main() {
 
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });
 
-module.exports = { buildApprovedRecords, categoryKey, isVerifiedImportedRecord, listIds, textForProcedure };
+module.exports = { buildApprovedRecords, categoryKey, isVerifiedImportedRecord, listIds, snapshotSha256, textForProcedure };

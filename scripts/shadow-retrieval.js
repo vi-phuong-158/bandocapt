@@ -80,9 +80,10 @@ async function retrieveNew(index, vector, q) {
     const categoryClauses = category ? filterCats.flatMap(v => [{ loai_thu_tuc: { '$eq': v } }, { linh_vuc: { '$eq': v } }]) : [];
     const base = { vector, topK: category ? TOPK : 12, includeMetadata: true };
     let stage = 'cat+cap';
-    let res = await index.query({ ...base, filter: gov.buildGovernanceFilter(categoryClauses, cap) });
-    if (cap && !res.matches?.length) { res = await index.query({ ...base, filter: gov.buildGovernanceFilter(categoryClauses, '') }); stage = 'cap-relaxed'; }
-    if (category && !res.matches?.length) { res = await index.query({ ...base, filter: gov.buildGovernanceFilter([], '') }); stage = 'governance-only'; }
+    let res = await index.query({ ...base, filter: gov.buildCurrentProcedureFilter(categoryClauses, cap) });
+    if (cap && !res.matches?.length) { res = await index.query({ ...base, filter: gov.buildCurrentProcedureFilter(categoryClauses, '') }); stage = 'cap-relaxed'; }
+    if (category && !res.matches?.length) { res = await index.query({ ...base, filter: gov.buildCurrentProcedureFilter([], '') }); stage = 'current-procedure'; }
+    if (!res.matches?.length) { res = await index.query({ ...base, filter: gov.buildGovernanceFilter(categoryClauses, '') }); stage = 'supplemental-fallback'; }
     const nonLocation = (res.matches || []).filter(m => !isLocation(m.metadata));
     const branch = chat.filterMatchesByQuestionCategory(nonLocation, category);
     const governed = gov.filterGovernedMatches(branch, q).filter(m => m.score > RELEVANT_THRESHOLD);

@@ -1,5 +1,12 @@
 # 03 — Technical Decisions
 
+## [2026-07-17] T3.8 — Current-procedure-first và rollback khi gate suy giảm
+
+- **Quyết định:** Sau khi người dùng duyệt toàn bộ, sao chép 346 law/guide sang namespace ứng viên với `review_status=approved`. Truy hồi chính ưu tiên riêng `tthc/current_procedure`; law/guide chỉ là fallback có governance.
+- **Lý do:** Cutover thử với truy vấn chung cho cả ba role làm shadow giảm từ mốc 88 PASS/2 WARN xuống 73 PASS/18 WARN. Sau khi tách tầng, kết quả trở lại 88 PASS/2 WARN/0 FAIL; XE03 lỗi mạng nhất thời và PASS khi chạy lại.
+- **An toàn vận hành:** Đã rollback Production về namespace cũ ngay khi thấy suy giảm. Không phát hành lại vì cổng generation 3 lượt bị quota Gemini 429 và vòng đầu đã có hard-fail nội dung. Chỉ cutover lại sau khi có đủ quota và majority gate sạch.
+- **Đánh đổi:** Law/guide không cạnh tranh top-k với thủ tục hiện hành; chúng chỉ tham gia khi không có current procedure phù hợp. Điều này ưu tiên độ chính xác vận hành hơn độ phủ giải thích pháp lý trong mọi câu hỏi.
+
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 

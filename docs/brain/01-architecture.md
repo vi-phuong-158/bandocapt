@@ -1,5 +1,12 @@
 # 01 - Architecture
 
+## Cập nhật rollout RAG 2026-07-17
+
+- Namespace ứng viên `chatbot-tthc-xnc-web-rd-20260715` hiện có 503 vector: 157 thủ tục web/KBTT và 346 nguồn đã duyệt (152 `law`, 194 `guide`).
+- Khi governance bật, truy hồi chạy theo tầng: ưu tiên `approved/current_procedure`; chỉ khi tầng này không có match mới nới sang `legal_basis`/`supplemental`. Cách này ngăn nguồn luật/hướng dẫn rộng lấn thủ tục cụ thể trong top-k.
+- Code Graph: `api/chat.js` và `scripts/shadow-retrieval.js` cùng dùng `buildCurrentProcedureFilter()`/`buildGovernanceFilter()` từ `lib/retrieval-governance.js`; thay policy ở helper này ảnh hưởng cả runtime và thước đo shadow.
+- Production đã thử cutover rồi rollback về `chatbot-tthc-xnc` do cổng generation chưa đạt; namespace ứng viên và backup migration được giữ nguyên.
+
 ## Stack
 
 | Layer | Cong nghe |

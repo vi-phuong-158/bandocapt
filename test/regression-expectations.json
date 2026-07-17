@@ -421,7 +421,10 @@
             "thị thực điện tử|e-visa",
             "trực tuyến|online"
           ],
-          "grounding_required": true
+          "grounding_required": true,
+          "grounding_patterns": [
+            "thị thực điện tử"
+          ]
         }
       ],
       "forbidden_facts": [
@@ -772,7 +775,10 @@
           "patterns": [
             "(?:phải|cần).*khai báo tạm trú"
           ],
-          "grounding_required": true
+          "grounding_required": true,
+          "grounding_patterns": [
+            "khai báo tạm trú"
+          ]
         }
       ],
       "forbidden_facts": [

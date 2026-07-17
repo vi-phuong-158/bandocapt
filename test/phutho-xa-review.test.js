@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { buildCommuneReview, extractFormCodes, summary } = require('../scripts/generate-phutho-xa-review');
 const { buildApprovalManifest } = require('../scripts/approve-phutho-xa-review');
-const { buildApprovedRecords, categoryKey, isVerifiedImportedRecord } = require('../scripts/import-phutho-xa-to-pinecone');
+const { buildApprovedRecords, categoryKey, isVerifiedImportedRecord, snapshotSha256 } = require('../scripts/import-phutho-xa-to-pinecone');
 const fs = require('node:fs');
 const path = require('node:path');
 const { parseCsv } = require('../scripts/scrape-phutho-tthc');
@@ -27,6 +27,10 @@ test('buildCommuneReview chỉ lấy cấp xã và đề xuất cập nhật khi
     assert.equal(rows[0].existing_id, 'tthc_xa-01');
     assert.equal(rows[0].recommended_action, 'update_existing');
     assert.equal(rows[0].review_status, 'ready_for_approval');
+});
+
+test('snapshotSha256 is stable across operating-system newlines', () => {
+    assert.equal(snapshotSha256(Buffer.from('{\r\n  "ok": true\r\n}\r\n')), snapshotSha256(Buffer.from('{\n  "ok": true\n}\n')));
 });
 
 test('nguồn Phiếu/NA17 được liệt kê nhưng đề xuất loại khỏi corpus hiện hành', () => {

@@ -1,5 +1,13 @@
 # 04 — Current Tasks
 
+## Cập nhật T3.8 ngày 2026-07-17
+
+- **Đã nhập:** 346/346 law/guide đã được người dùng duyệt vào `chatbot-tthc-xnc-web-rd-20260715`; tổng namespace ứng viên 503 vector, có backup đầy đủ.
+- **Shadow sau sửa current-first:** 88 PASS, 2 WARN, 0 FAIL; XE03 lỗi Pinecone tạm thời và PASS khi retry. CI đạt 299/299, build sạch.
+- **Production:** Đã thử chuyển và đã rollback về namespace `chatbot-tthc-xnc`; website hiện phục vụ cấu hình cũ an toàn.
+- **Còn chặn T3.8:** Majority generation 3 lượt không hoàn thành vì Gemini free-tier 429 (20 request/ngày), đồng thời run 1 có hard-fail nội dung. Cần quota mới/paid quota, chạy lại `--majority --runs 3 --strict-gate`; chỉ phát hành khi 0 hard-fail và 0 provider-error theo đa số.
+- **[2026-07-17 chiều] 4 hard-fail run 09:10 đã xử lý xong, chờ chạy gate:** TYPO02+EV01 fix bộ chấm (grounding_patterns), e-visa `tthc_5568-tw-06` đã seed vào namespace ứng viên (người dùng duyệt, có backup/verify), SYSTEM_PROMPT thêm luật cấm bịa căn cứ (LOC02). Probe DeepSeek: TYPO02/EV01/LOC02 đều PASS. Lệnh gate khi được duyệt: `LLM_PRIMARY=deepseek PINECONE_NAMESPACE=chatbot-tthc-xnc-web-rd-20260715 RAG_GOVERNANCE_FILTER=1 node scripts/run-regression.js --majority --runs 3 --strict-gate`. DN01 chưa có fix riêng (flaky retrieval đa ý định — theo dõi qua majority). Chi tiết: `06-ai-working-log.md` (2026-07-17).
+
 > Cập nhật mỗi khi bắt đầu hoặc hoàn thành task. Agent đọc đây để biết được phép làm gì.
 
 ---

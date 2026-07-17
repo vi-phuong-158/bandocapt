@@ -92,6 +92,19 @@ test('Pinecone filter fail-closed theo source role và giữ law không có cấ
     });
 });
 
+test('current-procedure filter keeps broad law/guide out of the primary retrieval stage', () => {
+    assert.deepEqual(governance.buildCurrentProcedureFilter([], 'xa'), {
+        '$and': [
+            { review_status: { '$eq': 'approved' } },
+            { '$or': [{ '$and': [
+                { source_type: { '$eq': 'tthc' } },
+                { source_priority: { '$eq': 'current_procedure' } },
+                { cap_normalized: { '$eq': 'xa' } }
+            ] }] }
+        ]
+    });
+});
+
 test('context keeps an approved current procedure when rerank would otherwise omit it', () => {
     const matches = [
         { id: 'guide', metadata: { source_type: 'guide', review_status: 'approved', source_priority: 'supplemental' } },
