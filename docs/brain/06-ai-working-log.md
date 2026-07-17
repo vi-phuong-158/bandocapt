@@ -5,6 +5,30 @@
 
 ---
 
+## [2026-07-17] T3.7 — Harness shadow retrieval + bộ 60 câu, so sánh namespace cũ/mới
+- **Agent:** Claude Code
+- **Thay đổi:** Dựng `scripts/shadow-retrieval.js` — query CẢ HAI namespace bằng cùng vector
+  embedding (`RETRIEVAL_QUERY`), mô phỏng đúng luồng production (cũ, governance TẮT) và governance
+  + cap mềm (mới), chấm truy hồi (coverage/domain/cap/governance/trap) và xuất báo cáo Markdown vào
+  `test/results/`. Chỉ đọc Pinecone, KHÔNG gọi generation, KHÔNG đổi production. Kèm bộ
+  `test/shadow-retrieval-questions.json` — 60 câu cân bằng 20 nhóm domain corpus + 6 câu bẫy
+  (superseded NA17, đăng ký xe cấp xã, ngoài phạm vi, cư trú NNN vs công dân). CLI: `--limit`,
+  `--ids`, `--delay`, `--out`; có retry/backoff cho embed 429.
+- **File đã sửa:** `scripts/shadow-retrieval.js` (mới), `test/shadow-retrieval-questions.json` (mới),
+  `test/results/shadow-retrieval-2026-07-17T04-11-46.md` (mới), `docs/brain/04-current-tasks.md`,
+  `docs/brain/07-parallel-task-plan.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** T3.7 cần nghiệm thu namespace ứng viên trước khi chuyển production (T3.8); người dùng
+  yêu cầu "làm 3.7".
+- **Kiểm tra:** Chạy live full 60 câu: **PASS 57 · WARN 2 · FAIL 1**. Governance 100% `approved`,
+  6/6 câu bẫy đạt, soft-cap đăng ký xe cấp xã không abstain. Phát hiện thật cần soi trước T3.8:
+  (1) `EN01` FAIL — recall xuyên ngữ tiếng Anh yếu ở namespace mới (abstain, bản cũ trả được);
+  (2) `LX02`/`CANG01` WARN — namespace mới kém cụ thể ở vài thủ tục vì 50 guide "Toàn văn thủ tục"
+  chưa được duyệt/seed. Chi tiết + bảng đối chiếu trong file báo cáo.
+- **Còn mở:** (a) bộ 60 câu do Claude soạn — người dùng nên rà kỳ vọng nghiệp vụ; (b) bước "30 câu
+  lõi × 3" của T3.7 dùng `run-regression.js --majority --runs 3` trỏ namespace mới, cần key + quyết
+  định chạy; (c) sau khi duyệt/seed guide (phiên duyệt tập trung), chạy lại shadow để xác nhận
+  recall không tụt rồi mới T3.8.
+
 ## [2026-07-17] T3.6 — Cap thực hiện thành ưu tiên MỀM (sửa abstain oàn đăng ký xe cấp xã)
 - **Agent:** Claude Code
 - **Thay đổi:** Đo live namespace ứng viên `chatbot-tthc-xnc-web-rd-20260715` phát hiện lỗi thật

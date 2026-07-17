@@ -247,5 +247,11 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
   xác nhận đăng ký xe thực tế nộp ở Công an cấp xã, cần seed bản cấp xã từ snapshot đã duyệt trước
   T3.8. Chi tiết: `06-ai-working-log.md` + `03-decisions.md` (2026-07-17).
 - **[IN PROGRESS 2026-07-16] PR #34 governance theo role:** thay bypass law/guide bằng policy fail-closed: `tthc`=`approved/current_procedure`, `law`=`approved/legal_basis`, `guide`=`approved/supplemental`; record thiếu/mismatch/pending/superseded/hết hiệu lực bị loại. Script backfill đã có full backup + rollback nhưng **CHƯA CHẠY `--apply`**. 42/194 guide là `Toàn văn thủ tục`, cần review/migration riêng trước khi bật governance trên corpus có law/guide.
-- **[TODO] T3.7:** Shadow retrieval 60 câu cân bằng và 30 câu lõi × 3 lượt.
+- **[IN PROGRESS 2026-07-17] T3.7:** Harness `scripts/shadow-retrieval.js` + bộ 60 câu
+  `test/shadow-retrieval-questions.json` xong; chạy live 60 câu **PASS 57 · WARN 2 · FAIL 1**
+  (`test/results/shadow-retrieval-2026-07-17T04-11-46.md`). Governance 100% approved, 6/6 bẫy đạt,
+  soft-cap đăng ký xe cấp xã không abstain. Cần soi trước T3.8: EN01 (recall tiếng Anh yếu →
+  abstain), LX02/CANG01 (namespace mới kém cụ thể do guide chưa seed). **CÒN:** người dùng rà bộ
+  60 câu; bước "30 câu lõi × 3" (`run-regression.js --majority --runs 3` trỏ namespace mới) cần
+  key; chạy lại shadow sau khi seed guide đã duyệt.
 - **[TODO — cần người dùng duyệt] T3.8:** Chỉ chuyển production sau báo cáo gate đạt. Trước đó phải review/approve corpus law/guide cần giữ, seed chúng sang namespace ứng viên và chỉ khi đó mới chạy backfill apply có xác nhận namespace.
