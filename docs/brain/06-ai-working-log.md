@@ -5,6 +5,32 @@
 
 ---
 
+## [2026-07-17] Sửa bug live: "cấp thẻ"/"mất thẻ" trần cướp nhầm intent tam_tru_the
+- **Agent:** Claude Code
+- **Bối cảnh:** Trong lúc soạn sâu bộ câu hỏi T3.7 (thêm ca ABTC/căn cước dễ nhầm), phát hiện
+  `detectSplitTempResidenceIntent` (`api/chat.js`) có regex `cấp thẻ|mất thẻ` KHÔNG kèm điều kiện
+  gì — khớp MỌI câu hỏi về BẤT KỲ loại thẻ nào, không riêng thẻ tạm trú.
+- **Bằng chứng đã xác minh (live, có/không bug):** Câu "Tôi bị mất thẻ căn cước, làm lại thế nào?"
+  — truy hồi tìm đúng 5 tài liệu liên quan ở 0.74–0.79 điểm (trên ngưỡng 0.62), nhưng bị
+  `classifyQuestion` gán nhầm `tam_tru_the`, sau đó `filterMatchesByQuestionCategory` (branch
+  filter split-intent) chỉ giữ tài liệu khớp keyword "thẻ tạm trú"/NA6/NA7/NA8 → xóa sạch về
+  **0 match → abstain oan**. Tương tự với "mất thẻ ABTC". Đây là **bug đang chạy trên production
+  hiện tại** (namespace `chatbot-tthc-xnc`) — `classifyQuestion`/branch filter chạy vô điều kiện,
+  không gate theo `RAG_GOVERNANCE_FILTER`. Nhiều khả năng ảnh hưởng cả thẻ đảng viên, thẻ BHYT...
+- **Thay đổi:** `detectSplitTempResidenceIntent` chỉ nhận diện `tam_tru_the` khi có "thẻ tạm
+  trú"/TRC rõ ràng, HOẶC "cấp/mất thẻ" đi kèm từ "tạm trú" ở đâu đó trong câu — không còn bắt
+  "cấp thẻ"/"mất thẻ" trần một mình.
+- **File đã sửa:** `api/chat.js`, `test/p0-fixes.test.js` (+1 test cố định bug).
+- **Lý do:** Người dùng yêu cầu sửa ngay trên nhánh riêng sau khi xác nhận mức độ nghiêm trọng
+  (ảnh hưởng câu hỏi rất phổ biến "mất thẻ căn cước" trên production thật).
+- **Kiểm tra:** `node --check api/chat.js`. Test 9 ca blast-radius (ABTC/căn cước/đảng viên/BHYT
+  không còn bị cướp; "thẻ tạm trú" thật vẫn nhận đúng) — tất cả đúng. Live probe end-to-end: "mất
+  thẻ căn cước" 0→8 governed match; "mất thẻ ABTC" 0→12 governed match, top-1 chính xác.
+  `npm test` 292/293 (fail còn lại là `phutho-xa-review` CÓ SẴN trên main, không liên quan).
+- **Còn mở:** Chưa kiểm tra hết các loại thẻ khác có thể bị ảnh hưởng tương tự trong quá khứ
+  (chỉ xác minh căn cước/ABTC/đảng viên/BHYT qua test); nên theo dõi thêm qua regression 30 câu
+  hoặc feedback người dùng thực tế sau khi merge.
+
 ## [2026-07-17] Thêm task dự kiến: đối chiếu định kỳ hàng tuần nguồn TTHC Phú Thọ (sau T3.8)
 - **Agent:** Claude Code
 - **Thay đổi:** Theo yêu cầu người dùng, thêm `TASK-DATA-SYNC-01` vào backlog
