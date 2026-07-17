@@ -79,6 +79,17 @@
   dimension 768; production chưa đổi.
   chưa chuyển production.
 
+### [FIXED 2026-07-17 — nhánh `fix/split-intent-card-overmatch`] Bug live: "mất thẻ X" cướp nhầm intent tam_tru_the
+- **Phát hiện khi soạn sâu bộ câu hỏi T3.7:** `detectSplitTempResidenceIntent` bắt "cấp thẻ"/"mất
+  thẻ" trần → MỌI câu hỏi thẻ (căn cước, ABTC, đảng viên, BHYT...) bị route sai thành `tam_tru_the`,
+  branch filter split-intent xóa sạch tài liệu đúng không khớp keyword "thẻ tạm trú" → abstain oan.
+  Xác nhận bằng live probe: "mất thẻ căn cước" (rất phổ biến) 0 match dù có 5 tài liệu đúng 0.74–0.79
+  điểm. Đây là bug đang chạy trên **production hiện tại**, không chỉ namespace ứng viên.
+- **Đã sửa:** Chỉ nhận `tam_tru_the` khi có "thẻ tạm trú"/TRC rõ ràng, hoặc "cấp/mất thẻ" đi kèm
+  "tạm trú". +1 test cố định (`test/p0-fixes.test.js`). `npm test` 292/293. Chi tiết:
+  `06-ai-working-log.md` (2026-07-17).
+- **Chưa merge** — chờ người dùng review nhánh `fix/split-intent-card-overmatch`.
+
 ### [ĐIỀU TRA XONG — TASK-GV02-FLAKY] Vì sao GV02 hay lỗi
 - **Kết quả điều tra (2026-07-10):** Chạy GV02 đơn lẻ 10 lần liên tiếp → **10/10 thành công** (137-350 từ). Chạy thêm 2 lần full 30-câu → 1 lần sạch 100%, 1 lần GV02 TRUNCATED. Không bắt được thêm lần `BLOCKED_CONTENT` nào dù đã bật log chẩn đoán (`finishReason`/`promptFeedback`/`safetyRatings`).
 - **Kết luận:** GV02 đã được xếp đúng ngân sách FULL (250 từ, không phải lỗi phân loại) nhưng chủ đề vốn dài (nhiều mẫu đơn/phí/bước) nên thỉnh thoảng vượt 250 từ và chạm trần cứng 3072 token. Đây là **biến thiên sampling tự nhiên của Gemini ở `temperature: 0.2`** (không đổi trong Giai đoạn 2/3) kết hợp chủ đề dài — KHÔNG liên quan exact-token-boost/query-rewrite/đổi model tiện ích (GV02 không có mã mẫu/số hiệu văn bản nên boost không kích hoạt; không có history nên query-rewrite không chạy). `BLOCKED_CONTENT` là hiện tượng xác suất thấp, nghi liên quan safety classifier nhạy cảm với cụm "người Trung Quốc" + tình trạng cư trú/visa, nhưng không tái hiện được để xác nhận category cụ thể. Chi tiết: `03-decisions.md` (2026-07-10, "Điều tra GV02 flaky").

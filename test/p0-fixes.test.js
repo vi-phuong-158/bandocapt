@@ -637,6 +637,26 @@ test('classifyQuestion splits temporary residence declaration and residence card
     );
 });
 
+test('T3.7: "cấp thẻ"/"mất thẻ" trần không cướp intent tam_tru_the của thẻ khác', () => {
+    const { classifyQuestion, filterMatchesByQuestionCategory } = require('../api/chat');
+
+    // Trước fix: regex bắt bất kỳ "cấp thẻ"/"mất thẻ" nào → mọi câu hỏi về thẻ căn cước/ABTC
+    // đều bị route sai thành tam_tru_the, rồi filterMatchesByQuestionCategory xóa sạch tài
+    // liệu đúng (không khớp keyword "thẻ tạm trú") về 0 match — abstain oan.
+    assert.notEqual(classifyQuestion('Tôi làm mất thẻ ABTC thì trình báo ở đâu?'), 'tam_tru_the');
+    assert.equal(classifyQuestion('Tôi bị mất thẻ căn cước, làm lại thế nào?'), 'can_cuoc');
+    assert.equal(classifyQuestion('Xin cấp thẻ căn cước cho con tôi'), 'can_cuoc');
+    assert.notEqual(classifyQuestion('Cấp thẻ đảng viên cần giấy tờ gì?'), 'tam_tru_the');
+
+    // "cấp/mất thẻ" đi kèm "tạm trú" vẫn phải nhận đúng tam_tru_the (không phá coverage cũ).
+    assert.equal(classifyQuestion('Mất thẻ tạm trú, xin cấp lại được không?'), 'tam_tru_the');
+
+    // Bằng chứng hồi quy cụ thể: tài liệu thẻ căn cước không bị branch filter split-intent
+    // xóa oan nữa vì category không còn là tam_tru_the.
+    const canCuocMatches = [{ id: 'cc1', score: 0.79, metadata: { title: 'Cấp lại thẻ căn cước cấp tỉnh' } }];
+    assert.equal(filterMatchesByQuestionCategory(canCuocMatches, 'can_cuoc').length, 1);
+});
+
 test('classifyQuestion không để căn cước/CCCD cướp intent hộ chiếu/visa/cư trú', () => {
     const { classifyQuestion } = require('../api/chat');
 
