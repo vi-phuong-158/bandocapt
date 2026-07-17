@@ -240,5 +240,13 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 
 - **[IN PROGRESS] T3.6:** Đã triển khai runtime governance filter, lọc cấp xã/tỉnh và chặn xung đột nguồn. Namespace ứng viên đã có 157 vector (156 website + KBTT); đang chờ quota embedding mở lại để chạy live regression/shadow T3.7.
 - **[IN PROGRESS 2026-07-16] PR #34 governance theo role:** thay bypass law/guide bằng policy fail-closed: `tthc`=`approved/current_procedure`, `law`=`approved/legal_basis`, `guide`=`approved/supplemental`; record thiếu/mismatch/pending/superseded/hết hiệu lực bị loại. Script backfill đã có full backup + rollback nhưng **CHƯA CHẠY `--apply`**. 42/194 guide là `Toàn văn thủ tục`, cần review/migration riêng trước khi bật governance trên corpus có law/guide.
+- **[2026-07-17] Đối chiếu cấp đăng ký xe — CHỐT GIỮ cap=tinh (không backfill):** Điều tra
+  read-only phát hiện 10 thủ tục đăng ký xe trong namespace ứng viên
+  `chatbot-tthc-xnc-web-rd-20260715` gắn `cap_normalized=tinh` (web importer lấy từ `level=Cấp
+  Tỉnh`), trong khi 11 guide `guide_cap_xa_2025_e_*` (production) ghi rõ "Công an cấp xã" — map 1:1
+  sạch, mâu thuẫn thực chất giữa 2 nguồn 2025. **Người dùng chọn KHÔNG mutate Pinecone**, dựa vào
+  lớp soft-cap preference (`feat/t36-soft-cap-preference`). Hồ sơ đối chiếu:
+  `data/tthc-phutho-xe-cap-review.md`. Điểm quay lại nếu sau này muốn khớp đúng cấp xã.
+
 - **[TODO] T3.7:** Shadow retrieval 60 câu cân bằng và 30 câu lõi × 3 lượt.
 - **[TODO — cần người dùng duyệt] T3.8:** Chỉ chuyển production sau báo cáo gate đạt. Trước đó phải review/approve corpus law/guide cần giữ, seed chúng sang namespace ứng viên và chỉ khi đó mới chạy backfill apply có xác nhận namespace.
