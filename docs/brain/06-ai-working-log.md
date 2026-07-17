@@ -5,6 +5,21 @@
 
 ---
 
+## [2026-07-17] Thêm task dự kiến: đối chiếu định kỳ hàng tuần nguồn TTHC Phú Thọ (sau T3.8)
+- **Agent:** Claude Code
+- **Thay đổi:** Theo yêu cầu người dùng, thêm `TASK-DATA-SYNC-01` vào backlog
+  `docs/brain/04-current-tasks.md` — kế hoạch (chưa triển khai code) cho một script chạy định kỳ
+  hàng tuần: cào lại `congan.phutho.gov.vn/TTHC.aspx` bằng `scripts/scrape-phutho-tthc.js`, so
+  `content_hash` với snapshot đã duyệt gần nhất để phát hiện thủ tục mới/đổi/mất, và **chỉ báo cáo +
+  gửi thông báo cho người dùng duyệt** — không tự ý ghi Pinecone.
+- **File đã sửa:** `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Sau T3.8, dữ liệu production có thể lệch dần so với website tỉnh theo thời gian; cần
+  cơ chế phát hiện sớm nhưng vẫn giữ nguyên tắc governance thủ công (mọi thay đổi phải người dùng
+  duyệt) xuyên suốt Giai đoạn 3.
+- **Kiểm tra:** Chỉ thay đổi docs (kế hoạch), chưa viết code — không cần chạy test.
+
+---
+
 ## [2026-07-17] T3.7 — Xử lý EN01: truy hồi câu ngoại ngữ (dịch + ngôn ngữ + model tiện ích)
 - **Agent:** Claude Code
 - **Thay đổi:** Shadow báo EN01 ("How can a foreigner declare temporary residence…") abstain. Truy 3
