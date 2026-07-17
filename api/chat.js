@@ -1032,7 +1032,11 @@ function getQuestionTextForMatching(text = '') {
 function detectSplitTempResidenceIntent(text) {
     const lower = getQuestionTextForMatching(text);
 
-    if (/(thẻ tạm trú|the tam tru|temporary residence card|\btrc\b|cấp thẻ|cap the|mất thẻ|mat the)/i.test(lower)) {
+    // "cấp thẻ"/"mất thẻ" trần quá chung — khớp MỌI loại thẻ (căn cước, ABTC, BHYT, đảng viên...).
+    // Chỉ nhận diện tam_tru_the khi có "thẻ tạm trú"/TRC rõ ràng, HOẶC "cấp/mất thẻ" đi kèm
+    // "tạm trú" ở đâu đó trong câu — tránh cướp intent của câu hỏi thẻ khác không liên quan.
+    if (/(thẻ tạm trú|the tam tru|temporary residence card|\btrc\b)/i.test(lower)
+        || (/(cấp thẻ|cap the|mất thẻ|mat the)/i.test(lower) && /(tạm trú|tam tru)/i.test(lower))) {
         return 'tam_tru_the';
     }
 
