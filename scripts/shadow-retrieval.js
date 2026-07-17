@@ -161,7 +161,15 @@ async function main() {
         try {
             const vector = await embedQuery(question.q, delayMs);
             const oldTop = await retrieveOld(oldIdx, vector, question.q);
-            const newRes = await retrieveNew(newIdx, vector, question.q);
+            // Mirror api/chat.js T3.7: câu ngoại ngữ được dịch sang tiếng Việt cho truy hồi
+            // namespace MỚI. Namespace CŨ giữ query gốc = hành vi production hiện tại.
+            let newQuery = question.q, newVector = vector;
+            if (chat.detectUserLanguage(question.q) !== 'vi') {
+                const translated = await chat.translateQueryForRetrieval(question.q, process.env.GEMINI_API_KEY);
+                if (translated) { newQuery = translated; newVector = await embedQuery(translated, delayMs); }
+            }
+            const newRes = await retrieveNew(newIdx, newVector, newQuery);
+            newRes.translated = newQuery !== question.q ? newQuery : null;
             const graded = scoreNew(question, newRes);
             tally[graded.verdict] = (tally[graded.verdict] || 0) + 1;
             rows.push({ question, oldTop, newRes, graded });
@@ -190,7 +198,8 @@ async function main() {
     for (const r of rows) {
         if (r.error) { lines.push(`| ${r.question.id} | ${r.question.q.slice(0, 40)} | LỖI | ${r.error} | | |`); continue; }
         const stage = r.newRes.stage !== 'cat+cap' ? ` _[${r.newRes.stage}]_` : '';
-        lines.push(`| ${r.question.id} | ${r.question.q.slice(0, 40)} | ${r.graded.verdict} | ${r.graded.reason}${stage} | ${fmtDocs(r.newRes.top)} | ${fmtDocs(r.oldTop)} |`);
+        const tr = r.newRes.translated ? ` _(dịch: ${r.newRes.translated.slice(0, 45)})_` : '';
+        lines.push(`| ${r.question.id} | ${r.question.q.slice(0, 40)} | ${r.graded.verdict} | ${r.graded.reason}${stage}${tr} | ${fmtDocs(r.newRes.top)} | ${fmtDocs(r.oldTop)} |`);
     }
     lines.push('');
     lines.push('## Ghi chú');

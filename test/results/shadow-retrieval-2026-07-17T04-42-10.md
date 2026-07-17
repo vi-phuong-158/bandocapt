@@ -1,31 +1,23 @@
-# Shadow retrieval T3.7 — 2026-07-17T04-11-46
+# Shadow retrieval T3.7 — 2026-07-17T04-42-10
 
 - Namespace CŨ (production): `chatbot-tthc-xnc`
 - Namespace MỚI (ứng viên): `chatbot-tthc-xnc-web-rd-20260715`
 - Số câu chạy: 60/60  ·  Embedding `RETRIEVAL_QUERY`, topK 8, ngưỡng 0.62
-- Kết quả namespace MỚI: **PASS 57 · WARN 2 · FAIL 1**
+- Kết quả namespace MỚI: **PASS 58 · WARN 2 · FAIL 0**
 
 > PASS = truy đúng domain/cap/topic. WARN = có trả lời nhưng lệch 1 tiêu chí (soi tay). FAIL = abstain oàn hoặc bẫy không đạt.
 
-## Kết luận
+## Kết luận (chạy sau fix T3.6 cap mềm + T3.7 dịch truy hồi)
 
-- **Governance sạch:** 100% kết quả namespace mới là `approved` (không rò nguồn `pending`/`superseded`).
-  6/6 câu bẫy ĐẠT: NA17/phiếu giấy và ngoài phạm vi không trả nội dung cấm; cư trú công dân không
-  bị kéo cho câu NNN; **soft-cap hoạt động** — `TRAP-XE-XA` và `XE01` (đăng ký xe cấp xã) không còn
-  abstain, trả bản cấp tỉnh với nhãn `cap-relaxed`.
-- **3 việc cần soi tay trước T3.8** (không chặn nhưng nên xử):
-  1. **`EN01` FAIL — recall xuyên ngữ (tiếng Anh) yếu ở namespace mới.** "How can a foreigner
-     declare temporary residence" → 0 match vượt ngưỡng ở namespace mới (abstain), trong khi
-     namespace cũ trả được (0.709). `EN02` cũng chỉ vừa sát ngưỡng. Nguồn: web namespace embed
-     `RETRIEVAL_DOCUMENT` từ tiêu đề thủ tục tiếng Việt, similarity với câu tiếng Anh thấp hơn corpus
-     guide cũ. Cần: hạ ngưỡng có kiểm soát cho câu ngoại ngữ, hoặc bổ sung alias/nội dung song ngữ,
-     hoặc dựa vào khối KBTT/XNC tĩnh — đưa vào tinh chỉnh trước khi chuyển production.
-  2. **`LX02`/`CANG01` WARN — namespace mới kém CỤ THỂ hơn ở vài thủ tục.** "Cấp lại GPLX bị mất"
-     và "Xác nhận số CMND 9 số" — bản cũ có guide khớp chính xác (`guide_cap_xa_2025_g_08`,
-     `guide...e_07`), web tthc chỉ có thủ tục lân cận. Đây là lý do 50 guide "Toàn văn thủ tục" cần
-     được duyệt + seed sang namespace ứng viên (không mất độ phủ so nguồn cũ).
-  3. **Tổng quát:** namespace cũ trả nhiều `guide_*` (chưa vào governance) — sau T3.8 các guide đã
-     duyệt phải có mặt ở namespace mới để không tụt recall các thủ tục chi tiết.
+- **Governance sạch 100%**, 6/6 câu bẫy đạt, soft-cap đăng ký xe cấp xã không abstain.
+- **EN01 đã hết FAIL:** câu tiếng Anh được dịch sang tiếng Việt cho truy hồi → truy đúng doc KBTT
+  (`matt26265`, 0.781, top-1). Fix gồm 3 lớp: sửa nhận nhầm ngôn ngữ (`isLikelyVietnamese`), thêm
+  `translateQueryForRetrieval`, và đổi model tiện ích sống (`LLM_UTILITY_MODEL`).
+- **Còn 2 WARN cần soi tay (không chặn):** `LX02` ("cấp lại GPLX") và `CANG01` ("xác nhận số CMND
+  9 số") — namespace mới kém CỤ THỂ hơn bản cũ vì 50 guide "Toàn văn thủ tục" chưa được duyệt/seed.
+  Đây là lý do phải xong phiên duyệt guide trước T3.8 để không tụt recall thủ tục chi tiết.
+- **Lưu ý trước merge/T3.8:** fix model tiện ích khôi phục rerank + rewrite (đang chết) — cần chạy
+  30 câu lõi × 3 (majority) để xác nhận generation không hồi quy.
 
 | ID | Câu hỏi | Verdict | Ghi chú | MỚI top-3 (governance) | CŨ top-3 (production) |
 |---|---|---|---|---|---|
@@ -77,10 +69,10 @@
 | MULTI02 | Công ty ở khu công nghiệp cần khai báo t | PASS | domain=ok topic=ok | 0.702 · cap=xa · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua  | 0.702 · cap=? · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua <br>0.710 · cap=? · law_xuat_nhap_canh_ieu_33__32<br>0.750 · cap=? · law_xuat_nhap_canh_ieu_34__33 |
 | SHORT01 | Đăng ký thường trú | PASS | domain=ok topic=ok | 0.808 · cap=xa · Đăng ký thường trú<br>0.779 · cap=tinh · Cấp thẻ thường trú cho người nước ngoài tại Việt Nam<br>0.761 · cap=xa · Khai báo thông tin về cư trú đối với người chưa đủ điều | 0.777 · cap=? · guide_cap_xa_2025_b_01_ang_ky_quan_ly_cu_tru_ang_ky_thu<br>0.772 · cap=? · guide_cap_xa_2025_b_01_ang_ky_quan_ly_cu_tru_ang_ky_thu<br>0.772 · cap=? · guide_cap_xa_2025_b_01_ang_ky_quan_ly_cu_tru_ang_ky_thu |
 | SHORT02 | Cấp hộ chiếu | PASS | domain=ok topic=ok _[governance-only]_ | 0.763 · cap=tinh · Cấp hộ chiếu phổ thông ở trong nước<br>0.712 · cap=tinh · Thủ tục: cấp lại tem “AB” cho công dân Việt Nam ở trong<br>0.711 · cap=tinh · Khôi phục giá trị sử dụng hộ chiếu phổ thông | 0.768 · cap=? · Cấp hộ chiếu phổ thông ở trong nước<br>0.767 · cap=? · Cấp hộ chiếu phổ thông ở trong nước<br>0.746 · cap=? · guide_passport_online_phan_biet_visa_29 |
-| EN01 | How can a foreigner declare temporary re | FAIL | abstain oàn (0 governed match) | _(0 match — abstain)_ | 0.709 · cap=? · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua <br>0.692 · cap=? · law_xuat_nhap_canh_ieu_33__32 |
-| EN02 | Where to extend a temporary residence ca | PASS | domain=ok topic=ok | 0.683 · cap=tinh · Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam tại C<br>0.701 · cap=tinh · Cấp đổi thẻ thường trú cho người nước ngoài tại Việt Na<br>0.686 · cap=tinh · Cấp lại thẻ thường trú cho người nước ngoài tại Việt Na | 0.674 · cap=? · guide_nnn_ghtt_hai_truong_hop_14<br>0.666 · cap=? · guide_nnn_the_tam_tru_giay_to_chung_minh_muc_dich_8<br>0.666 · cap=? · guide_nnn_ghtt_mau_na5_cach_dien_15 |
-| ZH01 | 外国人如何在越南申请临时居留证？ | PASS | domain=ok topic=ok | 0.736 · cap=tinh · Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam tại C<br>0.723 · cap=tinh · Cấp thẻ thường trú cho người nước ngoài tại Việt Nam<br>0.707 · cap=xa · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua  | 0.771 · cap=? · Cấp thẻ tạm trú cho người nước ngoài tại Cục Quản lý xu<br>0.768 · cap=? · Cấp thẻ thường trú cho người nước ngoài tại Việt Nam<br>0.757 · cap=? · Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam tại C |
-| ZH02 | 护照丢失了怎么补办？ | PASS | domain=ok topic=ok | 0.701 · cap=tinh · Trình báo mất hộ chiếu phổ thông thực hiện tại cấp tỉnh<br>0.697 · cap=xa · Trình báo mất hộ chiếu phổ thông thực hiện tại Công an <br>0.688 · cap=tinh · Khôi phục giá trị sử dụng hộ chiếu phổ thông | 0.718 · cap=? · guide_passport_online_mat_ho_chieu_33<br>0.709 · cap=? · guide_passport_online_mat_ho_chieu_16<br>0.699 · cap=? · guide_cap_xa_2025_a_01_quan_ly_xuat_nhap_canh_trinh_bao |
+| EN01 | How can a foreigner declare temporary re | PASS | domain=ok topic=ok _(dịch: Người nước ngoài thực hiện khai báo tạm trú t)_ | 0.781 · cap=xa · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua  | 0.709 · cap=? · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua <br>0.692 · cap=? · law_xuat_nhap_canh_ieu_33__32 |
+| EN02 | Where to extend a temporary residence ca | PASS | domain=ok topic=ok _(dịch: Địa điểm gia hạn thẻ tạm trú cho người nước n)_ | 0.752 · cap=tinh · Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam tại C<br>0.746 · cap=tinh · Cấp đổi thẻ thường trú cho người nước ngoài tại Việt Na<br>0.735 · cap=tinh · Cấp lại thẻ thường trú cho người nước ngoài tại Việt Na | 0.674 · cap=? · guide_nnn_ghtt_hai_truong_hop_14<br>0.666 · cap=? · guide_nnn_the_tam_tru_giay_to_chung_minh_muc_dich_8<br>0.666 · cap=? · guide_nnn_ghtt_mau_na5_cach_dien_15 |
+| ZH01 | 外国人如何在越南申请临时居留证？ | PASS | domain=ok topic=ok _(dịch: Người nước ngoài làm thế nào để xin cấp thẻ t)_ | 0.802 · cap=tinh · Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam tại C<br>0.738 · cap=tinh · Cấp lại thẻ thường trú cho người nước ngoài tại Việt Na<br>0.733 · cap=tinh · Cấp đổi thẻ thường trú cho người nước ngoài tại Việt Na | 0.771 · cap=? · Cấp thẻ tạm trú cho người nước ngoài tại Cục Quản lý xu<br>0.768 · cap=? · Cấp thẻ thường trú cho người nước ngoài tại Việt Nam<br>0.757 · cap=? · Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam tại C |
+| ZH02 | 护照丢失了怎么补办？ | PASS | domain=ok topic=ok _[governance-only]_ _(dịch: Hộ chiếu bị mất thì làm thủ tục cấp lại như t)_ | 0.759 · cap=xa · Trình báo mất hộ chiếu phổ thông thực hiện tại Công an <br>0.755 · cap=tinh · Trình báo mất hộ chiếu phổ thông thực hiện tại cấp tỉnh<br>0.744 · cap=tinh · Cấp hộ chiếu phổ thông ở trong nước | 0.718 · cap=? · guide_passport_online_mat_ho_chieu_33<br>0.709 · cap=? · guide_passport_online_mat_ho_chieu_16<br>0.699 · cap=? · guide_cap_xa_2025_a_01_quan_ly_xuat_nhap_canh_trinh_bao |
 | KBTT01 | Khai báo tạm trú cho khách nước ngoài qu | PASS | domain=ok topic=ok proc=ok | 0.840 · cap=xa · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua  | 0.840 · cap=? · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua <br>0.750 · cap=? · law_xuat_nhap_canh_ieu_33__32 |
 | KBTT02 | Khách sạn của tôi có khách Nhật, khai bá | PASS | domain=ok topic=ok proc=ok | 0.776 · cap=xa · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua  | 0.776 · cap=? · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua <br>0.694 · cap=? · law_xuat_nhap_canh_ieu_33__32 |
 | TRAP-NA17 | Cho tôi xin mẫu phiếu khai báo tạm trú N | PASS | không dính nội dung cấm | 0.707 · cap=xa · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua  | 0.707 · cap=? · Khai báo tạm trú cho người nước ngoài tại Việt Nam qua  |

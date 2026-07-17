@@ -139,7 +139,8 @@ User nhap
    6. Tai Published_Locations qua helper cache 60s / stale 5m
    7. Dedupe ban ghi giong nhau, phat hien ban ghi mau thuan
    8. Match ten tru so/alias exact-normalized theo uu tien: ten hien hanh day du -> bo `Cong an` -> ten xa/phuong hien hanh -> `search_aliases`
-   9. (P1.1.3) Ghep ngu canh cau truoc vao query embedding CHI KHI cau hien tai < 8 tu (follow-up ngan); cau du dai dung doc lap. Embed query -> Gemini Embedding 001
+   9. (P1.1.3) Ghep ngu canh cau truoc vao query embedding CHI KHI cau hien tai < 8 tu (follow-up ngan); cau du dai dung doc lap.
+   9b. (T3.7) Neu `detectUserLanguage(query) !== 'vi'`: dich query sang tieng Viet cho TRUY HOI (`translateQueryForRetrieval`, model tien ich) — corpus la tieng Viet, embedding xuyen ngu bo sot dung thu tuc. Fail-open: loi/timeout giu query goc. Ngon ngu TRA LOI van theo `userLang` goc. Sau do embed query -> Gemini Embedding 001
   10. Query Pinecone cho thu tuc/phap luat trong DUNG 1 namespace pin tu `PINECONE_NAMESPACE` (P1.1.1: bo vong thu nhieu namespace); van giu 1 fallback bo metadata filter neu co category ma 0 match. Tach intent `tam_tru_khai_bao` va `tam_tru_the`; voi `tam_tru_khai_bao`, chi giu lai tai lieu co `retrieval_intent` dung nhanh hoac tin hieu ro `NA17`/`KBTT`/nguoi nuoc ngoai/co so luu tru, dong thoi loai fail-closed tai lieu cu tru cong dan Viet Nam (`Thong bao luu tru`, `Dang ky tam tru`, `Luat Cu tru`, `VNeID`, moc 23h/08h)
   11. Loai runtime moi match `tru_so` khoi prompt va citation
   11b. Neu `detectXncAuthorityIntent` dung (thi thuc/gia han/the tam tru/e-visa/NNN mat ho chieu): bom tinh `XNC_RECEPTION_VERIFIED_BLOCK` (3 diem tiep dan Phong QLXNC, chi dia chi + SDT, chua co toa do) vao `<verified_locations>`, doc lap matcher
@@ -310,10 +311,17 @@ EMBED_TASK_TYPE
 RAG_FAIL_CLOSED
 LLM_PRIMARY
 LLM_FALLBACK
+LLM_UTILITY_MODEL
 CHAT_REQUEST_DEADLINE_MS
 TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID
 ```
+
+Biến mới (2026-07-17):
+- `LLM_UTILITY_MODEL` (T3.7): model tiện ích cho rerank / rewrite follow-up / dịch truy hồi.
+  Mặc định `gemini-flash-lite-latest`. `gemini-2.5-flash-lite` cũ trả 404 "no longer available to
+  new users" với một số key → rerank/rewrite/dịch âm thầm fail-open (no-op). Đặt env này để pin
+  model cụ thể (vd giữ `gemini-2.5-flash-lite` nếu key production còn quyền).
 
 Biến mới (2026-07-10):
 - `EMBED_TASK_TYPE` (P2.2): khi đặt `RETRIEVAL_QUERY`, query embedding dùng taskType bất đối xứng —

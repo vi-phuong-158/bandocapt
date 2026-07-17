@@ -3,6 +3,29 @@
 > Ghi lại quyết định kỹ thuật quan trọng để agent sau không "phát minh lại" hoặc đảo ngược
 > mà không biết lý do. Mỗi entry: quyết định gì, vì sao, đánh đổi gì.
 
+## [2026-07-17] T3.7 — Truy hồi câu ngoại ngữ: dịch sang tiếng Việt + sửa nhận nhầm ngôn ngữ + model tiện ích
+
+- **Bối cảnh:** Shadow retrieval báo `EN01` ("How can a foreigner declare temporary residence…")
+  abstain ở namespace mới. Truy 3 lớp nguyên nhân chồng nhau:
+  1. **Nhận nhầm ngôn ngữ:** `isLikelyVietnamese` match từ đơn không dấu `can` → câu tiếng Anh chứa
+     "How **can**…" bị nhận thành 'vi'. Hệ quả kép: không kích hoạt dịch + TRẢ LỜI sai ngôn ngữ.
+  2. **Embedding xuyên ngữ:** corpus là tiếng Việt; query tiếng Anh embed ra các doc sai nhánh
+     ("thẻ tạm trú") còn doc đúng ("khai báo tạm trú") xếp ngoài top-8 → branch filter split-intent
+     loại sạch → abstain. (Branch filter chạy ĐÚNG; lỗi ở ranking xuyên ngữ.)
+  3. **Model tiện ích chết:** `gemini-2.5-flash-lite` trả 404 với key hiện tại → rerank/rewrite/dịch
+     âm thầm fail-open (no-op).
+- **Quyết định:**
+  - `isLikelyVietnamese`: cụm nhiều từ đặc trưng ("thu tuc"/"tam tru"/"ho chieu"…) nhận ngay; từ đơn
+    dễ trùng tiếng Anh (can/ban/hoi/toi/muon) cần ≥2 tín hiệu. (`test/language-detection.test.js`)
+  - Thêm `translateQueryForRetrieval`: câu ngoại ngữ dịch sang tiếng Việt CHO TRUY HỒI (embed/classify),
+    ngôn ngữ trả lời giữ theo `userLang` gốc. Fail-open.
+  - Model tiện ích cấu hình qua `LLM_UTILITY_MODEL`, mặc định `gemini-flash-lite-latest` (còn sống).
+- **Đánh đổi / cần lưu ý:** Sửa model tiện ích **khôi phục rerank + rewrite follow-up** (đang chết) →
+  là BEHAVIOR CHANGE cho generation, **phải chạy 30 câu lõi × 3 (majority) trước khi merge/T3.8** để
+  xác nhận không hồi quy. Nếu key production vẫn dùng được `gemini-2.5-flash-lite`, có thể pin lại qua env.
+- **Kiểm chứng:** EN01 shadow 0→1 match (dịch "Người nước ngoài… khai báo tạm trú…" → doc KBTT 0.781
+  top-1, cap=xa). Xem `06-ai-working-log.md` (2026-07-17) + báo cáo shadow.
+
 ## [2026-07-17] T3.6 — Cấp thực hiện là ưu tiên MỀM, không phải ràng buộc cứng
 
 - **Quyết định:** Trong nhánh governance (`RAG_GOVERNANCE_FILTER=1`), ràng buộc theo cấp thực hiện

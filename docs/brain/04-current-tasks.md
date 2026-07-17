@@ -254,4 +254,9 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
   abstain), LX02/CANG01 (namespace mới kém cụ thể do guide chưa seed). **CÒN:** người dùng rà bộ
   60 câu; bước "30 câu lõi × 3" (`run-regression.js --majority --runs 3` trỏ namespace mới) cần
   key; chạy lại shadow sau khi seed guide đã duyệt.
+- **[2026-07-17] T3.7 — đã xử lý EN01:** dịch câu ngoại ngữ sang tiếng Việt cho truy hồi + sửa nhận
+  nhầm ngôn ngữ (`isLikelyVietnamese`) + đổi model tiện ích sống (`LLM_UTILITY_MODEL`). Shadow chạy
+  lại **PASS 58 · WARN 2 · FAIL 0** (`test/results/shadow-retrieval-2026-07-17T04-42-10.md`). ⚠ Fix
+  model tiện ích khôi phục rerank+rewrite (đang chết) → CẦN 30 câu lõi × 3 trước merge/T3.8. Còn 2
+  WARN (LX02/CANG01) chờ seed guide.
 - **[TODO — cần người dùng duyệt] T3.8:** Chỉ chuyển production sau báo cáo gate đạt. Trước đó phải review/approve corpus law/guide cần giữ, seed chúng sang namespace ứng viên và chỉ khi đó mới chạy backfill apply có xác nhận namespace.

@@ -5,6 +5,28 @@
 
 ---
 
+## [2026-07-17] T3.7 — Xử lý EN01: truy hồi câu ngoại ngữ (dịch + ngôn ngữ + model tiện ích)
+- **Agent:** Claude Code
+- **Thay đổi:** Shadow báo EN01 ("How can a foreigner declare temporary residence…") abstain. Truy 3
+  lớp nguyên nhân chồng nhau, sửa cả ba: (1) `isLikelyVietnamese` bắt nhầm từ đơn `can` ("How **can**")
+  → câu tiếng Anh bị nhận thành 'vi' (không dịch + trả lời sai ngôn ngữ). Sửa: cụm nhiều từ nhận ngay,
+  từ đơn dễ trùng tiếng Anh cần ≥2 tín hiệu. (2) Thêm `translateQueryForRetrieval` — câu ngoại ngữ
+  dịch sang tiếng Việt CHO TRUY HỒI (embed/classify), ngôn ngữ trả lời giữ theo `userLang` gốc,
+  fail-open. Gọi trong handler khi `userLang !== 'vi'` (stage `query_translate_ms`). (3) Model tiện ích
+  `gemini-2.5-flash-lite` trả 404 với key hiện tại → rerank/rewrite/dịch âm thầm no-op; đổi sang env
+  `LLM_UTILITY_MODEL` mặc định `gemini-flash-lite-latest`. Harness shadow cũng mirror bước dịch.
+- **File đã sửa:** `api/chat.js`, `test/language-detection.test.js` (mới), `scripts/shadow-retrieval.js`,
+  `test/results/shadow-retrieval-2026-07-17T04-42-10.md` (mới), `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Người dùng yêu cầu "xử lý EN01" từ báo cáo shadow T3.7.
+- **Kiểm tra:** `node --test test/language-detection.test.js` 4/4. `npm test` 291/292 (fail còn lại là
+  `phutho-xa-review` CÓ SẴN trên main). Shadow full chạy lại: **PASS 58 · WARN 2 · FAIL 0** — EN01 truy
+  đúng doc KBTT (0.781, top-1) sau khi dịch. Còn 2 WARN (LX02/CANG01) là namespace mới kém cụ thể do
+  guide chưa seed.
+- **⚠ Còn mở (chặn merge/T3.8):** fix model tiện ích **khôi phục rerank + rewrite** đang chết → behavior
+  change generation, PHẢI chạy 30 câu lõi × 3 (majority) trước khi merge. Nếu key production còn dùng
+  được `gemini-2.5-flash-lite`, cân nhắc pin `LLM_UTILITY_MODEL` để không đổi model đột ngột.
+
 ## [2026-07-17] T3.7 — Harness shadow retrieval + bộ 60 câu, so sánh namespace cũ/mới
 - **Agent:** Claude Code
 - **Thay đổi:** Dựng `scripts/shadow-retrieval.js` — query CẢ HAI namespace bằng cùng vector
