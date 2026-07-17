@@ -159,6 +159,31 @@
 - **Liên quan:** `api/chat.js`, `js/gemini.js`, `js/chatbot.js`, `test/`
 - **Ưu tiên:** Trung bình
 
+### TASK-DATA-SYNC-01: Script tự động đối chiếu định kỳ nguồn TTHC Công an tỉnh Phú Thọ (sau T3.8)
+- **Mô tả:** Sau khi T3.8 chuyển namespace production, dữ liệu 156+ thủ tục vẫn có thể lệch dần
+  so với `congan.phutho.gov.vn/TTHC.aspx` (tỉnh sửa thủ tục, đổi phí/thời hạn, thêm/bớt thủ tục).
+  Cần một job **chạy định kỳ hàng tuần** để phát hiện sớm, KHÔNG tự ý ghi đè dữ liệu đang phục vụ:
+  1. **Cào lại** toàn bộ danh mục/chi tiết bằng `scripts/scrape-phutho-tthc.js` (đã có sẵn, dùng
+     Node stdlib/fetch, có delay + retry) → snapshot mới `data/tthc-phutho-source-<ngày>.json`.
+  2. **Đối chiếu** snapshot mới với snapshot đã duyệt gần nhất (so `content_hash` theo `site_id`,
+     giống cách T3.1 `inventory-corpus.js` phát hiện hash lệch): phân loại thủ tục **mới xuất
+     hiện**, **nội dung thay đổi** (hash khác), **biến mất khỏi website**. Không thay đổi → im
+     lặng, không làm phiền.
+  3. **Chỉ báo cáo, không tự ghi Pinecone.** Nếu có khác biệt: sinh báo cáo diff dễ đọc (tương tự
+     `data/tthc-phutho-xa-review.md`) + gửi thông báo cho người dùng (tái dùng kênh Telegram alert
+     đã có ở `04-current-tasks.md` mục "Rollout production", hoặc email) để duyệt trước khi chạy
+     import có backup/verify như T3.4/T3.5 đã làm.
+  4. Lên lịch bằng cron/GitHub Actions schedule (tương tự CI hiện có) chạy 1 lần/tuần; job không có
+     `--apply`, không có quyền ghi Pinecone — chỉ đọc web + đọc snapshot cũ + gửi báo cáo.
+- **Liên quan:** `scripts/scrape-phutho-tthc.js` (tái dùng crawler), `scripts/inventory-corpus.js`
+  (mẫu cách so hash), `data/tthc-phutho-source.json` (snapshot đối chiếu), kênh alert Telegram đã
+  có trong `04-current-tasks.md`/`api/chat.js`.
+- **Ưu tiên:** Thấp — chỉ làm SAU khi T3.8 xong (chuyển production ổn định); trước đó namespace còn
+  đang trong giai đoạn duyệt thủ công nên chưa cần tự động hóa theo dõi lệch nguồn.
+- **Điều kiện bắt buộc:** Không bao giờ tự động `--apply` ghi Pinecone — mọi thay đổi phát hiện được
+  đều phải qua người dùng duyệt trước, giữ đúng nguyên tắc "governance thủ công" đã chốt xuyên suốt
+  Giai đoạn 3 (xem `07-parallel-task-plan.md` GĐ3 và luật phân làn LANE-DATA).
+
 ---
 
 ## Không làm lúc này
@@ -239,7 +264,26 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
   Khuyến nghị gom các bước chờ người dùng thành 1 phiên duyệt tập trung để mở khóa T3.7/T3.8.
 
 - **[IN PROGRESS] T3.6:** Đã triển khai runtime governance filter, lọc cấp xã/tỉnh và chặn xung đột nguồn. Namespace ứng viên đã có 157 vector (156 website + KBTT); đang chờ quota embedding mở lại để chạy live regression/shadow T3.7.
+- **[2026-07-17] T3.6 — cap thành ưu tiên MỀM (nhánh `feat/t36-soft-cap-preference`, CHƯA push):**
+  Đo live phát hiện câu "đăng ký xe tại Công an cấp xã" bị filter cap cứng loại sạch → bot từ chối
+  oàn (10 thủ tục đăng ký xe web đều Cấp Tỉnh). Sửa cap thành ưu tiên mềm ở `filterGovernedMatches`
+  + nới fallback query `api/chat.js`. Test governance 9/9, probe live 0→8 match; căn cước cấp xã
+  không hồi quy. **CỜ DỮ LIỆU (T3.3/T3.4):** namespace ứng viên THIẾU đăng ký xe cấp xã — người dùng
+  xác nhận đăng ký xe thực tế nộp ở Công an cấp xã, cần seed bản cấp xã từ snapshot đã duyệt trước
+  T3.8. Chi tiết: `06-ai-working-log.md` + `03-decisions.md` (2026-07-17).
 - **[IN PROGRESS 2026-07-16] PR #34 governance theo role:** thay bypass law/guide bằng policy fail-closed: `tthc`=`approved/current_procedure`, `law`=`approved/legal_basis`, `guide`=`approved/supplemental`; record thiếu/mismatch/pending/superseded/hết hiệu lực bị loại. Script backfill đã có full backup + rollback nhưng **CHƯA CHẠY `--apply`**. 42/194 guide là `Toàn văn thủ tục`, cần review/migration riêng trước khi bật governance trên corpus có law/guide.
+- **[IN PROGRESS 2026-07-17] T3.7:** Harness `scripts/shadow-retrieval.js` + bộ 60 câu
+  `test/shadow-retrieval-questions.json` xong; chạy live 60 câu **PASS 57 · WARN 2 · FAIL 1**
+  (`test/results/shadow-retrieval-2026-07-17T04-11-46.md`). Governance 100% approved, 6/6 bẫy đạt,
+  soft-cap đăng ký xe cấp xã không abstain. Cần soi trước T3.8: EN01 (recall tiếng Anh yếu →
+  abstain), LX02/CANG01 (namespace mới kém cụ thể do guide chưa seed). **CÒN:** người dùng rà bộ
+  60 câu; bước "30 câu lõi × 3" (`run-regression.js --majority --runs 3` trỏ namespace mới) cần
+  key; chạy lại shadow sau khi seed guide đã duyệt.
+- **[2026-07-17] T3.7 — đã xử lý EN01:** dịch câu ngoại ngữ sang tiếng Việt cho truy hồi + sửa nhận
+  nhầm ngôn ngữ (`isLikelyVietnamese`) + đổi model tiện ích sống (`LLM_UTILITY_MODEL`). Shadow chạy
+  lại **PASS 58 · WARN 2 · FAIL 0** (`test/results/shadow-retrieval-2026-07-17T04-42-10.md`). ⚠ Fix
+  model tiện ích khôi phục rerank+rewrite (đang chết) → CẦN 30 câu lõi × 3 trước merge/T3.8. Còn 2
+  WARN (LX02/CANG01) chờ seed guide.
 - **[2026-07-17] Đối chiếu cấp đăng ký xe — CHỐT GIỮ cap=tinh (không backfill):** Điều tra
   read-only phát hiện 10 thủ tục đăng ký xe trong namespace ứng viên
   `chatbot-tthc-xnc-web-rd-20260715` gắn `cap_normalized=tinh` (web importer lấy từ `level=Cấp
@@ -247,6 +291,4 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
   sạch, mâu thuẫn thực chất giữa 2 nguồn 2025. **Người dùng chọn KHÔNG mutate Pinecone**, dựa vào
   lớp soft-cap preference (`feat/t36-soft-cap-preference`). Hồ sơ đối chiếu:
   `data/tthc-phutho-xe-cap-review.md`. Điểm quay lại nếu sau này muốn khớp đúng cấp xã.
-
-- **[TODO] T3.7:** Shadow retrieval 60 câu cân bằng và 30 câu lõi × 3 lượt.
 - **[TODO — cần người dùng duyệt] T3.8:** Chỉ chuyển production sau báo cáo gate đạt. Trước đó phải review/approve corpus law/guide cần giữ, seed chúng sang namespace ứng viên và chỉ khi đó mới chạy backfill apply có xác nhận namespace.

@@ -5,6 +5,96 @@
 
 ---
 
+## [2026-07-17] Thêm task dự kiến: đối chiếu định kỳ hàng tuần nguồn TTHC Phú Thọ (sau T3.8)
+- **Agent:** Claude Code
+- **Thay đổi:** Theo yêu cầu người dùng, thêm `TASK-DATA-SYNC-01` vào backlog
+  `docs/brain/04-current-tasks.md` — kế hoạch (chưa triển khai code) cho một script chạy định kỳ
+  hàng tuần: cào lại `congan.phutho.gov.vn/TTHC.aspx` bằng `scripts/scrape-phutho-tthc.js`, so
+  `content_hash` với snapshot đã duyệt gần nhất để phát hiện thủ tục mới/đổi/mất, và **chỉ báo cáo +
+  gửi thông báo cho người dùng duyệt** — không tự ý ghi Pinecone.
+- **File đã sửa:** `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Sau T3.8, dữ liệu production có thể lệch dần so với website tỉnh theo thời gian; cần
+  cơ chế phát hiện sớm nhưng vẫn giữ nguyên tắc governance thủ công (mọi thay đổi phải người dùng
+  duyệt) xuyên suốt Giai đoạn 3.
+- **Kiểm tra:** Chỉ thay đổi docs (kế hoạch), chưa viết code — không cần chạy test.
+
+---
+
+## [2026-07-17] T3.7 — Xử lý EN01: truy hồi câu ngoại ngữ (dịch + ngôn ngữ + model tiện ích)
+- **Agent:** Claude Code
+- **Thay đổi:** Shadow báo EN01 ("How can a foreigner declare temporary residence…") abstain. Truy 3
+  lớp nguyên nhân chồng nhau, sửa cả ba: (1) `isLikelyVietnamese` bắt nhầm từ đơn `can` ("How **can**")
+  → câu tiếng Anh bị nhận thành 'vi' (không dịch + trả lời sai ngôn ngữ). Sửa: cụm nhiều từ nhận ngay,
+  từ đơn dễ trùng tiếng Anh cần ≥2 tín hiệu. (2) Thêm `translateQueryForRetrieval` — câu ngoại ngữ
+  dịch sang tiếng Việt CHO TRUY HỒI (embed/classify), ngôn ngữ trả lời giữ theo `userLang` gốc,
+  fail-open. Gọi trong handler khi `userLang !== 'vi'` (stage `query_translate_ms`). (3) Model tiện ích
+  `gemini-2.5-flash-lite` trả 404 với key hiện tại → rerank/rewrite/dịch âm thầm no-op; đổi sang env
+  `LLM_UTILITY_MODEL` mặc định `gemini-flash-lite-latest`. Harness shadow cũng mirror bước dịch.
+- **File đã sửa:** `api/chat.js`, `test/language-detection.test.js` (mới), `scripts/shadow-retrieval.js`,
+  `test/results/shadow-retrieval-2026-07-17T04-42-10.md` (mới), `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Người dùng yêu cầu "xử lý EN01" từ báo cáo shadow T3.7.
+- **Kiểm tra:** `node --test test/language-detection.test.js` 4/4. `npm test` 291/292 (fail còn lại là
+  `phutho-xa-review` CÓ SẴN trên main). Shadow full chạy lại: **PASS 58 · WARN 2 · FAIL 0** — EN01 truy
+  đúng doc KBTT (0.781, top-1) sau khi dịch. Còn 2 WARN (LX02/CANG01) là namespace mới kém cụ thể do
+  guide chưa seed.
+- **⚠ Còn mở (chặn merge/T3.8):** fix model tiện ích **khôi phục rerank + rewrite** đang chết → behavior
+  change generation, PHẢI chạy 30 câu lõi × 3 (majority) trước khi merge. Nếu key production còn dùng
+  được `gemini-2.5-flash-lite`, cân nhắc pin `LLM_UTILITY_MODEL` để không đổi model đột ngột.
+
+## [2026-07-17] T3.7 — Harness shadow retrieval + bộ 60 câu, so sánh namespace cũ/mới
+- **Agent:** Claude Code
+- **Thay đổi:** Dựng `scripts/shadow-retrieval.js` — query CẢ HAI namespace bằng cùng vector
+  embedding (`RETRIEVAL_QUERY`), mô phỏng đúng luồng production (cũ, governance TẮT) và governance
+  + cap mềm (mới), chấm truy hồi (coverage/domain/cap/governance/trap) và xuất báo cáo Markdown vào
+  `test/results/`. Chỉ đọc Pinecone, KHÔNG gọi generation, KHÔNG đổi production. Kèm bộ
+  `test/shadow-retrieval-questions.json` — 60 câu cân bằng 20 nhóm domain corpus + 6 câu bẫy
+  (superseded NA17, đăng ký xe cấp xã, ngoài phạm vi, cư trú NNN vs công dân). CLI: `--limit`,
+  `--ids`, `--delay`, `--out`; có retry/backoff cho embed 429.
+- **File đã sửa:** `scripts/shadow-retrieval.js` (mới), `test/shadow-retrieval-questions.json` (mới),
+  `test/results/shadow-retrieval-2026-07-17T04-11-46.md` (mới), `docs/brain/04-current-tasks.md`,
+  `docs/brain/07-parallel-task-plan.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** T3.7 cần nghiệm thu namespace ứng viên trước khi chuyển production (T3.8); người dùng
+  yêu cầu "làm 3.7".
+- **Kiểm tra:** Chạy live full 60 câu: **PASS 57 · WARN 2 · FAIL 1**. Governance 100% `approved`,
+  6/6 câu bẫy đạt, soft-cap đăng ký xe cấp xã không abstain. Phát hiện thật cần soi trước T3.8:
+  (1) `EN01` FAIL — recall xuyên ngữ tiếng Anh yếu ở namespace mới (abstain, bản cũ trả được);
+  (2) `LX02`/`CANG01` WARN — namespace mới kém cụ thể ở vài thủ tục vì 50 guide "Toàn văn thủ tục"
+  chưa được duyệt/seed. Chi tiết + bảng đối chiếu trong file báo cáo.
+- **Còn mở:** (a) bộ 60 câu do Claude soạn — người dùng nên rà kỳ vọng nghiệp vụ; (b) bước "30 câu
+  lõi × 3" của T3.7 dùng `run-regression.js --majority --runs 3` trỏ namespace mới, cần key + quyết
+  định chạy; (c) sau khi duyệt/seed guide (phiên duyệt tập trung), chạy lại shadow để xác nhận
+  recall không tụt rồi mới T3.8.
+
+## [2026-07-17] T3.6 — Cap thực hiện thành ưu tiên MỀM (sửa abstain oàn đăng ký xe cấp xã)
+- **Agent:** Claude Code
+- **Thay đổi:** Đo live namespace ứng viên `chatbot-tthc-xnc-web-rd-20260715` phát hiện lỗi thật
+  (báo cáo `phutho-web-retrieval-2026-07-16.md` chạy query THÔ nên chưa lộ đúng bản chất): khi
+  `RAG_GOVERNANCE_FILTER=1`, câu "đăng ký xe **tại Công an cấp xã**" → `requestedCap='xa'` →
+  filter đòi `cap_normalized=xa` → **0 match** (10 thủ tục đăng ký xe trong namespace web đều
+  gắn Cấp Tỉnh) → bot **từ chối hoàn toàn** (fail-closed), tệ hơn cả trả nhầm cấp tỉnh. Ngược
+  lại, "căn cước cấp xã" đã route đúng sẵn (filter khớp `cap_quan_ly_can_cuoc`). Sửa: cap từ
+  ràng buộc CỨNG → ưu tiên MỀM. (1) `lib/retrieval-governance.js:filterGovernedMatches` tách
+  governance-role/hiệu lực (cứng) khỏi cap; nếu không có match đúng cấp thì trả nhóm governed
+  cấp khác thay vì rỗng. (2) `api/chat.js` đổi thứ tự nới fallback governance:
+  `(lĩnh vực+cap) → (lĩnh vực, bỏ cap) → (bỏ cả hai)` — giữ lĩnh vực lâu hơn cấp; dọn biến thừa
+  `governanceFilter`. Non-governance path (production hiện tại) giữ nguyên hành vi cũ.
+- **File đã sửa:** `lib/retrieval-governance.js`, `api/chat.js`, `test/retrieval-governance.test.js`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/08-review-nang-luc-chatbot-2026-07-16.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Người dùng chọn hướng "cap thành ưu tiên mềm" và xác nhận nghiệp vụ: đăng ký xe thực
+  tế nộp ở Công an cấp xã (nên `cap_normalized=tinh` trong namespace web là dữ liệu SAI — gắn cờ
+  cho phiên duyệt T3.3/T3.4, KHÔNG tự sửa Pinecone ở đây).
+- **Kiểm tra:** `node --test test/retrieval-governance.test.js` 9/9 pass (thêm 2 ca soft-cap).
+  `npm test` 287/288 — 1 fail `phutho-xa-review.test.js` là lỗi CÓ SẴN trên `main` (lệch hash
+  snapshot dữ liệu duyệt, không liên quan). Probe live sau sửa: "đăng ký xe cấp xã" từ 0 match →
+  8 match (stage `cap-relaxed`, trả bản cấp tỉnh + doc mang "Cấp thực hiện" để model nêu cấp
+  thật); "căn cước cấp xã" vẫn đúng cấp xã (stage `cat+cap`, không hồi quy).
+- **Còn mở (cho T3.7 / phiên duyệt):** (a) DỮ LIỆU: namespace ứng viên thiếu đăng ký xe cấp xã —
+  cần seed từ snapshot đã duyệt (T3.3/T3.4). (b) filter category `quan_ly_xuat_nhap_canh`/
+  `ho_chieu` không khớp `loai_thu_tuc=xuat_nhap_canh` của web namespace nên rơi về governance-only
+  (vẫn đúng nhờ vector) — tinh chỉnh map lĩnh vực cho web namespace là việc riêng của T3.7.
+
 ## [2026-07-17] Đối chiếu cấp thực hiện 10 thủ tục đăng ký xe (T3.3) — người dùng chốt GIỮ cap=tinh, không ghi
 - **Agent:** Claude Code
 - **Thay đổi:** Điều tra dữ liệu (READ-ONLY, không mutate Pinecone) về mâu thuẫn cấp thực hiện của

@@ -120,7 +120,7 @@ trong PR này nếu chưa có quyết định rollout của owner.
 | T3.4 | Backfill metadata + đánh dấu superseded (`--apply` có backup) | DATA | Claude/Codex | TRUNG | T3.3 | **DONE (2026-07-15)** — 42/42 thủ tục cấp xã đã nhập/verify trong namespace mới, có backup manifest. |
 | T3.5 | Re-embed `RETRIEVAL_DOCUMENT` → namespace mới | DATA | Codex | THẤP–TRUNG | T3.4 | **DONE (2026-07-15)** — namespace cấp xã đủ 42 và namespace mở rộng toàn web đủ 156/156 vector 768; Phiếu/NA17 loại. |
 | T3.6 | Runtime filter hiệu lực: `approved/current` trước query, check ngày sau query, rerank chỉ nhận match hợp lệ; 2 nguồn hiện hành mâu thuẫn → từ chối + cảnh báo | CORE | Codex | **CAO** | T3.4, T2A | **IN PROGRESS (2026-07-16)** — governance theo role fail-closed đã có code; law/guide chưa duyệt vẫn bị chặn. Cần review/migrate nguồn đã duyệt, rồi live regression/shadow để nghiệm thu. |
-| T3.7 | Shadow retrieval namespace cũ/mới + báo cáo so sánh | EVAL | Codex | TRUNG | T3.5, T3.6 | TODO |
+| T3.7 | Shadow retrieval namespace cũ/mới + báo cáo so sánh | EVAL | Claude | TRUNG | T3.5, T3.6 | **IN PROGRESS (2026-07-17)** — `scripts/shadow-retrieval.js` + bộ 60 câu; live 60 câu PASS 57/WARN 2/FAIL 1. Còn: rà bộ câu, 30 câu lõi×3 trỏ ns mới, chạy lại sau seed guide. Xem `06-ai-working-log.md`. |
 | T3.8 | Chuyển namespace production + 3 run gate | — | Người dùng + Claude | TRUNG | T3.7 | TODO |
 
 Schema metadata: `review_status` (approved/pending/superseded), `valid_from/valid_to/supersedes`, `source_priority` (current_procedure/legal_basis/supplemental/legacy), `procedure_version/last_verified_at/content_hash`, structured facts `phi/le_phi/thoi_han/mau_don/authority`. Trường không áp dụng ghi `N/A`. TASK-P0-04-EXT nhập vào T3.2–T3.4.
