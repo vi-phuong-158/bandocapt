@@ -1,5 +1,30 @@
 # 06 — AI Working Log
 
+## [2026-07-17] Khôi phục đoạn SYSTEM_PROMPT_BASE bị hỏng mã hóa/ghép dòng
+- **Agent:** Claude Code
+- **Thay đổi:** Dọn đoạn hỏng trong `SYSTEM_PROMPT_BASE` (đã có sẵn trên `main` từ commit
+  `dd2d372`, được ghi nhận là mục "còn mở" ở entry seed e-visa bên dưới). Dùng
+  `git log -S`/`git show dd2d372^` tìm bản gốc trước khi hỏng để tái dựng nguyên văn:
+  1. **Khôi phục câu bị cắt** ở mục "PHÂN BIỆT 3 LOẠI THỜI HẠN": chuỗi
+     "...KHÔNG được d" (dính liền luật CẤM SUY DIỄN) → phục hồi đầy đủ
+     "...KHÔNG được dùng thay thế cho nhau. Nếu câu hỏi chỉ hỏi về loại (1)...".
+  2. **Xóa ký tự hỏng `�`** (U+FFFD, bytes `ef bf bd`) trong "...người dùng nhắc.�u TK05..."
+     — đó là phần đuôi luật "MẤT HỘ CHIẾU — PHÂN BIỆT ĐỐI TƯỢNG" bị mất đầu, dính vào luật
+     THẨM QUYỀN XNC. Phục hồi nguyên vẹn đầu luật này (kèm ghi chú `[LƯU Ý] detectQuickReplies`).
+  3. **Gộp trùng lặp:** luật "CẤM SUY DIỄN THỦ TỤC TƯƠNG TỰ" và "THẨM QUYỀN XNC" đều xuất hiện
+     2 lần → giữ đúng 1 bản mỗi luật; với CẤM SUY DIỄN giữ **bản mở rộng** (có câu "Nếu đã thiếu
+     dữ liệu, TUYỆT ĐỐI KHÔNG được thêm câu mời...").
+  4. **Phục hồi luật bị mất trắng do cùng lỗi hỏng:** "KHÔNG viện dẫn số hiệu văn bản..." (chống
+     tự bịa số hiệu Luật/NĐ/TT) — đã biến mất khỏi `main`, khôi phục theo bản gốc.
+  Thứ tự các luật khớp bản sạch `dd2d372^` cộng các bổ sung hợp lệ sau đó (dòng "Khi người dùng
+  viết tắt/không dấu", nhóm mất hộ chiếu/thẻ tạm trú/đơn vị cấp tỉnh) — không đụng phần còn tốt.
+- **File đã sửa:** `api/chat.js` (chỉ khối `SYSTEM_PROMPT_BASE`), `docs/brain/06-ai-working-log.md`.
+- **Kiểm tra:** `node --check api/chat.js` OK; `npm test` **299/299 pass, 0 fail**; grep xác nhận
+  0 ký tự `�`, mỗi luật CẤM SUY DIỄN / THẨM QUYỀN XNC / KHÔNG viện dẫn / MẤT HỘ CHIẾU — PHÂN BIỆT
+  còn đúng 1 bản, bản CẤM SUY DIỄN giữ là bản mở rộng.
+- **Lưu ý phát hành:** đây là thay đổi behavior-sensitive (system prompt). Sau khi merge **phải
+  chạy lại regression 30 câu** trước khi phát hành để xác nhận không lệch hành vi.
+
 > nhật ký các lần AI (Claude Code / Codex) sửa code. Mỗi agent PHẢI thêm entry sau mỗi lần
 > chạm vào code. Đọc ngược từ trên xuống để biết gần đây ai đã làm gì và vì sao.
 
