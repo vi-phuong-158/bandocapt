@@ -86,7 +86,7 @@ async function retrieveNew(index, vector, q) {
     const nonLocation = (res.matches || []).filter(m => !isLocation(m.metadata));
     const branch = chat.filterMatchesByQuestionCategory(nonLocation, category);
     const governed = gov.filterGovernedMatches(branch, q).filter(m => m.score > RELEVANT_THRESHOLD);
-    return { stage, cap, top: governed.slice(0, 3) };
+    return { stage, cap, category, filterCats, top: governed.slice(0, 3) };
 }
 
 function isLocation(md = {}) {
@@ -112,8 +112,11 @@ function scoreNew(question, result) {
     if (isAbstain) return { verdict: 'FAIL', reason: 'abstain oàn (0 governed match)' };
 
     if (question.domain) {
+        // Dùng category/filterCats đã tính trên query THẬT SỰ đi query (đã dịch nếu ngoại ngữ) —
+        // không tính lại classifyQuestion trên question.q gốc, vì câu ZH/KO/EN chưa dịch không
+        // khớp regex tiếng Việt và sẽ báo domain LỆCH giả (retrieval vẫn đúng, chỉ bộ chấm sai).
         const domainOk = norm(top.metadata?.loai_thu_tuc) === norm(question.domain)
-            || chat.getFilterCategoriesForQuestionCategory(chat.classifyQuestion(question.q)).map(norm).includes(norm(top.metadata?.loai_thu_tuc));
+            || (result.filterCats || []).map(norm).includes(norm(top.metadata?.loai_thu_tuc));
         flags.push(`domain=${domainOk ? 'ok' : `LỆCH(${top.metadata?.loai_thu_tuc})`}`);
     }
     if (question.expect_cap) {
