@@ -5,6 +5,31 @@
 
 ---
 
+## [2026-07-17] Đối chiếu cấp thực hiện 10 thủ tục đăng ký xe (T3.3) — người dùng chốt GIỮ cap=tinh, không ghi
+- **Agent:** Claude Code
+- **Thay đổi:** Điều tra dữ liệu (READ-ONLY, không mutate Pinecone) về mâu thuẫn cấp thực hiện của
+  10 thủ tục đăng ký xe (`loai_thu_tuc=dang_ky_quan_ly_phuong_tien_giao_thong_co_gioi_duong_bo`)
+  trong namespace ứng viên `chatbot-tthc-xnc-web-rd-20260715`. Lập báo cáo
+  `data/tthc-phutho-xe-cap-review.md`.
+- **Phát hiện:** (1) 10 record xe trong namespace ứng viên đều `cap_normalized=tinh` (web importer
+  lấy từ `level=Cấp Tỉnh` của website); 0 guide `guide_cap_xa_2025_e_*` trong namespace ứng viên.
+  (2) Production có 11 guide `guide_cap_xa_2025_e_*`, mỗi guide ghi rõ "thẩm quyền giải quyết của
+  Công an cấp xã / Cấp xử lý: Cấp xã". (3) Map 1:1 sạch: 10 thủ tục tỉnh khớp chính xác 10/11 guide
+  theo tiêu đề, chỉ khác đuôi cấp; guide `e_03` (đăng ký, cấp biển số xe lần đầu — một phần/trực
+  tiếp) không có bản tỉnh. (4) Không nguồn nào tách ô tô/xe máy. (5) Website nội bộ nhất quán (10/10
+  xe = Cấp Tỉnh; 43 mục cấp xã của website không có đăng ký xe) → mâu thuẫn thực chất giữa 2 nguồn
+  2025, không phải lỗi scrape.
+- **Quyết định người dùng (2026-07-17):** GIỮ `cap=tinh`, **KHÔNG** ghi Pinecone. Dựa vào lớp
+  soft-cap preference (`feat/t36-soft-cap-preference`) để bot không từ chối oan. Task backfill xe
+  cấp xã trở thành no-op về dữ liệu; báo cáo giữ làm hồ sơ đối chiếu cho lần duyệt sau.
+- **File đã sửa:** `data/tthc-phutho-xe-cap-review.md` (mới), `docs/brain/06-ai-working-log.md`,
+  `docs/brain/04-current-tasks.md`.
+- **Lý do:** Task yêu cầu chỉ ghi sau khi người dùng duyệt; người dùng chọn không mutate namespace
+  ứng viên lúc này.
+- **Kiểm tra:** Không đụng code/Pinecone. Script điều tra chỉ đọc (`index.fetch`/`listPaginated`),
+  không upsert. Đối chiếu số liệu từ live Pinecone (namespace ứng viên + production) và
+  `data/tthc-phutho-source.json`.
+
 ## [2026-07-16] Review tiến độ kế hoạch đánh giá năng lực chatbot
 - **Agent:** Claude Code
 - **Thay đổi:** Thêm `docs/brain/08-review-nang-luc-chatbot-2026-07-16.md` — review độc lập
