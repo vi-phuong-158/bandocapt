@@ -5,6 +5,21 @@
 
 ---
 
+## [2026-07-17] Xác nhận fix bug thẻ end-to-end: merge PR #38, chạy lại shadow 91 câu
+- **Agent:** Claude Code
+- **Thay đổi:** Merge PR #38 (fix "cấp thẻ"/"mất thẻ" trần) vào `main`, merge `main` vào
+  `feat/t37-expand-question-set`, chạy lại full 91 câu shadow retrieval trên bộ code đã có fix.
+- **Kết quả:** **PASS 88 · WARN 2 · FAIL 0** — 2 ca `XNC-DIS01`/`XNC-DIS03` (mất thẻ ABTC) từng
+  FAIL nay PASS, xác nhận fix hoạt động đúng end-to-end qua toàn bộ pipeline truy hồi (không chỉ
+  unit test). Báo cáo cũ 2 FAIL (`shadow-retrieval-2026-07-17T05-25-02.md`) đã xóa vì lỗi thời;
+  thay bằng `shadow-retrieval-2026-07-17T06-27-18.md`. Còn 2 WARN (`LX02`/`CANG01`, chờ seed
+  guide) không liên quan bug thẻ.
+- **File đã sửa:** `test/results/shadow-retrieval-2026-07-17T06-27-18.md` (mới, xóa bản
+  05-25-02 lỗi thời), `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Người dùng yêu cầu merge PR #38 trước rồi chạy lại shadow để xác nhận.
+- **Kiểm tra:** `npm test` 292/293 (1 fail có sẵn, không liên quan) sau merge. Shadow live 91/91
+  câu, 0 lỗi hệ thống (1 lỗi mạng Pinecone thoáng qua không tính vào tổng).
+
 ## [2026-07-17] Sửa bug live: "cấp thẻ"/"mất thẻ" trần cướp nhầm intent tam_tru_the
 - **Agent:** Claude Code
 - **Bối cảnh:** Trong lúc soạn sâu bộ câu hỏi T3.7 (thêm ca ABTC/căn cước dễ nhầm), phát hiện
