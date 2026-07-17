@@ -284,4 +284,11 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
   lại **PASS 58 · WARN 2 · FAIL 0** (`test/results/shadow-retrieval-2026-07-17T04-42-10.md`). ⚠ Fix
   model tiện ích khôi phục rerank+rewrite (đang chết) → CẦN 30 câu lõi × 3 trước merge/T3.8. Còn 2
   WARN (LX02/CANG01) chờ seed guide.
+- **[2026-07-17] Đối chiếu cấp đăng ký xe — CHỐT GIỮ cap=tinh (không backfill):** Điều tra
+  read-only phát hiện 10 thủ tục đăng ký xe trong namespace ứng viên
+  `chatbot-tthc-xnc-web-rd-20260715` gắn `cap_normalized=tinh` (web importer lấy từ `level=Cấp
+  Tỉnh`), trong khi 11 guide `guide_cap_xa_2025_e_*` (production) ghi rõ "Công an cấp xã" — map 1:1
+  sạch, mâu thuẫn thực chất giữa 2 nguồn 2025. **Người dùng chọn KHÔNG mutate Pinecone**, dựa vào
+  lớp soft-cap preference (`feat/t36-soft-cap-preference`). Hồ sơ đối chiếu:
+  `data/tthc-phutho-xe-cap-review.md`. Điểm quay lại nếu sau này muốn khớp đúng cấp xã.
 - **[TODO — cần người dùng duyệt] T3.8:** Chỉ chuyển production sau báo cáo gate đạt. Trước đó phải review/approve corpus law/guide cần giữ, seed chúng sang namespace ứng viên và chỉ khi đó mới chạy backfill apply có xác nhận namespace.
