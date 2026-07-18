@@ -1,5 +1,46 @@
 # 06 — AI Working Log
 
+## [2026-07-17] Điều tra 2 WARN shadow (LX02/CANG01) + robustness bộ chấm topic
+- **Agent:** Claude Code
+- **Bối cảnh:** Sau merge, chạy lại full 91 câu shadow retrieval trên namespace ứng viên (đã seed
+  e-visa) → PASS 89 · WARN 2 · FAIL 0, không hồi quy. Điều tra sâu 2 WARN.
+- **Kết luận (SỬA lại chẩn đoán trước — trước đó đoán nhầm "chờ seed guide"):**
+  - **LX02** ("Cấp lại giấy phép lái xe bị mất?"): **khoảng trống dữ liệu THẬT** — kho Công an
+    tỉnh KHÔNG có thủ tục cấp lại GPLX (thuộc ngành GTVT/CSGT). Retrieval trả cái gần nhất cùng
+    lĩnh vực ("Cấp lại giấy phép sát hạch") → domain=ok, topic=LỆCH. Người dùng xác nhận sẽ bổ
+    sung dữ liệu sau. Đúng WARN.
+  - **CANG01** ("Xác nhận số CMND 9 số / số định danh cá nhân?"): tài liệu ĐÚNG tồn tại nhưng là
+    record `guide` (supplemental) `guide_cap_xa_2025_g_08...` — query thô đứng top-1 (0.776). TUY
+    NHIÊN trong luồng thật, tài liệu bị **kiến trúc current-procedure-first loại**: (1)
+    `classifyQuestion` trả `null` vì regex `can_cuoc` chỉ có bản KHÔNG dấu "chung minh nhan dan"
+    (text giữ dấu "chứng minh nhân dân" nên trượt) và thiếu hẳn "định danh cá nhân"
+    (`getQuestionTextForMatching` chỉ lowercase, không bỏ dấu); (2) `buildCurrentProcedureFilter`
+    chỉ query `source_type=tthc`, guide chỉ được fallback khi tthc trả 0 — nhưng tthc trả 8 record
+    yếu (0.668 "người gốc Việt Nam"...) nên fallback không bao giờ chạy. → top-3 toàn tthc lệch
+    chủ đề. **Đây KHÔNG phải lỗi bộ chấm** — cùng họ với EV01/LX02: nội dung thẩm quyền nằm ở
+    guide/supplemental, không có bản tthc tương đương. Cách sửa thật = seed 1 record tthc "Cấp xác
+    nhận số CMND" (như đã seed e-visa) HOẶC nới kiến trúc cho guide điểm cao cạnh tranh — quyết
+    định dữ liệu, để người dùng chốt (cùng nhóm LX02).
+- **Thay đổi thực hiện:**
+  1. `scripts/shadow-retrieval.js` — thêm helper `effectiveTitle()` chấm topic theo tên thủ tục
+     thật (title của tthc, hoặc dòng "Thủ tục:" trong text của guide có title rỗng), KHÔNG khớp
+     toàn văn text (tránh PASS giả: "giấy phép lái xe" xuất hiện trong text căn cứ của "Cấp lại
+     giấy phép sát hạch"). Robustness hợp lệ cho việc chấm guide, **net-neutral trên 91 câu hiện
+     tại** vì current-procedure-first chưa để guide nào lọt top-3.
+  2. `api/chat.js` `classifyQuestion` — vá gap lỗi thật (ảnh hưởng nhiều câu căn cước, không riêng
+     CANG01): regex `can_cuoc` trước chỉ có bản KHÔNG dấu "chung minh nhan dan" (mà
+     `getQuestionTextForMatching` chỉ lowercase, giữ dấu → trượt) và thiếu "định danh cá nhân".
+     Bổ sung cả 2 dạng dấu/không dấu: "chứng minh nhân dân", "định danh cá nhân". CANG01 giờ định
+     tuyến đúng lĩnh vực căn cước (top-3 toàn tthc căn cước thay vì "tên định danh"/XNC lệch), nhưng
+     VẪN WARN vì tài liệu đúng là guide/supplemental bị filter tthc-only chặn — cần seed dữ liệu
+     (quyết định người dùng, cùng lô LX02).
+- **File đã sửa:** `scripts/shadow-retrieval.js`, `api/chat.js`, `docs/brain/06-ai-working-log.md`,
+  `test/results/shadow-retrieval-classify-fix.md` (báo cáo cuối).
+- **Kiểm tra:** `node --check` OK; `npm test` 299/299; live probe 9 câu căn cước (CANG01 + CC01-06 +
+  CC-DIS01/02) không hồi quy; full 91 câu **PASS 89 · WARN 2 · FAIL 0** (không hồi quy). classify là
+  behavior-sensitive → nếu chuyển production cần chạy lại gate 30 câu (nhưng 30 câu regression không
+  có câu căn cước nên tác động khu trú ở nhóm căn cước, đã phủ bằng shadow).
+
 ## [2026-07-17] Khôi phục đoạn SYSTEM_PROMPT_BASE bị hỏng mã hóa/ghép dòng
 - **Agent:** Claude Code
 - **Thay đổi:** Dọn đoạn hỏng trong `SYSTEM_PROMPT_BASE` (đã có sẵn trên `main` từ commit

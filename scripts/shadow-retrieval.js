@@ -41,6 +41,18 @@ function norm(text) {
         .replace(/[^a-z0-9]+/gi, ' ').trim().toLowerCase();
 }
 
+// Tên thủ tục hiệu dụng để chấm topic: record tthc/web có `title`; record guide
+// (guide_cap_xa_2025_*) để `title` trống, tên nằm ở dòng "Thủ tục:" trong `text`.
+// KHÔNG khớp toàn văn `text` — cụm chủ đề có thể xuất hiện ở phần căn cứ/mô tả của
+// thủ tục khác (vd "giấy phép lái xe" trong text của "Cấp lại giấy phép sát hạch")
+// và gây PASS giả, che mất khoảng trống dữ liệu thật.
+function effectiveTitle(match = {}) {
+    const md = match.metadata || {};
+    if (md.title) return md.title;
+    const hit = /Th[uủ] t[uụ]c:\s*([^\n]+)/i.exec(md.text || '');
+    return hit ? hit[1] : '';
+}
+
 async function embedQuery(text, delayMs) {
     for (let attempt = 0; attempt < 4; attempt += 1) {
         const res = await fetch(`${EMBED_URL}?key=${process.env.GEMINI_API_KEY}`, {
@@ -127,7 +139,7 @@ function scoreNew(question, result) {
     if (question.expect_topic) {
         // Recall@3: kỳ vọng chủ đề xuất hiện trong top-3 (không đòi đúng top-1 — rerank
         // thật ở chat.js có thể đảo thứ tự). domain/cap vẫn chấm trên top-1 (định tuyến).
-        const topicOk = question.expect_topic.some(p => result.top.some(m => norm(m.metadata?.title).includes(norm(p))));
+        const topicOk = question.expect_topic.some(p => result.top.some(m => norm(effectiveTitle(m)).includes(norm(p))));
         flags.push(`topic=${topicOk ? 'ok' : 'LỆCH'}`);
     }
     if (question.expect_procedure) {

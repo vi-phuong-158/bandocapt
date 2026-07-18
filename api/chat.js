@@ -1076,7 +1076,7 @@ function classifyQuestion(text) {
 
     // 3. Lĩnh vực căn cước / đăng ký xe — xếp CUỐI để không cướp intent hộ chiếu/visa/cư trú
     // khi các từ này chỉ xuất hiện như giấy tờ kèm theo (vd "làm hộ chiếu cần mang CCCD").
-    if (/căn cước|can cuoc|cccd|cmnd|chung minh nhan dan|định danh điện tử|dinh danh dien tu/.test(lower)) return 'can_cuoc';
+    if (/căn cước|can cuoc|cccd|cmnd|chứng minh nhân dân|chung minh nhan dan|định danh điện tử|dinh danh dien tu|định danh cá nhân|dinh danh ca nhan/.test(lower)) return 'can_cuoc';
     if (/(đăng ký xe|dang ky xe|biển số xe|bien so xe|giấy đăng ký xe|giay dang ky xe)/.test(lower)) return 'dang_ky_xe';
 
     return null; // không filter
