@@ -347,6 +347,10 @@ test('telemetry payload omits question, answer and raw IP by default', () => {
     // IP phải được hash, không lưu plaintext.
     assert.ok(payload.ip_bucket_hash && payload.ip_bucket_hash !== '203.0.113.7');
     assert.equal(payload.source_count, 1);
+    assert.equal(payload.latency_ms, 12);
+    for (const field of ['embedding_ms', 'retrieval_ms', 'rerank_ms', 'query_rewrite_ms', 'history_summary_ms', 'generation_ms', 'time_to_first_validated_sentence_ms', 'total_ms']) {
+        assert.equal(payload[field], 0, `${field} phải là số 0 thay vì undefined để Firestore chấp nhận`);
+    }
     assert.equal(payload.telemetry_type, 'metric');
     assert.equal(payload.retention_days, 30);
     assert.ok(payload.expires_at instanceof Date);
@@ -419,6 +423,7 @@ test('faq cache keys are hashed and obvious PII is excluded from caching', () =>
     assert.match(key, /^auto:[0-9a-f]{64}$/);
     assert.equal(handler.shouldSkipFaqCache('Email cua toi la citizen@example.com'), true);
     assert.equal(handler.shouldSkipFaqCache('Cong an phuong Thanh Mieu o dau?', { locationLookupRequested: true }), true);
+    assert.equal(handler.shouldSkipFaqCache('Mất thẻ tạm trú thì làm lại ở đâu?'), true);
     assert.equal(handler.shouldSkipFaqCache('Thu tuc cap ho chieu cho tre em'), false);
 });
 
@@ -655,6 +660,139 @@ test('T3.7: "cấp thẻ"/"mất thẻ" trần không cướp intent tam_tru_the
     // xóa oan nữa vì category không còn là tam_tru_the.
     const canCuocMatches = [{ id: 'cc1', score: 0.79, metadata: { title: 'Cấp lại thẻ căn cước cấp tỉnh' } }];
     assert.equal(filterMatchesByQuestionCategory(canCuocMatches, 'can_cuoc').length, 1);
+});
+
+test('phương án A: hàng rào công dân độc lập với classify (gate DN01/LOC02)', () => {
+    const { classifyQuestion, hasForeignSubjectQuery, isCitizenResidenceDoc, filterMatchesByQuestionCategory } = require('../api/chat');
+
+    // Bối cảnh bug: 2 câu này classify về null → nhánh split không chạy → tài liệu
+    // "Thông báo lưu trú" (công dân, Luật Cư trú, mốc 23h/08h) lọt context → model
+    // trích dẫn sai căn cứ cho câu hỏi người nước ngoài (hard fail đa số 2026-07-18).
+    const dn01 = 'Công ty tôi có 5 lao động Trung Quốc mới đến Phú Thọ, cần làm gì với Công an?';
+    const loc02 = 'Bạch Hạc có người Trung Quốc ở thì báo công an nào?';
+    assert.equal(classifyQuestion(dn01), null);
+    assert.equal(classifyQuestion(loc02), null);
+
+    // Nhận diện chủ thể NNN qua quốc tịch, không cần cụm "người nước ngoài" literal.
+    assert.equal(hasForeignSubjectQuery(dn01), true);
+    assert.equal(hasForeignSubjectQuery(loc02), true);
+    assert.equal(hasForeignSubjectQuery('Con tôi quốc tịch Hàn Quốc ở cùng bố mẹ tại Phú Thọ'), true);
+    assert.equal(hasForeignSubjectQuery('Foreign guest stays at my house in Thanh Mieu'), true);
+    // KHÔNG bắn nhầm: câu công dân thuần và "người anh" (= anh trai, mơ hồ).
+    assert.equal(hasForeignSubjectQuery('Có cách nào khai báo lùi ngày tạm trú không?'), false);
+    assert.equal(hasForeignSubjectQuery('Người anh của tôi muốn đăng ký tạm trú ở Việt Trì'), false);
+
+    // Phân loại tài liệu: cư trú công dân thuần vs thủ tục dành cho NNN.
+    const citizenDoc = { title: 'Thông báo lưu trú', text: 'Căn cứ Luật Cư trú số 68/2020/QH14. Thông báo lưu trú trước 23 giờ.' };
+    const kbttDoc = { title: 'Khai báo tạm trú cho người nước ngoài tại Việt Nam qua Trang thông tin điện tử', text: 'Khai báo tại https://kbtt.xuatnhapcanh.gov.vn trong 12 giờ.' };
+    const trcDoc = { title: 'Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam', text: 'Mẫu NA6, NA8. Người nước ngoài được cơ quan bảo lãnh.' };
+    assert.equal(isCitizenResidenceDoc(citizenDoc), true);
+    assert.equal(isCitizenResidenceDoc(kbttDoc), false);
+    assert.equal(isCitizenResidenceDoc(trcDoc), false);
+
+    // Hàng rào chạy cả khi category=null: loại doc công dân, giữ doc NNN.
+    const matches = [
+        { id: 'citizen', score: 0.71, metadata: citizenDoc },
+        { id: 'trc', score: 0.72, metadata: trcDoc },
+        { id: 'kbtt', score: 0.70, metadata: kbttDoc },
+    ];
+    assert.deepEqual(filterMatchesByQuestionCategory(matches, null, dn01).map(m => m.id), ['trc', 'kbtt']);
+    assert.deepEqual(filterMatchesByQuestionCategory(matches, null, loc02).map(m => m.id), ['trc', 'kbtt']);
+    // Câu KHÔNG có chủ thể NNN: giữ nguyên cả doc công dân (không phá VP06 và câu công dân thật).
+    assert.equal(filterMatchesByQuestionCategory(matches, null, 'Có cách nào khai báo lùi ngày tạm trú không?').length, 3);
+    assert.equal(filterMatchesByQuestionCategory(matches, null, 'Thủ tục thông báo lưu trú cho khách ở quê lên chơi?').length, 3);
+});
+
+test('phương án A phần 2: đảm bảo slot doc khai báo tạm trú NNN cho câu "mới đến" (DN01)', () => {
+    const { ensureForeignStayDeclarationDoc, getForeignStayDeclarationFallbackMatch } = require('../api/chat');
+
+    const kbtt = { id: 'kbtt', score: 0.73, metadata: { retrieval_intent: 'tam_tru_khai_bao_nguoi_nuoc_ngoai', title: 'Khai báo tạm trú NNN qua KBTT' } };
+    const trc = { id: 'trc', score: 0.72, metadata: { title: 'Cấp thẻ tạm trú cho người nước ngoài' } };
+    const visa = { id: 'visa', score: 0.72, metadata: { title: 'Cấp thị thực cho người nước ngoài' } };
+    const giaHan1 = { id: 'gh1', score: 0.725, metadata: { title: 'Gia hạn tạm trú cho người nước ngoài' } };
+    const giaHan2 = { id: 'gh2', score: 0.72, metadata: { title: 'Gia hạn tạm trú cho người đã được cấp giấy miễn thị thực' } };
+    const dn01 = 'Công ty tôi có 5 lao động Trung Quốc mới đến Phú Thọ, cần làm gì với Công an?';
+
+    // Rerank đẩy KBTT ra khỏi top-4 → guard thay doc cuối bằng KBTT.
+    const top4 = [giaHan1, visa, trc, giaHan2];
+    const ensured = ensureForeignStayDeclarationDoc(top4, [...top4, kbtt], dn01, 4);
+    assert.deepEqual(ensured.map(m => m.id), ['gh1', 'visa', 'trc', 'kbtt']);
+
+    // KBTT đã có trong top-4 → giữ nguyên, không đổi thứ tự.
+    assert.deepEqual(ensureForeignStayDeclarationDoc([kbtt, trc], [kbtt, trc], dn01, 4).map(m => m.id), ['kbtt', 'trc']);
+    // Câu có chủ thể NNN nhưng KHÔNG có ngữ cảnh "mới đến/đến ở" (vd hỏi thẻ tạm trú) → không can thiệp.
+    const tt01 = 'Người nước ngoài làm việc tại công ty ở Phú Thọ muốn làm thẻ tạm trú cần gì?';
+    assert.deepEqual(ensureForeignStayDeclarationDoc(top4, [...top4, kbtt], tt01, 4).map(m => m.id), ['gh1', 'visa', 'trc', 'gh2']);
+    // Pool không có doc khai báo NNN → giữ nguyên (không bịa slot).
+    assert.deepEqual(ensureForeignStayDeclarationDoc(top4, top4, dn01, 4).map(m => m.id), ['gh1', 'visa', 'trc', 'gh2']);
+
+    // Khi query phụ Pinecone timeout, fallback chỉ lấy record KBTT đã duyệt từ catalog cục bộ.
+    const fallback = getForeignStayDeclarationFallbackMatch();
+    assert.equal(fallback.id, 'tthc_matt26265');
+    assert.equal(fallback._localCatalogFallback, true);
+    assert.equal(fallback.metadata.review_status, 'approved');
+    assert.equal(fallback.metadata.retrieval_intent, 'tam_tru_khai_bao_nguoi_nuoc_ngoai');
+    assert.match(fallback.metadata.text, /kbtt\.xuatnhapcanh\.gov\.vn/i);
+});
+
+test('TT04 fail-closed: chỉ sinh câu trả lời tất định khi thiếu đúng thủ tục cấp lại thẻ tạm trú', () => {
+    const {
+        isTempResidenceCardReplacementQuery,
+        hasExactTempResidenceCardReplacementDoc,
+        shouldUseTempResidenceCardReplacementGapReply,
+        getTempResidenceCardReplacementGapReply,
+    } = require('../api/chat');
+    const query = 'Mất thẻ tạm trú thì làm lại ở đâu?';
+    const wrongVariants = [
+        { title: 'Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam' },
+        { title: 'Cấp lại thẻ thường trú cho người nước ngoài tại Việt Nam' },
+    ];
+    const exactVariant = [{ title: 'Cấp lại thẻ tạm trú do bị mất' }];
+
+    assert.equal(isTempResidenceCardReplacementQuery(query), true);
+    assert.equal(isTempResidenceCardReplacementQuery('Làm thẻ tạm trú lần đầu cần gì?'), false);
+    assert.equal(hasExactTempResidenceCardReplacementDoc(wrongVariants), false);
+    assert.equal(hasExactTempResidenceCardReplacementDoc(exactVariant), true);
+    assert.equal(shouldUseTempResidenceCardReplacementGapReply(query, wrongVariants), true);
+    assert.equal(shouldUseTempResidenceCardReplacementGapReply(query, exactVariant), false);
+
+    const reply = getTempResidenceCardReplacementGapReply('vi');
+    assert.match(reply, /chưa có hướng dẫn riêng[^.!?\n]{0,80}trường hợp mất/i);
+    assert.match(reply, /Phòng Quản lý xuất nhập cảnh/i);
+    assert.match(reply, /Phú Thọ cũ/i);
+    assert.match(reply, /Vĩnh Phúc cũ/i);
+    assert.match(reply, /Hòa Bình cũ/i);
+});
+
+test('TT04 fail-closed: nhận diện thủ tục đúng biến thể cả khi metadata không có title', () => {
+    const {
+        getProcedureTitleFromMetadata,
+        hasExactTempResidenceCardReplacementDoc,
+        shouldUseTempResidenceCardReplacementGapReply,
+    } = require('../api/chat');
+    const query = 'Mất thẻ tạm trú thì làm lại ở đâu?';
+
+    // Vector guide_*/bản ghi crawl cũ: tên thủ tục chỉ nằm ở dòng đầu của text.
+    const titlelessExact = [{
+        text: 'Tên thủ tục: Cấp lại thẻ tạm trú do bị mất\nLoại thủ tục: Tạm trú\nCấp xử lý: Cấp Tỉnh',
+    }];
+    assert.equal(getProcedureTitleFromMetadata(titlelessExact[0]), 'Cấp lại thẻ tạm trú do bị mất');
+    assert.equal(hasExactTempResidenceCardReplacementDoc(titlelessExact), true);
+    assert.equal(shouldUseTempResidenceCardReplacementGapReply(query, titlelessExact), false);
+
+    // Nhưng KHÔNG được quét cả text: thủ tục "cấp mới" nhắc "cấp lại thẻ tạm trú" trong
+    // căn cứ pháp lý vẫn phải bị coi là thiếu đúng biến thể → giữ câu trả lời tất định.
+    const newIssuanceMentioningReplacement = [{
+        text: 'Tên thủ tục: Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam\n'
+            + 'Căn cứ pháp lý: Điều 38 quy định việc cấp lại thẻ tạm trú khi bị mất, hỏng.',
+    }];
+    assert.equal(hasExactTempResidenceCardReplacementDoc(newIssuanceMentioningReplacement), false);
+    assert.equal(shouldUseTempResidenceCardReplacementGapReply(query, newIssuanceMentioningReplacement), true);
+
+    // metadata.title vẫn được ưu tiên khi có.
+    assert.equal(
+        getProcedureTitleFromMetadata({ title: 'Cấp thẻ tạm trú', text: 'Tên thủ tục: Cấp lại thẻ tạm trú do mất' }),
+        'Cấp thẻ tạm trú');
 });
 
 test('classifyQuestion không để căn cước/CCCD cướp intent hộ chiếu/visa/cư trú', () => {

@@ -1,5 +1,63 @@
 # 06 — AI Working Log
 
+## [2026-07-18] Ổn định majority gate sau phương án A (TT04/VP01/TR03 + fallback DN01)
+- **Agent:** Codex
+- **Thay đổi:** Giữ phương án A của Claude cho DN01/LOC02 và hoàn thiện bốn lớp ổn định:
+  (1) TT04 trả lời tất định `DETERMINISTIC_PROCEDURE_GAP` khi câu hỏi mất/cấp lại thẻ tạm trú
+  nhưng RAG thiếu đúng biến thể, dùng ba điểm QLXNC đã xác minh và bỏ FAQ cache cho route này;
+  (2) VP01/PI01 grader nhận thêm paraphrase từ chối an toàn (`dữ liệu`, `không thể đáp ứng`) nhưng
+  test âm vẫn bắt mức phạt bịa và câu làm theo prompt injection; (3) output validator chỉ giữ URL
+  HTTP(S) có trong RAG/citation/trụ sở xác minh, redact URL typo/tự tạo; (4) sau full gate đầu còn
+  DN01 fail 2/3 do `PINECONE_QUERY_FOREIGN_STAY_SUPPLEMENT_TIMEOUT`, tách catch query phụ để giữ
+  query chính và chỉ dùng record `tthc_matt26265` đã duyệt trong `data/tthc-catalog.json` khi query
+  phụ lỗi. Đồng thời chuẩn hóa telemetry timing thiếu thành `0` để nhánh tất định không ghi
+  `undefined` vào Firestore.
+- **File đã sửa:** `api/chat.js`, `lib/output-validator.js`, `test/output-validator.test.js`,
+  `test/p0-fixes.test.js`, `test/regression-expectations.json`, `test/regression-grader.test.js`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`, `test/results/regression-latest.md`,
+  `test/results/regression-majority-latest.md` và các report full gate ngày 2026-07-18. Đã xóa các
+  report probe/targeted một phần; giữ report full gate làm bằng chứng.
+- **Lý do:** TT04 là lỗi hành vi thật (suy diễn từ biến thể thủ tục khác), VP01/PI01 là false
+  negative của regex, TR03 cho thấy URL typo có thể lọt ra UI, và query bổ sung DN01 không được phép
+  làm mất toàn bộ kết quả retrieval gốc khi timeout.
+- **Kiểm tra:** `node --test` nhóm liên quan 119/119; `npm test` 304/304; `npm run build` PASS
+  (19 input, 18 hashed asset). Targeted DN01/VP01/PI01 đạt 3/3 từng ca. Full DeepSeek majority
+  3×30 cuối đạt: 0 hard-fail/provider-error đa số; TYPO01 flaky 1/3 và provider error lẻ
+  TYPO01/CS01 không chặn; báo cáo
+  `test/results/regression-majority-2026-07-18_10-47-43.md` và hai file `*-latest.md`.
+
+## [2026-07-18] Phương án A: hàng rào công dân độc lập classify + đảm bảo doc KBTT (gate DN01/LOC02)
+- **Agent:** Claude Code
+- **Bối cảnh:** Gate majority 3-run đầu tiên bằng DeepSeek trên namespace ứng viên KHÔNG ĐẠT:
+  DN01 hard fail 2/3, LOC02 flaky 1/3 — cả hai cùng gốc: câu chủ thể NNN diễn đạt gián tiếp
+  ("lao động Trung Quốc mới đến", "có người Trung Quốc ở") làm `classifyQuestion` trả `null`
+  → nhánh split (chứa hàng rào `CITIZEN_RESIDENCE_PATTERN`) không chạy → tài liệu cư trú
+  CÔNG DÂN (`tthc_phutho_web_264-39` "Thông báo lưu trú", Luật Cư trú, mốc 23h/08h) lọt
+  context → DeepSeek trích dẫn sai căn cứ. Tái hiện 100%, không phải flaky sampling.
+- **Thay đổi (`api/chat.js`), 4 phần:**
+  1. `FOREIGN_SUBJECT_PATTERN` + `hasForeignSubjectQuery()`: nhận diện chủ thể NNN qua cụm
+     "người nước ngoài" hoặc "người/khách/lao động/công dân/quốc tịch + tên quốc tịch"
+     (không đưa "anh" vào danh sách — "người anh" mơ hồ). `isCitizenResidenceDoc()`: doc cư
+     trú công dân thuần = khớp `CITIZEN_RESIDENCE_PATTERN` và KHÔNG nhắc người nước ngoài/KBTT.
+  2. `filterMatchesByQuestionCategory(matches, category, query)`: hàng rào công dân chạy TRƯỚC
+     và ĐỘC LẬP với nhánh split — câu có chủ thể NNN thì loại doc cư trú công dân kể cả khi
+     category=null. `scripts/shadow-retrieval.js` cập nhật 2 call site truyền query.
+  3. Query phụ nhắm đích (DN01-class): câu NNN "mới đến/đến ở" mà topK không có doc
+     `retrieval_intent=tam_tru_khai_bao_nguoi_nuoc_ngoai` → query bổ sung theo intent (sàn mềm
+     0.45, cờ `_foreignStaySupplement` vượt ngưỡng 0.62) + `ensureForeignStayDeclarationDoc()`
+     đảm bảo 1 slot top-4 (nhường chỗ doc cuối, cùng cơ chế prioritizeCurrentProcedureMatches).
+     Lý do: embedding câu doanh nghiệp đa ý định xa ngữ nghĩa doc KBTT (0.665 < top-12 cutoff).
+  4. SYSTEM_PROMPT luật "NGƯỜI NƯỚC NGOÀI MỚI ĐẾN": câu tình huống đa nghĩa vụ phải đủ CẢ 2 vế
+     (khai báo tạm trú trước mắt + thẻ/gia hạn tạm trú bảo lãnh nếu dài hạn) — DeepSeek trước
+     đó chỉ trả 1 vế (~50/50) gây missing_required_fact:sponsor_procedures.
+- **File đã sửa:** `api/chat.js`, `scripts/shadow-retrieval.js`, `test/p0-fixes.test.js` (+2 test),
+  `docs/brain/06-ai-working-log.md`.
+- **Kiểm tra:** `npm test` 301/301. Verify guard trên record thật: `264-39` bị loại đúng,
+  KBTT/e-visa/thẻ tạm trú giữ đúng. Probe live DeepSeek: DN01 PASS 2 lần liên tiếp (hết cả 3
+  loại fail: forbidden/ungrounded/sponsor), blast radius 8/8 PASS (F01, TR01, TT01, VP06, DN01,
+  LOC02, TYPO02, GD02). Gate majority 3-run sau fix: đang chạy, kết quả ghi ở entry sau.
+
 ## [2026-07-17] Điều tra 2 WARN shadow (LX02/CANG01) + robustness bộ chấm topic
 - **Agent:** Claude Code
 - **Bối cảnh:** Sau merge, chạy lại full 91 câu shadow retrieval trên namespace ứng viên (đã seed
@@ -1847,3 +1905,31 @@
 - **File đã sửa:** `api/chat.js`, `scripts/import-phutho-web-to-pinecone.js`, `test/p0-fixes.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
 - **Lý do:** Đảm bảo thủ tục cấp thẻ tạm trú được truy hồi từ namespace ứng viên, URL nguồn chính thức được giữ lại, và không thể upsert nhầm dữ liệu Pinecone.
 - **Kiểm tra:** Unit test cho category/citation/namespace guard; tiếp theo chạy toàn bộ test, build và E2E.
+
+## [2026-07-18] Redesign danh mục TTHC — duyệt 2 tầng (taste-skill)
+- **Agent:** Claude Code
+- **Thay đổi:** Đổi UI danh mục thủ tục sang mô hình 3 view: (1) home search-first + lưới 17 lĩnh vực gom 4 cụm (Xuất nhập cảnh / Cư trú / Căn cước & Định danh / Phương tiện & Khác); (2) danh sách thủ tục của lĩnh vực hoặc kết quả tìm kiếm — hàng chia dòng (bỏ card nổi), meta dẫn "Nộp tại: cấp xã/tỉnh/TW" (chuẩn hoá bug casing "Cấp xã"/"Cấp Xã"), KHÔNG còn dẫn bằng phí "Chưa xác minh"; (3) chi tiết = tóm tắt nhanh (Nộp tại/Cấp/Thời hạn/Kết quả) + note phí trung tính + accordion nhóm. Parser accordion nhận CẢ nhãn TTHC ("Hồ sơ:") lẫn nhãn wiki đánh số của guide ("15.1. Trình tự thực hiện:") — guide chiếm 57/92 (62%) catalog nên nếu chỉ khớp tthc thì đa số rơi vào 1 mục "Thông tin khác"; `classifySection` phân loại theo từ khoá (bỏ dấu) và bảo toàn toàn bộ nội dung. Giữ nguyên public API, deep-link chat (mở thẳng chi tiết), tích hợp mobile bottom-nav, và toàn bộ `__test` exports + `resolveProcedureIdFromList`.
+- **File đã sửa:** `js/tthc-catalog.js` (viết lại view/nav/render, giữ helpers), `styles.css` (thay khối content-styles TTHC bằng home/list/accordion token-driven), `index.html` (thân `#tthc-catalog-window` → 3 view + id subtitle), `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`. Mockup tham chiếu: `design/mockups/tthc-catalog-v2.html` (không deploy).
+- **Lý do:** Danh mục cũ "không thân thiện": 62% thủ tục phí "Chưa xác minh" nhưng card dẫn bằng phí; 17 chip cuộn ngang giấu lĩnh vực; 92 card nổi nặng; chi tiết là tường text. Áp taste-skill (dials trust-first VARIANCE 4/MOTION 3/DENSITY 4), giữ IA + thương hiệu.
+- **Kiểm tra:** `node --check` + `npm run build` (dist 18 hashed assets); `node --test` 48 ca (tthc-catalog, tthc-catalog-ui, chat-deeplinks, civic-ui, chatbot-quick-replies, t2d) đều pass; verify trong app thật (dist@4173): Tầng 1 = 17 tile/4 cụm với số liệu thật, Tầng 2 = Căn cước 21 hàng + cap badge, Tầng 3 = accordion đúng nhóm cho CẢ guide (5 mục, trích được "Thời hạn: Không quá 07 ngày") lẫn tthc (3 mục), back 3 tầng + tìm kiếm "hộ chiếu"=7 kết quả đều đúng; 0 lỗi console. (Screenshot + transition mobile bị treo do quirk Browser pane headless — xác nhận bằng đối chứng cửa sổ chat KHÔNG bị tôi sửa cũng cho computed style y hệt.)
+
+## [2026-07-18] Khắc phục lỗi review giao diện danh mục TTHC
+- **Agent:** Codex
+- **Thay đổi:** Chuyển tìm kiếm sang submit rõ ràng để giữ focus khi nhập đủ từ khóa; reset list context khi mở deep-link ngoài catalog; cập nhật E2E theo DOM home/list/detail mới; bảo đảm chip gợi ý đạt touch target 44px và summary mobile về một cột.
+- **File đã sửa:** `js/tthc-catalog.js`, `styles.css`, `output.css`, `test/e2e/tthc-catalog.spec.js`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Sửa toàn bộ lỗi P1/P2 phát hiện trong review mà không thay đổi hướng thiết kế hoặc public API.
+- **Kiểm tra:** `npm test` 304/304 pass; `npm run build` pass; `npm run test:e2e` 17/17 pass; riêng catalog E2E 6/6 pass và kiểm tra trực quan bản build xác nhận search/submit không vỡ bố cục.
+
+## [2026-07-18] Vá điểm mù nhận diện thủ tục của nhánh fail-closed TT04 (review PR #40)
+- **Agent:** Claude Code
+- **Thay đổi:** `hasExactTempResidenceCardReplacementDoc` trước đây chỉ đọc `title`/`procedure_title`/`ten_thu_tuc`. Bổ sung `getProcedureTitleFromMetadata` để lấy tên thủ tục từ dòng đầu `Tên thủ tục:`/`Thủ tục:` trong `metadata.text` khi các trường title đều rỗng. Cố ý CHỈ khớp đúng dòng tên, KHÔNG quét cả text.
+- **File đã sửa:** `api/chat.js`, `test/p0-fixes.test.js`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Một phần corpus (vector `guide_*`, bản ghi crawl cũ — đã gặp khi điều tra CANG01) không có `metadata.title`, tên thủ tục nằm trong `metadata.text`. Nếu sau này seed thủ tục "cấp lại thẻ tạm trú do mất" ở dạng đó, hàm cũ sẽ báo "không có đúng biến thể" → nhánh fail-closed TT04 chặn trước khi sinh câu trả lời và che mất dữ liệu ĐÚNG, không có telemetry nào báo sai. Lý do chỉ khớp dòng tên: căn cứ pháp lý của thủ tục "cấp mới" thường nhắc "cấp lại thẻ tạm trú khi bị mất, hỏng" — quét cả text sẽ gây false negative ngược lại, làm mất chính hàng rào TT04 (cùng lập luận đã dùng cho `effectiveTitle` ở ca LX02).
+- **Kiểm tra:** `npm test` 305/305 pass. Ca test mới phủ 3 hướng: (a) metadata không title, tên trong text → nhận đúng biến thể, KHÔNG bật câu trả lời tất định; (b) thủ tục cấp mới nhắc "cấp lại" trong căn cứ pháp lý → vẫn coi là thiếu biến thể, GIỮ câu trả lời tất định; (c) `metadata.title` vẫn được ưu tiên khi có.
+
+## [2026-07-18] Redaction URL không nuốt dấu câu + bỏ nạp catalog ở module scope (review PR #40)
+- **Agent:** Claude Code
+- **Thay đổi:** (1) `MAPS_URL_PATTERN`/`PUBLIC_URL_PATTERN` thêm ràng buộc ký tự cuối không phải dấu câu (`[^\s<>\])}.,;:!?]`) nên regex không còn ăn dấu chấm/phẩy đứng sau URL. (2) `require('../data/tthc-catalog.json')` chuyển từ module scope xuống lazy bên trong `getForeignStayDeclarationFallbackMatch`, cache qua biến `cachedTthcCatalog`.
+- **File đã sửa:** `lib/output-validator.js`, `api/chat.js`, `test/output-validator.test.js`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** (1) Redaction thay URL bằng chuỗi rỗng; nếu regex nuốt luôn dấu chấm cuối câu thì câu trả lời còn lại mệnh đề cụt không có dấu kết câu. Trước đây chỉ ảnh hưởng maps URL (hiếm), nhưng từ khi thêm redaction URL công khai thì tần suất tăng hẳn. `normalizeUrl` vốn đã cắt dấu câu khi SO SÁNH nên phần đối chiếu allow-list không đổi hành vi. (2) Catalog ~624 KB chỉ dùng cho đúng một nhánh dự phòng (query phụ Pinecone lỗi) nhưng nạp ở module scope thì mọi cold start của serverless function đều phải parse.
+- **Kiểm tra:** `npm test` 306/306 pass, thêm ca "URL redaction giữ lại dấu kết câu" phủ cả URL bị redact giữa câu lẫn URL hợp lệ cuối câu. Xác minh lazy require bằng `require.cache`: sau `require('./api/chat')` catalog CHƯA nạp, chỉ nạp sau khi gọi `getForeignStayDeclarationFallbackMatch()` và hàm vẫn trả đúng record `tam_tru_khai_bao_nguoi_nuoc_ngoai`.

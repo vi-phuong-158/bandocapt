@@ -1,5 +1,18 @@
 # 04 — Current Tasks
 
+## Cập nhật T3.8 ngày 2026-07-18
+
+- **Gate đã đạt:** Full generation majority DeepSeek 3×30 trên namespace
+  `chatbot-tthc-xnc-web-rd-20260715` đạt 2/3, không có hard-fail/provider-error đa số; TYPO01 flaky
+  1/3 và provider error lẻ ở TYPO01/CS01 là advisory, không chặn.
+- **Các ca mục tiêu:** DN01, LOC02, TT04, VP01, TR03 và PI01 đều qua majority. Targeted hậu vá
+  DN01/VP01/PI01 đạt 3/3 từng ca.
+- **Bản vá:** giữ phương án A cho DN01/LOC02; fallback KBTT cục bộ khi query bổ sung timeout; TT04
+  fail-closed tất định khi thiếu đúng biến thể; URL công khai phải có nguồn; bộ chấm chấp nhận paraphrase
+  từ chối an toàn của VP01/PI01 nhưng vẫn giữ test âm chống mức phạt bịa/làm theo injection.
+- **Trạng thái phát hành:** Gate ứng viên đã xanh; chưa commit, push hoặc cutover production trong
+  phiên Codex này vì người dùng chưa yêu cầu thao tác Git/phát hành.
+
 ## Cập nhật T3.8 ngày 2026-07-17
 
 - **Đã nhập:** 346/346 law/guide đã được người dùng duyệt vào `chatbot-tthc-xnc-web-rd-20260715`; tổng namespace ứng viên 503 vector, có backup đầy đủ.

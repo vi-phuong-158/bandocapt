@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockup — Danh mục thủ tục (Hướng B, 2 tầng)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" rel="stylesheet">
+<style>
+/* Token subset (khớp tokens.css của dự án) */
+:root{
+  --blue-700:#1d4ed8; --blue-600:#2563eb; --blue-100:#dbeafe; --blue-50:#eff6ff;
+  --emerald-700:#047857; --emerald-50:#ecfdf5;
+  --amber-600:#d97706; --amber-50:#fffbeb;
+  --slate-900:#0f172a; --slate-800:#1e293b; --slate-700:#334155; --slate-600:#475569;
+  --slate-500:#64748b; --slate-400:#94a3b8; --slate-300:#cbd5e1; --slate-200:#e2e8f0;
+  --slate-100:#f1f5f9; --slate-50:#f8fafc; --white:#fff;
+  --color-primary:var(--blue-700); --color-primary-hover:#1e40af;
+  --text-strong:var(--slate-900); --text-body:var(--slate-800); --text-muted:var(--slate-500);
+  --surface-card:var(--white); --surface-muted:var(--slate-50); --bg-app:var(--slate-100);
+  --border-hairline:var(--slate-200);
+  --font:'Be Vietnam Pro',system-ui,sans-serif;
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:20px; --r-pill:9999px;
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:20px; --sp-6:24px;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.05);
+  --shadow-card:0 4px 16px -4px rgba(0,0,0,.06);
+  --shadow-hover:0 10px 28px -8px rgba(29,78,216,.18);
+  --ease:cubic-bezier(.4,0,.2,1); --dur:.22s;
+  --tracking-tight:-0.2px;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg-app);font-family:var(--font);color:var(--text-body);-webkit-font-smoothing:antialiased;}
+.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'opsz' 24;vertical-align:middle;}
+
+/* Khung mô phỏng cửa sổ danh mục (desktop 520px, giống app) */
+.stage{max-width:1200px;margin:0 auto;padding:28px 20px 60px;}
+.stage-note{max-width:520px;margin:0 auto 18px;color:var(--slate-600);font-size:13px;line-height:1.6;}
+.stage-note b{color:var(--slate-800);}
+.win{
+  width:520px;max-width:100%;height:720px;margin:0 auto;
+  background:var(--surface-card);border-radius:var(--r-xl);
+  border:1px solid rgba(15,23,42,.08);box-shadow:0 24px 70px rgba(15,23,42,.18);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+
+/* Header */
+.hd{display:flex;align-items:center;gap:var(--sp-3);min-height:64px;padding:12px var(--sp-4);border-bottom:1px solid var(--slate-100);flex-shrink:0;}
+.hd-back{width:38px;height:38px;border:0;border-radius:50%;background:transparent;color:var(--text-muted);cursor:pointer;display:none;align-items:center;justify-content:center;flex-shrink:0;transition:background var(--dur);}
+.hd-back:hover{background:var(--slate-100);color:var(--slate-800);}
+.hd-back.show{display:flex;}
+.hd-text{min-width:0;flex:1;}
+.hd-title{font-weight:800;font-size:15px;line-height:1.15;color:var(--text-strong);letter-spacing:var(--tracking-tight);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hd-sub{margin-top:2px;font-size:11px;color:var(--text-muted);}
+.hd-close{width:38px;height:38px;border:0;border-radius:50%;background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.hd-close:hover{background:var(--slate-100);}
+
+/* Body scroll */
+.body{flex:1;min-height:0;overflow-y:auto;}
+.view{display:none;animation:fade var(--dur) var(--ease);}
+.view.active{display:block;}
+@keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+@media (prefers-reduced-motion:reduce){.view{animation:none;}}
+
+/* ---- Tầng 1: Search-first + lưới lĩnh vực ---- */
+.hero{padding:var(--sp-6) var(--sp-4) var(--sp-4);}
+.hero h1{margin:0 0 4px;font-size:22px;font-weight:800;letter-spacing:var(--tracking-tight);color:var(--text-strong);text-wrap:balance;}
+.hero p{margin:0 0 var(--sp-4);font-size:13px;color:var(--text-muted);line-height:1.5;}
+.search{display:flex;align-items:center;gap:var(--sp-2);height:52px;padding:0 var(--sp-4);border-radius:var(--r-pill);background:var(--surface-muted);border:1.5px solid var(--slate-200);transition:border-color var(--dur),box-shadow var(--dur),background var(--dur);}
+.search:focus-within{background:var(--white);border-color:var(--color-primary);box-shadow:0 0 0 4px rgba(29,78,216,.1);}
+.search .material-symbols-outlined{color:var(--text-muted);font-size:22px;}
+.search input{flex:1;min-width:0;border:0;background:transparent;outline:0;font-family:var(--font);font-size:15px;color:var(--text-body);}
+.suggests{display:flex;flex-wrap:wrap;gap:var(--sp-2);margin-top:var(--sp-3);}
+.suggest{border:1px solid var(--slate-200);background:var(--white);color:var(--slate-700);border-radius:var(--r-pill);padding:7px 14px;font:600 12px var(--font);cursor:pointer;transition:all var(--dur);}
+.suggest:hover{border-color:var(--color-primary);color:var(--color-primary);background:var(--blue-50);}
+
+.cluster{padding:var(--sp-3) var(--sp-4) var(--sp-2);}
+.cluster-h{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted);margin:var(--sp-3) 0 var(--sp-3);}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--sp-3);}
+.tile{display:flex;align-items:center;gap:var(--sp-3);padding:var(--sp-3);border:1px solid var(--border-hairline);border-radius:var(--r-lg);background:var(--surface-card);cursor:pointer;text-align:left;transition:transform var(--dur) var(--ease),box-shadow var(--dur),border-color var(--dur);}
+.tile:hover{transform:translateY(-2px);box-shadow:var(--shadow-hover);border-color:transparent;}
+.tile:active{transform:scale(.98);}
+.tile-ic{width:44px;height:44px;flex-shrink:0;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center;background:var(--blue-50);color:var(--color-primary);}
+.tile-ic .material-symbols-outlined{font-size:24px;font-variation-settings:'FILL' 1;}
+.tile-body{min-width:0;}
+.tile-name{font-weight:700;font-size:14px;color:var(--text-strong);line-height:1.2;letter-spacing:var(--tracking-tight);}
+.tile-count{margin-top:3px;font-size:12px;color:var(--text-muted);}
+
+/* ---- Tầng 2: danh sách thủ tục (phẳng, chia dòng) ---- */
+.list-head{padding:var(--sp-4) var(--sp-4) var(--sp-2);}
+.list-head h2{margin:0;font-size:18px;font-weight:800;letter-spacing:var(--tracking-tight);color:var(--text-strong);}
+.list-head span{font-size:12px;color:var(--text-muted);}
+.rows{padding:var(--sp-2) var(--sp-4) var(--sp-6);}
+.row{display:flex;align-items:center;gap:var(--sp-3);width:100%;padding:14px var(--sp-3);border:0;background:transparent;border-bottom:1px solid var(--slate-100);cursor:pointer;text-align:left;border-radius:var(--r-md);transition:background var(--dur);}
+.row:hover{background:var(--surface-muted);}
+.row-body{flex:1;min-width:0;}
+.row-title{font-weight:600;font-size:14px;color:var(--text-body);line-height:1.35;}
+.row-meta{margin-top:6px;display:flex;gap:6px;align-items:center;}
+.cap{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:var(--r-pill);font-size:11px;font-weight:700;background:var(--slate-100);color:var(--slate-600);}
+.cap .material-symbols-outlined{font-size:14px;}
+.cap.xa{background:var(--emerald-50);color:var(--emerald-700);}
+.row-arrow{color:var(--slate-300);font-size:22px;flex-shrink:0;}
+
+/* ---- Tầng 3: chi tiết (tóm tắt + accordion) ---- */
+.dt{padding:var(--sp-4);}
+.dt h2{margin:0 0 var(--sp-3);font-size:18px;font-weight:800;line-height:1.25;letter-spacing:var(--tracking-tight);color:var(--text-strong);text-wrap:balance;}
+.dt-summary{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-2);margin-bottom:var(--sp-4);}
+.sum{display:flex;gap:var(--sp-3);padding:12px;border:1px solid var(--slate-200);border-radius:var(--r-md);background:var(--surface-muted);}
+.sum .material-symbols-outlined{font-size:20px;color:var(--color-primary);flex-shrink:0;}
+.sum-l{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);display:block;margin-bottom:2px;}
+.sum-v{font-size:13px;font-weight:600;color:var(--text-body);line-height:1.4;}
+.fee-note{display:flex;gap:var(--sp-2);align-items:flex-start;padding:11px 12px;border-radius:var(--r-md);background:var(--amber-50);border:1px solid #fde68a;color:#92400e;font-size:12px;margin-bottom:var(--sp-4);}
+.fee-note .material-symbols-outlined{font-size:18px;flex-shrink:0;}
+.acc{border:1px solid var(--slate-200);border-radius:var(--r-md);margin-bottom:var(--sp-2);overflow:hidden;background:var(--surface-card);}
+.acc summary{list-style:none;cursor:pointer;padding:13px 14px;font-weight:700;font-size:13px;color:var(--text-strong);display:flex;align-items:center;justify-content:space-between;gap:var(--sp-2);}
+.acc summary::-webkit-details-marker{display:none;}
+.acc summary::after{content:'';width:8px;height:8px;border-right:2px solid var(--text-muted);border-bottom:2px solid var(--text-muted);transform:rotate(45deg);transition:transform var(--dur);flex-shrink:0;}
+.acc[open] summary::after{transform:rotate(-135deg);}
+.acc-body{padding:0 14px 14px;font-size:13px;line-height:1.6;color:var(--slate-700);white-space:pre-wrap;}
+@media(max-width:560px){.dt-summary{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="stage">
+  <p class="stage-note">
+    <b>Mockup — Hướng B (duyệt 2 tầng), token-driven.</b> Bấm một lĩnh vực để vào danh sách thủ tục,
+    bấm tiếp một thủ tục để xem chi tiết. Dials: VARIANCE 4 · MOTION 3 · DENSITY 4 (trust-first).
+    Đây là bản demo luồng, chưa nối vào app.
+  </p>
+
+  <div class="win">
+    <div class="hd">
+      <button class="hd-back" id="back" aria-label="Quay lại"><span class="material-symbols-outlined">arrow_back</span></button>
+      <div class="hd-text">
+        <div class="hd-title" id="hdTitle">Thủ tục hành chính</div>
+        <div class="hd-sub" id="hdSub">Chọn lĩnh vực bạn cần</div>
+      </div>
+      <button class="hd-close" aria-label="Đóng"><span class="material-symbols-outlined">close</span></button>
+    </div>
+
+    <div class="body">
+      <!-- TẦNG 1 -->
+      <section class="view active" id="v-home">
+        <div class="hero">
+          <h1>Bạn cần làm thủ tục gì?</h1>
+          <p>Tra theo tên, hoặc chọn lĩnh vực bên dưới. 92 thủ tục thuộc thẩm quyền Công an.</p>
+          <label class="search">
+            <span class="material-symbols-outlined">search</span>
+            <input type="text" placeholder="Nhập: hộ chiếu, tạm trú, căn cước, đăng ký xe…">
+          </label>
+          <div class="suggests" id="suggests"></div>
+        </div>
+        <div id="clusters"></div>
+        <div style="height:16px"></div>
+      </section>
+
+      <!-- TẦNG 2 -->
+      <section class="view" id="v-list">
+        <div class="list-head"><h2 id="listTitle"></h2><span id="listCount"></span></div>
+        <div class="rows" id="rows"></div>
+      </section>
+
+      <!-- TẦNG 3 -->
+      <section class="view" id="v-detail"><div class="dt" id="detail"></div></section>
+    </div>
+  </div>
+</div>
+
+<script>
+// Nhóm lĩnh vực (cluster) — gom 17 lĩnh vực thành 4 cụm dễ quét
+const CLUSTERS = [
+  {h:'Xuất nhập cảnh', cats:[
+    {k:'ho_chieu', label:'Hộ chiếu phổ thông', icon:'book_2', n:6},
+    {k:'thi_thuc', label:'Thị thực (visa)', icon:'approval', n:7},
+    {k:'giay_thong_hanh', label:'Giấy thông hành', icon:'description', n:4},
+    {k:'nguoi_khong_quoc_tich', label:'Người không quốc tịch', icon:'public', n:4},
+    {k:'xuat_nhap_canh', label:'Xuất nhập cảnh khác', icon:'flight', n:3},
+  ]},
+  {h:'Cư trú', cats:[
+    {k:'cu_tru', label:'Cư trú', icon:'home', n:13},
+    {k:'tam_tru', label:'Tạm trú (người nước ngoài)', icon:'night_shelter', n:5},
+    {k:'thuong_tru', label:'Thường trú', icon:'home_pin', n:3},
+  ]},
+  {h:'Căn cước & Định danh', cats:[
+    {k:'can_cuoc', label:'Căn cước', icon:'badge', n:21},
+    {k:'xac_nhan_thong_tin', label:'Xác nhận thông tin', icon:'verified_user', n:4},
+    {k:'dinh_danh_dien_tu', label:'Định danh điện tử', icon:'fingerprint', n:3},
+    {k:'tai_khoan_dien_tu', label:'Tài khoản điện tử', icon:'account_circle', n:1},
+  ]},
+  {h:'Phương tiện & Khác', cats:[
+    {k:'dang_ky_xe', label:'Đăng ký xe', icon:'directions_car', n:11},
+    {k:'dac_doanh', label:'Ngành nghề kinh doanh có điều kiện', icon:'storefront', n:3},
+    {k:'khieu_nai_to_cao', label:'Khiếu nại, tố cáo', icon:'gavel', n:2},
+    {k:'vu_khi', label:'Vũ khí, vật liệu nổ', icon:'security', n:1},
+    {k:'khu_vuc_cam_bien_gioi', label:'Khu vực biên giới', icon:'fence', n:1},
+  ]},
+];
+
+// Dữ liệu thủ tục thật (mẫu) — cap đã chuẩn hoá casing
+const PROCS = {
+  ho_chieu:[
+    ['Cấp hộ chiếu phổ thông ở trong nước','Trung ương'],
+    ['Cấp hộ chiếu phổ thông ở trong nước','Tỉnh'],
+    ['Khôi phục giá trị sử dụng hộ chiếu phổ thông','Trung ương'],
+    ['Trình báo mất hộ chiếu phổ thông','Trung ương'],
+  ],
+  cu_tru:[
+    ['Đăng ký thường trú','Xã'],
+    ['Đăng ký tạm trú','Xã'],
+    ['Gia hạn tạm trú','Xã'],
+    ['Điều chỉnh thông tin về cư trú trong Cơ sở dữ liệu về cư trú','Xã'],
+  ],
+  can_cuoc:[
+    ['Cấp đổi thẻ căn cước','Xã'],
+    ['Cấp lại thẻ căn cước','Xã'],
+    ['Cấp đổi giấy chứng nhận căn cước','Xã'],
+    ['Cấp lại giấy chứng nhận căn cước','Xã'],
+  ],
+  dang_ky_xe:[
+    ['Cấp đăng ký, biển số xe khi sang tên (tại Công an cấp xã)','Xã'],
+    ['Cấp lại chứng nhận đăng ký xe, biển số xe (trực tuyến toàn trình)','Xã'],
+    ['Đăng ký xe lần đầu trực tuyến toàn trình với xe nhập khẩu','Xã'],
+  ],
+  tam_tru:[
+    ['Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam (Công an cấp tỉnh)','Tỉnh'],
+    ['Gia hạn tạm trú cho người nước ngoài tại Việt Nam','Tỉnh'],
+    ['Cấp thẻ tạm trú cho người nước ngoài tại Cục QLXNC','Trung ương'],
+  ],
+  thi_thuc:[
+    ['Cấp thị thực cho người nước ngoài tại Việt Nam','Trung ương'],
+    ['Cấp thị thực điện tử theo đề nghị của người nước ngoài','Trung ương'],
+    ['Cấp thị thực điện tử theo đề nghị của cơ quan, tổ chức','Trung ương'],
+  ],
+};
+
+const CAT_LABEL = {};
+CLUSTERS.forEach(c=>c.cats.forEach(x=>CAT_LABEL[x.k]=x.label));
+
+const $ = s=>document.querySelector(s);
+const back=$('#back'), hdTitle=$('#hdTitle'), hdSub=$('#hdSub');
+
+function show(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  $(id).classList.add('active');
+  $('.body').scrollTop=0;
+}
+
+// Tầng 1
+$('#suggests').innerHTML = ['hộ chiếu','tạm trú','căn cước','đăng ký xe','thị thực']
+  .map(s=>`<button class="suggest">${s}</button>`).join('');
+
+$('#clusters').innerHTML = CLUSTERS.map(cl=>`
+  <div class="cluster">
+    <div class="cluster-h">${cl.h}</div>
+    <div class="grid">
+      ${cl.cats.map(c=>`
+        <button class="tile" data-cat="${c.k}">
+          <span class="tile-ic"><span class="material-symbols-outlined">${c.icon}</span></span>
+          <span class="tile-body">
+            <span class="tile-name">${c.label}</span>
+            <span class="tile-count">${c.n} thủ tục</span>
+          </span>
+        </button>`).join('')}
+    </div>
+  </div>`).join('');
+
+function capClass(c){return c==='Xã'?'cap xa':'cap';}
+function capIcon(c){return c==='Xã'?'apartment':c==='Tỉnh'?'account_balance':'flag';}
+
+// Tầng 2
+function openCat(k){
+  const list = PROCS[k] || [];
+  $('#listTitle').textContent = CAT_LABEL[k];
+  $('#listCount').textContent = list.length ? `${list.length} thủ tục` : 'Đang cập nhật mẫu — xem đầy đủ trong app';
+  $('#rows').innerHTML = (list.length?list:[['(Danh sách thủ tục lĩnh vực này)','Xã']]).map((p,i)=>`
+    <button class="row" data-i="${i}" data-cat="${k}">
+      <span class="row-body">
+        <span class="row-title">${p[0]}</span>
+        <span class="row-meta"><span class="${capClass(p[1])}"><span class="material-symbols-outlined">${capIcon(p[1])}</span>Nộp tại: ${p[1]==='Xã'?'Công an cấp xã':p[1]==='Tỉnh'?'Công an cấp tỉnh':'Cục / Bộ (Trung ương)'}</span></span>
+      </span>
+      <span class="material-symbols-outlined row-arrow">chevron_right</span>
+    </button>`).join('');
+  hdTitle.textContent = CAT_LABEL[k]; hdSub.textContent = 'Danh sách thủ tục';
+  back.classList.add('show'); back.dataset.to='home';
+  show('#v-list');
+}
+
+// Tầng 3
+function openProc(cat,i){
+  const p = (PROCS[cat]||[['Thủ tục mẫu','Xã']])[i];
+  const nopTai = p[1]==='Xã'?'Công an cấp xã nơi cư trú':p[1]==='Tỉnh'?'Phòng QLXNC Công an tỉnh Phú Thọ':'Cục Quản lý xuất nhập cảnh (Bộ Công an)';
+  $('#detail').innerHTML = `
+    <h2>${p[0]}</h2>
+    <div class="dt-summary">
+      <div class="sum"><span class="material-symbols-outlined">apartment</span><div><span class="sum-l">Nộp tại</span><span class="sum-v">${nopTai}</span></div></div>
+      <div class="sum"><span class="material-symbols-outlined">layers</span><div><span class="sum-l">Cấp thực hiện</span><span class="sum-v">${p[1]}</span></div></div>
+      <div class="sum"><span class="material-symbols-outlined">schedule</span><div><span class="sum-l">Thời hạn</span><span class="sum-v">Theo quy định từng bước</span></div></div>
+      <div class="sum"><span class="material-symbols-outlined">task_alt</span><div><span class="sum-l">Kết quả</span><span class="sum-v">Giấy tờ / kết quả tương ứng</span></div></div>
+    </div>
+    <div class="fee-note"><span class="material-symbols-outlined">info</span><span>Lệ phí: liên hệ trực tiếp cơ quan tiếp nhận hoặc tra văn bản gốc để có số chính xác. (Không hiển thị "Chưa xác minh" nữa.)</span></div>
+    <details class="acc" open><summary>Hồ sơ cần chuẩn bị</summary><div class="acc-body">• Tờ khai theo mẫu (TK01 / tương ứng thủ tục).
+• Giấy tờ tuỳ thân / giấy tờ chứng minh theo yêu cầu.
+• Ảnh và các thành phần khác theo quy định.</div></details>
+    <details class="acc"><summary>Trình tự thực hiện</summary><div class="acc-body">Bước 1 — Chuẩn bị hồ sơ theo danh mục.
+Bước 2 — Nộp tại ${nopTai} hoặc qua Cổng dịch vụ công.
+Bước 3 — Nhận kết quả theo giấy hẹn.</div></details>
+    <details class="acc"><summary>Căn cứ pháp lý</summary><div class="acc-body">Các văn bản pháp luật liên quan (giữ nguyên văn từ nguồn đã duyệt trong app).</div></details>
+  `;
+  hdTitle.textContent = 'Chi tiết thủ tục'; hdSub.textContent = CAT_LABEL[cat];
+  back.classList.add('show'); back.dataset.to='list'; back.dataset.cat=cat;
+  show('#v-detail');
+}
+
+// Điều hướng
+$('#clusters').addEventListener('click',e=>{const t=e.target.closest('.tile');if(t)openCat(t.dataset.cat);});
+$('#rows').addEventListener('click',e=>{const r=e.target.closest('.row');if(r)openProc(r.dataset.cat,+r.dataset.i);});
+back.addEventListener('click',()=>{
+  if(back.dataset.to==='list'){openCat(back.dataset.cat);}
+  else{hdTitle.textContent='Thủ tục hành chính';hdSub.textContent='Chọn lĩnh vực bạn cần';back.classList.remove('show');show('#v-home');}
+});
+</script>
+</body>
+</html>
