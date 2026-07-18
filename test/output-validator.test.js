@@ -44,6 +44,19 @@ test('keeps sourced public URL and redacts typo or invented domains', () => {
     assert.equal(result.violations.filter(item => item.type === 'url').length, 2);
 });
 
+test('URL redaction giữ lại dấu kết câu, không cắt cụt mệnh đề', () => {
+    const good = 'https://kbtt.xuatnhapcanh.gov.vn';
+    const result = validateAnswer(
+        `Bạn khai báo tại https://kbtt.example.invalid. Sau đó nộp hồ sơ tại ${good}.`,
+        allowed({ legalCorpus: `Nguồn chính thức: ${good}` }));
+    // Dấu chấm sau URL bị redact phải còn nguyên -> câu vẫn kết thúc đúng.
+    assert.match(result.sanitizedText, /Bạn khai báo tại \. Sau đó/);
+    assert.doesNotMatch(result.sanitizedText, /example\.invalid/);
+    // URL hợp lệ đứng cuối câu vẫn giữ nguyên và không nuốt dấu chấm.
+    assert.match(result.sanitizedText, /nộp hồ sơ tại https:\/\/kbtt\.xuatnhapcanh\.gov\.vn\.$/);
+    assert.equal(result.violations.filter(item => item.type === 'url').length, 1);
+});
+
 test('validates fees and form codes against legal corpus', () => {
     const result = validateAnswer('Phí 145 USD, mẫu NA5; thêm 200 USD và NA1a.', allowed());
     assert.match(result.sanitizedText, /145 USD/);

@@ -1919,3 +1919,17 @@
 - **File đã sửa:** `js/tthc-catalog.js`, `styles.css`, `output.css`, `test/e2e/tthc-catalog.spec.js`, `docs/brain/06-ai-working-log.md`.
 - **Lý do:** Sửa toàn bộ lỗi P1/P2 phát hiện trong review mà không thay đổi hướng thiết kế hoặc public API.
 - **Kiểm tra:** `npm test` 304/304 pass; `npm run build` pass; `npm run test:e2e` 17/17 pass; riêng catalog E2E 6/6 pass và kiểm tra trực quan bản build xác nhận search/submit không vỡ bố cục.
+
+## [2026-07-18] Vá điểm mù nhận diện thủ tục của nhánh fail-closed TT04 (review PR #40)
+- **Agent:** Claude Code
+- **Thay đổi:** `hasExactTempResidenceCardReplacementDoc` trước đây chỉ đọc `title`/`procedure_title`/`ten_thu_tuc`. Bổ sung `getProcedureTitleFromMetadata` để lấy tên thủ tục từ dòng đầu `Tên thủ tục:`/`Thủ tục:` trong `metadata.text` khi các trường title đều rỗng. Cố ý CHỈ khớp đúng dòng tên, KHÔNG quét cả text.
+- **File đã sửa:** `api/chat.js`, `test/p0-fixes.test.js`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Một phần corpus (vector `guide_*`, bản ghi crawl cũ — đã gặp khi điều tra CANG01) không có `metadata.title`, tên thủ tục nằm trong `metadata.text`. Nếu sau này seed thủ tục "cấp lại thẻ tạm trú do mất" ở dạng đó, hàm cũ sẽ báo "không có đúng biến thể" → nhánh fail-closed TT04 chặn trước khi sinh câu trả lời và che mất dữ liệu ĐÚNG, không có telemetry nào báo sai. Lý do chỉ khớp dòng tên: căn cứ pháp lý của thủ tục "cấp mới" thường nhắc "cấp lại thẻ tạm trú khi bị mất, hỏng" — quét cả text sẽ gây false negative ngược lại, làm mất chính hàng rào TT04 (cùng lập luận đã dùng cho `effectiveTitle` ở ca LX02).
+- **Kiểm tra:** `npm test` 305/305 pass. Ca test mới phủ 3 hướng: (a) metadata không title, tên trong text → nhận đúng biến thể, KHÔNG bật câu trả lời tất định; (b) thủ tục cấp mới nhắc "cấp lại" trong căn cứ pháp lý → vẫn coi là thiếu biến thể, GIỮ câu trả lời tất định; (c) `metadata.title` vẫn được ưu tiên khi có.
+
+## [2026-07-18] Redaction URL không nuốt dấu câu + bỏ nạp catalog ở module scope (review PR #40)
+- **Agent:** Claude Code
+- **Thay đổi:** (1) `MAPS_URL_PATTERN`/`PUBLIC_URL_PATTERN` thêm ràng buộc ký tự cuối không phải dấu câu (`[^\s<>\])}.,;:!?]`) nên regex không còn ăn dấu chấm/phẩy đứng sau URL. (2) `require('../data/tthc-catalog.json')` chuyển từ module scope xuống lazy bên trong `getForeignStayDeclarationFallbackMatch`, cache qua biến `cachedTthcCatalog`.
+- **File đã sửa:** `lib/output-validator.js`, `api/chat.js`, `test/output-validator.test.js`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** (1) Redaction thay URL bằng chuỗi rỗng; nếu regex nuốt luôn dấu chấm cuối câu thì câu trả lời còn lại mệnh đề cụt không có dấu kết câu. Trước đây chỉ ảnh hưởng maps URL (hiếm), nhưng từ khi thêm redaction URL công khai thì tần suất tăng hẳn. `normalizeUrl` vốn đã cắt dấu câu khi SO SÁNH nên phần đối chiếu allow-list không đổi hành vi. (2) Catalog ~624 KB chỉ dùng cho đúng một nhánh dự phòng (query phụ Pinecone lỗi) nhưng nạp ở module scope thì mọi cold start của serverless function đều phải parse.
+- **Kiểm tra:** `npm test` 306/306 pass, thêm ca "URL redaction giữ lại dấu kết câu" phủ cả URL bị redact giữa câu lẫn URL hợp lệ cuối câu. Xác minh lazy require bằng `require.cache`: sau `require('./api/chat')` catalog CHƯA nạp, chỉ nạp sau khi gọi `getForeignStayDeclarationFallbackMatch()` và hàm vẫn trả đúng record `tam_tru_khai_bao_nguoi_nuoc_ngoai`.

@@ -26,7 +26,6 @@ const {
 } = require('../lib/published-locations');
 const { validateAnswer, takeCompleteSegment, trimToSentenceBoundary, getTruncationNotice } = require('../lib/output-validator');
 const { requestedCap, filterGovernedMatches, buildGovernanceFilter, buildCurrentProcedureFilter, prioritizeCurrentProcedureMatches, findCurrentSourceConflict } = require('../lib/retrieval-governance');
-const tthcCatalog = require('../data/tthc-catalog.json');
 
 // Kiểm tra biến môi trường nhạy cảm không được phép tồn tại ở production.
 if (process.env.NODE_ENV === 'production' && process.env.EVAL_BYPASS_TOKEN) {
@@ -660,12 +659,21 @@ function isTempResidenceCardReplacementQuery(text = '') {
     return TEMP_RESIDENCE_CARD_REPLACEMENT_QUERY_PATTERN.test(String(text || '').normalize('NFKC').toLowerCase());
 }
 
+// Một phần corpus (vector guide_*, bản ghi crawl cũ) KHÔNG có metadata.title — tên thủ tục
+// nằm ở dòng đầu "Tên thủ tục:"/"Thủ tục:" trong metadata.text. Chỉ lấy ĐÚNG dòng tên đó,
+// KHÔNG quét cả text: căn cứ pháp lý của thủ tục "cấp mới" thường nhắc "cấp lại thẻ tạm trú"
+// nên quét cả text sẽ khiến hàm này báo có doc đúng biến thể trong khi thực tế không có.
+const PROCEDURE_TITLE_LINE_PATTERN = /^[^\S\n]*(?:tên\s+)?thủ tục:[^\S\n]*([^\n]+)$/im;
+function getProcedureTitleFromMetadata(metadata = {}) {
+    if (metadata?.title) return metadata.title;
+    if (metadata?.procedure_title) return metadata.procedure_title;
+    if (metadata?.ten_thu_tuc) return metadata.ten_thu_tuc;
+    return PROCEDURE_TITLE_LINE_PATTERN.exec(String(metadata?.text || ''))?.[1] || '';
+}
+
 function hasExactTempResidenceCardReplacementDoc(metadataList = []) {
-    return metadataList.some(metadata => TEMP_RESIDENCE_CARD_REPLACEMENT_DOC_PATTERN.test([
-        metadata?.title,
-        metadata?.procedure_title,
-        metadata?.ten_thu_tuc,
-    ].filter(Boolean).join(' ')));
+    return metadataList.some(metadata =>
+        TEMP_RESIDENCE_CARD_REPLACEMENT_DOC_PATTERN.test(getProcedureTitleFromMetadata(metadata)));
 }
 
 function shouldUseTempResidenceCardReplacementGapReply(query, metadataList = []) {
@@ -1307,8 +1315,12 @@ function ensureForeignStayDeclarationDoc(topMatches = [], pool = [], query = '',
 // Bản sao đã duyệt trong catalog được sinh từ chính corpus governance. Chỉ dùng khi query phụ
 // Pinecone cho intent khai báo NNN lỗi/timeout, để không đánh mất cả kết quả query chính và không
 // cho model trả lời nghĩa vụ khai báo mà thiếu nguồn. Bình thường Pinecone vẫn là nguồn ưu tiên.
+// require() lazy: catalog ~624 KB nhưng chỉ dùng cho đúng nhánh lỗi hiếm này. Nạp ở module scope
+// sẽ cộng chi phí parse JSON vào MỌI cold start của serverless function. Cache lại sau lần đầu.
+let cachedTthcCatalog = null;
 function getForeignStayDeclarationFallbackMatch() {
-    const record = (tthcCatalog.procedures || []).find(item => item.id === 'tthc_matt26265');
+    if (!cachedTthcCatalog) cachedTthcCatalog = require('../data/tthc-catalog.json');
+    const record = (cachedTthcCatalog.procedures || []).find(item => item.id === 'tthc_matt26265');
     if (!record?.text) return null;
     return {
         id: record.id,
@@ -3105,5 +3117,6 @@ module.exports.ensureForeignStayDeclarationDoc = ensureForeignStayDeclarationDoc
 module.exports.getForeignStayDeclarationFallbackMatch = getForeignStayDeclarationFallbackMatch;
 module.exports.isTempResidenceCardReplacementQuery = isTempResidenceCardReplacementQuery;
 module.exports.hasExactTempResidenceCardReplacementDoc = hasExactTempResidenceCardReplacementDoc;
+module.exports.getProcedureTitleFromMetadata = getProcedureTitleFromMetadata;
 module.exports.shouldUseTempResidenceCardReplacementGapReply = shouldUseTempResidenceCardReplacementGapReply;
 module.exports.getTempResidenceCardReplacementGapReply = getTempResidenceCardReplacementGapReply;

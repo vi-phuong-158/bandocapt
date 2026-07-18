@@ -764,6 +764,37 @@ test('TT04 fail-closed: chỉ sinh câu trả lời tất định khi thiếu đ
     assert.match(reply, /Hòa Bình cũ/i);
 });
 
+test('TT04 fail-closed: nhận diện thủ tục đúng biến thể cả khi metadata không có title', () => {
+    const {
+        getProcedureTitleFromMetadata,
+        hasExactTempResidenceCardReplacementDoc,
+        shouldUseTempResidenceCardReplacementGapReply,
+    } = require('../api/chat');
+    const query = 'Mất thẻ tạm trú thì làm lại ở đâu?';
+
+    // Vector guide_*/bản ghi crawl cũ: tên thủ tục chỉ nằm ở dòng đầu của text.
+    const titlelessExact = [{
+        text: 'Tên thủ tục: Cấp lại thẻ tạm trú do bị mất\nLoại thủ tục: Tạm trú\nCấp xử lý: Cấp Tỉnh',
+    }];
+    assert.equal(getProcedureTitleFromMetadata(titlelessExact[0]), 'Cấp lại thẻ tạm trú do bị mất');
+    assert.equal(hasExactTempResidenceCardReplacementDoc(titlelessExact), true);
+    assert.equal(shouldUseTempResidenceCardReplacementGapReply(query, titlelessExact), false);
+
+    // Nhưng KHÔNG được quét cả text: thủ tục "cấp mới" nhắc "cấp lại thẻ tạm trú" trong
+    // căn cứ pháp lý vẫn phải bị coi là thiếu đúng biến thể → giữ câu trả lời tất định.
+    const newIssuanceMentioningReplacement = [{
+        text: 'Tên thủ tục: Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam\n'
+            + 'Căn cứ pháp lý: Điều 38 quy định việc cấp lại thẻ tạm trú khi bị mất, hỏng.',
+    }];
+    assert.equal(hasExactTempResidenceCardReplacementDoc(newIssuanceMentioningReplacement), false);
+    assert.equal(shouldUseTempResidenceCardReplacementGapReply(query, newIssuanceMentioningReplacement), true);
+
+    // metadata.title vẫn được ưu tiên khi có.
+    assert.equal(
+        getProcedureTitleFromMetadata({ title: 'Cấp thẻ tạm trú', text: 'Tên thủ tục: Cấp lại thẻ tạm trú do mất' }),
+        'Cấp thẻ tạm trú');
+});
+
 test('classifyQuestion không để căn cước/CCCD cướp intent hộ chiếu/visa/cư trú', () => {
     const { classifyQuestion } = require('../api/chat');
 
