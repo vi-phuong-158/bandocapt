@@ -75,7 +75,7 @@ bandocapt/
 | `js/gemini.js` | Goi `POST /api/chat` (parse SSE stream) va `POST /api/feedback` (`sendFeedback`); ky HMAC dung chung qua `signRequestToken` | `js/chatbot.js` | `api/chat.js`, `api/feedback.js` |
 | `js/lazy-features.js` | Nap chat/catalog khi click/hover; pin SRI marked/DOMPurify, nap Turnstile sau chat, giu proxy deep-link `TthcCatalog`; loi tai hien thong bao retryable cho nguoi dung | `index.html` | `js/gemini.js`, `js/chatbot.js`, `js/tthc-catalog.js` |
 | `js/chatbot.js` | UI chat, toggle panel, render stream; doi catalog/index de resolve deeplink theo ID -> title/alias, hien trang thai neu catalog thieu; dung `verifiedLocations` tao link chi duong hoac thong bao thieu toa do; action bar 👍/👎 + form bao cao | `js/lazy-features.js` | `js/gemini.js`, `window.TthcCatalog` |
-| `js/tthc-catalog.js` | UI danh muc TTHC tinh: chi warm index nhe; public `resolveProcedureId` uu tien ID chinh xac roi fallback title/alias chinh xac; catalog day du chi fetch khi mo panel/chi tiet | `js/lazy-features.js`, `js/chatbot.js` | `data/tthc-index.json`, `data/tthc-catalog.json` |
+| `js/tthc-catalog.js` | UI danh muc TTHC duyet 2 tang (3 view): home search-first + luoi 17 linh vuc gom 4 cum -> danh sach thu tuc/ket qua tim kiem (hang chia dong) -> chi tiet (tom tat + note phi + accordion). `parseProcedureSections`/`classifySection` nhan CA nhan TTHC ("Ho so:") lan nhan wiki danh so cua guide ("15.1. Trinh tu:"). Public `resolveProcedureId`/`openProcedure`/`openByTitle` giu nguyen (deep-link tu chat mo thang chi tiet); chi warm index nhe, catalog day du chi fetch khi mo panel | `js/lazy-features.js`, `js/chatbot.js`, `js/app-navigation.js` | `data/tthc-index.json`, `data/tthc-catalog.json` |
 | `data/tthc-index.json` | Chi muc nhe `{procedure_id,title,aliases}` de chat doi chieu nhanh | `js/tthc-catalog.js` | `scripts/generate-tthc-catalog.js --index-only` |
 | `data/tthc-catalog.json` | Catalog TTHC tinh de nguoi dung doi chieu cau tra loi AI | `js/tthc-catalog.js` | sinh tu Pinecone live + audit phi, fallback backup khi local khong co key |
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai. T1.9: cau tra loi quoc tich ("Nguoi Viet Nam"...) KHONG phai dia danh — `NATIONALITY_ANSWER_PATTERN` loai khoi heuristic cau ngan; `isNationalityAnswerContext` cho `api/chat.js` ne nhanh tat dinh no_match khi bot vua hoi quoc tich | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
@@ -180,8 +180,10 @@ index.html load
 -> user mo "Danh muc thu tuc hanh chinh": nap js/tthc-catalog.js
 -> chat warm fetch data/tthc-index.json same-origin; catalog day du chi fetch khi mo panel/chi tiet
 -> fetch data/tthc-catalog.json same-origin khi can render danh sach
--> render chip loc linh vuc + tim kiem + danh sach
--> xem chi tiet thu tuc voi text nguyen van va phi da resolve
+-> TANG 1: home search-first + luoi 17 linh vuc gom 4 cum (icon + so thu tuc)
+-> TANG 2 (bam 1 cum hoac go tim kiem): danh sach thu tuc hang chia dong, meta dan la "Nop tai: cap xa/tinh/TW"
+-> TANG 3 (bam 1 thu tuc): chi tiet = tom tat nhanh + note phi trung tinh (khong con hien "Chua xac minh") + accordion nhom (Ho so/Trinh tu/Yeu cau/Can cu phap ly/Khac)
+-> nut Quay lai: chi tiet -> danh sach -> home; deep-link tu chat mo thang TANG 3
 
 Developer chay `npm run gen:catalog` (hoac `npm run gen:catalog:index` neu catalog da duoc cap nhat)
 -> scripts/generate-tthc-catalog.js

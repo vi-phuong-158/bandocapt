@@ -21,6 +21,30 @@
   không có hard-fail đa số, chỉ TYPO01 flaky 1/3 không chặn.
 - **Người quyết định:** user / Codex
 
+## [2026-07-18] Danh mục TTHC — duyệt 2 tầng (lĩnh vực → thủ tục), bỏ 17 chip phẳng
+
+- **Quyết định:** Đổi UI danh mục thủ tục từ 1 danh sách phẳng + 17 chip lọc cuộn ngang sang mô
+  hình **3 view**: (1) home search-first + lưới 17 lĩnh vực gom thành 4 cụm; (2) danh sách thủ tục
+  của lĩnh vực/kết quả tìm kiếm (hàng chia dòng, không card nổi); (3) chi tiết với tóm tắt nhanh +
+  note phí trung tính + accordion. Áp dụng qua taste-skill (dials trust-first VARIANCE 4/MOTION 3/
+  DENSITY 4). Chỉ sửa `js/tthc-catalog.js` + `styles.css` + phần thân `#tthc-catalog-window` trong
+  `index.html`; KHÔNG đổi dữ liệu, public API (`TthcCatalog.open/openProcedure/openByTitle/…`),
+  deep-link từ chat, hay tích hợp mobile bottom-nav.
+- **Vì sao "không thân thiện":** 62% thủ tục (57/92) có phí = "Chưa xác minh" nhưng card cũ lại dẫn
+  bằng chính dòng phí đó; 17 chip cuộn ngang giấu phần lớn lĩnh vực; 92 card nổi đồng nhất tạo tường
+  nặng; chi tiết là tường text `pre-wrap`. Xem chẩn đoán trong `06-ai-working-log.md`.
+- **Điểm kỹ thuật đáng ghi:** parser accordion phải nhận **2 định dạng** — nhãn TTHC chuẩn ("Hồ sơ:")
+  và nhãn wiki đánh số của guide ("15.1. Trình tự thực hiện:"). Guide chiếm ~62% catalog nên nếu chỉ
+  khớp nhãn tthc thì đa số thủ tục rơi hết vào 1 mục "Thông tin khác". `classifySection` phân loại
+  theo từ khóa (không phân biệt dấu) để gộp về Hồ sơ / Trình tự / Yêu cầu / Căn cứ pháp lý / Khác,
+  bảo toàn toàn bộ nội dung (không mục nào bị bỏ).
+- **Đánh đổi:** Bỏ lọc-đa-chọn theo lĩnh vực trên 1 màn; muốn xem chéo lĩnh vực phải qua tìm kiếm.
+  Đổi lại giảm tải thị giác và khớp cách người dân nghĩ ("tôi cần làm hộ chiếu"). Phí "Chưa xác minh"
+  không hiển thị trên card/list nữa, chỉ còn note trung tính ở chi tiết.
+- **Kiểm chứng:** 48 unit test liên quan pass (giữ `__test` exports + `resolveProcedureIdFromList`);
+  verify trong app thật cả 3 tầng + back + tìm kiếm + accordion cho cả guide lẫn tthc. Xem
+  `06-ai-working-log.md` (2026-07-18).
+
 ## [2026-07-17] T3.8 — Current-procedure-first và rollback khi gate suy giảm
 
 - **Quyết định:** Sau khi người dùng duyệt toàn bộ, sao chép 346 law/guide sang namespace ứng viên với `review_status=approved`. Truy hồi chính ưu tiên riêng `tthc/current_procedure`; law/guide chỉ là fallback có governance.

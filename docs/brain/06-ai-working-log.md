@@ -1905,3 +1905,17 @@
 - **File đã sửa:** `api/chat.js`, `scripts/import-phutho-web-to-pinecone.js`, `test/p0-fixes.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
 - **Lý do:** Đảm bảo thủ tục cấp thẻ tạm trú được truy hồi từ namespace ứng viên, URL nguồn chính thức được giữ lại, và không thể upsert nhầm dữ liệu Pinecone.
 - **Kiểm tra:** Unit test cho category/citation/namespace guard; tiếp theo chạy toàn bộ test, build và E2E.
+
+## [2026-07-18] Redesign danh mục TTHC — duyệt 2 tầng (taste-skill)
+- **Agent:** Claude Code
+- **Thay đổi:** Đổi UI danh mục thủ tục sang mô hình 3 view: (1) home search-first + lưới 17 lĩnh vực gom 4 cụm (Xuất nhập cảnh / Cư trú / Căn cước & Định danh / Phương tiện & Khác); (2) danh sách thủ tục của lĩnh vực hoặc kết quả tìm kiếm — hàng chia dòng (bỏ card nổi), meta dẫn "Nộp tại: cấp xã/tỉnh/TW" (chuẩn hoá bug casing "Cấp xã"/"Cấp Xã"), KHÔNG còn dẫn bằng phí "Chưa xác minh"; (3) chi tiết = tóm tắt nhanh (Nộp tại/Cấp/Thời hạn/Kết quả) + note phí trung tính + accordion nhóm. Parser accordion nhận CẢ nhãn TTHC ("Hồ sơ:") lẫn nhãn wiki đánh số của guide ("15.1. Trình tự thực hiện:") — guide chiếm 57/92 (62%) catalog nên nếu chỉ khớp tthc thì đa số rơi vào 1 mục "Thông tin khác"; `classifySection` phân loại theo từ khoá (bỏ dấu) và bảo toàn toàn bộ nội dung. Giữ nguyên public API, deep-link chat (mở thẳng chi tiết), tích hợp mobile bottom-nav, và toàn bộ `__test` exports + `resolveProcedureIdFromList`.
+- **File đã sửa:** `js/tthc-catalog.js` (viết lại view/nav/render, giữ helpers), `styles.css` (thay khối content-styles TTHC bằng home/list/accordion token-driven), `index.html` (thân `#tthc-catalog-window` → 3 view + id subtitle), `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`. Mockup tham chiếu: `design/mockups/tthc-catalog-v2.html` (không deploy).
+- **Lý do:** Danh mục cũ "không thân thiện": 62% thủ tục phí "Chưa xác minh" nhưng card dẫn bằng phí; 17 chip cuộn ngang giấu lĩnh vực; 92 card nổi nặng; chi tiết là tường text. Áp taste-skill (dials trust-first VARIANCE 4/MOTION 3/DENSITY 4), giữ IA + thương hiệu.
+- **Kiểm tra:** `node --check` + `npm run build` (dist 18 hashed assets); `node --test` 48 ca (tthc-catalog, tthc-catalog-ui, chat-deeplinks, civic-ui, chatbot-quick-replies, t2d) đều pass; verify trong app thật (dist@4173): Tầng 1 = 17 tile/4 cụm với số liệu thật, Tầng 2 = Căn cước 21 hàng + cap badge, Tầng 3 = accordion đúng nhóm cho CẢ guide (5 mục, trích được "Thời hạn: Không quá 07 ngày") lẫn tthc (3 mục), back 3 tầng + tìm kiếm "hộ chiếu"=7 kết quả đều đúng; 0 lỗi console. (Screenshot + transition mobile bị treo do quirk Browser pane headless — xác nhận bằng đối chứng cửa sổ chat KHÔNG bị tôi sửa cũng cho computed style y hệt.)
+
+## [2026-07-18] Khắc phục lỗi review giao diện danh mục TTHC
+- **Agent:** Codex
+- **Thay đổi:** Chuyển tìm kiếm sang submit rõ ràng để giữ focus khi nhập đủ từ khóa; reset list context khi mở deep-link ngoài catalog; cập nhật E2E theo DOM home/list/detail mới; bảo đảm chip gợi ý đạt touch target 44px và summary mobile về một cột.
+- **File đã sửa:** `js/tthc-catalog.js`, `styles.css`, `output.css`, `test/e2e/tthc-catalog.spec.js`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Sửa toàn bộ lỗi P1/P2 phát hiện trong review mà không thay đổi hướng thiết kế hoặc public API.
+- **Kiểm tra:** `npm test` 304/304 pass; `npm run build` pass; `npm run test:e2e` 17/17 pass; riêng catalog E2E 6/6 pass và kiểm tra trực quan bản build xác nhận search/submit không vỡ bố cục.
