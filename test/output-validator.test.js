@@ -32,6 +32,18 @@ test('keeps verified Maps URL and coordinates, removes unknown ones', () => {
     assert.deepEqual(new Set(result.violations.map(item => item.type)), new Set(['maps_url', 'coords']));
 });
 
+test('keeps sourced public URL and redacts typo or invented domains', () => {
+    const good = 'https://kbtt.xuatnhapcanh.gov.vn';
+    const typo = 'https://kbtt.xuatnhhapcanh.gov.vn';
+    const invented = 'https://xuatnhapcanh.example.com';
+    const result = validateAnswer(`${good} ${typo} ${invented}`, allowed({
+        legalCorpus: `Nguồn chính thức: ${good}`,
+    }));
+    assert.match(result.sanitizedText, /https:\/\/kbtt\.xuatnhapcanh\.gov\.vn/);
+    assert.doesNotMatch(result.sanitizedText, /xuatnhhapcanh|example\.com/);
+    assert.equal(result.violations.filter(item => item.type === 'url').length, 2);
+});
+
 test('validates fees and form codes against legal corpus', () => {
     const result = validateAnswer('Phí 145 USD, mẫu NA5; thêm 200 USD và NA1a.', allowed());
     assert.match(result.sanitizedText, /145 USD/);
@@ -138,7 +150,9 @@ test('redacts unsourced measurements written with Chinese units (厘米/毫米)'
 });
 
 test('redaction preserves surrounding Markdown and works in English and Chinese', () => {
-    const result = validateAnswer('# Contact\n- **Phone:** 0210.384.3639\n- 费用 200 USD，表格 NA1a\n[Official](https://example.gov.vn)', allowed());
+    const result = validateAnswer('# Contact\n- **Phone:** 0210.384.3639\n- 费用 200 USD，表格 NA1a\n[Official](https://example.gov.vn)', allowed({
+        legalCorpus: 'Official source: https://example.gov.vn',
+    }));
     assert.match(result.sanitizedText, /^# Contact/m);
     assert.match(result.sanitizedText, /\[Official\]\(https:\/\/example\.gov\.vn\)/);
     assert.doesNotMatch(result.sanitizedText, /0210\.384\.3639|200 USD|NA1a/);

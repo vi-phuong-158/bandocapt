@@ -80,7 +80,7 @@ async function retrieveOld(index, vector, q) {
     let res = await index.query(category ? { ...base, filter: { '$or': categoryClauses } } : base);
     if (category && !res.matches?.length) res = await index.query(base);
     const nonLocation = (res.matches || []).filter(m => !isLocation(m.metadata));
-    const branch = chat.filterMatchesByQuestionCategory(nonLocation, category);
+    const branch = chat.filterMatchesByQuestionCategory(nonLocation, category, q);
     return branch.filter(m => m.score > RELEVANT_THRESHOLD).slice(0, 3);
 }
 
@@ -97,7 +97,7 @@ async function retrieveNew(index, vector, q) {
     if (category && !res.matches?.length) { res = await index.query({ ...base, filter: gov.buildCurrentProcedureFilter([], '') }); stage = 'current-procedure'; }
     if (!res.matches?.length) { res = await index.query({ ...base, filter: gov.buildGovernanceFilter(categoryClauses, '') }); stage = 'supplemental-fallback'; }
     const nonLocation = (res.matches || []).filter(m => !isLocation(m.metadata));
-    const branch = chat.filterMatchesByQuestionCategory(nonLocation, category);
+    const branch = chat.filterMatchesByQuestionCategory(nonLocation, category, q);
     const governed = gov.filterGovernedMatches(branch, q).filter(m => m.score > RELEVANT_THRESHOLD);
     return { stage, cap, category, filterCats, top: governed.slice(0, 3) };
 }

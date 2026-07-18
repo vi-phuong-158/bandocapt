@@ -1,11 +1,11 @@
 # Báo cáo Gate ĐA SỐ (majority 2/3)
 
 - Số run đầy đủ: **3** — ngưỡng đa số: **2/3** (một ca là HARD FAIL THẬT khi rớt ≥ 2 run)
-- **Gate ĐA SỐ (kèm provider error): ✅ ĐẠT** — deferred (F01) không chặn tới Giai đoạn 3
-- Hard fail ĐA SỐ (chặn gate): _không có_
+- **Gate ĐA SỐ (kèm provider error): ❌ KHÔNG ĐẠT** — deferred (F01) không chặn tới Giai đoạn 3
+- Hard fail ĐA SỐ (chặn gate): DN01 (2/3)
 - Provider error ĐA SỐ (chặn gate): _không có_
-- 🟠 Flaky (rớt 1..1/3 run — advisory, KHÔNG chặn): TYPO01 (1/3)
-- 🟠 Provider error lẻ tẻ (advisory): TYPO01 (1/3), CS01 (1/3)
+- 🟠 Flaky (rớt 1..1/3 run — advisory, KHÔNG chặn): VP01 (1/3), LOC02 (1/3)
+- 🟠 Provider error lẻ tẻ (advisory): DN01 (1/3)
 
 ## Ma trận verdict theo run
 
@@ -25,18 +25,18 @@ Ký hiệu: `.` PASS · `F` HARD_FAIL · `d` DEFERRED_FAIL · `E` provider error
 | TT04 | . | . | . | 0/3 | ✅ ổn định |
 | EV01 | . | . | . | 0/3 | ✅ ổn định |
 | EV04 | . | . | . | 0/3 | ✅ ổn định |
-| VP01 | . | . | . | 0/3 | ✅ ổn định |
+| VP01 | . | . | F | 1/3 | 🟠 flaky |
 | VP06 | . | . | . | 0/3 | ✅ ổn định |
-| DN01 | . | . | . | 0/3 | ✅ ổn định |
+| DN01 | F | E | F | 2/3 | ❌ HARD FAIL (đa số) |
 | DN02 | . | . | . | 0/3 | ✅ ổn định |
-| LOC02 | . | . | . | 0/3 | ✅ ổn định |
+| LOC02 | . | . | F | 1/3 | 🟠 flaky |
 | LOC04 | . | . | . | 0/3 | ✅ ổn định |
-| TYPO01 | F | E | . | 1/3 | 🟠 flaky |
+| TYPO01 | . | . | . | 0/3 | ✅ ổn định |
 | TYPO02 | . | . | . | 0/3 | ✅ ổn định |
 | ON01 | . | . | . | 0/3 | ✅ ổn định |
 | HS02 | . | . | . | 0/3 | ✅ ổn định |
 | TL01 | . | . | . | 0/3 | ✅ ổn định |
-| CS01 | . | . | E | 0/3 | 🟠 provider lẻ |
+| CS01 | . | . | . | 0/3 | ✅ ổn định |
 | GD02 | . | . | . | 0/3 | ✅ ổn định |
 | KC04 | . | . | . | 0/3 | ✅ ổn định |
 | TR09 | . | . | . | 0/3 | ✅ ổn định |
@@ -48,4 +48,6 @@ Ký hiệu: `.` PASS · `F` HARD_FAIL · `d` DEFERRED_FAIL · `E` provider error
 
 ## Chi tiết failure theo run
 
-- **TYPO01** — run1: global_forbidden:does not cite thong bao luu tru
+- **VP01** — run3: missing_required_fact:fine_requires_basis
+- **DN01** — run1: missing_required_fact:sponsor_procedures, ungrounded_fact:declare_accommodation · run3: missing_required_fact:sponsor_procedures, global_forbidden:does not cite thong bao luu tru, ungrounded_fact:declare_accommodation
+- **LOC02** — run3: global_forbidden:does not cite thong bao luu tru

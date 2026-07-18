@@ -1,5 +1,63 @@
 # 06 — AI Working Log
 
+## [2026-07-18] Ổn định majority gate sau phương án A (TT04/VP01/TR03 + fallback DN01)
+- **Agent:** Codex
+- **Thay đổi:** Giữ phương án A của Claude cho DN01/LOC02 và hoàn thiện bốn lớp ổn định:
+  (1) TT04 trả lời tất định `DETERMINISTIC_PROCEDURE_GAP` khi câu hỏi mất/cấp lại thẻ tạm trú
+  nhưng RAG thiếu đúng biến thể, dùng ba điểm QLXNC đã xác minh và bỏ FAQ cache cho route này;
+  (2) VP01/PI01 grader nhận thêm paraphrase từ chối an toàn (`dữ liệu`, `không thể đáp ứng`) nhưng
+  test âm vẫn bắt mức phạt bịa và câu làm theo prompt injection; (3) output validator chỉ giữ URL
+  HTTP(S) có trong RAG/citation/trụ sở xác minh, redact URL typo/tự tạo; (4) sau full gate đầu còn
+  DN01 fail 2/3 do `PINECONE_QUERY_FOREIGN_STAY_SUPPLEMENT_TIMEOUT`, tách catch query phụ để giữ
+  query chính và chỉ dùng record `tthc_matt26265` đã duyệt trong `data/tthc-catalog.json` khi query
+  phụ lỗi. Đồng thời chuẩn hóa telemetry timing thiếu thành `0` để nhánh tất định không ghi
+  `undefined` vào Firestore.
+- **File đã sửa:** `api/chat.js`, `lib/output-validator.js`, `test/output-validator.test.js`,
+  `test/p0-fixes.test.js`, `test/regression-expectations.json`, `test/regression-grader.test.js`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`, `test/results/regression-latest.md`,
+  `test/results/regression-majority-latest.md` và các report full gate ngày 2026-07-18. Đã xóa các
+  report probe/targeted một phần; giữ report full gate làm bằng chứng.
+- **Lý do:** TT04 là lỗi hành vi thật (suy diễn từ biến thể thủ tục khác), VP01/PI01 là false
+  negative của regex, TR03 cho thấy URL typo có thể lọt ra UI, và query bổ sung DN01 không được phép
+  làm mất toàn bộ kết quả retrieval gốc khi timeout.
+- **Kiểm tra:** `node --test` nhóm liên quan 119/119; `npm test` 304/304; `npm run build` PASS
+  (19 input, 18 hashed asset). Targeted DN01/VP01/PI01 đạt 3/3 từng ca. Full DeepSeek majority
+  3×30 cuối đạt: 0 hard-fail/provider-error đa số; TYPO01 flaky 1/3 và provider error lẻ
+  TYPO01/CS01 không chặn; báo cáo
+  `test/results/regression-majority-2026-07-18_10-47-43.md` và hai file `*-latest.md`.
+
+## [2026-07-18] Phương án A: hàng rào công dân độc lập classify + đảm bảo doc KBTT (gate DN01/LOC02)
+- **Agent:** Claude Code
+- **Bối cảnh:** Gate majority 3-run đầu tiên bằng DeepSeek trên namespace ứng viên KHÔNG ĐẠT:
+  DN01 hard fail 2/3, LOC02 flaky 1/3 — cả hai cùng gốc: câu chủ thể NNN diễn đạt gián tiếp
+  ("lao động Trung Quốc mới đến", "có người Trung Quốc ở") làm `classifyQuestion` trả `null`
+  → nhánh split (chứa hàng rào `CITIZEN_RESIDENCE_PATTERN`) không chạy → tài liệu cư trú
+  CÔNG DÂN (`tthc_phutho_web_264-39` "Thông báo lưu trú", Luật Cư trú, mốc 23h/08h) lọt
+  context → DeepSeek trích dẫn sai căn cứ. Tái hiện 100%, không phải flaky sampling.
+- **Thay đổi (`api/chat.js`), 4 phần:**
+  1. `FOREIGN_SUBJECT_PATTERN` + `hasForeignSubjectQuery()`: nhận diện chủ thể NNN qua cụm
+     "người nước ngoài" hoặc "người/khách/lao động/công dân/quốc tịch + tên quốc tịch"
+     (không đưa "anh" vào danh sách — "người anh" mơ hồ). `isCitizenResidenceDoc()`: doc cư
+     trú công dân thuần = khớp `CITIZEN_RESIDENCE_PATTERN` và KHÔNG nhắc người nước ngoài/KBTT.
+  2. `filterMatchesByQuestionCategory(matches, category, query)`: hàng rào công dân chạy TRƯỚC
+     và ĐỘC LẬP với nhánh split — câu có chủ thể NNN thì loại doc cư trú công dân kể cả khi
+     category=null. `scripts/shadow-retrieval.js` cập nhật 2 call site truyền query.
+  3. Query phụ nhắm đích (DN01-class): câu NNN "mới đến/đến ở" mà topK không có doc
+     `retrieval_intent=tam_tru_khai_bao_nguoi_nuoc_ngoai` → query bổ sung theo intent (sàn mềm
+     0.45, cờ `_foreignStaySupplement` vượt ngưỡng 0.62) + `ensureForeignStayDeclarationDoc()`
+     đảm bảo 1 slot top-4 (nhường chỗ doc cuối, cùng cơ chế prioritizeCurrentProcedureMatches).
+     Lý do: embedding câu doanh nghiệp đa ý định xa ngữ nghĩa doc KBTT (0.665 < top-12 cutoff).
+  4. SYSTEM_PROMPT luật "NGƯỜI NƯỚC NGOÀI MỚI ĐẾN": câu tình huống đa nghĩa vụ phải đủ CẢ 2 vế
+     (khai báo tạm trú trước mắt + thẻ/gia hạn tạm trú bảo lãnh nếu dài hạn) — DeepSeek trước
+     đó chỉ trả 1 vế (~50/50) gây missing_required_fact:sponsor_procedures.
+- **File đã sửa:** `api/chat.js`, `scripts/shadow-retrieval.js`, `test/p0-fixes.test.js` (+2 test),
+  `docs/brain/06-ai-working-log.md`.
+- **Kiểm tra:** `npm test` 301/301. Verify guard trên record thật: `264-39` bị loại đúng,
+  KBTT/e-visa/thẻ tạm trú giữ đúng. Probe live DeepSeek: DN01 PASS 2 lần liên tiếp (hết cả 3
+  loại fail: forbidden/ungrounded/sponsor), blast radius 8/8 PASS (F01, TR01, TT01, VP06, DN01,
+  LOC02, TYPO02, GD02). Gate majority 3-run sau fix: đang chạy, kết quả ghi ở entry sau.
+
 ## [2026-07-17] Điều tra 2 WARN shadow (LX02/CANG01) + robustness bộ chấm topic
 - **Agent:** Claude Code
 - **Bối cảnh:** Sau merge, chạy lại full 91 câu shadow retrieval trên namespace ứng viên (đã seed
