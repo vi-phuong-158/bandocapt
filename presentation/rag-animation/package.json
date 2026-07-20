@@ -1,0 +1,23 @@
+{
+  "name": "rag-slide-animation",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Motion graphic Remotion (khong am thanh) minh hoa quy trinh RAG cua chatbot - chen vao slide PowerPoint Ban do Cong an so tinh Phu Tho",
+  "scripts": {
+    "start": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts RagSlideAnimation out/RagSlideAnimation.mp4 --codec=h264 --pixel-format=yuv420p --crf=18 --muted",
+    "still": "remotion still src/index.ts RagSlideAnimation out/frame.png"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0"
+  }
+}

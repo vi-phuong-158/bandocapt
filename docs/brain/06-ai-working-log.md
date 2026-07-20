@@ -1,5 +1,45 @@
 # 06 — AI Working Log
 
+## [2026-07-20] Sửa bản đọc liền mạch: đồng bộ với deck + vá lại claim production
+- **Agent:** Claude Code
+- **Thay đổi:** Review `Ban-doc-lien-mach-Ban-do-Cong-an-so.md` phát hiện bản đọc mới làm sống lại
+  đúng lỗi P0 đã vá trong deck, và lệch slide so với `build_pptx.js`. Đã sửa 5 điểm:
+  (1) Slide 6 bỏ câu "Cả bốn bước hiện đang hoạt động trên production" → nêu đúng lớp 2/4 đang chạy,
+  lớp 1/3 chờ phê duyệt, khớp dải trạng thái trên slide; (2) gộp nội dung nguồn dữ liệu vào slide 4
+  và trả slide 5 về đúng câu hero "giảm rủi ro trả lời sai" của deck; (3) đổi "kho production"
+  → "bản thử nghiệm" cho 503 bản ghi / 156 thủ tục, bỏ mốc "cập nhật production 17/07" (17/07 là
+  ngày rollback); (4) `306 kiểm thử` → `hơn 300 ca, lần gần nhất 304/304`; `141 trụ sở` → thêm
+  "đã công bố"; (5) viết lại slide 10 thành phần Hạn chế + hướng khắc phục (5 cặp khớp deck), bỏ
+  hẳn phần "ba trụ cột" vốn không có slide tương ứng; nối kiến nghị #1 ở slide 11 với hiện trạng.
+- **File đã sửa:** `presentation/Ban-doc-lien-mach-Ban-do-Cong-an-so.md`
+- **Lý do:** Bản đọc là thứ NÓI RA MIỆNG trước lãnh đạo, sai lệch ở đây nặng hơn sai trên slide.
+  Claim "bốn bước đang chạy production" trái với `api/chat.js:2200/2215` (`RAG_GOVERNANCE_FILTER`,
+  `RAG_FAIL_CLOSED` mặc định TẮT; namespace mặc định `chatbot-tthc-xnc`) và
+  `04-current-tasks.md:20,326` (đã rollback, T3.8 còn TODO). Nó cũng vô hiệu hóa kiến nghị xin
+  phê duyệt bật cấu hình ở slide cuối. Ngoài ra deck slide 10 là Hạn chế — bản đọc cũ đọc nội dung
+  khác trong khi gạch hạn chế đang hiển thị.
+- **Kiểm tra:** Đối chiếu từng số với nguồn: 503 (`04-current-tasks.md:18` — "namespace **ứng viên**"),
+  156 (`:99` — "production chưa đổi"), 304/304 (`06-ai-working-log.md:24`, entry 2026-07-18).
+  Đếm lại thứ tự 11 mục bản đọc khớp 11 slide trong `build_pptx.js` CONTENT.
+- **Còn tồn:** `141 trụ sở` chưa truy được nguồn (kiểm kê T3.1 ghi `tru_so 145`) — người dùng cần
+  xác nhận 141 là số đã publish hay số phải sửa.
+
+## [2026-07-20] Giản lược ngôn ngữ bản đọc: bỏ thuật ngữ kỹ thuật và từ tiếng Anh
+- **Agent:** Claude Code
+- **Thay đổi:** Viết lại toàn bộ `Ban-doc-lien-mach-Ban-do-Cong-an-so.md` bằng lời nói thường.
+  Thay thuật ngữ: `snapshot`→"bản lấy về", `gate`→"đợt kiểm tra", `hard-fail`→"lỗi nghiêm trọng",
+  `p95 ≈ 17–28 giây`→"95% số câu hỏi có câu trả lời trong vòng khoảng 17 giây; dự phòng khoảng 28
+  giây", `bản ghi`→"mục", `địa chỉ IP`→"một máy truy cập", `Cloudflare Turnstile`→"lớp chặn truy
+  cập tự động", `điểm chạm`→"một nơi duy nhất", `đồng thiết kế`→"xây dựng cùng", `hậu kiểm`→"kiểm
+  tra lại", `cấu hình`→"cài đặt", `bộ truy hồi mở rộng`→"bộ câu hỏi mở rộng", `AI`→"máy"/"trợ lý
+  ảo"/"trí tuệ nhân tạo" tuỳ ngữ cảnh. Giữ nguyên `Google Sheets` (tên riêng, cán bộ đã quen).
+- **File đã sửa:** `presentation/Ban-doc-lien-mach-Ban-do-Cong-an-so.md`
+- **Lý do:** Người nghe là lãnh đạo và cán bộ nghiệp vụ, không phải người làm kỹ thuật; thuật ngữ
+  tiếng Anh đọc lên gây khựng và làm loãng nội dung cần nhớ.
+- **Kiểm tra:** Không còn từ tiếng Anh nào ngoài tên riêng `Google Sheets`. Mọi số liệu giữ nguyên
+  giá trị và điều kiện đo; riêng `p95` được diễn giải đúng nghĩa thống kê (95% số câu) chứ không
+  đổi thành "trung bình". Thứ tự 11 mục vẫn khớp 11 slide trong `build_pptx.js`.
+
 ## [2026-07-18] Ổn định majority gate sau phương án A (TT04/VP01/TR03 + fallback DN01)
 - **Agent:** Codex
 - **Thay đổi:** Giữ phương án A của Claude cho DN01/LOC02 và hoàn thiện bốn lớp ổn định:
@@ -1933,3 +1973,78 @@
 - **File đã sửa:** `lib/output-validator.js`, `api/chat.js`, `test/output-validator.test.js`, `docs/brain/06-ai-working-log.md`.
 - **Lý do:** (1) Redaction thay URL bằng chuỗi rỗng; nếu regex nuốt luôn dấu chấm cuối câu thì câu trả lời còn lại mệnh đề cụt không có dấu kết câu. Trước đây chỉ ảnh hưởng maps URL (hiếm), nhưng từ khi thêm redaction URL công khai thì tần suất tăng hẳn. `normalizeUrl` vốn đã cắt dấu câu khi SO SÁNH nên phần đối chiếu allow-list không đổi hành vi. (2) Catalog ~624 KB chỉ dùng cho đúng một nhánh dự phòng (query phụ Pinecone lỗi) nhưng nạp ở module scope thì mọi cold start của serverless function đều phải parse.
 - **Kiểm tra:** `npm test` 306/306 pass, thêm ca "URL redaction giữ lại dấu kết câu" phủ cả URL bị redact giữa câu lẫn URL hợp lệ cuối câu. Xác minh lazy require bằng `require.cache`: sau `require('./api/chat')` catalog CHƯA nạp, chỉ nạp sau khi gọi `getForeignStayDeclarationFallbackMatch()` và hàm vẫn trả đúng record `tam_tru_khai_bao_nguoi_nuoc_ngoai`.
+
+## [2026-07-18] Thêm project Remotion "rag-animation" — motion graphic minh họa quy trình RAG cho slide thuyết trình
+- **Agent:** Claude Code
+- **Thay đổi:** Tạo project Remotion độc lập (React + TypeScript, package.json/deps riêng, không đụng stack app chính) dựng composition `RagSlideAnimation` — video 1920×1080, 720 frame @ 30fps (24s), không âm thanh, vòng lặp liền mạch (toàn bộ nội dung mờ dần về khung nền trống trong ~50 frame cuối để khớp trạng thái trống ở frame 0). 9 component tái sử dụng theo đúng yêu cầu (ChatWindow, UserQuestion, RagNode, KnowledgeDocument, MovingDataPacket, RetrievalBeam, ContextBuilder, LlmProcessor, SourceCitation), dàn thành 6 cảnh minh họa luồng: đặt câu hỏi → truy hồi phân tầng (lọc 2/6 tài liệu) → chấm điểm lại (rerank) → xây ngữ cảnh → sinh câu trả lời (LLM) → trích dẫn nguồn + đường beam ngược chứng minh câu trả lời có căn cứ. Toàn bộ chuyển động tính thuần theo frame (`useCurrentFrame`/`interpolate`/`spring`, không CSS animation/setTimeout); đường nối và gói dữ liệu dùng chung một hàm toán Bezier bậc 2 thuần túy (không phụ thuộc DOM/ref) để đảm bảo render ổn định.
+- **File đã sửa (mới):** `presentation/rag-animation/**` — `package.json`, `tsconfig.json`, `remotion.config.ts`, `src/index.ts`, `src/Root.tsx`, `src/RagSlideAnimation.tsx`, `src/theme.ts`, `src/geometry.ts`, `src/data.ts`, `src/icons.tsx`, `src/load-font.ts`, `src/components/*.tsx` (9 file), `README.md`, `.gitignore`.
+- **Lý do:** Người dùng yêu cầu một đoạn motion graphic không âm thanh để chèn vào slide PowerPoint bài thuyết trình "Bản đồ Công an số tỉnh Phú Thọ", minh họa trực quan cách chatbot RAG xử lý câu hỏi cho lãnh đạo dễ hình dung — nội dung minh họa (câu hỏi/tài liệu mẫu trong `data.ts`) chỉ mang tính đại diện, không phải dữ liệu tư vấn chính thức.
+- **Kiểm tra:** `npx tsc --noEmit` sạch lỗi. Render `remotion still` ở đúng 7 frame kiểm tra bắt buộc (0, 120, 240, 360, 480, 600, 719) và xem trực quan từng ảnh: không tràn/đè chữ, đúng vùng an toàn 80px, đúng bảng màu xanh dương đậm/xanh ngọc/trắng; frame 719 gần như trùng khớp frame 0 (nền trống) xác nhận loop liền mạch. Render MP4 H.264 đầy đủ qua `npm run render` (`--codec=h264 --pixel-format=yuv420p`). Phát hiện Remotion tự mux thêm track AAC câm lặng vào container dù composition không dùng `<Audio>` — thêm cờ `--muted` vào script `render` để loại hẳn track âm thanh, xác nhận lại bằng `ffprobe` chỉ còn 1 stream video.
+
+## [2026-07-18] Redesign "rag-animation" theo checklist redesign-skill (vi-phuong-158/skill-viphuong)
+- **Agent:** Claude Code
+- **Thay đổi:** Áp audit của `redesign-skill` (đọc từ `github.com/vi-phuong-158/skill-viphuong`, nội dung khớp skill `redesign-skill` cài sẵn) lên project `presentation/rag-animation`, trong phạm vi vẫn giữ nguyên các ràng buộc cứng của brief gốc (flat vector, không gradient, không hiệu ứng 3D, tông trang trọng). Cụ thể: (1) đổi ngôn ngữ card từ "viền+shadow+nền trắng cố định" (generic AI pattern) sang "elevation biểu thị trạng thái" — idle dùng nền `idleFill` nhạt không viền/không shadow, chỉ active mới nổi viền xanh ngọc + shadow (áp cho `RagNode`, `KnowledgeDocument`, `ContextBuilder`, `LlmProcessor`); viền chuyển màu mượt theo % active thay vì nhảy bậc; (2) thêm token `SHADOW` 2 lớp (ambient + contact) tint theo hue xanh dương/xanh ngọc thay vì đen chung chung; (3) chuẩn hoá `strokeWidth` icon SVG về 2px cho nét chính (trước đó lẫn lộn 1.4/1.6/1.8/2); (4) thêm lưới chấm rất mờ (dot-grid, opacity 0.55, màu `dotGrid`) phía sau khu vực phải — tạo cảm giác "bản vẽ kỹ thuật" mà vẫn phẳng 2D thuần tuý; (5) giảm `damping` spring từ 200 xuống 26 cho các hiệu ứng xuất hiện — chuyển động bớt máy móc, có chút "sống" mà không bounce lộ liễu; (6) chỉnh scale chữ: kicker "QUY TRÌNH XỬ LÝ RAG" nhỏ lại (18→15px) + tracking rộng hơn (2→3) cho đúng dáng "eyebrow label"; tiêu đề `LlmProcessor` (node cao trào) tăng 22→24px khớp cỡ các RagNode khác, thêm letter-spacing âm nhẹ cho cả hai. Sửa kèm 1 lỗi nhỏ phát hiện khi audit: icon `LlmProcessor` idle/active trước đó dùng deepBlue/blueSoft (không đổi sang teal như mọi node khác khi active) — nay nhất quán teal = active.
+- **File đã sửa:** `presentation/rag-animation/src/theme.ts`, `src/icons.tsx`, `src/RagSlideAnimation.tsx`, `src/components/RagNode.tsx`, `src/components/KnowledgeDocument.tsx`, `src/components/ContextBuilder.tsx`, `src/components/LlmProcessor.tsx`, `src/components/ChatWindow.tsx`.
+- **Lý do:** Người dùng yêu cầu đọc repo skill cá nhân để áp `redesign-skill` "làm đẹp video" vừa dựng. Video là tài sản trình chiếu trước lãnh đạo nên ưu tiên các nâng cấp rủi ro thấp/tác động cao theo đúng "Fix Priority" của skill (card language, shadow/depth, icon consistency, typography scale) — bỏ qua các kỹ thuật xung đột với brief gốc (glassmorphism, mesh gradient, grain nặng, 3D).
+- **Kiểm tra:** `npx tsc --noEmit` sạch lỗi. Render lại đúng 7 frame checkpoint (0/120/240/360/480/600/719) và so sánh trực quan trước/sau: card idle không còn viền trắng đồng nhất, dot-grid hiện rõ nhưng không gây rối; frame 719 vẫn trùng khớp frame 0 (loop nguyên vẹn sau redesign). Render lại MP4 cuối (`npm run render`, có `--muted`), `ffprobe` xác nhận đúng 1 stream video H.264 1920×1080@30fps 24s, không audio.
+
+## [2026-07-19] Redesign deck PPTX + bổ sung slide "Hạn chế và hướng khắc phục"
+- **Agent:** Claude Code
+- **Thay đổi:** (A) **Redesign** theo `redesign-skill`/`minimalist-skill` (đọc từ repo `vi-phuong-158/skill-viphuong`), có lọc theo ràng buộc "public-sector / trust-first" của `taste-skill` §0.A — chỉ lấy phần kỷ luật thị giác, bỏ phần hào nhoáng (glassmorphism, mesh gradient, motion kiểu Awwwards) vì phản tác dụng trước hội đồng: (1) gom **5 accent → 1**: THEME cũ có primary blue + green + lime + đỏ + cam; nay chỉ còn deep navy (thương hiệu) + teal `0B7A75` (accent DUY NHẤT, mang nghĩa "đã xác minh/tích cực"), các key cũ giữ làm alias để không vỡ CONTENT; lưới 4 tính năng chuyển về một màu icon, khác biệt đến từ hình icon + nhãn; (2) **vá xung đột hue**: card trên slide tối trước đây fill `0E4A44` (teal đậm) đặt trên nền `1e3a8a` (navy) — trộn 2 họ màu; nay dùng `cardDark: 16306E` cùng họ navy, để viền teal làm nhiệm vụ tách bạch; (3) **negative tracking** cho display text (54pt −1.2 / 90pt −2.5 / 44pt −1 / 30pt & 29pt −0.5 / hero 50pt −1.2); (4) đồng bộ `icTeal` với hằng `ACCENT` thay vì hardcode rời. (B) **Thêm slide "Hạn chế và hướng khắc phục"** (factory `limitations` mới) — 5 cặp hạn chế→giải pháp trên 2 cột, dùng số thứ tự thay icon cảnh báo (tránh ẩn dụ sáo mòn), accent teal chỉ xuất hiện ở cột giải pháp. (C) Sửa kèm 2 lỗi nội dung phát hiện khi rà: placeholder `[SỐ LIỆU]` chưa điền trên slide "Sự đánh đổi xứng đáng" → đổi thành "VÀI GIÂY" (KHÔNG bịa số liệu cụ thể cho báo cáo trước lãnh đạo); và **mâu thuẫn logic** giữa slide 9 (đề xuất thí điểm rồi mới nhân rộng) với slide 10 (xin nhân rộng toàn tỉnh ngay) → sửa kiến nghị thành 3 mục bám đúng lộ trình thí điểm, đồng thời nới khung kiến nghị (h 1.7→1.95, chữ 18→17pt) vì khung cũ chỉ vừa 2 dòng.
+- **File đã sửa:** `presentation/build_pptx.js`, `presentation/Ban-doc-thuyet-trinh.md`, `presentation/Ban-do-Cong-an-so-Phu-Tho.pptx` (build lại, 9→10 slide).
+- **Lý do:** Người dùng yêu cầu áp skill trong repo cá nhân để làm đẹp slide, đồng thời bổ sung slide nhìn nhận hạn chế (AI vẫn có thể sai; tác giả không chuyên CNTT, không trực tiếp tiếp dân, tự nghiên cứu ở góc nhìn cá nhân) kèm hướng khắc phục.
+- **Kiểm tra:** `node build_pptx.js` OK 10 slides. Máy không có LibreOffice để render PPTX ra ảnh, nên dựng **mock HTML 1:1 tỉ lệ tuyệt đối** (1in=96px, 1pt=96/72px, font Segoe UI thật) cho 2 slide rủi ro nhất rồi chụp bằng Chrome Headless Shell + script tự dò tràn (`scrollHeight > clientHeight`). Lần 1 bắt được lỗi THẬT: dòng dẫn slide Hạn chế xuống 2 dòng và **đè lên nhãn cột** (49px > 43px) → rút ngắn còn ≤120 ký tự; lần 2 báo "không ô nào bị tràn". Slide kiến nghị 3 dòng cũng xác nhận nằm gọn trong khung sau khi nới.
+
+## [2026-07-20] Sửa deck theo review P0/P1 — độ chính xác nội dung + nhúng video
+- **Agent:** Claude Code
+- **Thay đổi:** Xử lý toàn bộ 6 điểm review (2 P0, 4 P1) trước khi deck được trình bày.
+  **P0-1 — bỏ cam kết tuyệt đối:** slide hero "AI của chúng tôi KHÔNG BAO GIỜ nói dối" → "Giảm rủi ro trả lời sai bằng dữ liệu có kiểm soát và hậu kiểm"; thêm prop `size` cho `heroSlide` (44pt, 3 dòng) vì câu mới dài hơn. Cam kết cũ vừa không thể bảo đảm, vừa mâu thuẫn trực tiếp với slide Hạn chế ngay sau đó.
+  **P0-2 — nêu đúng trạng thái governance:** slide 4 lớp trước đây mô tả cả 4 lớp như đang chạy thật, nhưng theo `04-current-tasks.md` production **đã rollback về namespace `chatbot-tthc-xnc`** và `RAG_GOVERNANCE_FILTER`/`RAG_FAIL_CLOSED` **mặc định TẮT**. Diễn đạt lại tránh tuyệt đối hoá ("Ưu tiên…" thay "Chỉ lấy…"), thêm prop `status` + dải trạng thái cuối slide ghi rõ lớp 2/4 đã hoạt động, lớp 1/3 mới đạt trên bản thử nghiệm và đang chờ phê duyệt. Kiến nghị #1 ở slide cuối đổi thành "Phê duyệt bật cấu hình kiểm soát đã kiểm thử, triển khai thí điểm" để nối thẳng với dòng trạng thái này.
+  **P1-1 — chồng chữ thẻ "Hậu kiểm":** khung tiêu đề bước `h:0.55` không đủ cho tiêu đề 19pt xuống 2 dòng → nới `h:0.8`, hạ thân card xuống `y:5.24 h:1.1`, card `h:3.4→3.7`; đồng thời rút tiêu đề/mô tả bước cho ngắn.
+  **P1-2 — icon "Quản trị linh hoạt" mất:** CONTENT dùng key `cloud` nhưng `FA_MAP` không có key này nên `ic['cloud']` trả null và icon bị bỏ im lặng → thêm `cloud: FA.FaCloudUploadAlt` (và `video: FA.FaPlayCircle`).
+  **P1-3 — số liệu chưa nguồn:** bỏ "Hàng ngàn giờ bị lãng phí mỗi năm" (không có thống kê) → diễn đạt định tính + footer "Ghi nhận từ thực tế công tác, chưa có số liệu thống kê chính thức"; bỏ "VẠN NGƯỜI" → "24/7"; **sửa "VÀI GIÂY" → "17–28 GIÂY"** theo đúng số đo trong log 2026-07-13 (p95 ≈ 17,04s Gemini; ≈ 28,2s khi fallback DeepSeek) kèm ghi rõ là số kiểm thử nội bộ; quote đổi tác giả thành "Phản ánh thường gặp của người dân (diễn đạt lại)" vì không phải trích dẫn nguyên văn đã thu thập.
+  **P1-4 — video:** thêm factory `videoSlide` + slide "Minh hoạ: Quy trình xử lý một câu hỏi" nhúng MP4 vào pptx qua `addMedia` (có nhánh dự phòng báo rõ trên slide nếu thiếu file), kèm dải chú thích "nội dung là ví dụ, không phải tư vấn chính thức"; trong video thêm **nhãn "MINH HOẠ" cố định ở mọi frame** (không mờ theo `globalFadeOut`) và ghi chú cảnh báo ở đầu `data.ts`.
+- **File đã sửa:** `presentation/build_pptx.js`, `presentation/Ban-doc-thuyet-trinh.md`, `presentation/rag-animation/src/RagSlideAnimation.tsx`, `presentation/rag-animation/src/geometry.ts`, `presentation/rag-animation/src/data.ts`, `presentation/Ban-do-Cong-an-so-Phu-Tho.pptx` + `rag-animation/out/RagSlideAnimation.mp4` (build lại; deck 10→11 slide).
+- **Lý do:** Review chỉ ra deck chưa nên trình bày nguyên trạng — hai lỗi P0 là **báo cáo sai thực trạng hệ thống** với lãnh đạo. Riêng "VÀI GIÂY" là do chính agent này đưa vào ở lượt trước khi thay placeholder `[SỐ LIỆU]`: đã thay một ô trống bằng một khẳng định chưa kiểm chứng, trong khi số đo thật nằm sẵn trong log — bài học: không điền số vào chỗ trống nếu chưa tra được nguồn.
+- **Kiểm tra:** `node build_pptx.js` OK 11 slides; `npx tsc --noEmit` (rag-animation) sạch. Mock HTML 1:1 + Chrome Headless Shell dò tràn cho slide 4 lớp: lần 1 báo **2 thẻ tràn thật** ("Trả lời dựa trên tài liệu…" và "Đối chiếu số điện thoại…" 122px > 96px) → rút mô tả ≤65 ký tự + nới khung, lần 2 "không ô nào bị tràn". Video: render lại frame 360/600 xác nhận nhãn MINH HOẠ hiện rõ và **không đè lưới tài liệu** (lần đầu bị đè nên đã hạ `DOC_GRID_ORIGIN.y` 110→126); `ffprobe` xác nhận MP4 vẫn 1 stream H.264 1920×1080 24s không audio. Xác minh nhúng bằng `unzip -l`: có `ppt/media/media-7-1.mp4` (1,5 MB) với đủ quan hệ `.../relationships/video` + `.../2007/relationships/media` trong `slide7.xml.rels`; slide tính năng có đủ 4 ảnh icon (trước khi vá chỉ 3).
+## [2026-07-20] Hoàn thiện bản trình bày Bản đồ Công an số
+- **Agent:** Codex
+- **Thay đổi:** Chỉnh nội dung theo rà soát: bỏ trích dẫn mô phỏng, làm rõ trạng thái kiểm soát nội bộ, chuyển hạn chế cá nhân thành nhu cầu nguồn lực; sửa bố cục và tăng cỡ chữ tại slide video, kiểm soát và hạn chế.
+- **File đã sửa:** presentation/build_pptx.js, presentation/Ban-doc-thuyet-trinh.md, presentation/Ban-do-Cong-an-so-Phu-Tho.pptx
+- **Lý do:** Tăng tính chính xác, dễ đọc khi chiếu và tính định hướng trong phần kiến nghị.
+- **Kiểm tra:** Dựng lại tệp PPTX, bật tự chạy/lặp video bằng PowerPoint và render kiểm tra từng slide.
+
+## [2026-07-20] Tích hợp ảnh giao diện vào bản trình bày
+- **Agent:** Codex
+- **Thay đổi:** Dùng ảnh desktop thực tế cho slide giới thiệu sản phẩm và hai ảnh điện thoại cho slide tính năng; thay hai bố cục thẻ bằng bố cục ảnh sản phẩm kết hợp các điểm nổi bật.
+- **File đã sửa:** presentation/build_pptx.js, presentation/Ban-doc-thuyet-trinh.md, presentation/Ban-do-Cong-an-so-Phu-Tho.pptx
+- **Lý do:** Tăng tính trực quan, chứng minh sản phẩm đang hoạt động và giảm cảm giác đơn điệu của các lưới thẻ.
+- **Kiểm tra:** Dựng lại tệp PPTX, bật tự chạy/lặp video bằng PowerPoint và render kiểm tra từng slide.
+
+## [2026-07-20] Redesign toàn bộ deck PowerPoint V2 theo phong cách Civic Tech
+- **Agent:** Codex
+- **Thay đổi:** Tạo bộ dựng PptxGenJS V2 độc lập với design system navy/blue/teal, 11 bố cục riêng theo nhịp kể chuyện; bổ sung các helper header/footer, badge trạng thái, mockup thiết bị/trình duyệt, watermark bản đồ, connector, pipeline, metric và hàng hạn chế–khắc phục. Giữ speaker notes bằng cách đọc trực tiếp 11 phần lời đọc từ `Ban-doc-thuyet-trinh.md`; nhúng video hiện có; áp Morph cho slide 5, 6, 9 và Fade 450 ms cho các slide còn lại.
+- **File đã sửa:** `presentation/build_pptx_v2.js`, `presentation/Ban-do-Cong-an-so-Phu-Tho-V2.pptx`, `presentation/preview/` và `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Nâng chất lượng báo cáo trước lãnh đạo theo ngôn ngữ Civic Tech/Chính quyền số, tăng trọng tâm thị giác và tính hệ thống mà không thay đổi nội dung nghiệp vụ hoặc ghi đè bản gốc.
+- **Kiểm tra:** `node --check presentation/build_pptx_v2.js`; build thành công 11 slide; Microsoft PowerPoint mở trực tiếp file và đọc đủ 11 slide; render toàn bộ slide và contact sheet trong `presentation/preview/`; `slides_test.py` báo không tràn canvas; kiểm tra gói PPTX có 11 notes slide, video `ppt/media/media-7-1.mp4` và quan hệ video tại slide 7; Morph đúng slide 5/6/9; kiểm tra trực quan từng slide, sửa connector slide 8 để không cắt ngang nội dung và chuẩn hoá connector âm để tránh lỗi OOXML trên PowerPoint.
+
+## [2026-07-20] Rút gọn và điền số liệu kịch bản thuyết trình 12 phút
+- **Agent:** Codex
+- **Thay đổi:** Rút phần lời trình bày từ 2.585 xuống 1.328 từ; điền số liệu production về địa điểm, thủ tục, kho kiến thức, kiểm thử, độ trễ và giới hạn vận hành; làm rõ cập nhật dữ liệu có bước rà soát; chốt phương án thí điểm đề xuất 03 tháng, 03 đơn vị, 20 thủ tục; bỏ toàn bộ biến chờ điền.
+- **File đã sửa:** `presentation/Kich-ban-thuyet-trinh-Ban-do-Cong-an-so-hoan-chinh.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Đưa kịch bản về thời lượng khoảng 12 phút và bổ sung các số liệu có thể sử dụng trực tiếp khi báo cáo.
+- **Kiểm tra:** Đếm lại 11 phần lời trình bày được 1.328 từ, tương đương khoảng 10,2–11,1 phút đọc liên tục ở 120–130 từ/phút và xấp xỉ 12 phút khi tính nhịp dừng/chuyển slide; không còn biến `{{...}}` chưa điền.
+
+## [2026-07-20] Làm rõ tác giả và phối hợp thu thập vị trí trụ sở trong kịch bản
+- **Agent:** Codex
+- **Thay đổi:** Xác định Bản đồ Công an số là sản phẩm ra mắt của Câu lạc bộ Sáng tạo; người trình bày là tác giả trực tiếp xây dựng hệ thống; Ban Thanh niên Công an tỉnh phối hợp thu thập, đối chiếu vị trí các trụ sở. Bổ sung nội dung này tại slide mở đầu, giới thiệu sản phẩm, mô hình vận hành và phần hỏi đáp.
+- **File đã sửa:** `presentation/Kich-ban-thuyet-trinh-Ban-do-Cong-an-so-hoan-chinh.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Phản ánh đúng vai trò tác giả, Câu lạc bộ Sáng tạo và Ban Thanh niên Công an tỉnh trong công trình.
+- **Kiểm tra:** Rà lại các slide 1, 4, 10 và câu hỏi “Ai sẽ vận hành hệ thống?” để bảo đảm vai trò được diễn đạt nhất quán.
+
+## [2026-07-20] Tạo bản đọc liền mạch cho kịch bản thuyết trình
+- **Agent:** Codex
+- **Thay đổi:** Tách riêng toàn bộ lời trình bày theo 11 slide, chỉ giữ nhãn slide và phần lời nói để kiểm tra mạch kể.
+- **File đã sửa:** `presentation/Ban-doc-lien-mach-Ban-do-Cong-an-so.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Giúp tác giả đọc thử toàn bộ bài mà không bị ngắt bởi nội dung hiển thị, ghi chú hoặc hướng dẫn thiết kế.
+- **Kiểm tra:** Đối chiếu từng phần lời trình bày với kịch bản hoàn chỉnh; đủ 11 nhãn slide, không chứa phần nội dung hiển thị.
