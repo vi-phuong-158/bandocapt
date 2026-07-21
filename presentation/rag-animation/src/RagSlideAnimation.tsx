@@ -15,7 +15,7 @@ import {
   center,
   docPosition,
 } from './geometry';
-import { ANSWER_TEXT, CITATIONS, DOCUMENTS, HIGHLIGHTED_DOC_INDEXES, QUESTION_TEXT } from './data';
+import { ANSWER_TEXT, CITATIONS, DOCUMENTS, HIGHLIGHTED_DOC_INDEXES, QUESTION_TEXT, VERIFIED_LOCATION } from './data';
 import { SearchIcon, LayersIcon } from './icons';
 import { ChatWindow } from './components/ChatWindow';
 import { RagNode } from './components/RagNode';
@@ -79,7 +79,10 @@ export const RagSlideAnimation: React.FC = () => {
   const statusDots = '.'.repeat(1 + Math.floor((frame % 30) / 10));
 
   // ---------------- Canh 6: khep vong lap ----------------
-  const globalFadeOut = interpolate(frame, [668, 719], [1, 0], clampOpts);
+  // Lui thoi diem bat dau mo dan (668 -> 688) de trang thai cau tra loi day du
+  // (cau tra loi + 2 nguon + tru so da xac minh) co du thoi gian hien ro truoc
+  // khi khep vong lap. Van ket thuc o 719 nen vong lap giu lien mach.
+  const globalFadeOut = interpolate(frame, [688, 719], [1, 0], clampOpts);
 
   // Diem dieu khien Bezier co dinh cho tung duong noi (tinh mot lan, khong doi theo frame)
   const cp = {
@@ -183,6 +186,18 @@ export const RagSlideAnimation: React.FC = () => {
               durationInFrames: 22,
             }),
           }))}
+          location={{
+            name: VERIFIED_LOCATION.name,
+            address: VERIFIED_LOCATION.address,
+            // Hien sau 2 chip nguon (612, 627) — dung cach he thong that gan tru so
+            // xac minh o cuoi cau tra loi.
+            reveal: spring({
+              frame: Math.max(0, frame - 648),
+              fps,
+              config: { damping: 26 },
+              durationInFrames: 24,
+            }),
+          }}
         />
 
         {/* ============ KHU VUC PHAI: pipeline RAG ============ */}

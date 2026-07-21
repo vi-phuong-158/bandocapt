@@ -100,7 +100,7 @@ Tôi **không dám khẳng định** hệ thống đúng tuyệt đối, vì nó
 
 **Lớp bốn** — trước khi hiển thị, một bước hậu kiểm tự động đối chiếu lại từng số điện thoại, địa chỉ, căn cứ pháp lý với nguồn.
 
-Ở đây tôi xin báo cáo rõ hiện trạng để các đồng chí nắm đúng: **lớp hai và lớp bốn hiện đã hoạt động. Lớp một và lớp ba đã được kiểm thử đạt trên bản thử nghiệm, nhưng bản chạy chính thức hiện vẫn dùng cấu hình cũ, nên hai lớp này chưa được bật.** Đây chính là một trong những nội dung tôi xin kiến nghị ở phần sau.
+Ở đây tôi xin báo cáo rõ hiện trạng để các đồng chí nắm đúng: **lớp hai và lớp bốn hiện đã hoạt động. Lớp một và lớp ba đã được kiểm thử đạt trên bản thử nghiệm và sẵn sàng để áp dụng — chỉ còn chờ phê duyệt để bật trên bản chạy chính thức.** Đây chính là một trong những nội dung tôi xin kiến nghị ở phần sau.
 
 ---
 
@@ -155,35 +155,27 @@ Về giá trị mang lại, tôi xin báo cáo hai điểm.
 
 ---
 
-## SLIDE 10 — THẲNG THẮN NHÌN NHẬN: HẠN CHẾ VÀ HƯỚNG KHẮC PHỤC
+## SLIDE 10 — BA ĐIỀU KIỆN ĐỂ VẬN HÀNH HIỆU QUẢ
 
 **[HIỂN THỊ]**
-*(Hai cột: mỗi hạn chế ghép thẳng với một hướng khắc phục tương ứng)*
+*(Hai cột: mỗi bên phối hợp ghép với nội dung phối hợp tương ứng)*
 
-| Hạn chế còn tồn tại | → | Hướng khắc phục đề xuất |
+| Bên phối hợp | → | Nội dung phối hợp |
 |---|---|---|
-| **1.** Bản chất vẫn là AI — vẫn có thể trả lời sai | → | Hiển thị khuyến cáo "thông tin tham khảo"; nút báo lỗi ngay dưới mỗi câu trả lời; cán bộ rà soát định kỳ. |
-| **2.** Kho dữ liệu chưa qua thẩm định chính thức | → | Đề nghị đơn vị nghiệp vụ (QLXNC, QLHC về TTXH) rà soát, phê duyệt nội dung trước khi công bố rộng. |
-| **3.** Chưa có nguồn lực CNTT chuyên trách | → | Đề nghị bố trí, phối hợp cán bộ CNTT để tiếp nhận, duy trì và nâng cấp hệ thống lâu dài. |
-| **4.** Chưa đồng thiết kế đầy đủ với cán bộ tiếp dân | → | Mời cán bộ trực tiếp tiếp công dân bổ sung tình huống thực tế và các câu hỏi thường gặp tại quầy. |
-| **5.** Chưa được kiểm thử trên diện rộng | → | Triển khai theo giai đoạn: thí điểm phạm vi hẹp → đánh giá kết quả → mới nhân rộng toàn tỉnh. |
+| **1.** Câu lạc bộ Sáng tạo | → | Trực tiếp phụ trách kỹ thuật và vận hành; đề nghị đơn vị CNTT hỗ trợ khi có việc chuyên sâu. |
+| **2.** Đơn vị nghiệp vụ | → | Rà soát, phê duyệt và cập nhật nội dung; hậu kiểm chuyên môn vì AI vẫn có thể trả lời sai. |
+| **3.** Cán bộ tiếp công dân | → | Bổ sung tình huống thực tế và những câu hỏi người dân thường gặp ngay tại quầy. |
 
 🗣️ **LỜI ĐỌC:**
-Kính thưa các đồng chí, trước khi nêu kiến nghị, tôi xin phép được báo cáo thẳng thắn những hạn chế của công trình. Bởi tôi cho rằng, một sản phẩm được trình bày là hoàn hảo tuyệt đối thì thường là sản phẩm chưa được nhìn nhận nghiêm túc.
+Kính thưa các đồng chí, sản phẩm đã hoạt động được, nhưng để vận hành hiệu quả và bền vững thì một mình tôi không thể làm hết. Tôi xin thẳng thắn: bản thân tôi vừa không chuyên về công nghệ, vừa không phải người trực tiếp tiếp công dân hằng ngày — đây là công trình tôi tự mày mò nghiên cứu theo góc nhìn cá nhân. Chính vì vậy, tôi xin đề xuất ba điều kiện phối hợp.
 
-**Thứ nhất**, bản chất đây vẫn là AI. Dù đã có bốn lớp kiểm soát như tôi vừa trình bày, tôi không dám khẳng định hệ thống đúng tuyệt đối một trăm phần trăm.
+**Thứ nhất**, về kỹ thuật: Câu lạc bộ Sáng tạo xin được trực tiếp phụ trách vận hành hệ thống; khi có vấn đề công nghệ chuyên sâu thì kính đề nghị đơn vị công nghệ thông tin hỗ trợ.
 
-**Thứ hai**, kho dữ liệu hiện được xây dựng từ nguồn văn bản công khai, chưa qua thẩm định chính thức của đơn vị nghiệp vụ.
+**Thứ hai**, về nội dung: kính đề nghị đơn vị nghiệp vụ rà soát, phê duyệt và cập nhật nội dung. Đây cũng là bước hậu kiểm quan trọng, bởi bản chất AI vẫn có thể trả lời sai nên rất cần con người kiểm soát; và kho dữ liệu hiện lấy từ nguồn công khai, cũng cần được thẩm định chính thức.
 
-**Thứ ba**, công trình chưa có nguồn lực công nghệ thông tin chuyên trách để tiếp nhận, duy trì và nâng cấp lâu dài.
+**Thứ ba**, về thực tế: kính mong các đồng chí cán bộ trực tiếp tiếp công dân bổ sung những tình huống thật và những câu người dân hay hỏi ngay tại quầy.
 
-**Thứ tư**, công trình chưa được đồng thiết kế đầy đủ với cán bộ trực tiếp tiếp dân, nên còn cần bổ sung các tình huống phát sinh tại quầy.
-
-**Và thứ năm**, hệ thống chưa được kiểm thử trên diện rộng, chưa có số liệu vận hành thực tế đủ lớn để đánh giá.
-
-Tuy nhiên, thưa các đồng chí, mỗi hạn chế nêu trên đều đã có hướng khắc phục cụ thể: bổ sung khuyến cáo và cơ chế báo lỗi cho người dân; đề nghị đơn vị nghiệp vụ thẩm định nội dung; đề nghị bố trí cán bộ công nghệ thông tin phối hợp tiếp nhận; mời chính các đồng chí tiếp dân cùng bổ sung tình huống thực tế; và triển khai theo giai đoạn — thí điểm, đánh giá, rồi mới nhân rộng.
-
-Tôi báo cáo điều này với mong muốn công trình được hoàn thiện một cách thực chất, phục vụ nhân dân được tốt hơn.
+Và trên hết, chúng tôi xác định làm từng bước — thí điểm ở phạm vi hẹp, đánh giá kết quả, rồi mới nhân rộng — để mọi rủi ro đều nằm trong tầm kiểm soát. Tôi báo cáo với mong muốn công trình được hoàn thiện một cách thực chất, phục vụ nhân dân được tốt hơn.
 
 ---
 

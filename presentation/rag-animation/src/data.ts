@@ -38,3 +38,12 @@ export const CITATIONS: { id: string; label: string; docIndex: number }[] = [
   { id: 'cite-1', label: 'TT cấp lại thẻ tạm trú', docIndex: HIGHLIGHTED_DOC_INDEXES[0] },
   { id: 'cite-2', label: 'Hướng dẫn hồ sơ QLXNC', docIndex: HIGHLIGHTED_DOC_INDEXES[1] },
 ];
+
+// Tru so da xac minh — mo phong dung cach he thong that dinh kem "vi tri xac minh"
+// (tu Published_Locations) o cuoi cau tra loi, kem nut chi duong. VI DU MINH HOA:
+// dia chi duoi day KHONG phai dia chi chinh thuc, chi de minh hoa bo cuc "nguon +
+// vi tri". Khi dung that phai lay dia chi tu Published_Locations da duyet.
+export const VERIFIED_LOCATION = {
+  name: 'Phòng Quản lý xuất nhập cảnh',
+  address: 'Công an tỉnh Phú Thọ — TP Việt Trì',
+};

@@ -3,6 +3,7 @@ import { COLORS, FONT_FAMILY, RADIUS, SHADOW } from '../theme';
 import { ChatIcon } from '../icons';
 import { UserQuestion } from './UserQuestion';
 import { SourceCitation } from './SourceCitation';
+import { VerifiedLocation } from './VerifiedLocation';
 
 export type ChatWindowProps = {
   x: number;
@@ -17,6 +18,7 @@ export type ChatWindowProps = {
   answerOpacity: number;
   answerText: string; // da duoc cat (slice) theo so ky tu hien tai o component cha
   citations: { label: string; reveal: number }[];
+  location: { name: string; address: string; reveal: number }; // tru so da xac minh
 };
 
 // Khung mo phong giao dien chatbot: header + khu vuc tin nhan (cau hoi / trang thai /
@@ -35,6 +37,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   answerOpacity,
   answerText,
   citations,
+  location,
 }) => {
   return (
     <div
@@ -147,6 +150,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 <SourceCitation key={c.label} label={c.label} reveal={c.reveal} />
               ))}
             </div>
+            <VerifiedLocation name={location.name} address={location.address} reveal={location.reveal} />
           </div>
         ) : null}
       </div>

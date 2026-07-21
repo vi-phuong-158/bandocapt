@@ -56,6 +56,24 @@ export const ChatIcon: React.FC<IconProps> = ({ color, size = 26 }) => (
   </svg>
 );
 
+export const MapPinIcon: React.FC<IconProps> = ({ color, size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path
+      d="M12 21.5C12 21.5 19 15.5 19 9.5C19 5.63 15.87 2.5 12 2.5C8.13 2.5 5 5.63 5 9.5C5 15.5 12 21.5 12 21.5Z"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinejoin="round"
+    />
+    <circle cx="12" cy="9.5" r="2.6" stroke={color} strokeWidth="2" />
+  </svg>
+);
+
+export const NavigationIcon: React.FC<IconProps> = ({ color, size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path d="M21 3L3 10.5L11 13L13.5 21L21 3Z" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+  </svg>
+);
+
 export const LinkIcon: React.FC<IconProps> = ({ color, size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <path d="M10 14L14 10" stroke={color} strokeWidth="2" strokeLinecap="round" />

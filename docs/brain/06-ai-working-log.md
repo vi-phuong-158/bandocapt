@@ -1,5 +1,83 @@
 # 06 — AI Working Log
 
+## [2026-07-21] Video: thêm thẻ "Trụ sở đã xác minh + Chỉ đường" vào câu trả lời
+- **Agent:** Claude Code
+- **Thay đổi:** Người dùng muốn câu trả lời trong video hiển thị đúng như hệ thống thật —
+  ngoài nguồn trích dẫn còn có vị trí trụ sở đã xác minh (tính năng deeplink
+  `verifiedLocations` từ `Published_Locations`). Trước đây khung chat chỉ có 2 chip nguồn.
+  Đã thêm: (1) 2 icon SVG mới `MapPinIcon` + `NavigationIcon` (`icons.tsx`); (2) component
+  mới `components/VerifiedLocation.tsx` — thẻ viền teal trái, icon ghim, nhãn "TRỤ SỞ ĐÃ XÁC
+  MINH", tên + địa chỉ, nút "Chỉ đường"; (3) `VERIFIED_LOCATION` trong `data.ts` (địa chỉ VÍ DỤ,
+  có comment cảnh báo không phải địa chỉ chính thức); (4) `ChatWindow` nhận prop `location` và
+  render sau các chip nguồn; (5) `RagSlideAnimation` truyền location với spring reveal ở frame
+  648 (sau 2 chip nguồn ở 612/627), và LÙI globalFadeOut 668→688 để trạng thái đầy đủ (câu trả
+  lời + 2 nguồn + trụ sở) có thời gian hiện rõ trước khi khép vòng lặp.
+- **File đã sửa:** `presentation/rag-animation/src/icons.tsx`, `.../data.ts`,
+  `.../components/VerifiedLocation.tsx` (mới), `.../components/ChatWindow.tsx`,
+  `.../RagSlideAnimation.tsx`; render lại `out/RagSlideAnimation.mp4`; rebuild deck.
+- **Lý do:** Video cần phản ánh trung thực cách hệ thống trả lời (nguồn + vị trí), không chỉ
+  nguồn. Giữ nhãn MINH HOẠ ở mọi frame; địa chỉ để mức tỉnh/thành, không bịa số nhà cụ thể.
+- **Kiểm tra:** `npx tsc --noEmit` sạch. Still frame 665: câu trả lời + 2 nguồn + thẻ trụ sở +
+  nút Chỉ đường vừa khít khung trái, không tràn/đè. MP4 render lại: ffprobe xác nhận
+  24.00s, 1 luồng H.264 1920×1080, KHÔNG có audio. Deck nhúng `media-7-1.mp4` khớp byte
+  (1.469.239 B) với file vừa render.
+
+## [2026-07-21] Vá review ngoài: lỗi số liệu + tái khung slide 10 + rút số liệu
+- **Agent:** Claude Code
+- **Thay đổi:** Xử lý một bản review ngoài của bản đọc. Chia làm 3 loại:
+  (A) LỖI SỰ THẬT — sửa ngay: "503 mục: 156+152+194" cộng ra 502 (mục thứ 503 là 1 bản ghi hỗ trợ
+  KBTT, xem 04-current-tasks.md:18,298); đổi thành "hơn 500 mục" để không kẹt phép cộng.
+  (B) MÂU THUẪN LOGIC — sửa ngay: slide 10 (cũ) đề nghị "bố trí cán bộ CNTT tiếp nhận" trong khi
+  slide 11 nói "Câu lạc bộ tiếp tục phụ trách kỹ thuật" → nghịch nhau. (C) ĐỔI TÔNG — HỎI người
+  dùng trước vì đảo ngược yêu cầu cũ của chính họ (họ từng chủ động xin slide "hạn chế" + câu "tự
+  nghiên cứu cá nhân"). Người dùng chọn: đổi slide 10 sang "3 điều kiện phối hợp" (tự tin hơn)
+  NHƯNG giữ nguyên câu tự nhận khiêm tốn. Đã dựng lại slide 10 (deck + 2 bản đọc) thành 3 điều
+  kiện: (1) Câu lạc bộ trực tiếp vận hành, CNTT chỉ hỗ trợ — vá luôn mâu thuẫn B; (2) đơn vị
+  nghiệp vụ rà soát + hậu kiểm (gộp ý "AI vẫn có thể sai", không bỏ); (3) cán bộ tiếp dân bổ sung
+  tình huống. Câu "tự mày mò nghiên cứu theo góc nhìn cá nhân" giữ ở LỜI ĐỌC (nói ra), không đưa
+  lên slide. Ngoài ra rút số liệu slide 9 (bỏ 91 câu khỏi mạch chính, gộp 300/304) và bỏ số
+  "3.500 lượt/tháng, 20 lượt/ngày" khỏi lời đọc slide 8 (đổi thành "ngưỡng thử nghiệm, có thể
+  nâng") để lãnh đạo không tưởng là trần năng lực.
+- **File đã sửa:** `presentation/build_pptx.js` (CONTENT slide 10 → type limitations tái khung),
+  `presentation/Ban-doc-lien-mach-Ban-do-Cong-an-so.md` (slide 4/8/9/10/11),
+  `presentation/Ban-doc-thuyet-trinh.md` (slide 10).
+- **Lý do:** Report nhà nước dùng số liệu để tăng tin cậy thì một phép cộng sai cũng làm nghi ngờ
+  cả phần còn lại. Mâu thuẫn vận hành (ai phụ trách kỹ thuật) làm lãnh đạo khó giao việc. Tông
+  slide 10 là lựa chọn giá trị của người dùng — không tự quyết.
+- **Kiểm tra:** `node --check build_pptx.js` OK; rebuild "OK: 11 slides". Mock 1:1 slide 10 mới
+  (3 hàng, `slide-lim.html`) chụp bằng Chrome Headless Shell: không ô nào tràn, thẻ phải gói 2
+  dòng trong khung. Đối chiếu nguồn số: 503 vector (04-current-tasks.md:18 = namespace ỨNG VIÊN),
+  KBTT (:298).
+- **Còn tồn:** (1) "141 trụ sở" vẫn chưa truy được nguồn (kiểm kê ghi 145). (2) Reviewer đề xuất
+  đổi câu hỏi minh hoạ trong VIDEO từ "cấp lại thẻ tạm trú" (thiên về người nước ngoài) sang câu
+  phổ thông hơn — CHƯA làm vì phải render lại toàn bộ MP4 Remotion + nhúng lại; chờ người dùng
+  quyết. (3) Độ dài tổng còn ~1.700+ từ (mục tiêu reviewer 1.350–1.500) — đã rút slide 8/9/10,
+  chưa rút slide 4/6.
+
+## [2026-07-21] Sửa chú thích sai lệch: rollback T3.8 không chỉ do quota Gemini
+- **Agent:** Claude Code
+- **Thay đổi:** Trong lúc trả lời câu hỏi của người dùng về slide 6, tôi đã giải thích sai —
+  quy hết lý do chưa cutover production về "hết hạn mức Gemini free-tier". Người dùng chỉ ra đúng:
+  nếu chỉ là quota thì đổi sang DeepSeek là xong, sao vẫn chưa bật? Kiểm tra lại nguồn thì rollback
+  17/07 do HAI lý do cùng lúc — quota Gemini 429 VÀ một hard-fail NỘI DUNG thật (lỗi logic nhận diện
+  intent, không sửa được bằng đổi nhà cung cấp AI). Sau khi vá lỗi nội dung, gate đã chạy lại bằng
+  DeepSeek và ĐẠT xanh từ 2026-07-18; từ đó việc chưa cutover chỉ còn là quyết định con người chưa
+  được đưa ra, không còn vướng kỹ thuật. Đã thêm chú thích cảnh báo vào `build_pptx.js` (slide
+  `steps`) để agent sau không lặp lại cách đơn giản hoá sai này.
+- **File đã sửa:** `presentation/build_pptx.js` (comment tại slide 4-lớp-kiểm-soát), và sửa CÂU
+  TRẠNG THÁI + lời đọc slide 6 ở cả ba file (`build_pptx.js`, `Ban-doc-lien-mach-*.md`,
+  `Ban-doc-thuyet-trinh.md`).
+- **Lý do:** Nội dung cũ ("chưa được bật vì vẫn dùng cấu hình cũ") đúng về KẾT QUẢ nhưng nghe như
+  còn thử nghiệm dở dang, che mất một sự thật CÓ LỢI: kiểm tra kỹ thuật đã ĐẠT từ 18/07, giờ chỉ
+  còn thiếu phê duyệt. Đổi thành "đã kiểm thử đạt, sẵn sàng áp dụng, chỉ còn chờ phê duyệt" để câu
+  xin phê duyệt ở slide cuối có sức nặng ("đã sẵn sàng, xin bật" thay vì "xin thử"). Vẫn không nói
+  sai — production thật sự chưa bật cờ.
+- **Kiểm tra:** Đối chiếu `03-decisions.md` mục "[2026-07-17] T3.8 — Current-procedure-first và
+  rollback khi gate suy giảm" (nêu cả quota + hard-fail) và `04-current-tasks.md` mục "Cập nhật
+  T3.8 ngày 2026-07-18" (gate DeepSeek đạt 2/3, chưa cutover vì chưa có yêu cầu người dùng).
+  `node --check build_pptx.js` OK; rebuild "OK: 11 slides"; chụp lại dải trạng thái bằng Chrome
+  Headless Shell — câu mới vừa khít một dòng, không tràn.
+
 ## [2026-07-20] Sửa bản đọc liền mạch: đồng bộ với deck + vá lại claim production
 - **Agent:** Claude Code
 - **Thay đổi:** Review `Ban-doc-lien-mach-Ban-do-Cong-an-so.md` phát hiện bản đọc mới làm sống lại

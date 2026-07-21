@@ -114,10 +114,18 @@ const CONTENT = {
         ["shield", "Hậu kiểm", "Đối chiếu số điện thoại, địa chỉ, căn cứ pháp lý với nguồn."],
       ],
       // Dòng trạng thái BẮT BUỘC: production hiện vẫn chạy cấu hình cũ
-      // (namespace `chatbot-tthc-xnc`, đã rollback); `RAG_GOVERNANCE_FILTER` và
+      // (namespace `chatbot-tthc-xnc`, đã rollback 2026-07-17); `RAG_GOVERNANCE_FILTER` và
       // `RAG_FAIL_CLOSED` mặc định TẮT — xem docs/brain/04-current-tasks.md.
-      status: "Hiện trạng: lớp 2, 4 đang hoạt động; lớp 1, 3 đã kiểm thử trên bản thử nghiệm và chờ phê duyệt áp dụng.",
-      notes: "Để giảm rủi ro trả lời sai, hệ thống được thiết kế gồm bốn lớp kiểm soát nối tiếp nhau. Lớp một: truy hồi có kiểm soát, ưu tiên nguồn đã qua rà soát nội bộ, đúng thẩm quyền, đúng cấp thực hiện, tránh lẫn quy định cấp xã với cấp tỉnh. Lớp hai: dùng chính một AI khác chấm điểm, xếp hạng lại kết quả, loại bỏ tài liệu gây nhiễu. Lớp ba: câu trả lời phải bám theo tài liệu truy hồi được, nếu không đủ căn cứ thì báo không đủ cơ sở thay vì suy diễn. Lớp bốn: trước khi hiển thị, một bước hậu kiểm tự động đối chiếu lại từng số điện thoại, địa chỉ, căn cứ pháp lý với nguồn. Ở đây tôi xin báo cáo rõ hiện trạng để các đồng chí nắm đúng: lớp hai và lớp bốn hiện đã hoạt động. Lớp một và lớp ba đã được kiểm thử đạt trên bản thử nghiệm, nhưng bản chạy chính thức hiện vẫn dùng cấu hình cũ, nên hai lớp này chưa được bật. Đây chính là một trong những nội dung tôi xin kiến nghị ở phần sau.",
+      // LƯU Ý (đừng đơn giản hoá thành "vướng quota Gemini"): rollback 17/07 do HAI lý do
+      // cùng lúc — quota Gemini 429 VÀ một hard-fail NỘI DUNG thật (lỗi logic nhận diện intent,
+      // không phải lỗi nhà cung cấp AI) — 03-decisions.md dòng "T3.8 — Current-procedure-first".
+      // Sau khi vá lỗi nội dung, gate đã chạy lại bằng DeepSeek (`LLM_PRIMARY=deepseek`) và
+      // ĐẠT xanh ngày 2026-07-18 (majority 2/3, 0 hard-fail đa số) — 04-current-tasks.md dòng
+      // "Cập nhật T3.8 ngày 2026-07-18". Tức là đến thời điểm đó KHÔNG còn vướng kỹ thuật; việc
+      // chưa cutover production chỉ còn là QUYẾT ĐỊNH CON NGƯỜI chưa được đưa ra, không phải do
+      // hạ tầng AI. Nếu sau này bật cờ thật, sửa `status` bên dưới và xoá cảnh báo P0 tương ứng.
+      status: "Hiện trạng: lớp 2, 4 đang hoạt động; lớp 1, 3 đã kiểm thử đạt trên bản thử nghiệm, sẵn sàng áp dụng, đang chờ phê duyệt.",
+      notes: "Để giảm rủi ro trả lời sai, hệ thống được thiết kế gồm bốn lớp kiểm soát nối tiếp nhau. Lớp một: truy hồi có kiểm soát, ưu tiên nguồn đã qua rà soát nội bộ, đúng thẩm quyền, đúng cấp thực hiện, tránh lẫn quy định cấp xã với cấp tỉnh. Lớp hai: dùng chính một AI khác chấm điểm, xếp hạng lại kết quả, loại bỏ tài liệu gây nhiễu. Lớp ba: câu trả lời phải bám theo tài liệu truy hồi được, nếu không đủ căn cứ thì báo không đủ cơ sở thay vì suy diễn. Lớp bốn: trước khi hiển thị, một bước hậu kiểm tự động đối chiếu lại từng số điện thoại, địa chỉ, căn cứ pháp lý với nguồn. Ở đây tôi xin báo cáo rõ hiện trạng để các đồng chí nắm đúng: lớp hai và lớp bốn hiện đã hoạt động. Lớp một và lớp ba đã kiểm thử đạt trên bản thử nghiệm, sẵn sàng để áp dụng — chỉ còn chờ phê duyệt để bật trên bản chạy chính thức. Đây chính là một trong những nội dung tôi xin kiến nghị ở phần sau.",
     },
     {
       type: "video",
@@ -161,36 +169,34 @@ const CONTENT = {
     },
     {
       type: "limitations",
-      kicker: "Thẳng thắn nhìn nhận", title: "Hạn chế và hướng khắc phục",
+      kicker: "Điều kiện triển khai", title: "Ba điều kiện để vận hành hiệu quả",
       // Giữ lead trong MỘT dòng (<= ~120 ký tự ở 14.5pt / bề ngang 11.9in);
       // dài hơn sẽ xuống dòng và đè lên nhãn cột bên dưới.
-      lead: "Công trình đang trong giai đoạn hoàn thiện — xin báo cáo trung thực các hạn chế và hướng khắc phục.",
-      leftLabel: "Hạn chế còn tồn tại",
-      rightLabel: "Hướng khắc phục đề xuất",
+      // Câu tự nhận khiêm tốn ("không chuyên công nghệ, tự nghiên cứu") KHÔNG đặt
+      // trên slide (quá dài + hạ uy tín trên màn chiếu) mà chỉ NÓI trong lời đọc.
+      lead: "Sản phẩm đã hoạt động. Để vận hành hiệu quả và bền vững, công trình cần ba sự phối hợp rõ ràng.",
+      leftLabel: "Bên phối hợp",
+      rightLabel: "Nội dung phối hợp",
+      // Tái khung từ "5 hạn chế" sang "3 điều kiện" (quyết định người dùng 2026-07-21):
+      // giọng tự tin hơn, đồng thời VÁ mâu thuẫn CNTT với slide 11 — Câu lạc bộ vẫn
+      // trực tiếp vận hành, đơn vị CNTT chỉ HỖ TRỢ (không còn "bố trí người tiếp nhận").
+      // Ý "AI vẫn có thể sai" gộp vào điều kiện 2 (hậu kiểm chuyên môn), không bỏ.
       pairs: [
         [
-          "Bản chất vẫn là AI — vẫn có thể trả lời sai",
-          "Hiển thị khuyến cáo “thông tin tham khảo”; nút báo lỗi ngay dưới mỗi câu trả lời; cán bộ rà soát định kỳ.",
+          "Câu lạc bộ Sáng tạo",
+          "Trực tiếp phụ trách kỹ thuật và vận hành; đề nghị đơn vị CNTT hỗ trợ khi có việc chuyên sâu.",
         ],
         [
-          "Kho dữ liệu chưa qua thẩm định chính thức",
-          "Đề nghị đơn vị nghiệp vụ (QLXNC, QLHC về TTXH) rà soát, phê duyệt nội dung trước khi công bố rộng.",
+          "Đơn vị nghiệp vụ",
+          "Rà soát, phê duyệt và cập nhật nội dung; hậu kiểm chuyên môn vì AI vẫn có thể trả lời sai.",
         ],
         [
-          "Chưa có nguồn lực CNTT chuyên trách",
-          "Đề nghị bố trí, phối hợp cán bộ CNTT để tiếp nhận, duy trì và nâng cấp hệ thống lâu dài.",
-        ],
-        [
-          "Chưa đồng thiết kế đầy đủ với cán bộ tiếp dân",
-          "Mời cán bộ trực tiếp tiếp công dân bổ sung tình huống thực tế và các câu hỏi thường gặp tại quầy.",
-        ],
-        [
-          "Chưa được kiểm thử trên diện rộng",
-          "Triển khai theo giai đoạn: thí điểm phạm vi hẹp → đánh giá kết quả → mới nhân rộng toàn tỉnh.",
+          "Cán bộ tiếp công dân",
+          "Bổ sung tình huống thực tế và những câu hỏi người dân thường gặp ngay tại quầy.",
         ],
       ],
       notes:
-        "Kính thưa các đồng chí, trước khi nêu kiến nghị, tôi xin phép được báo cáo thẳng thắn những hạn chế của công trình. Thứ nhất, bản chất đây vẫn là AI, dù đã có bốn lớp kiểm soát thì vẫn không thể khẳng định đúng tuyệt đối một trăm phần trăm. Thứ hai, kho dữ liệu hiện được xây dựng từ nguồn văn bản công khai, chưa qua thẩm định chính thức của đơn vị nghiệp vụ. Thứ ba, công trình chưa có nguồn lực công nghệ thông tin chuyên trách để tiếp nhận, duy trì và nâng cấp lâu dài. Thứ tư, công trình chưa được đồng thiết kế đầy đủ với cán bộ trực tiếp tiếp dân, nên còn cần bổ sung các tình huống phát sinh tại quầy. Và thứ năm, hệ thống chưa được kiểm thử trên diện rộng. Tuy nhiên, mỗi hạn chế đều có hướng khắc phục: bổ sung khuyến cáo và cơ chế báo lỗi cho người dân; đề nghị đơn vị nghiệp vụ thẩm định nội dung; bố trí cán bộ công nghệ thông tin phối hợp; mời cán bộ tiếp dân cùng bổ sung tình huống; và triển khai theo giai đoạn, thí điểm rồi đánh giá trước khi nhân rộng. Tôi báo cáo điều này với mong muốn công trình được hoàn thiện một cách thực chất, chứ không phải để trình bày một sản phẩm hoàn hảo trên giấy.",
+        "Kính thưa các đồng chí, sản phẩm đã hoạt động được, nhưng để vận hành hiệu quả và bền vững thì một mình tôi không thể làm hết. Tôi xin thẳng thắn: bản thân tôi vừa không chuyên về công nghệ, vừa không phải người trực tiếp tiếp công dân hằng ngày — đây là công trình tôi tự mày mò nghiên cứu theo góc nhìn cá nhân. Chính vì vậy, tôi xin đề xuất ba điều kiện phối hợp. Thứ nhất, về kỹ thuật: Câu lạc bộ Sáng tạo xin được trực tiếp phụ trách vận hành hệ thống; khi có vấn đề công nghệ chuyên sâu thì kính đề nghị đơn vị công nghệ thông tin hỗ trợ. Thứ hai, về nội dung: kính đề nghị đơn vị nghiệp vụ rà soát, phê duyệt và cập nhật nội dung; đây cũng là bước hậu kiểm quan trọng, bởi bản chất AI vẫn có thể trả lời sai nên rất cần con người kiểm soát. Thứ ba, về thực tế: kính mong các đồng chí cán bộ trực tiếp tiếp công dân bổ sung những tình huống thật và những câu người dân hay hỏi ngay tại quầy. Và trên hết, chúng tôi xác định làm từng bước — thí điểm ở phạm vi hẹp, đánh giá kết quả, rồi mới nhân rộng — để mọi rủi ro đều nằm trong tầm kiểm soát.",
     },
     {
       type: "conclusion", dark: true,
