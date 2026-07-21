@@ -1,5 +1,34 @@
 # 06 — AI Working Log
 
+## [2026-07-21] Deck: hero bản đồ phát sáng (slide 1) + infographic "vòng luẩn quẩn" (slide 2)
+- **Agent:** Claude Code
+- **Thay đổi:** Người dùng đưa file `presentation/Slide theo hướng dẫn.pptx` (tạo bằng Canva
+  AI) để "tận dụng làm đẹp deck build_pptx.js". Dùng PowerPoint COM render cả 2 deck ra ảnh để
+  so sánh. Kết luận: bản Canva giàu hình nhưng nhiều ảnh SAI/lạc đề (cô gái trang điểm slide 5,
+  bàn tay chạm ký hiệu tiền tệ slide 11, cảnh sát quân phục nước ngoài slide 10, ví dụ "cấp lại
+  thẻ tạm trú" cũ, chữ Anh placeholder). Theo lựa chọn người dùng (AskUserQuestion): chỉ tận
+  dụng 2 thứ an toàn, KHÔNG dùng ảnh người:
+  1. **Slide 1 hero** — trích ảnh bản đồ VN mạch điện phát sáng (image3.png trong Canva), dùng
+     `sharp` ghép nền hero 1920×1080: canvas gradient navy tối + bản đồ blend `screen` với mask
+     radial bo mờ biên (khử đường viền hình vuông). Lưu `asset/hero-map-bg.png`. `titleSlide`
+     thêm nhánh: có `d.heroBg` thì đặt làm `slide.background` (phủ toàn slide, nửa trái tối cho
+     chữ), bỏ nền navy phẳng + watermark khiên.
+  2. **Slide 2** — thay slide `bigStat` "Lặp lại" bằng type MỚI `painCycle`: 6 nút icon đặt trên
+     ellipse quanh 1 hub "VÒNG LUẨN QUẨN", khép thành vòng. Dựng lại bằng code (toạ độ lượng
+     giác), KHÔNG import ảnh Canva. Nút = navy (vấn đề), hub = xanh thương hiệu; teal vẫn dành
+     riêng cho nghĩa tích cực. 6 nhãn là mô tả ĐỊNH TÍNH có thật, giữ footer nguồn quan sát.
+- **File đã sửa:** `presentation/build_pptx.js` (nhánh heroBg trong titleSlide; factory
+  `painCycleSlide` + đăng ký FACTORY; collect icon cho `nodes`; CONTENT slide 1 & 2),
+  `presentation/asset/hero-map-bg.png` (mới), `docs/brain/03-decisions.md`. Rebuild deck.
+- **Lý do:** Nâng ấn tượng thị giác nhưng giữ độ chính xác + hệ màu dự án; tránh mọi ảnh
+  stock/AI rủi ro trong bối cảnh trình bày trước lãnh đạo công an.
+- **Kiểm tra:** `node build_pptx.js` → "OK: 11 slides". Render slide 1 & 2 bằng PowerPoint COM
+  (1600×900): hero map liền mạch không thấy đường viền, chữ trắng đọc rõ trên nửa trái tối;
+  infographic 6 nút KHÔNG đè nhau/đè hub/đè tiêu đề, nhãn dưới từng nút đọc được, footer nằm
+  đáy. Các slide 3–11 không đụng tới, build vẫn 11 slide.
+- **Còn tồn:** File Canva `Slide theo hướng dẫn.pptx` để người dùng tham khảo, KHÔNG commit
+  (ảnh input 7MB). Có thể cân nhắc thêm mũi tên chỉ chiều cho vòng lặp nếu muốn nhấn mạnh hơn.
+
 ## [2026-07-21] Video: đổi câu hỏi ví dụ + dùng địa chỉ thật, bỏ nút "Chỉ đường" giả
 - **Agent:** Claude Code
 - **Thay đổi:** Người dùng xác nhận 141 là số trụ sở đã publish (đúng, không đổi), yêu cầu (1)

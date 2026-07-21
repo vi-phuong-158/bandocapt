@@ -1,5 +1,21 @@
 # 03 — Technical Decisions
 
+## [2026-07-21] Deck slide 1 dùng hero nền tối (ảnh bản đồ) — ngoại lệ có chủ đích của design system
+
+- **Quyết định:** Riêng slide TIÊU ĐỀ được phép dùng nền tối dạng ảnh (`asset/hero-map-bg.png` —
+  bản đồ VN mạch điện phát sáng, ghép bằng `sharp`) thay cho nền navy phẳng của hệ thống. Các
+  slide còn lại GIỮ nguyên hệ "phẳng, nền sáng/navy phẳng, một accent teal". Thêm type slide mới
+  `painCycle` (infographic 6 nút vòng tròn) trong `build_pptx.js` cho slide "nỗi đau người dân".
+- **Lý do:** `DESIGN_SYSTEM.md` chủ trương phẳng + một accent, dễ khiến agent/đời sau "sửa lại"
+  nền tối ảnh về phẳng. Ghi rõ đây là NGOẠI LỆ có chủ đích: slide bìa cần lực hút thị giác, ảnh
+  bản đồ đúng chủ đề (công nghệ + Việt Nam) và đã kiểm chứng chữ vẫn đọc rõ trên nửa trái tối.
+  Ý tưởng lấy từ bản Canva của người dùng nhưng dựng lại/chọn lọc, KHÔNG import ảnh stock/AI
+  (ảnh người, ký hiệu tiền tệ... trong bản Canva bị loại vì lạc đề/rủi ro).
+- **Đánh đổi:** Deck có 1 slide lệch tông (tối) so với phần còn lại — chấp nhận vì là slide bìa.
+  `painCycle` dùng nút navy làm "vấn đề", KHÔNG dùng teal (teal vẫn chỉ mang nghĩa tích cực).
+- **Kiểm chứng:** render slide 1 & 2 bằng PowerPoint COM: hero liền mạch (mask radial khử viền
+  vuông), 6 nút không đè nhau/đè hub/đè tiêu đề. Xem log `[2026-07-21] Deck: hero bản đồ...`.
+
 ## [2026-07-18] Ổn định gate DN01/LOC02/TT04/VP01 và fail-closed URL công khai
 
 - **Quyết định:** Giữ phương án A gồm hàng rào chủ thể người nước ngoài độc lập với classify và

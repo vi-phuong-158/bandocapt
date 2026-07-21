@@ -57,17 +57,32 @@ const CONTENT = {
     chips: ["Dành cho công dân", "AI Tư vấn tự động", "Bản đồ tương tác"],
     author: CONFIG.author,
     icon: "shield",
+    // Nền hero: ảnh bản đồ Việt Nam mạch điện phát sáng (asset/hero-map-bg.png).
+    // Ảnh do sharp ghép: nền navy tối + bản đồ blend 'screen' với biên bo mờ radial
+    // (không thấy đường viền hình vuông). Nửa trái để tối cho chữ; bản đồ sáng bên phải.
+    // Nếu xoá dòng này, titleSlide tự quay về nền navy phẳng + watermark khiên như cũ.
+    heroBg: path.join(__dirname, "asset", "hero-map-bg.png"),
     notes: "Kính thưa các đồng chí Lãnh đạo Công an tỉnh, hôm nay tôi xin đại diện trình bày công trình ra mắt Câu lạc bộ sáng tạo: Bản đồ Công an số tỉnh Phú Thọ. Xin phép bắt đầu bài trình bày bằng một thực tế hằng ngày mà tất cả chúng ta đều gặp.",
   },
   slides: [
     {
-      type: "bigStat", dark: true,
-      // KHÔNG nêu con số ("hàng ngàn giờ") vì chưa có thống kê chính thức để dẫn.
-      // Giữ nguyên sức nặng của vấn đề bằng diễn đạt định tính + ghi rõ nguồn quan sát.
-      kicker: "Thực trạng", stat: "Lặp lại",
-      statSub: "Cùng một câu hỏi thủ tục, giải đáp nhiều lần mỗi ngày",
-      items: ["Người dân loay hoay tìm địa chỉ đúng", "Đi lại nhiều lần vì sai thủ tục", "Cán bộ mất thời gian trả lời lặp lại"],
-      icon: "hourglass",
+      // Infographic vòng tròn 6 nút "vòng luẩn quẩn" — lấy ý tưởng bố cục từ bản
+      // Canva (đẹp, dễ hiểu) nhưng DỰNG LẠI bằng code theo đúng hệ màu dự án
+      // (nút navy = vấn đề, KHÔNG dùng accent teal cho nỗi đau). 6 nút là mô tả
+      // ĐỊNH TÍNH có thật, KHÔNG bịa con số; giữ dòng footer nguồn quan sát như cũ.
+      type: "painCycle", dark: false,
+      kicker: "Thực trạng",
+      title: "Vòng luẩn quẩn của người dân khi làm thủ tục",
+      hub: "VÒNG\nLUẨN\nQUẨN",
+      // [icon, nhãn 2 dòng ngắn] — thứ tự theo chiều kim đồng hồ, khép thành vòng.
+      nodes: [
+        ["search", "Chưa biết\nnộp ở đâu"],
+        ["copy", "Chuẩn bị\nsai giấy tờ"],
+        ["flag", "Đến\nnhầm nơi"],
+        ["sync", "Phải đi lại\nnhiều lần"],
+        ["users", "Hỏi đi\nhỏi lại"],
+        ["hourglass", "Cán bộ\ntrả lời lặp lại"],
+      ],
       footer: "Ghi nhận từ thực tế công tác, chưa có số liệu thống kê chính thức.",
       notes: "Thưa các đồng chí, từ thực tế công tác chúng ta đều thấy một điều: cùng một câu hỏi về thủ tục được hỏi đi hỏi lại rất nhiều lần. Người dân thì loay hoay tìm đúng trụ sở, mất công đi lại vì chuẩn bị sai giấy tờ. Cán bộ thì mất thời gian trả lời những câu giống hệt nhau. Tôi xin lưu ý đây là ghi nhận từ quan sát thực tế, chưa phải số liệu thống kê chính thức, nên tôi không nêu con số cụ thể.",
     },
@@ -298,6 +313,7 @@ async function main() {
     if (o.icon) usedKeys.add(o.icon);
     (o.cards || []).forEach((c) => usedKeys.add(c[0]));
     (o.steps || []).forEach((c) => usedKeys.add(c[0]));
+    (o.nodes || []).forEach((c) => usedKeys.add(c[0])); // painCycle
     // Slide `limitations` không khai icon theo từng dòng — nó luôn dùng 2 icon cố định.
     if (o.pairs) { usedKeys.add("check"); usedKeys.add("arrow"); }
   };
@@ -340,8 +356,15 @@ async function main() {
 
   // ---- factories ----
   function titleSlide(d) {
-    const s = p.addSlide(); bg(s, C.deep);
-    if (d.icon && icTeal[d.icon]) s.addImage({ data: icTeal[d.icon], x: 9.7, y: 1.0, w: 5.2, h: 5.2, transparency: 86 });
+    const s = p.addSlide();
+    // Nền hero: nếu có ảnh bản đồ phát sáng thì dùng làm nền phủ toàn slide (thay
+    // nền navy phẳng + watermark khiên). Ảnh đã tự có nửa trái tối cho chữ.
+    if (d.heroBg && fs.existsSync(d.heroBg)) {
+      s.background = { path: d.heroBg };
+    } else {
+      bg(s, C.deep);
+      if (d.icon && icTeal[d.icon]) s.addImage({ data: icTeal[d.icon], x: 9.7, y: 1.0, w: 5.2, h: 5.2, transparency: 86 });
+    }
     s.addText(String(d.kicker).toUpperCase(), { x: M, y: 1.15, w: 9.5, h: 0.4, margin: 0, fontFace: BF, fontSize: 14, bold: true, color: C.mintTxt, charSpacing: 1.5 });
     s.addText(d.title, { x: M, y: 1.75, w: 11, h: 1.2, margin: 0, fontFace: HF, fontSize: 54, bold: true, charSpacing: -1.2, color: "FFFFFF" });
     if (d.subtitle) s.addText(d.subtitle, { x: M, y: 3.15, w: 11, h: 0.7, margin: 0, fontFace: BF, fontSize: 23, color: C.mint2 });
@@ -624,7 +647,39 @@ async function main() {
     return s;
   }
 
-  const FACTORY = { title: titleSlide, bigStat: bigStatSlide, cards: cardsSlide, steps: stepsSlide, gallery: gallerySlide, twoCol: twoColSlide, showcase: showcaseSlide, mobileShowcase: mobileShowcaseSlide, result: resultSlide, conclusion: conclusionSlide, appendix: appendixSlide, hero: heroSlide, quote: quoteSlide, limitations: limitationsSlide, video: videoSlide };
+  // Infographic "vòng luẩn quẩn": 6 nút icon đặt trên một ellipse quanh 1 hub trung
+  // tâm, khép thành vòng — mô tả chuỗi nỗi đau của người dân lặp đi lặp lại. Toạ độ
+  // nút tính bằng lượng giác; nhãn luôn nằm DƯỚI nút (đã cân để không đè hub/nhau/tiêu đề).
+  // Nút = navy (vấn đề), hub = xanh thương hiệu (tâm điểm); KHÔNG dùng teal ở đây.
+  function painCycleSlide(d) {
+    const s = p.addSlide(); bg(s, C.paper);
+    head(s, d.kicker, d.title || "");
+
+    const cx = 6.65, cy = 4.30, Rx = 3.65, Ry = 1.78;
+    const nd = 1.0, hubD = 1.5;
+    const angles = [-90, -30, 30, 90, 150, 210]; // bắt đầu từ đỉnh, theo chiều kim đồng hồ
+
+    // Vòng ellipse mờ nối các nút (gợi ý "vòng lặp")
+    s.addShape(p.shapes.OVAL, { x: cx - Rx, y: cy - Ry, w: 2 * Rx, h: 2 * Ry, fill: { type: "none" }, line: { color: C.cardBd, width: 1.5, dashType: "dash" } });
+
+    // 6 nút + nhãn
+    (d.nodes || []).slice(0, 6).forEach((node, i) => {
+      const rad = (angles[i] * Math.PI) / 180;
+      const ncx = cx + Rx * Math.cos(rad), ncy = cy + Ry * Math.sin(rad);
+      iconCircle(s, ncx - nd / 2, ncy - nd / 2, nd, C.deep, ic[node[0]] || null);
+      s.addText(node[1], { x: ncx - 1.05, y: ncy + nd / 2 + 0.04, w: 2.1, h: 0.5, margin: 0, fontFace: BF, fontSize: 13, bold: true, color: C.ink, align: "center", valign: "top", lineSpacingMultiple: 0.95 });
+    });
+
+    // Hub trung tâm
+    s.addShape(p.shapes.OVAL, { x: cx - hubD / 2, y: cy - hubD / 2, w: hubD, h: hubD, fill: { color: C.primary }, shadow: sh() });
+    s.addText(d.hub || "", { x: cx - hubD / 2, y: cy - hubD / 2, w: hubD, h: hubD, margin: 0, fontFace: HF, fontSize: 15, bold: true, color: "FFFFFF", align: "center", valign: "middle", charSpacing: 0.5, lineSpacingMultiple: 0.92 });
+
+    if (d.footer) s.addText(d.footer, { x: M, y: 7.05, w: PW - 2 * M, h: 0.38, margin: 0, fontFace: BF, fontSize: 13.5, italic: true, color: C.muted, align: "center" });
+    s.addNotes(d.notes || "");
+    return s;
+  }
+
+  const FACTORY = { title: titleSlide, bigStat: bigStatSlide, cards: cardsSlide, steps: stepsSlide, gallery: gallerySlide, twoCol: twoColSlide, showcase: showcaseSlide, mobileShowcase: mobileShowcaseSlide, result: resultSlide, conclusion: conclusionSlide, appendix: appendixSlide, hero: heroSlide, quote: quoteSlide, limitations: limitationsSlide, video: videoSlide, painCycle: painCycleSlide };
 
   // ---- assemble ----
   const morphSlides = [];
