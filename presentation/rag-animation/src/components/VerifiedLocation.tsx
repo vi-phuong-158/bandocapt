@@ -1,6 +1,6 @@
 import React from 'react';
 import { COLORS, FONT_FAMILY } from '../theme';
-import { MapPinIcon, NavigationIcon } from '../icons';
+import { MapPinIcon } from '../icons';
 
 export type VerifiedLocationProps = {
   name: string;
@@ -8,16 +8,18 @@ export type VerifiedLocationProps = {
   reveal: number; // 0..1 (spring o component cha)
 };
 
-// The "tru so da xac minh" hien o cuoi cau tra loi — mo phong dung cach he thong
-// that gan vi tri tu Published_Locations kem nut "Chi duong". Vien trai mau teal
-// de phan biet voi bong bong cau tra loi; icon ghim + nut chi duong bang SVG.
+// The "tru so da xac minh" hien o cuoi cau tra loi — mo phong DUNG hanh vi that cua
+// js/chatbot.js appendVerifiedLocations() cho ban ghi CHUA CO toa do (hasMapsUrl=false):
+// chi hien ten + dia chi + dong trang thai "Chua co toa do chi duong da xac minh.",
+// KHONG co nut "Chi duong" (that KHONG tao link Maps khi thieu toa do — se sai neu ve
+// nut bam duoc o day). Vien trai mau teal de phan biet voi bong bong cau tra loi.
 export const VerifiedLocation: React.FC<VerifiedLocationProps> = ({ name, address, reveal }) => {
   if (reveal <= 0.01) return null;
   return (
     <div
       style={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         gap: 14,
         opacity: reveal,
         transform: `translateY(${(1 - reveal) * 12}px)`,
@@ -50,21 +52,9 @@ export const VerifiedLocation: React.FC<VerifiedLocationProps> = ({ name, addres
         </span>
         <span style={{ fontFamily: FONT_FAMILY, fontSize: 17, fontWeight: 700, color: COLORS.ink }}>{name}</span>
         <span style={{ fontFamily: FONT_FAMILY, fontSize: 15, fontWeight: 500, color: COLORS.muted }}>{address}</span>
-      </div>
-
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 7,
-          flexShrink: 0,
-          background: COLORS.teal,
-          borderRadius: 999,
-          padding: '9px 16px',
-        }}
-      >
-        <NavigationIcon color={COLORS.white} size={15} />
-        <span style={{ fontFamily: FONT_FAMILY, fontSize: 15, fontWeight: 700, color: COLORS.white }}>Chỉ đường</span>
+        <span style={{ fontFamily: FONT_FAMILY, fontSize: 13, fontWeight: 500, color: COLORS.muted, fontStyle: 'italic', marginTop: 2 }}>
+          Chưa có tọa độ chỉ đường đã xác minh.
+        </span>
       </div>
     </div>
   );

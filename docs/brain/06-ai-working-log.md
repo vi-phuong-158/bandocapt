@@ -1,5 +1,38 @@
 # 06 — AI Working Log
 
+## [2026-07-21] Video: đổi câu hỏi ví dụ + dùng địa chỉ thật, bỏ nút "Chỉ đường" giả
+- **Agent:** Claude Code
+- **Thay đổi:** Người dùng xác nhận 141 là số trụ sở đã publish (đúng, không đổi), yêu cầu (1)
+  đổi câu hỏi ví dụ trong video sang câu phổ thông hơn thay vì "cấp lại thẻ tạm trú" (theo góp ý
+  review: quá niche, chỉ liên quan người nước ngoài), và (2) dùng địa chỉ THẬT thay vì địa chỉ
+  minh hoạ. Đã đổi câu hỏi sang "Làm hộ chiếu cần những giấy tờ gì?" — vẫn đúng thẩm quyền Phòng
+  QLXNC (đối chiếu `data/tthc-phutho-source.json`, thủ tục "Cấp hộ chiếu phổ thông ở trong
+  nước") nhưng phổ thông hơn nhiều vì áp dụng cho cả công dân Việt Nam, không riêng người nước
+  ngoài. `DOCUMENTS`/`CITATIONS` trong `data.ts` đổi theo (Luật XNC 2019, TT 31/2023/TT-BCA, TT
+  110/2020/TT-BCA, TT 64/2025/TT-BTC, QĐ 5568/QĐ-BCA). `VERIFIED_LOCATION` đổi từ địa chỉ ví dụ
+  sang địa chỉ THẬT khớp nguyên văn hằng `XNC_RECEPTION_POINTS` (điểm "Phú Thọ cũ") trong
+  `api/chat.js`: "Khu E, Công an tỉnh Phú Thọ, khu 7, phường Việt Trì, tỉnh Phú Thọ".
+  Phát hiện thêm khi tra cứu: bản ghi XNC này CHƯA có toạ độ chính thức
+  (`KHONG_TOA_DO=true`), nên hệ thống thật KHÔNG tạo link "Chỉ đường" cho nó — chỉ hiện tên +
+  địa chỉ + dòng trạng thái "Chưa có tọa độ chỉ đường đã xác minh." (đúng như
+  `js/chatbot.js:493-499`). Nút "Chỉ đường" cũ trong `VerifiedLocation.tsx` vì vậy là hành vi
+  BỊA (chưa từng đúng thực tế với địa chỉ ví dụ cũ, và càng sai nếu giữ với địa chỉ thật) — đã
+  bỏ nút, thay bằng dòng trạng thái giống hệt bản thật; xoá icon `NavigationIcon` không dùng
+  nữa trong `icons.tsx`. Render lại MP4 và rebuild deck.
+- **File đã sửa:** `presentation/rag-animation/src/data.ts`,
+  `.../components/VerifiedLocation.tsx`, `.../icons.tsx`; render lại `out/RagSlideAnimation.mp4`;
+  rebuild `Ban-do-Cong-an-so-Phu-Tho.pptx`.
+- **Lý do:** Đúng yêu cầu người dùng "hiển thị đúng như trong thực tế" — dùng dữ liệu thật kéo
+  theo phải khớp cả hành vi thật (không có toạ độ thì không có nút chỉ đường), không chỉ khớp
+  mỗi con chữ địa chỉ.
+- **Kiểm tra:** `npx tsc --noEmit` sạch. Still frame 660: câu trả lời + 2 chip nguồn + thẻ trụ
+  sở (tên, địa chỉ thật, dòng "Chưa có tọa độ...") hiện đúng, không tràn khung trái, nhãn tài
+  liệu bên phải không bị cắt dòng. ffprobe xác nhận MP4 mới vẫn 24.00s, H.264 1920×1080, không
+  audio (1.543.581 B). Deck nhúng `media-7-1.mp4` khớp byte với file vừa render.
+- **Còn tồn:** Địa chỉ này là trụ sở CHÍNH của Phòng QLXNC (điểm "Phú Thọ cũ"/Việt Trì); còn 2
+  điểm tiếp dân khác cho địa bàn Vĩnh Phúc cũ/Hòa Bình cũ trong cùng hằng số — không dùng trong
+  video vì demo chỉ minh hoạ 1 kết quả, không phải luồng định tuyến 3 điểm.
+
 ## [2026-07-21] Video: thêm thẻ "Trụ sở đã xác minh + Chỉ đường" vào câu trả lời
 - **Agent:** Claude Code
 - **Thay đổi:** Người dùng muốn câu trả lời trong video hiển thị đúng như hệ thống thật —

@@ -68,11 +68,6 @@ export const MapPinIcon: React.FC<IconProps> = ({ color, size = 18 }) => (
   </svg>
 );
 
-export const NavigationIcon: React.FC<IconProps> = ({ color, size = 16 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <path d="M21 3L3 10.5L11 13L13.5 21L21 3Z" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
-  </svg>
-);
 
 export const LinkIcon: React.FC<IconProps> = ({ color, size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
