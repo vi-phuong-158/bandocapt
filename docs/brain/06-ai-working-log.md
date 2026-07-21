@@ -1,5 +1,34 @@
 # 06 — AI Working Log
 
+## [2026-07-21] Bản đọc liền mạch: dệt lại mạch chuyển giữa các slide + vá lỗi + đồng bộ demo
+- **Agent:** Claude Code
+- **Thay đổi:** Người dùng tự rút gọn `Ban-doc-lien-mach-Ban-do-Cong-an-so.md` xuống 5 phút
+  trình bày + 2 phút demo (khớp mốc 7-8 phút được giao), sau đó phản hồi "đọc chưa mượt, các
+  đoạn hơi rời rạc". Nguyên nhân: mỗi slide là một khối đóng kín, thiếu từ nối nên đọc liên tục
+  nghe như 11 đoạn tách rời. Viết lại phần nối đầu mỗi slide để ý slide trước dắt sang slide sau
+  (Chính vì vậy → Để làm được điều đó → Nói đến trợ lý ảo → Nguyên tắc đó → Toàn bộ quy trình đó
+  → Về phía người dân → Về hiệu quả bước đầu → Để vận hành lâu dài → Từ tinh thần thận trọng đó).
+  GIỮ NGUYÊN mọi số liệu (141 / 156 / 18 lĩnh vực / 500+ / 30 câu × 3 / 300+ test / 95% / 17-28s
+  / 03 tháng-03 đơn vị-20 thủ tục) và thời lượng giây từng slide. Đồng thời:
+  1. Vá lỗi ngữ pháp slide 6 (bản rút gọn của user dính câu: "Kết quả thử nghiệm Hệ thống vượt
+     qua bài kiểm tra với bộ 30 câu hỏi khó chạy ba lượt...").
+  2. Khôi phục gọn câu "hai lớp đã hoạt động; hai lớp còn lại đã kiểm thử đạt, chờ phê duyệt để
+     bật" ở slide 6 — bản rút gọn đã bỏ, nhưng slide 11 vẫn giữ "cho phép bật hai lớp kiểm soát
+     đã thử nghiệm đạt" nên lãnh đạo nghe slide 11 sẽ hụt bối cảnh. Đây cũng là trạng thái
+     governance trung thực (khớp notes deck build_pptx.js:143).
+  3. Slide 7 (video): rút câu dẫn còn ~2 câu, giữ slide video (user muốn giữ vì đã dựng công),
+     chỉ giới thiệu sơ qua.
+  4. Bước demo (00:35–01:25): đổi câu hỏi cũ "cấp lại thẻ tạm trú" → "Làm hộ chiếu cần những
+     giấy tờ gì?" cho khớp câu hỏi trong video dự phòng (data.ts), tránh vênh nếu demo lỗi phải
+     chuyển sang video trước mặt lãnh đạo.
+- **File đã sửa:** `presentation/Ban-doc-lien-mach-Ban-do-Cong-an-so.md`
+- **Lý do:** Bản đọc phải liền mạch khi nói liên tục, không lỗi ngữ pháp, nội dung các slide
+  không mâu thuẫn, và phương án dự phòng nhất quán với phần trình bày trực tiếp.
+- **Kiểm tra:** Script đếm âm tiết/giây từng slide — toàn bộ nằm trong 1,9–3,2 âm tiết/giây
+  (tiếng Việt nói tự nhiên ~5 âm tiết/giây nên rất thong thả, đủ chỗ ngắt nghỉ trong 5 phút);
+  không còn slide nào lệch hẳn như slide 7 cũ (3,8). Câu hỏi demo khớp `QUESTION_TEXT` trong
+  `presentation/rag-animation/src/data.ts`.
+
 ## [2026-07-21] Deck: hero bản đồ phát sáng (slide 1) + infographic "vòng luẩn quẩn" (slide 2)
 - **Agent:** Claude Code
 - **Thay đổi:** Người dùng đưa file `presentation/Slide theo hướng dẫn.pptx` (tạo bằng Canva
@@ -2188,3 +2217,17 @@
 - **File đã sửa:** `presentation/Ban-doc-lien-mach-Ban-do-Cong-an-so.md`, `docs/brain/06-ai-working-log.md`.
 - **Lý do:** Giúp tác giả đọc thử toàn bộ bài mà không bị ngắt bởi nội dung hiển thị, ghi chú hoặc hướng dẫn thiết kế.
 - **Kiểm tra:** Đối chiếu từng phần lời trình bày với kịch bản hoàn chỉnh; đủ 11 nhãn slide, không chứa phần nội dung hiển thị.
+
+## [2026-07-21] Rút bản đọc còn 5 phút và bổ sung demo 2 phút
+- **Agent:** Codex
+- **Thay đổi:** Rút gọn lời trình bày theo 11 slide, phân bổ thời gian 05 phút; thay phần mô tả dài tại slide 7 bằng kịch bản demo trực tiếp 02 phút và giữ video làm phương án dự phòng.
+- **File đã sửa:** `presentation/Ban-doc-lien-mach-Ban-do-Cong-an-so.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Đưa tổng thời lượng xuống khoảng 07 phút, tăng thời gian chứng minh sản phẩm trực tiếp và giữ khoảng dự phòng trong khung 08 phút.
+- **Kiểm tra:** Đếm lại lời trình bày, đối chiếu đủ 11 slide và rà tổng phân bổ 05 phút trình bày + 02 phút demo.
+
+## [2026-07-21] Chuyển demo xuống sau phần trình bày
+- **Agent:** Codex
+- **Thay đổi:** Đưa kịch bản demo 02 phút từ slide 7 xuống sau slide 11; slide 7 chỉ giới thiệu quy trình, slide 11 chuyển tiếp rõ từ phần trình bày sang demo.
+- **File đã sửa:** `presentation/Ban-doc-lien-mach-Ban-do-Cong-an-so.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Bảo đảm trình bày trọn vẹn đề xuất trước, sau đó mới thao tác trực tiếp trên sản phẩm theo mong muốn của người báo cáo.
+- **Kiểm tra:** Rà lại thứ tự 11 slide, điểm chuyển sang demo và tổng thời lượng mục tiêu 05 phút + 02 phút.
