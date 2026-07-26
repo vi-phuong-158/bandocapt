@@ -6,8 +6,10 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'dist');
+const ENTRY_HTML = new Set(['index.html', 'chat-embed.html']);
 const files = [
     'index.html',
+    'chat-embed.html',
     'app.js',
     'data.js',
     'data/tthc-catalog.json',
@@ -15,12 +17,14 @@ const files = [
     'output.css',
     'tokens.css',
     'styles.css',
+    'styles/chat-embed.css',
     'assets/logo.png',
     'assets/icon-128.webp',
     'assets/icon-bottom.png',
     'assets/icon-bando.png',
     'assets/icon-thutuc.png',
     'js/chatbot.js',
+    'js/chat-embed.js',
     'js/app-navigation.js',
     'js/gemini.js',
     'js/lazy-features.js',
@@ -60,7 +64,7 @@ function buildStatic() {
 
     let manifest = new Map();
     for (const [relativePath, content] of sources) {
-        if (relativePath === 'index.html') continue;
+        if (ENTRY_HTML.has(relativePath)) continue;
         manifest.set(relativePath, hashedRelativePath(relativePath, content));
     }
 
@@ -69,7 +73,7 @@ function buildStatic() {
     for (let pass = 0; pass < files.length; pass++) {
         const nextManifest = new Map();
         for (const [relativePath, sourceContent] of sources) {
-            if (relativePath === 'index.html') continue;
+            if (ENTRY_HTML.has(relativePath)) continue;
             const content = TEXT_EXTENSIONS.has(path.extname(relativePath))
                 ? replaceStaticReferences(sourceContent.toString('utf8'), manifest)
                 : sourceContent;
@@ -81,7 +85,7 @@ function buildStatic() {
 
     fs.rmSync(output, { recursive: true, force: true });
     for (const [relativePath, sourceContent] of sources) {
-        const destinationRelative = relativePath === 'index.html' ? relativePath : manifest.get(relativePath);
+        const destinationRelative = ENTRY_HTML.has(relativePath) ? relativePath : manifest.get(relativePath);
         const destination = path.join(output, destinationRelative);
         fs.mkdirSync(path.dirname(destination), { recursive: true });
         const extension = path.extname(relativePath);
