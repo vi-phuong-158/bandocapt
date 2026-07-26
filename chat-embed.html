@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Trợ lý hỗ trợ pháp luật</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="tokens.css">
+    <link rel="stylesheet" href="output.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles/chat-embed.css">
+</head>
+<body>
+    <main id="chat-embed-root" aria-label="Trợ lý hỗ trợ pháp luật">
+        <button id="ai-chat-toggle-btn" class="chat-embed-compat-control" type="button" tabindex="-1" aria-hidden="true" aria-expanded="false">
+            Mở trợ lý AI
+        </button>
+
+        <section id="ai-chat-window" class="ai-chat-window--hidden" role="region" aria-label="Trợ lý hỗ trợ pháp luật" aria-hidden="true">
+            <button id="ai-chat-close-btn" class="chat-embed-compat-control" type="button" tabindex="-1" aria-hidden="true">
+                Đóng trợ lý AI
+            </button>
+
+            <div id="chatHistory" role="log" aria-live="polite">
+                <div class="ai-chat-row ai-chat-row--assistant">
+                    <img src="assets/icon-128.webp" class="ai-chat-avatar" alt="" width="128" height="128">
+                    <div class="ai-chat-bubble ai-chat-bubble--assistant">
+                        <p class="ai-chat-label">Trợ lý hỗ trợ pháp luật</p>
+                        <div class="ai-chat-content">
+                            <p>Xin chào! Tôi là Trợ lý ảo tư vấn tự động các thủ tục hành chính. Tôi có thể giúp gì cho bạn hôm nay?</p>
+                            <p class="ai-chat-disclaimer">Nội dung tổng hợp bằng AI nên có thể có sai sót, vui lòng kiểm chứng lại thông tin.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="turnstileContainer">
+                <div id="turnstile-widget" data-sitekey="0x4AAAAAACxYIuZq7j7f9a7N"></div>
+            </div>
+
+            <div id="ai-chat-input-bar">
+                <label for="fakeChatInput" class="sr-only">Nhập tin nhắn cho trợ lý AI</label>
+                <input type="text" id="fakeChatInput" placeholder="Vui lòng xác minh Turnstile trước..." autocomplete="off" maxlength="1000" disabled>
+                <button id="chatSendBtn" type="button" aria-label="Gửi tin nhắn" disabled>
+                    <span class="material-symbols-outlined" aria-hidden="true">send</span>
+                </button>
+            </div>
+
+            <p id="chatEmbedStatus" class="chat-embed-status" role="alert" hidden></p>
+        </section>
+    </main>
+
+    <script src="js/chat-embed.js"></script>
+</body>
+</html>
