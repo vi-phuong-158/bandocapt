@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-07-28] Loại bỏ liên kết Báo Phú Thọ dư thừa ở Footer
+- **Agent:** Gemini
+- **Thay đổi:** Xóa nút/liên kết Báo Phú Thọ ở Footer chân trang bảng tìm kiếm; nút "Thông tin công trình" hiển thị full-width. Liên kết Báo Phú Thọ chính thức vẫn duy trì đầy đủ trong Modal "Thông tin công trình".
+- **File đã sửa:** `index.html`, `output.css`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Loại bỏ thông tin trùng lặp dư thừa ở chân trang theo phản hồi người dùng.
+- **Kiểm tra:** `npm test` (314 PASS), `npm run build` (thành công), `npx playwright test` (19 PASS).
+
 ## [2026-07-28] Tối ưu hóa giao diện Mobile (UX/UI layout & cuộn danh sách)
 - **Agent:** Gemini
 - **Thay đổi:** Ẩn nút nổi `#mobile-search-btn` khi `#search-panel` mở trên di động (tránh đè chữ); rút gọn phần Header và Footer trong `#search-panel` trên màn hình nhỏ giúp mở rộng diện tích cuộn ở giữa (`#results-list`) tăng gấp 2 lần.
