@@ -696,6 +696,7 @@ function showMobileSearch() {
     detailTrigger = null;
     setSheetState(SHEET_STATES.HIDDEN, { restoreFocus: false });
   }
+  if (mobileSearchBtn) mobileSearchBtn.classList.add("hidden");
   searchPanel.classList.remove("-translate-y-[120%]", "opacity-0");
   searchPanel.classList.add("translate-y-0", "opacity-100");
   mobileOverlay.classList.remove("hidden");
@@ -705,6 +706,7 @@ function showMobileSearch() {
 
 function hideMobileSearch({ restoreFocus = true } = {}) {
   clearOverlayHideTimer();
+  if (mobileSearchBtn) mobileSearchBtn.classList.remove("hidden");
   searchPanel.classList.remove("translate-y-0", "opacity-100");
   searchPanel.classList.add("-translate-y-[120%]", "opacity-0");
   mobileOverlay.classList.add("opacity-0");

@@ -44,51 +44,51 @@
 
 <div id="search-panel" class="pointer-events-auto absolute md:absolute top-0 left-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full flex flex-col transition-transform duration-400 ease-[cubic-bezier(0.32,0.72,0,1)] transform -translate-y-[120%] md:translate-y-0 md:translate-x-0 opacity-0 md:opacity-100 z-40 md:z-10 bg-white/70 md:bg-transparent backdrop-blur-xl shadow-glass border-white/40 md:backdrop-blur-none rounded-b-2xl md:rounded-none md:m-0 border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu overflow-hidden pb-4 md:pb-0">
 
-<div class="flex-none px-6 pt-7 pb-5 z-10">
-                <div class="flex justify-between items-start mb-6 md:mb-4">
-                    <div class="flex items-center gap-3.5">
-                        <div class="w-11 h-11 flex items-center justify-center flex-shrink-0">
+<div class="flex-none p-4 pt-4 md:px-6 md:pt-7 md:pb-5 z-10">
+                <div class="flex justify-between items-start mb-3 md:mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 md:w-11 md:h-11 flex items-center justify-center flex-shrink-0">
                             <img src="assets/logo.png" alt="Logo" class="w-full h-full object-contain">
                         </div>
                         <div>
                             <div class="text-[10px] font-bold text-primary mb-0.5 uppercase tracking-wide">CÔNG TRÌNH THANH NIÊN</div>
-                            <h1 class="font-display text-[18px] font-bold text-slate-800 leading-tight">Bản đồ Công an số</h1>
-                            <p class="text-[13px] font-medium text-textMuted mt-0.5">Tỉnh Phú Thọ</p>
-                            <p class="text-[11px] text-slate-500 mt-1.5 leading-tight">Câu lạc bộ Đổi mới sáng tạo Tuổi trẻ Công an tỉnh Phú Thọ</p>
-                            <p class="text-[11px] text-slate-400 mt-0.5 leading-tight">Hỗ trợ tra cứu địa điểm và thủ tục hành chính công khai</p>
+                            <h1 class="font-display text-[16px] md:text-[18px] font-bold text-slate-800 leading-tight">Bản đồ Công an số</h1>
+                            <p class="text-[12px] md:text-[13px] font-medium text-textMuted mt-0.5">Tỉnh Phú Thọ</p>
+                            <p class="hidden md:block text-[11px] text-slate-500 mt-1.5 leading-tight">Câu lạc bộ Đổi mới sáng tạo Tuổi trẻ Công an tỉnh Phú Thọ</p>
+                            <p class="hidden md:block text-[11px] text-slate-400 mt-0.5 leading-tight">Hỗ trợ tra cứu địa điểm và thủ tục hành chính công khai</p>
                         </div>
                     </div>
-                    <button id="close-search-btn" aria-label="Đóng tìm kiếm" class="md:hidden w-9 h-9 bg-slate-100/80 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary">
-                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+                    <button id="close-search-btn" aria-label="Đóng tìm kiếm" class="md:hidden w-8 h-8 bg-slate-100/80 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">close</span>
                     </button>
                 </div>
 
                 <!-- Search Bar + Filters -->
                 <div class="flex flex-col">
                     <!-- Modern Search Bar (rounded-full) -->
-                    <div class="relative group mt-2 md:mt-1">
+                    <div class="relative group mt-1">
                         <label for="search-input" class="sr-only">Tìm kiếm đơn vị</label>
-                        <input type="text" id="search-input" placeholder="Nhập tên đơn vị, phường xã..." class="w-full pl-12 pr-4 py-3.5 md:py-3 bg-slate-50/80 border border-white/40 focus:border-primary rounded-full focus:outline-none focus:ring-4 focus:ring-primary/10 text-[15px] transition-all font-medium text-slate-800 placeholder-slate-400 shadow-sm">
-                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <span class="material-symbols-outlined text-slate-400 text-[22px] group-focus-within:text-primary transition-colors">search</span>
+                        <input type="text" id="search-input" placeholder="Nhập tên đơn vị, phường xã..." class="w-full pl-11 pr-4 py-2.5 md:py-3 bg-slate-50/80 border border-white/40 focus:border-primary rounded-full focus:outline-none focus:ring-4 focus:ring-primary/10 text-[14px] md:text-[15px] transition-all font-medium text-slate-800 placeholder-slate-400 shadow-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                            <span class="material-symbols-outlined text-slate-400 text-[20px] md:text-[22px] group-focus-within:text-primary transition-colors">search</span>
                         </div>
                     </div>
 
-<div class="flex gap-2.5 mt-5 md:mt-4 bg-slate-100/60 p-1.5 rounded-full border border-white/30 backdrop-blur-sm">
-                        <label class="flex-1 md:flex-initial flex justify-center items-center gap-2 cursor-pointer py-2.5 md:py-2 md:px-4 bg-transparent hover:bg-white/50 rounded-full transition-all group has-[:checked]:bg-white has-[:checked]:shadow-sm">
+                    <div class="flex gap-2 mt-3 md:mt-4 bg-slate-100/60 p-1 md:p-1.5 rounded-full border border-white/30 backdrop-blur-sm">
+                        <label class="flex-1 md:flex-initial flex justify-center items-center gap-1.5 cursor-pointer py-2 md:py-2 px-2 md:px-4 bg-transparent hover:bg-white/50 rounded-full transition-all group has-[:checked]:bg-white has-[:checked]:shadow-sm">
                             <input type="checkbox" id="filter-police" checked class="hidden peer">
-                            <span class="material-symbols-outlined text-[20px] text-slate-400 peer-checked:text-primary transition-colors" style="font-variation-settings: 'FILL' 1;">local_police</span>
-                            <span class="text-[13px] font-bold text-slate-500 peer-checked:text-primary transition-colors whitespace-nowrap">Công an</span>
+                            <span class="material-symbols-outlined text-[18px] md:text-[20px] text-slate-400 peer-checked:text-primary transition-colors" style="font-variation-settings: 'FILL' 1;">local_police</span>
+                            <span class="text-[12px] md:text-[13px] font-bold text-slate-500 peer-checked:text-primary transition-colors whitespace-nowrap">Công an</span>
                         </label>
-                        <label class="flex-1 md:flex-initial flex justify-center items-center gap-2 cursor-pointer py-2.5 md:py-2 md:px-4 bg-transparent hover:bg-white/50 rounded-full transition-all group has-[:checked]:bg-white has-[:checked]:shadow-sm">
+                        <label class="flex-1 md:flex-initial flex justify-center items-center gap-1.5 cursor-pointer py-2 md:py-2 px-2 md:px-4 bg-transparent hover:bg-white/50 rounded-full transition-all group has-[:checked]:bg-white has-[:checked]:shadow-sm">
                             <input type="checkbox" id="filter-id" checked class="hidden peer">
-                            <span class="material-symbols-outlined text-[20px] text-slate-400 peer-checked:text-accent transition-colors" style="font-variation-settings: 'FILL' 1;">badge</span>
-                            <span class="text-[13px] font-bold text-slate-500 peer-checked:text-accent transition-colors whitespace-nowrap">Điểm CCCD</span>
+                            <span class="material-symbols-outlined text-[18px] md:text-[20px] text-slate-400 peer-checked:text-accent transition-colors" style="font-variation-settings: 'FILL' 1;">badge</span>
+                            <span class="text-[12px] md:text-[13px] font-bold text-slate-500 peer-checked:text-accent transition-colors whitespace-nowrap">Điểm CCCD</span>
                         </label>
-                        <label class="flex-1 md:flex-initial flex justify-center items-center gap-2 cursor-pointer py-2.5 md:py-2 md:px-4 bg-transparent hover:bg-white/50 rounded-full transition-all group has-[:checked]:bg-white has-[:checked]:shadow-sm">
+                        <label class="flex-1 md:flex-initial flex justify-center items-center gap-1.5 cursor-pointer py-2 md:py-2 px-2 md:px-4 bg-transparent hover:bg-white/50 rounded-full transition-all group has-[:checked]:bg-white has-[:checked]:shadow-sm">
                             <input type="checkbox" id="filter-nearby" class="hidden peer">
-                            <span id="nearby-spinner" class="material-symbols-outlined text-[20px] text-slate-400 peer-checked:text-emerald-600 transition-colors" style="font-variation-settings: 'FILL' 1;">near_me</span>
-                            <span class="text-[13px] font-bold text-slate-500 peer-checked:text-emerald-600 transition-colors whitespace-nowrap">Gần tôi</span>
+                            <span id="nearby-spinner" class="material-symbols-outlined text-[18px] md:text-[20px] text-slate-400 peer-checked:text-emerald-600 transition-colors" style="font-variation-settings: 'FILL' 1;">near_me</span>
+                            <span class="text-[12px] md:text-[13px] font-bold text-slate-500 peer-checked:text-emerald-600 transition-colors whitespace-nowrap">Gần tôi</span>
                         </label>
                     </div>
                 </div>
@@ -113,14 +113,16 @@
     </li>
 
 </ul>
-                <div class="flex-none p-4 border-t border-slate-100 bg-slate-50/80 z-10">
-                    <div class="text-[11px] text-slate-500 text-center mb-3">Nguồn dữ liệu công khai · Cập nhật thường xuyên · Không yêu cầu đăng nhập</div>
-                    <button id="project-info-btn" class="w-full py-2.5 text-[13px] font-bold text-primary bg-white border border-blue-100 hover:border-blue-200 rounded-xl transition-colors shadow-sm mb-2" aria-haspopup="dialog">
-                        Thông tin công trình
-                    </button>
-                    <a href="https://baophutho.vn/van-hanh-ung-dung-nbsp-ban-do-cong-an-so-tinh-phu-tho-258512.htm" target="_blank" rel="noopener noreferrer" class="block w-full text-center text-[12px] font-medium text-slate-500 hover:text-primary transition-colors">
-                        Xem bài giới thiệu công trình
-                    </a>
+                <div class="flex-none p-3 px-4 md:p-4 border-t border-slate-100 bg-slate-50/80 z-10">
+                    <div class="hidden md:block text-[11px] text-slate-500 text-center mb-3">Nguồn dữ liệu công khai · Cập nhật thường xuyên · Không yêu cầu đăng nhập</div>
+                    <div class="flex items-center gap-2">
+                        <button id="project-info-btn" class="flex-1 py-2 md:py-2.5 text-[12px] md:text-[13px] font-bold text-primary bg-white border border-blue-100 hover:border-blue-200 rounded-xl transition-colors shadow-sm text-center" aria-haspopup="dialog">
+                            Thông tin công trình
+                        </button>
+                        <a href="https://baophutho.vn/van-hanh-ung-dung-nbsp-ban-do-cong-an-so-tinh-phu-tho-258512.htm" target="_blank" rel="noopener noreferrer" class="flex-1 py-2 md:py-2.5 text-[12px] font-medium text-slate-600 hover:text-primary bg-white border border-slate-200 rounded-xl transition-colors text-center truncate px-2">
+                            Báo Phú Thọ
+                        </a>
+                    </div>
                 </div>
         </div>
 
