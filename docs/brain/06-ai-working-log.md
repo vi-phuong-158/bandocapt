@@ -1,5 +1,38 @@
 # 06 — AI Working Log
 
+## [2026-07-28] Sửa lỗi CSP modal & Bổ sung E2E test cho modal
+- **Agent:** Gemini
+- **Thay đổi:** Xóa script nội tuyến điều khiển modal khỏi `index.html`; chuyển toàn bộ logic sang `js/project-info.js` (nạp bằng `defer`) xử lý mở/đóng, Escape, backdrop, ARIA attributes, restore focus và focus trap; cập nhật `scripts/build-static.js` & `package.json`; nâng cấp `test/identity.test.js` kiểm tra chính xác thẻ `<a>` chứa URL Báo Phú Thọ có `target="_blank"` và `rel="noopener noreferrer"`; bổ sung E2E test Playwright `test/e2e/project-info-modal.spec.js` kiểm tra đầy đủ hành vi modal.
+- **File đã sửa:** `index.html`, `js/project-info.js`, `scripts/build-static.js`, `package.json`, `test/identity.test.js`, `test/e2e/project-info-modal.spec.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Tuân thủ triệt để Content Security Policy (CSP) sản xuất không dùng `unsafe-inline`, đảm bảo tính tiếp cận (a11y) và kiểm thử E2E thực tế trên trình duyệt.
+- **Kiểm tra:** `npm test` (314 PASS), `npm run build` (thành công), `npm run test:e2e` (19 PASS).
+
+## [2026-07-28] Cập nhật nhận diện "Công trình thanh niên"
+- **Agent:** Codex
+- **Thay đổi:** Cập nhật `index.html` và `js/chatbot.js` theo yêu cầu định danh "Công trình thanh niên", bổ sung tên Câu lạc bộ, đổi tên chatbot thành "Trợ lý tra cứu thủ tục và địa điểm", thêm Modal thông tin công trình và link Báo Phú Thọ. Thêm file test `test/identity.test.js` để tự động kiểm tra nội dung và chặn các từ khóa cấm.
+- **File đã sửa:** `index.html`, `js/chatbot.js`, `test/identity.test.js`
+- **Lý do:** Đáp ứng yêu cầu minh bạch danh tính, khẳng định rõ đây là một công trình hỗ trợ cộng đồng của thanh niên, không phải hệ thống dịch vụ công chính thức.
+- **Kiểm tra:** Chạy `npm test` thành công (314 PASS), không phát hiện từ khóa cấm; đã chạy `npm run build`.
+
+## [2026-07-23] Giai đoạn 1 — DeepSeek-primary, Gemini chỉ embedding
+- **Agent:** Codex
+- **Thay đổi:** Đổi provider mặc định sang DeepSeek V4 Flash cho generation và utility (rewrite, translate,
+  rerank, summarize, groundedness); utility gửi `thinking: { type: 'disabled' }`. Gemini chỉ giữ một request
+  embedding cho câu hỏi RAG, không retry. Thêm strict/stable provider policy, telemetry call theo provider và test.
+- **File đã sửa:** `api/chat.js`, `test/t2b-t2c.test.js`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/05-testing-and-deploy.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Giảm Gemini request khi có tải đồng thời và ưu tiên tài khoản DeepSeek paid; Gemini free tier từng 429.
+- **Kiểm tra:** `node --check api/chat.js`; `node --test test/t2b-t2c.test.js test/language-detection.test.js`;
+  sẽ chạy toàn bộ `npm test` và `npm run build` trước bàn giao.
+
+## [2026-07-23] Chỉ giữ rate limit theo IP/ngày
+- **Agent:** Codex
+- **Thay đổi:** Bỏ counter quota tổng tháng `usage/<month>` và toàn bộ nhánh reserve/rollback hai counter; `/api/chat` chỉ còn reserve atomic counter `usage_ips/<date>/<ip_hash>` bằng ETag/CAS. Cập nhật test đồng thời để xác nhận không còn đọc/ghi hoặc chặn theo quota tháng.
+- **File đã sửa:** `api/chat.js`, `test/p0-fixes.test.js`, `docs/brain/00-project-overview.md`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Cho phép nhiều IP hợp lệ sử dụng đồng thời mà không làm toàn hệ thống bị khóa bởi quota tổng ngày/tháng; vẫn giữ chống spam theo IP/ngày.
+- **Kiểm tra:** `node --check api/chat.js`; test rate limiter và toàn bộ `npm test`; `npm run build`.
+
 ## [2026-07-21] Bản đọc liền mạch: dệt lại mạch chuyển giữa các slide + vá lỗi + đồng bộ demo
 - **Agent:** Claude Code
 - **Thay đổi:** Người dùng tự rút gọn `Ban-doc-lien-mach-Ban-do-Cong-an-so.md` xuống 5 phút
@@ -2231,3 +2264,9 @@
 - **File đã sửa:** `presentation/Ban-doc-lien-mach-Ban-do-Cong-an-so.md`, `docs/brain/06-ai-working-log.md`.
 - **Lý do:** Bảo đảm trình bày trọn vẹn đề xuất trước, sau đó mới thao tác trực tiếp trên sản phẩm theo mong muốn của người báo cáo.
 - **Kiểm tra:** Rà lại thứ tự 11 slide, điểm chuyển sang demo và tổng thời lượng mục tiêu 05 phút + 02 phút.
+## [2026-07-22] Poster tuyên truyền Bản đồ Công an số
+- **Agent:** Codex
+- **Thay đổi:** Tạo poster A3 dọc, dùng ảnh giao diện thật của sản phẩm, nền bản đồ số tạo bằng AI và QR trỏ trực tiếp đến trang production.
+- **File đã sửa:** `presentation/build_poster.js`, `presentation/asset/poster-bg-ai-20260722.png`, `presentation/asset/poster-qr-bandocapt.png`, `presentation/Ban-do-Cong-an-so-Phu-Tho-poster-A3.png`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Cung cấp ấn phẩm truyền thông quét mã nhanh cho công trình thanh niên chào mừng ra mắt Câu lạc bộ Đổi mới sáng tạo Công an tỉnh Phú Thọ.
+- **Kiểm tra:** Chạy `node presentation/build_poster.js`; kiểm tra kích thước A3 3508×4961 px ở 300 dpi và xác nhận QR trỏ trực tiếp URL production trước khi ghép poster.

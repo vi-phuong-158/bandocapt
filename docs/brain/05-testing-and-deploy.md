@@ -13,6 +13,8 @@ npm install
 Tạo file `.env.local` (không commit) với các biến sau:
 ```
 GEMINI_API_KEY=
+DEEPSEEK_API_KEY=
+DEEPSEEK_MODEL=deepseek-v4-flash
 PINECONE_API_KEY=
 PINECONE_INDEX_NAME=chatbot-tthc-xnc
 PINECONE_INDEX_HOST=
@@ -33,11 +35,13 @@ TURNSTILE_SECRET_KEY=
 GOOGLE_SHEET_ID=
 EVAL_BYPASS_TOKEN=test-bypass-token
 NODE_ENV=development
-RATE_LIMIT_MONTHLY=10000
-RATE_LIMIT_DAILY_IP=50
+CHAT_DAILY_IP_LIMIT=50
 RAG_FAIL_CLOSED=0
-LLM_PRIMARY=gemini
-LLM_FALLBACK=deepseek
+LLM_PRIMARY=deepseek
+# Strict default: không đặt LLM_FALLBACK. Stable: LLM_FALLBACK=gemini (chỉ DeepSeek HTTP 429/5xx).
+LLM_UTILITY_PRIMARY=deepseek
+# Strict default: không đặt LLM_UTILITY_FALLBACK. Stable: LLM_UTILITY_FALLBACK=gemini.
+# GEMINI_UTILITY_MODEL=gemini-flash-lite-latest  # chỉ dùng khi rollback utility sang Gemini
 CHAT_REQUEST_DEADLINE_MS=55000
 ```
 
@@ -174,8 +178,8 @@ npx vercel --prod
 
 ## Lưu ý
 
-- **Rate limit:** 3500 lượt chat/tháng (global) + 20 lượt/ngày/IP. Khi test nhiều → dùng
-  `EVAL_BYPASS_TOKEN` và `NODE_ENV=development` để bypass.
+- **Rate limit:** chỉ áp theo IP/ngày qua `CHAT_DAILY_IP_LIMIT` (mặc định 50); không có quota tổng
+  ngày/tháng. Khi test nhiều → dùng `EVAL_BYPASS_TOKEN` và `NODE_ENV=development` để bypass.
 - **Vercel function timeout:** `api/chat.js` có maxDuration 60s (cấu hình trong `vercel.json`).
 - **Pinecone cold start:** Instance Pinecone có thể sleep sau thời gian không dùng → query đầu chậm.
 - **Firebase Realtime DB:** Dùng `.firebaseio.app` domain Asia Southeast — latency ~100-200ms từ Vercel.

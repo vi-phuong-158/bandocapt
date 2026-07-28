@@ -1,5 +1,34 @@
 # 03 — Technical Decisions
 
+## [2026-07-23] Giai đoạn 1 — DeepSeek-primary, Gemini chỉ embedding
+
+- **Quyết định:** Khi có `DEEPSEEK_API_KEY`, `api/chat.js` mặc định dùng `deepseek-v4-flash` cho generation
+  và mọi tác vụ phụ: rewrite follow-up, dịch truy hồi, rerank, tóm tắt lịch sử, groundedness. Payload utility
+  luôn gửi `thinking: { type: 'disabled' }`. Gemini chỉ gọi `gemini-embedding-001` một lần cho câu hỏi RAG
+  (cache-hit, out-of-scope và nhánh từ chối tất định không gọi embedding).
+- **Chế độ:** strict là mặc định (`LLM_PRIMARY=deepseek`, không đặt fallback). Stable phải bật rõ
+  `LLM_FALLBACK=gemini`; chỉ DeepSeek HTTP 429 hoặc 5xx mới được chuyển sang Gemini. Lỗi mạng/timeout,
+  4xx khác và lỗi ứng dụng không được fallback sang Gemini.
+- **Tương thích/quan sát:** Gemini utility vẫn giữ khả năng rollback qua `GEMINI_UTILITY_MODEL` hoặc
+  `LLM_UTILITY_MODEL`; telemetry ghi riêng số call theo provider để kiểm tra Gemini không bị gọi cho
+  generation/utility. Embedding không retry để giữ đúng một request Gemini vật lý cho mỗi câu hỏi RAG.
+- **Lý do:** Gemini free tier đã 429 khi nhiều người dùng cùng truy cập; tài khoản DeepSeek là paid. Giảm luồng
+  bình thường từ khoảng 2–6 lượt Gemini xuống một request embedding, không thay đổi hệ vector hiện hữu.
+- **Đánh đổi:** Nếu DeepSeek timeout/lỗi mạng ở strict, người dùng nhận lỗi thay vì dùng Gemini; stable chỉ giảm
+  rủi ro quá tải/dịch vụ, không che lỗi cấu hình hoặc lỗi request.
+
+## [2026-07-23] Bỏ quota tổng tháng, chỉ giữ rate limit theo IP/ngày
+
+- **Quyết định:** `/api/chat` chỉ reserve counter Firebase `usage_ips/<date>/<ip_hash>` với giới hạn
+  `CHAT_DAILY_IP_LIMIT` (mặc định 50). Bỏ hoàn toàn việc đọc/ghi `usage/<month>`, bỏ
+  `CHAT_MONTHLY_LIMIT` khỏi runtime và bỏ nhánh trả lỗi khi tổng lượt toàn hệ thống chạm quota tháng.
+- **Lý do:** Nhiều người dùng hợp lệ truy cập cùng lúc không được làm toàn bộ chatbot bị khóa vì một
+  ngân sách tổng. Giới hạn IP/ngày vẫn giữ lớp chống spam và vẫn atomic bằng ETag/CAS dưới tải đồng thời.
+- **Đánh đổi:** Chi phí nhà cung cấp AI không còn được chặn bằng quota tổng của ứng dụng; phải kiểm soát
+  bằng billing/quota của DeepSeek/Gemini và telemetry vận hành. Một mạng NAT dùng chung vẫn chia sẻ cùng
+  bucket IP/ngày.
+- **Người quyết định:** user / Codex.
+
 ## [2026-07-21] Deck slide 1 dùng hero nền tối (ảnh bản đồ) — ngoại lệ có chủ đích của design system
 
 - **Quyết định:** Riêng slide TIÊU ĐỀ được phép dùng nền tối dạng ảnh (`asset/hero-map-bg.png` —

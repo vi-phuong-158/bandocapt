@@ -20,7 +20,7 @@ hành chính có RAG — trả lời đa ngôn ngữ (vi/en/zh/ko) dựa trên v
 - Tìm kiếm trụ sở theo tên, tìm trụ sở gần vị trí hiện tại.
 - Chatbot RAG tư vấn thủ tục hành chính và hướng dẫn liên hệ trụ sở Công an.
 - Streaming SSE từ Gemini 2.5 Flash (hoặc DeepSeek fallback).
-- Rate limiting theo tháng (3500 lượt/tháng) và theo IP (20 lượt/ngày).
+- Rate limiting chỉ theo IP/ngày; không áp quota tổng ngày/tháng cho toàn hệ thống.
 - CAPTCHA Cloudflare Turnstile chống bot.
 - Logging hội thoại vào Firestore / Firebase Realtime DB.
 

@@ -13,13 +13,13 @@
 |-------|-----------|
 | Frontend | HTML5 + Tailwind CSS 3 + Vanilla JS |
 | Ban do | Leaflet.js 1.9.4 + Leaflet.markercluster 1.5.3 + OpenStreetMap tiles |
-| LLM / Chat | Gemini 2.5 Flash (streaming SSE), fallback DeepSeek |
+| LLM / Chat | DeepSeek V4 Flash (streaming SSE); Gemini chỉ fallback ổn định khi DeepSeek HTTP 429/5xx |
 | Embedding / RAG | Gemini Embedding 001 + Pinecone vector DB |
 | Backend API | Vercel Serverless Functions (Node.js 20, CommonJS) + `@vercel/functions` `waitUntil` |
 | System prompt | Hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`) |
 | Du lieu tru so | Google Sheets `Published_Locations` qua helper + proxy |
 | Telemetry | Firebase Firestore + Firebase Realtime DB fallback |
-| Rate limiting | Firebase Realtime DB |
+| Rate limiting | Firebase Realtime DB, chỉ theo IP/ngày |
 | CAPTCHA | Cloudflare Turnstile |
 | Hosting | Vercel |
 | CSS build | Tailwind CLI (`input.css` -> `output.css`) |
@@ -86,7 +86,7 @@ bandocapt/
 | `api/feedback.js` | Serverless nhan bao cao/phan hoi nguoi dung ve cau tra loi chatbot; tai dung CORS/HMAC/sanitize tu helper chung; rate limit best-effort IP/ngay + ghi `chat_feedback/<date_key>` tren RTDB voi TTL | `js/gemini.js` | `lib/request-security.js`, Firebase RTDB |
 | `scripts/read-feedback.js` | Doc `chat_feedback/<date_key>` tu RTDB, in bao cao theo ngay (loc `--down`) de admin ra soat | Developer / cron | Firebase RTDB, `.env` |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
-| `api/chat.js` | Serverless chinh: xac thuc, rate limit, RAG Pinecone; T2A `standaloneQuery`/abstention gated; hang rao chu the NNN loai tai lieu cu tru cong dan va query bo sung KBTT cho tinh huong moi den (fallback record KBTT da duyet tu catalog cuc bo neu query phu timeout); TT04 tra loi tat dinh khi thieu dung bien the cap lai the tam tru; T2C deadline/provider fallback/telemetry; stream model da validator | `js/gemini.js` | Pinecone, Gemini/DeepSeek, Firebase, `@vercel/functions`, `data/tthc-catalog.json`, `lib/published-locations.js`, `lib/request-security.js` |
+| `api/chat.js` | Serverless chinh: xac thuc, rate limit atomic chi theo IP/ngay (khong quota tong ngay/thang), RAG Pinecone; Gemini chi mot request embedding/cau hoi RAG, DeepSeek V4 Flash sinh cau tra loi va utility (rewrite/dich/rerank/tom tat/groundedness, utility tat thinking); strict default khong fallback, stable chi DeepSeek 429/5xx -> Gemini; T2C deadline/telemetry; stream model da validator | `js/gemini.js` | Pinecone, Gemini/DeepSeek, Firebase, `@vercel/functions`, `data/tthc-catalog.json`, `lib/published-locations.js`, `lib/request-security.js` |
 | `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live, mac dinh gom `tthc_*` + `guide_*` co noi dung (loc guide rong/noi bo), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
 | `scripts/scrape-phutho-tthc.js` | Thu thap tuan tu 18 linh vuc/chi tiet TTHC Cong an Phu Tho; sinh snapshot co hash + CSV doi chieu 39 record HIGH, khong tu dong approved/ghi Pinecone | Developer / nguoi duyet T3.3 | `https://congan.phutho.gov.vn/TTHC.aspx`, `data/corpus-governance-draft.csv` |
 | `scripts/generate-phutho-xa-review.js` | Loc day du 43 muc cap xa tu snapshot; doi chieu corpus cu, de xuat tao moi/cap nhat/loai va sinh CSV + Markdown de nguoi dung duyet | Developer / nguoi duyet T3.3 mo rong | `data/tthc-phutho-source.json`, `data/corpus-governance-draft.csv` |
@@ -138,8 +138,8 @@ User nhap
 -> POST /api/chat
 -> api/chat.js
    1. Verify CORS + Turnstile + HMAC
-   2. Check rate limit Firebase (P1.4.1: reserve IP/ngay va thang chay SONG SONG qua Promise.allSettled,
-      rollback ben thanh cong neu ben kia fail — xem RATE_LIMIT_MAX_RETRIES)
+   2. Check rate limit Firebase: reserve atomic bang ETag/CAS cho tung IP/ngay; khong doc/ghi
+      counter tong ngay/thang, nen luu luong cua IP khac khong khoa toan he thong
    3. Sanitize history
    4. Detect nhu cau tra tru so tu current message + recent history, gom ca cau dau ngan chi la dia danh
    5. Skip FAQ cache neu cau hoi co dia diem/PII
@@ -147,18 +147,18 @@ User nhap
    7. Dedupe ban ghi giong nhau, phat hien ban ghi mau thuan
    8. Match ten tru so/alias exact-normalized theo uu tien: ten hien hanh day du -> bo `Cong an` -> ten xa/phuong hien hanh -> `search_aliases`
    9. (P1.1.3) Ghep ngu canh cau truoc vao query embedding CHI KHI cau hien tai < 8 tu (follow-up ngan); cau du dai dung doc lap.
-   9b. (T3.7) Neu `detectUserLanguage(query) !== 'vi'`: dich query sang tieng Viet cho TRUY HOI (`translateQueryForRetrieval`, model tien ich) — corpus la tieng Viet, embedding xuyen ngu bo sot dung thu tuc. Fail-open: loi/timeout giu query goc. Ngon ngu TRA LOI van theo `userLang` goc. Sau do embed query -> Gemini Embedding 001
+   9b. (T3.7) Neu `detectUserLanguage(query) !== 'vi'`: dich query sang tieng Viet cho TRUY HOI (`translateQueryForRetrieval`, DeepSeek utility voi thinking tat) — corpus la tieng Viet, embedding xuyen ngu bo sot dung thu tuc. Fail-open: loi/timeout giu query goc. Ngon ngu TRA LOI van theo `userLang` goc. Sau do embed query -> Gemini Embedding 001 (mot request)
   10. Query Pinecone cho thu tuc/phap luat trong DUNG 1 namespace pin tu `PINECONE_NAMESPACE` (P1.1.1: bo vong thu nhieu namespace); van giu 1 fallback bo metadata filter neu co category ma 0 match. Tach intent `tam_tru_khai_bao` va `tam_tru_the`; voi `tam_tru_khai_bao`, chi giu lai tai lieu co `retrieval_intent` dung nhanh hoac tin hieu ro `NA17`/`KBTT`/nguoi nuoc ngoai/co so luu tru, dong thoi loai fail-closed tai lieu cu tru cong dan Viet Nam (`Thong bao luu tru`, `Dang ky tam tru`, `Luat Cu tru`, `VNeID`, moc 23h/08h)
   10a. (2026-07-18, phuong an A) Neu query co chu the NNN du dien dat gian tiep (quoc tich/lao dong/khach) thi loai tai lieu cu tru cong dan doc lap voi classify; neu tinh huong "moi den/den o" chua co doc KBTT trong pool thi query bo sung `retrieval_intent=tam_tru_khai_bao_nguoi_nuoc_ngoai` va giu 1 slot top-4 sau rerank. Neu RIENG query bo sung timeout/loi, giu nguyen ket qua query chinh va chen record `tthc_matt26265` da duyet tu `data/tthc-catalog.json`; khong lam mat toan bo RAG context.
   11. Loai runtime moi match `tru_so` khoi prompt va citation
   11b. Neu `detectXncAuthorityIntent` dung (thi thuc/gia han/the tam tru/e-visa/NNN mat ho chieu): bom tinh `XNC_RECEPTION_VERIFIED_BLOCK` (3 diem tiep dan Phong QLXNC, chi dia chi + SDT, chua co toa do) vao `<verified_locations>`, doc lap matcher
-  11c. (P1.1.2) Rerank Gemini co dieu kien: bo qua (`shouldSkipRerank`) khi top-1 > 0.75 diem VA cach top-2 >= 0.05 — chi rerank khi con map mo
+  11c. (P1.1.2) Rerank DeepSeek co dieu kien, thinking tat: bo qua (`shouldSkipRerank`) khi top-1 > 0.75 diem VA cach top-2 >= 0.05 — chi rerank khi con map mo
   11d. (T2A, gated `RAG_FAIL_CLOSED=1`) Neu khong co match RAG vuot nguong, khong co tru so xac minh va khong co khoi XNC: tra abstention tat dinh theo ngon ngu + `abstentionReason`, KHONG goi model generation. Eval-mode van dinh retrieval trace rong de grader khong bo qua grounding.
   11e. (2026-07-18, TT04) Neu nguoi dung hoi mat/cap lai the tam tru ma top RAG khong co dung bien the cap lai the tam tru, tra `DETERMINISTIC_PROCEDURE_GAP` bang tham quyen + 3 diem QLXNC da xac minh; khong goi generation de suy dien tu cap moi/cap lai the thuong tru.
   12. Inject `<verified_locations>` + `<retrieved_documents>` vao system prompt
   12b. (T2C) Moi fetch/retry/rerank/provider/stream read dung phan ngan sach con lai cua
-       `CHAT_REQUEST_DEADLINE_MS` (mac dinh 55s); failover chi cho timeout/429/5xx/network/block truoc khi
-       da phat text hop le
+       `CHAT_REQUEST_DEADLINE_MS` (mac dinh 55s); strict default khong fallback. Stable mode chi failover
+       DeepSeek -> Gemini khi HTTP 429/5xx truoc khi da phat text hop le (khong fallback network/timeout).
   13. Stream Gemini 2.5 Flash / DeepSeek
   14. (T2B-1) Buffer đến hết câu/bullet, validate từng segment rồi mới phát SSE; `done.fullText`
       là phép nối chính xác các segment đã phát. Không đưa raw model text chưa validate lên UI.
@@ -166,7 +166,7 @@ User nhap
   15. Ghi telemetry toi thieu, gom so luong/loai violation cua output validator va timing/provider/fallback;
       telemetry + groundedness check chay sau response qua Vercel `waitUntil`
   16. (P1.2.1) Sau `res.end()`, dang ky `checkGroundednessAsync` bang Vercel `waitUntil`: neu answer
-      co so lieu, Gemini Flash doi chieu voi legalCorpus va ghi `groundedness_checks/<date>` vao
+      co so lieu, DeepSeek utility (thinking tat) doi chieu voi legalCorpus va ghi `groundedness_checks/<date>` vao
       Firebase — chi canh bao, khong chan response
 -> SSE ve client
 ```
@@ -315,8 +315,7 @@ DEEPSEEK_API_KEY
 DEEPSEEK_MODEL
 EVAL_BYPASS_TOKEN
 GOOGLE_SHEET_ID
-RATE_LIMIT_MONTHLY
-RATE_LIMIT_DAILY_IP
+CHAT_DAILY_IP_LIMIT
 FEEDBACK_DAILY_IP_LIMIT
 FEEDBACK_RETENTION_DAYS
 EMBED_TASK_TYPE

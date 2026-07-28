@@ -6,8 +6,8 @@
 
     <!-- P1.3.4: CSP chuyển sang header thật trong vercel.json (1 nguồn sự thật, hỗ trợ cả
          frame-ancestors mà meta tag không thể truyền tải) — xem docs/brain/01-architecture.md -->
-    <title>Bản đồ Công an số</title>
-    <meta name="description" content="Hệ thống Bản đồ Công an số và Điểm cấp CCCD tỉnh Phú Thọ. Soft UI Mod.">
+    <title>Bản đồ Công an số tỉnh Phú Thọ</title>
+    <meta name="description" content="Công trình thanh niên hỗ trợ tra cứu địa điểm, thông tin liên hệ và thủ tục hành chính công khai trên địa bàn tỉnh Phú Thọ.">
 
     <link rel="icon" type="image/png" href="assets/logo.png">
     <link rel="apple-touch-icon" href="assets/logo.png">
@@ -51,8 +51,11 @@
                             <img src="assets/logo.png" alt="Logo" class="w-full h-full object-contain">
                         </div>
                         <div>
+                            <div class="text-[10px] font-bold text-primary mb-0.5 uppercase tracking-wide">CÔNG TRÌNH THANH NIÊN</div>
                             <h1 class="font-display text-[18px] font-bold text-slate-800 leading-tight">Bản đồ Công an số</h1>
-                            <p class="text-[13px] text-textMuted mt-0.5">Tỉnh Phú Thọ</p>
+                            <p class="text-[13px] font-medium text-textMuted mt-0.5">Tỉnh Phú Thọ</p>
+                            <p class="text-[11px] text-slate-500 mt-1.5 leading-tight">Câu lạc bộ Đổi mới sáng tạo Tuổi trẻ Công an tỉnh Phú Thọ</p>
+                            <p class="text-[11px] text-slate-400 mt-0.5 leading-tight">Hỗ trợ tra cứu địa điểm và thủ tục hành chính công khai</p>
                         </div>
                     </div>
                     <button id="close-search-btn" aria-label="Đóng tìm kiếm" class="md:hidden w-9 h-9 bg-slate-100/80 hover:bg-slate-200 rounded-full flex items-center justify-center text-slate-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary">
@@ -110,6 +113,15 @@
     </li>
 
 </ul>
+                <div class="flex-none p-4 border-t border-slate-100 bg-slate-50/80 z-10">
+                    <div class="text-[11px] text-slate-500 text-center mb-3">Nguồn dữ liệu công khai · Cập nhật thường xuyên · Không yêu cầu đăng nhập</div>
+                    <button id="project-info-btn" class="w-full py-2.5 text-[13px] font-bold text-primary bg-white border border-blue-100 hover:border-blue-200 rounded-xl transition-colors shadow-sm mb-2" aria-haspopup="dialog">
+                        Thông tin công trình
+                    </button>
+                    <a href="https://baophutho.vn/van-hanh-ung-dung-nbsp-ban-do-cong-an-so-tinh-phu-tho-258512.htm" target="_blank" rel="noopener noreferrer" class="block w-full text-center text-[12px] font-medium text-slate-500 hover:text-primary transition-colors">
+                        Xem bài giới thiệu công trình
+                    </a>
+                </div>
         </div>
 
 <div id="detail-panel" role="region" aria-hidden="true" aria-labelledby="detail-title" tabindex="-1" data-sheet-state="hidden" data-animate="true" data-dragging="false" inert class="absolute md:absolute bottom-0 md:inset-0 w-full md:w-full h-[85vh] md:h-full md:max-h-full flex flex-col z-40 md:z-20 bg-surface/90 md:bg-surface backdrop-blur-md md:backdrop-blur-none rounded-t-2xl md:rounded-none border border-white/20 md:border-transparent shadow-lg md:shadow-none transform-gpu overflow-hidden">
@@ -262,7 +274,7 @@
             </span>
             <span class="ai-launcher-text">
                 <span class="ai-launcher-title">Hỏi đáp AI</span>
-                <span class="ai-launcher-sub">Trợ lý pháp luật · 24/7</span>
+                <span class="ai-launcher-sub">Trợ lý tra cứu · 24/7</span>
             </span>
         </button>
     </div>
@@ -275,8 +287,8 @@
                     <span></span>
                 </div>
                 <div>
-                    <div id="ai-chat-title" class="ai-chat-title">Trợ lý hỗ trợ pháp luật</div>
-                    <div class="ai-chat-subtitle">Sẵn sàng hỗ trợ</div>
+                    <div id="ai-chat-title" class="ai-chat-title">Trợ lý tra cứu thủ tục và địa điểm</div>
+                    <div class="ai-chat-subtitle">Hỗ trợ tra cứu tự động</div>
                 </div>
             </div>
             <button id="ai-chat-close-btn" aria-label="Đóng trợ lý AI">
@@ -288,10 +300,11 @@
             <div class="ai-chat-row ai-chat-row--assistant">
                 <img src="assets/icon-128.webp" class="ai-chat-avatar" alt="" width="128" height="128">
                 <div class="ai-chat-bubble ai-chat-bubble--assistant">
-                    <p class="ai-chat-label">Trợ lý hỗ trợ pháp luật</p>
+                    <p class="ai-chat-label">Trợ lý tra cứu thủ tục và địa điểm</p>
                     <div class="ai-chat-content">
-                        <p>Xin chào! Tôi là Trợ lý ảo tư vấn tự động các thủ tục hành chính. Tôi có thể giúp gì cho bạn hôm nay?</p>
-                        <p class="ai-chat-disclaimer">Nội dung tổng hợp bằng AI nên có thể có sai sót, vui lòng kiểm chứng lại thông tin.</p>
+                        <p>Xin chào! Tôi có thể giúp bạn tìm thủ tục hành chính phù hợp và địa điểm thực hiện gần nhất.</p>
+                        <p class="mt-1.5 font-medium text-primary">Bạn chỉ cần mô tả thủ tục cần tìm; không cần nhập số CCCD, số điện thoại hoặc thông tin cá nhân.</p>
+                        <p class="ai-chat-disclaimer">Nội dung được tổng hợp từ dữ liệu công khai. Vui lòng kiểm tra nguồn đính kèm trước khi thực hiện thủ tục.</p>
                     </div>
                 </div>
             </div>
@@ -364,6 +377,50 @@
     </nav>
 
     <script src="js/lazy-features.js" defer></script>
+    <script src="js/project-info.js" defer></script>
 
+    <!-- Modal Thông tin công trình -->
+    <div id="project-info-modal" class="fixed inset-0 z-[9999] hidden pointer-events-none" role="dialog" aria-labelledby="modal-info-title" aria-modal="true" aria-hidden="true">
+        <!-- Backdrop -->
+        <div id="project-info-backdrop" class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm opacity-0 transition-opacity duration-200 pointer-events-auto"></div>
+        
+        <!-- Modal Panel -->
+        <div class="absolute inset-x-0 bottom-0 md:inset-0 md:flex md:items-center md:justify-center pointer-events-none">
+            <div id="project-info-panel" class="w-full md:w-[480px] bg-white rounded-t-2xl md:rounded-2xl shadow-sheet md:shadow-card-hover transform translate-y-full md:translate-y-4 md:scale-95 opacity-0 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] pointer-events-auto flex flex-col max-h-[85vh]">
+                
+                <div class="flex items-center justify-between px-6 pt-5 pb-3 border-b border-slate-100 flex-shrink-0">
+                    <h2 id="modal-info-title" class="font-display text-[18px] font-bold text-slate-800">Bản đồ Công an số tỉnh Phú Thọ</h2>
+                    <button id="project-info-close-btn" aria-label="Đóng thông tin" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors focus-visible:ring-2 focus-visible:ring-primary">
+                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">close</span>
+                    </button>
+                </div>
+                
+                <div class="px-6 py-5 overflow-y-auto custom-scrollbar flex-1 space-y-4">
+                    <div>
+                        <h3 class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-1">Chủ thể xây dựng</h3>
+                        <p class="text-[14px] text-slate-700 leading-relaxed">Công trình thanh niên của Câu lạc bộ Đổi mới sáng tạo Tuổi trẻ Công an tỉnh Phú Thọ.</p>
+                    </div>
+                    <div>
+                        <h3 class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-1">Mục đích</h3>
+                        <p class="text-[14px] text-slate-700 leading-relaxed">Hỗ trợ người dân tra cứu nhanh địa điểm, thông tin liên hệ và thủ tục hành chính được công khai.</p>
+                    </div>
+                    <div>
+                        <h3 class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-1">Phạm vi hỗ trợ</h3>
+                        <p class="text-[14px] text-slate-700 leading-relaxed">Công trình không trực tiếp tiếp nhận hoặc giải quyết hồ sơ hành chính. Khi cần thực hiện thủ tục trực tuyến, người dùng được chuyển tới hệ thống chính thức tương ứng.</p>
+                    </div>
+                    <div>
+                        <h3 class="text-[12px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nguyên tắc sử dụng</h3>
+                        <p class="text-[14px] text-slate-700 leading-relaxed">Người dùng không cần cung cấp thông tin cá nhân để sử dụng các chức năng tra cứu cơ bản.</p>
+                    </div>
+                    <div class="pt-2 border-t border-slate-100">
+                        <a href="https://baophutho.vn/van-hanh-ung-dung-nbsp-ban-do-cong-an-so-tinh-phu-tho-258512.htm" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 text-[14px] font-bold text-primary hover:text-blue-700 transition-colors">
+                            <span class="material-symbols-outlined text-[18px]">open_in_new</span>
+                            Xem bài giới thiệu công trình trên Báo Phú Thọ
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 </html>

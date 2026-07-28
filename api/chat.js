@@ -233,6 +233,11 @@ function buildTelemetryPayload(data, now = new Date()) {
         history_summary_ms: metricNumber(data.history_summary_ms),
         generation_ms: metricNumber(data.generation_ms),
         time_to_first_validated_sentence_ms: metricNumber(data.time_to_first_validated_sentence_ms),
+        gemini_embedding_calls: metricNumber(data.gemini_embedding_calls),
+        gemini_generation_calls: metricNumber(data.gemini_generation_calls),
+        gemini_utility_calls: metricNumber(data.gemini_utility_calls),
+        deepseek_generation_calls: metricNumber(data.deepseek_generation_calls),
+        deepseek_utility_calls: metricNumber(data.deepseek_utility_calls),
         provider: data.provider || '',
         fallback_used: Boolean(data.fallback_used),
         rag_abstention_reason: data.rag_abstention_reason || '',
@@ -321,11 +326,7 @@ async function logChatToFirestore(data) {
 }
 
 const RATE_LIMIT_ETAG_HEADER = { 'X-Firebase-ETag': 'true' };
-// P1.4.1: reserve IP/ngày và tháng chạy SONG SONG (xem reserveRateLimitQuota) — khi 1 bên fail,
-// rollback bên kia tạo thêm 1 vòng CAS nữa lên CÙNG counter đang bị 50 request tranh chấp, nên
-// worst-case cần tới ~2N-1 (không phải N) lượt ghi tuần tự thành công trên 1 counter. Nâng từ 64
-// lên 150 để giữ đúng bất biến "không vượt quota dưới tải 50 request đồng thời" (xem test
-// 'reservations stop at monthly quota and rollback daily slot leaks').
+// Giữ dư địa retry cho ETag/CAS khi nhiều request từ cùng một IP cập nhật đồng thời.
 const RATE_LIMIT_MAX_RETRIES = 150;
 
 function parseRateLimitCount(data) {
@@ -387,102 +388,25 @@ async function reserveRateLimitCounter({
     return { ok: false, reason: 'store_error', status: 412 };
 }
 
-async function releaseRateLimitCounter({
-    fetchImpl = fetch,
-    url,
-    buildValue,
-    parseCount = parseRateLimitCount,
-    maxRetries = RATE_LIMIT_MAX_RETRIES
-}) {
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        const snapshot = await readRateLimitSnapshot(fetchImpl, url);
-        const currentCount = parseCount(snapshot.data);
-
-        if (currentCount <= 0) {
-            return true;
-        }
-
-        const putResponse = await putRateLimitSnapshot(fetchImpl, url, buildValue(currentCount - 1, snapshot.data), snapshot.etag);
-        if (putResponse.ok) {
-            return true;
-        }
-
-        if (putResponse.status !== 412) {
-            return false;
-        }
-    }
-
-    return false;
-}
-
 async function reserveRateLimitQuota({
     fetchImpl = fetch,
-    usageUrl,
     ipUsageUrl,
-    monthlyLimit,
     dailyIpLimit,
     lastAccess
 }) {
-    // P1.4.1: Reserve IP/ngày và toàn cục/tháng SONG SONG (2 counter độc lập, mỗi counter tự
-    // atomic qua CAS/etag) thay vì tuần tự — giảm round-trip Firebase. Nếu 1 bên fail mà bên kia
-    // đã reserve thành công thì rollback bên đó (logic rollback giữ nguyên như bản tuần tự cũ).
-    const [ipResult, usageResult] = await Promise.allSettled([
-        reserveRateLimitCounter({
+    try {
+        const reservation = await reserveRateLimitCounter({
             fetchImpl,
             url: ipUsageUrl,
             limit: dailyIpLimit,
             buildValue: count => ({ count: count + 1, last_access: lastAccess })
-        }),
-        reserveRateLimitCounter({
-            fetchImpl,
-            url: usageUrl,
-            limit: monthlyLimit,
-            buildValue: count => count + 1
-        })
-    ]);
-    const ipReservation = ipResult.status === 'fulfilled'
-        ? ipResult.value
-        : { ok: false, reason: 'store_error' };
-    const usageReservation = usageResult.status === 'fulfilled'
-        ? usageResult.value
-        : { ok: false, reason: 'store_error' };
-
-    if (ipReservation.ok && usageReservation.ok) {
-        return { ok: true };
+        });
+        return reservation.ok
+            ? { ok: true, count: reservation.count }
+            : { ok: false, reason: reservation.reason, scope: 'daily_ip' };
+    } catch (_) {
+        return { ok: false, reason: 'store_error', scope: 'daily_ip' };
     }
-
-    const rollbacks = [];
-    if (ipReservation.ok) {
-        rollbacks.push(releaseRateLimitCounter({
-            fetchImpl,
-            url: ipUsageUrl,
-            buildValue: count => ({ count, last_access: lastAccess })
-        }));
-    }
-    if (usageReservation.ok) {
-        rollbacks.push(releaseRateLimitCounter({
-            fetchImpl,
-            url: usageUrl,
-            buildValue: count => count
-        }));
-    }
-
-    if (rollbacks.length > 0) {
-        const rollbackResults = await Promise.allSettled(rollbacks);
-        if (rollbackResults.some(result => result.status === 'rejected' || !result.value)) {
-            return {
-                ok: false,
-                reason: 'store_error',
-                scope: ipReservation.ok ? 'daily_ip_rollback' : 'monthly_rollback'
-            };
-        }
-    }
-
-    if (!ipReservation.ok) {
-        return { ok: false, reason: ipReservation.reason, scope: 'daily_ip' };
-    }
-
-    return { ok: false, reason: usageReservation.reason, scope: 'monthly' };
 }
 
 // =====================================================================
@@ -705,6 +629,7 @@ const GEMINI_CHAT_RETRY_API_URL =
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
 const GEMINI_EMBED_API_URL =
     'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent';
+const DEEPSEEK_CHAT_API_URL = 'https://api.deepseek.com/v1/chat/completions';
 
 function extractGeminiResponseText(data) {
     return (data?.candidates?.[0]?.content?.parts || [])
@@ -890,9 +815,9 @@ async function fetchWithRetry(url, options, maxRetries = 2, timeoutMs = 8000, de
 // Model tiện ích (rerank / rewrite follow-up / dịch truy hồi). `gemini-2.5-flash-lite`
 // trả 404 "no longer available to new users" với một số key → rerank/rewrite/dịch âm
 // thầm fail-open (thành no-op). Cho phép cấu hình qua env, mặc định model lite còn sống.
-const LLM_UTILITY_MODEL = process.env.LLM_UTILITY_MODEL || 'gemini-flash-lite-latest';
-const GEMINI_RERANK_URL =
-    `https://generativelanguage.googleapis.com/v1beta/models/${LLM_UTILITY_MODEL}:generateContent`;
+const GEMINI_UTILITY_MODEL = process.env.GEMINI_UTILITY_MODEL || process.env.LLM_UTILITY_MODEL || 'gemini-flash-lite-latest';
+const GEMINI_UTILITY_URL =
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_UTILITY_MODEL}:generateContent`;
 
 // P1.1.2: Rerank có điều kiện — bỏ qua khi top-1 đã rõ ràng vượt trội, chỉ gọi Gemini rerank
 // khi kết quả còn mập mờ (top-1 không đủ cao, hoặc cách top-2 chưa đủ xa).
@@ -970,7 +895,73 @@ function boostExactTokenMatches(matches, tokens) {
     return [...boosted, ...rest];
 }
 
-async function rerankWithGemini(question, candidates, apiKey, timeoutMs = 8000, deadlineAt = Date.now() + timeoutMs) {
+async function callUtilityText({ prompt, apiKey, maxOutputTokens, timeoutMs, deadlineAt, responseFormatJson = false, fetchImpl = fetch, providerCalls }) {
+    const providerOrder = getUtilityProviderOrder();
+    let lastError;
+    const utilityFetch = fetchImpl === fetch
+        ? (url, options) => fetchWithRetry(url, options, 1, timeoutMs, deadlineAt)
+        : fetchImpl;
+
+    for (let index = 0; index < providerOrder.length; index++) {
+        const provider = providerOrder[index];
+        const nextProvider = providerOrder[index + 1];
+        try {
+            let response;
+            if (provider === 'deepseek') {
+                if (providerCalls) providerCalls.deepseek_utility_calls += 1;
+                response = await utilityFetch(DEEPSEEK_CHAT_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${process.env.DEEPSEEK_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash',
+                        messages: [{ role: 'user', content: prompt }],
+                        stream: false,
+                        temperature: 0,
+                        max_tokens: maxOutputTokens,
+                        thinking: { type: 'disabled' },
+                        ...(responseFormatJson ? { response_format: { type: 'json_object' } } : {})
+                    })
+                });
+            } else {
+                if (!apiKey) continue;
+                if (providerCalls) providerCalls.gemini_utility_calls += 1;
+                response = await utilityFetch(`${GEMINI_UTILITY_URL}?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            temperature: 0,
+                            maxOutputTokens,
+                            ...(responseFormatJson ? { responseMimeType: 'application/json' } : {})
+                        }
+                    })
+                });
+            }
+
+            if (response.ok) {
+                const data = await response.json();
+                return provider === 'deepseek'
+                    ? String(data?.choices?.[0]?.message?.content || '').trim()
+                    : extractGeminiResponseText(data);
+            }
+
+            lastError = new Error(`Utility ${provider} API error ${response.status}`);
+            if (!shouldFallbackToNextProvider({ provider, nextProvider, response })) return '';
+        } catch (error) {
+            lastError = error;
+            if (!shouldFallbackToNextProvider({ provider, nextProvider, error })) return '';
+        }
+    }
+
+    if (lastError) console.warn('[api/chat] Utility LLM failed:', lastError.message);
+    return '';
+}
+
+async function rerankWithProvider(question, candidates, apiKey, timeoutMs = 8000, deadlineAt = Date.now() + timeoutMs, providerCalls) {
     if (!candidates || candidates.length <= 1) return candidates;
     try {
         const snippets = candidates.map((c, i) =>
@@ -982,18 +973,11 @@ Xếp hạng các đoạn tài liệu sau theo mức độ liên quan (cao nhấ
 Chỉ trả về danh sách số thứ tự cách nhau bởi dấu phẩy, VD: 3,1,5,2
 ${snippets}`;
 
-        const res = await fetchWithRetry(`${GEMINI_RERANK_URL}?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0, maxOutputTokens: 50 }
-            })
-        }, 1, timeoutMs, deadlineAt);
-        if (!res.ok) return candidates; // fallback: giữ nguyên thứ tự
+        const rankText = await callUtilityText({
+            prompt, apiKey, maxOutputTokens: 50, timeoutMs, deadlineAt, providerCalls
+        });
+        if (!rankText) return candidates;
 
-        const data = await res.json();
-        const rankText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
         const indices = rankText.match(/\d+/g);
         if (!indices) return candidates;
 
@@ -1029,23 +1013,22 @@ const NUMBER_WITH_UNIT_PATTERN = /\d+(?:[.,]\d+)*\s*(?:giờ|ngày|đồng|VND|V
 
 async function checkGroundednessAsync({ answerText, legalCorpus, apiKey, fetchImpl = fetch, dbUrl, dbAuth, dateKey }) {
     try {
-        if (!apiKey || !dbUrl) return;
+        if (!dbUrl || (!apiKey && !process.env.DEEPSEEK_API_KEY)) return;
         const numericClaims = String(answerText || '').match(NUMBER_WITH_UNIT_PATTERN);
         if (!numericClaims || numericClaims.length === 0) return;
 
         const prompt = `Tài liệu nguồn:\n${String(legalCorpus || '').substring(0, 4000)}\n\nCâu trả lời cần kiểm tra:\n${String(answerText || '').substring(0, 2000)}\n\nCác con số/số liệu trong câu trả lời có xuất hiện (hoặc suy ra trực tiếp) từ tài liệu nguồn không? Trả về DUY NHẤT JSON dạng {"grounded": true|false, "ungrounded_claims": ["..."]}, không thêm chữ nào khác.`;
 
-        const res = await fetchImpl(`${GEMINI_RERANK_URL}?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0, maxOutputTokens: 300 }
-            })
+        const rawText = await callUtilityText({
+            prompt,
+            apiKey,
+            maxOutputTokens: 300,
+            timeoutMs: 8000,
+            deadlineAt: Date.now() + 8000,
+            responseFormatJson: true,
+            fetchImpl
         });
-        if (!res.ok) return;
-        const data = await res.json();
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        if (!rawText) return;
         const jsonMatch = rawText.match(/\{[\s\S]*\}/);
         if (!jsonMatch) return;
         const parsed = JSON.parse(jsonMatch[0]);
@@ -1056,6 +1039,7 @@ async function checkGroundednessAsync({ answerText, legalCorpus, apiKey, fetchIm
             body: JSON.stringify({
                 grounded: Boolean(parsed.grounded),
                 ungrounded_claim_count: Array.isArray(parsed.ungrounded_claims) ? parsed.ungrounded_claims.length : 0,
+                provider: getUtilityProviderOrder()[0] || '',
                 timestamp: Date.now()
             })
         });
@@ -1391,24 +1375,16 @@ function buildVerifiedFactsLine(metadata = {}, governanceEnabled = false) {
 // tiện ích viết lại giữ nguyên ý định + ngôn ngữ; lỗi/timeout → trả null để
 // caller fallback về heuristic cũ (không tăng rủi ro so với hiện trạng).
 // =====================================================================
-async function rewriteFollowUpQuery(currentMessage, previousUserText, apiKey, timeoutMs = 2000, deadlineAt = Date.now() + timeoutMs) {
-    if (!apiKey || !currentMessage || !previousUserText) return null;
+async function rewriteFollowUpQuery(currentMessage, previousUserText, apiKey, timeoutMs = 2000, deadlineAt = Date.now() + timeoutMs, providerCalls) {
+    if ((!apiKey && !process.env.DEEPSEEK_API_KEY) || !currentMessage || !previousUserText) return null;
     try {
         const prompt = `Câu hỏi trước của người dùng: "${String(previousUserText).substring(0, 300)}"
 Câu hỏi hiện tại (có thể là follow-up ngắn, thiếu ngữ cảnh): "${String(currentMessage).substring(0, 300)}"
 
 Viết lại câu hỏi hiện tại thành MỘT câu độc lập, đầy đủ ngữ cảnh để tìm kiếm tài liệu, giữ nguyên ý định và ngôn ngữ gốc. Chỉ trả về câu đã viết lại, không giải thích, không thêm dấu ngoặc.`;
-        const res = await fetchWithRetry(`${GEMINI_RERANK_URL}?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0, maxOutputTokens: 64 }
-            })
-        }, 1, timeoutMs, deadlineAt);
-        if (!res.ok) return null;
-        const data = await res.json();
-        const rewritten = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+        const rewritten = await callUtilityText({
+            prompt, apiKey, maxOutputTokens: 64, timeoutMs, deadlineAt, providerCalls
+        });
         if (!rewritten || rewritten.length < 3) return null;
         return rewritten.replace(/^["'“”]+|["'“”]+$/g, '').trim();
     } catch (e) {
@@ -1425,22 +1401,14 @@ Viết lại câu hỏi hiện tại thành MỘT câu độc lập, đầy đ�
 // classify để similarity cùng ngôn ngữ. CHỈ dùng cho truy hồi — ngôn ngữ trả
 // lời vẫn theo userLang gốc. Lỗi/timeout → trả null (fail-open, giữ query gốc).
 // =====================================================================
-async function translateQueryForRetrieval(query, apiKey, timeoutMs = 2000, deadlineAt = Date.now() + timeoutMs) {
-    if (!apiKey || !query) return null;
+async function translateQueryForRetrieval(query, apiKey, timeoutMs = 2000, deadlineAt = Date.now() + timeoutMs, providerCalls) {
+    if ((!apiKey && !process.env.DEEPSEEK_API_KEY) || !query) return null;
     try {
         const prompt = `Dịch câu hỏi sau sang tiếng Việt để tra cứu thủ tục hành chính, giữ nguyên ý định và thuật ngữ pháp lý. Chỉ trả về câu tiếng Việt, không giải thích, không thêm dấu ngoặc:
 "${String(query).substring(0, 300)}"`;
-        const res = await fetchWithRetry(`${GEMINI_RERANK_URL}?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0, maxOutputTokens: 128 }
-            })
-        }, 1, timeoutMs, deadlineAt);
-        if (!res.ok) return null;
-        const data = await res.json();
-        const translated = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '').trim();
+        const translated = await callUtilityText({
+            prompt, apiKey, maxOutputTokens: 128, timeoutMs, deadlineAt, providerCalls
+        });
         if (!translated || translated.length < 3) return null;
         return translated.replace(/^["'“”]+|["'“”]+$/g, '').trim();
     } catch (e) {
@@ -1452,7 +1420,7 @@ async function translateQueryForRetrieval(query, apiKey, timeoutMs = 2000, deadl
 // =====================================================================
 // RAG-04: Conversation summarization thay vì cắt cứng
 // =====================================================================
-async function summarizeHistory(historyItems, apiKey, timeoutMs = 8000, deadlineAt = Date.now() + timeoutMs) {
+async function summarizeHistory(historyItems, apiKey, timeoutMs = 8000, deadlineAt = Date.now() + timeoutMs, providerCalls) {
     if (!historyItems || historyItems.length <= 4) return historyItems;
     try {
         // Tách: phần cũ cần tóm tắt, phần mới giữ nguyên
@@ -1463,18 +1431,10 @@ async function summarizeHistory(historyItems, apiKey, timeoutMs = 8000, deadline
             `${h.role === 'user' ? 'Người dùng' : 'Trợ lý'}: ${h.parts[0].text.substring(0, 300)}`
         ).join('\n');
 
-        const res = await fetchWithRetry(`${GEMINI_RERANK_URL}?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: `Tóm tắt cuộc trò chuyện sau trong 100 từ, giữ lại các câu hỏi pháp luật chính và các điều luật đã đề cập:\n${text}` }] }],
-                generationConfig: { temperature: 0, maxOutputTokens: 200 }
-            })
-        }, 1, timeoutMs, deadlineAt);
-        if (!res.ok) return historyItems;
-
-        const data = await res.json();
-        const summary = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const summary = await callUtilityText({
+            prompt: `Tóm tắt cuộc trò chuyện sau trong 100 từ, giữ lại các câu hỏi pháp luật chính và các điều luật đã đề cập:\n${text}`,
+            apiKey, maxOutputTokens: 200, timeoutMs, deadlineAt, providerCalls
+        });
         if (!summary) return historyItems;
 
         return [
@@ -1689,15 +1649,34 @@ function getGovernanceConflictReply(userLang) {
     return 'The current official sources conflict for this procedure, so I cannot safely choose one. Please contact the receiving police authority for confirmation before proceeding.';
 }
 
-function getChatProviderOrder() {
-    const configuredPrimary = String(process.env.LLM_PRIMARY || 'gemini').toLowerCase();
-    const primary = configuredPrimary === 'deepseek' && process.env.DEEPSEEK_API_KEY
-        ? 'deepseek'
-        : 'gemini';
-    const fallback = String(process.env.LLM_FALLBACK || (process.env.DEEPSEEK_API_KEY ? 'deepseek' : '')).toLowerCase();
+function getProviderOrder(primaryValue, fallbackValue) {
+    const hasDeepSeek = Boolean(process.env.DEEPSEEK_API_KEY);
+    const defaultPrimary = hasDeepSeek ? 'deepseek' : 'gemini';
+    const primary = String(primaryValue || defaultPrimary).toLowerCase();
+    const fallback = String(fallbackValue || '').toLowerCase();
     return [...new Set([primary, fallback].filter(provider =>
-        provider === 'gemini' || (provider === 'deepseek' && process.env.DEEPSEEK_API_KEY)
+        provider === 'gemini' || (provider === 'deepseek' && hasDeepSeek)
     ))];
+}
+
+function getChatProviderOrder() {
+    return getProviderOrder(process.env.LLM_PRIMARY, process.env.LLM_FALLBACK);
+}
+
+function getUtilityProviderOrder() {
+    return getProviderOrder(
+        process.env.LLM_UTILITY_PRIMARY || process.env.LLM_PRIMARY,
+        process.env.LLM_UTILITY_FALLBACK || process.env.LLM_FALLBACK
+    );
+}
+
+function shouldFallbackToNextProvider({ provider, nextProvider, response, error }) {
+    if (!nextProvider) return false;
+    // DeepSeek -> Gemini is deliberately narrow: only documented overload/service failures.
+    if (provider === 'deepseek' && nextProvider === 'gemini') {
+        return Boolean(response && (response.status === 429 || response.status >= 500));
+    }
+    return response ? isRetryableProviderFailure(response) : isRetryableProviderError(error);
 }
 
 function isRetryableProviderFailure(response) {
@@ -1935,24 +1914,20 @@ module.exports = async function handler(req, res) {
         evalDebugFlag: req.body && req.body.evalDebug,
     });
 
-    // --- [BẢO MẬT #3] Global Rate Limiting bằng Firebase (3500 câu/tháng) ---
-    // Thay vì chặn hẳn người dùng khi xài free API, ta cài giới hạn cứng để không tốn nhiều phí
+    // --- [BẢO MẬT #3] Rate limiting theo IP/ngày bằng Firebase ---
+    // Không áp quota tổng ngày/tháng để lưu lượng của người dùng khác không chặn toàn hệ thống.
     // Không hardcode URL cross-project: thiếu cấu hình → rate-limit fetch thất bại → fail-closed (503).
     const FIREBASE_DB_URL = process.env.FIREBASE_DB_URL || '';
     const FIREBASE_AUTH = process.env.FIREBASE_DB_SECRET ? `?auth=${process.env.FIREBASE_DB_SECRET}` : '';
     const nowForFirebase = new Date();
     // Chỉnh giờ sang múi giờ Việt Nam (UTC+7)
     nowForFirebase.setHours(nowForFirebase.getHours() + 7);
-    const currentMonth = `${nowForFirebase.getFullYear()}_${(nowForFirebase.getMonth() + 1).toString().padStart(2, '0')}`;
     const currentDate = `${nowForFirebase.getFullYear()}_${(nowForFirebase.getMonth() + 1).toString().padStart(2, '0')}_${nowForFirebase.getDate().toString().padStart(2, '0')}`;
-
-    const usageUrl = `${FIREBASE_DB_URL}/usage/${currentMonth}.json${FIREBASE_AUTH}`;
 
     // Không đưa IP thô vào key Firebase; bucket HMAC vẫn ổn định để áp hạn mức theo ngày.
     const ipBucketHash = hashForLog(`rate-limit:${clientIP}`);
     const ipUsageUrl = `${FIREBASE_DB_URL}/usage_ips/${currentDate}/${ipBucketHash}.json${FIREBASE_AUTH}`;
 
-    const MONTHLY_LIMIT = getPositiveEnvInt('CHAT_MONTHLY_LIMIT', 10000);
     const DAILY_IP_LIMIT = getPositiveEnvInt('CHAT_DAILY_IP_LIMIT', 50);
 
     if (isEvalRun) {
@@ -1961,34 +1936,23 @@ module.exports = async function handler(req, res) {
 
     try {
         if (isEvalRun) throw new Error('__EVAL_SKIP_RATELIMIT__');
-        // Reserve quota theo thứ tự IP/ngày rồi toàn cục/tháng; mỗi retry 412 đều re-check limit.
-        // Nếu reserve toàn cục thất bại sau khi đã giữ quota IP/ngày, rollback IP/ngày trước khi trả lỗi.
+        // Reserve quota IP/ngày bằng ETag/CAS; mỗi retry 412 đều re-check limit.
         const trueTime = new Date();
         const vnTimeStr = new Date(trueTime.getTime() + 7 * 60 * 60 * 1000).toISOString().replace('Z', '+07:00');
 
         const reservation = await reserveRateLimitQuota({
             fetchImpl: (url, options = {}) => fetchWithinDeadline(url, options, deadlineAt, 8000, 'RATE_LIMIT'),
-            usageUrl,
             ipUsageUrl,
-            monthlyLimit: MONTHLY_LIMIT,
             dailyIpLimit: DAILY_IP_LIMIT,
             lastAccess: vnTimeStr
         });
 
         if (!reservation.ok) {
             if (reservation.reason === 'limit_exceeded') {
-                if (reservation.scope === 'daily_ip') {
-                    console.warn(`[api/chat] Daily limit reached; ip_bucket=${ipBucketHash}; date=${currentDate}.`);
-                    return res.status(429).json({
-                        error: 'RATE_LIMIT_EXCEEDED',
-                        detail: `H\u00f4m nay b\u1ea1n \u0111\u00e3 h\u1ecfi \u0111\u1ee7 ${DAILY_IP_LIMIT} c\u00e2u r\u1ed3i. H\u00e3y quay l\u1ea1i v\u00e0o ng\u00e0y mai nh\u00e9!`,
-                    });
-                }
-
-                console.warn(`[api/chat] \u0110\u00e3 \u0111\u1ea1t gi\u1edbi h\u1ea1n ${MONTHLY_LIMIT} c\u00e2u/th\u00e1ng cho th\u00e1ng ${currentMonth}.`);
+                console.warn(`[api/chat] Daily limit reached; ip_bucket=${ipBucketHash}; date=${currentDate}.`);
                 return res.status(429).json({
                     error: 'RATE_LIMIT_EXCEEDED',
-                    detail: `R\u1ea5t xin l\u1ed7i! H\u1ec7 th\u1ed1ng \u0111\u00e3 d\u00f9ng h\u1ebft ng\u00e2n s\u00e1ch (t\u01b0\u01a1ng \u0111\u01b0\u01a1ng ${MONTHLY_LIMIT} l\u01b0\u1ee3t tr\u00f2 chuy\u1ec7n) trong th\u00e1ng n\u00e0y. H\u1eb9n g\u1eb7p l\u1ea1i b\u1ea1n v\u00e0o th\u00e1ng sau nh\u00e9!`,
+                    detail: `H\u00f4m nay b\u1ea1n \u0111\u00e3 h\u1ecfi \u0111\u1ee7 ${DAILY_IP_LIMIT} c\u00e2u r\u1ed3i. H\u00e3y quay l\u1ea1i v\u00e0o ng\u00e0y mai nh\u00e9!`,
                 });
             }
 
@@ -2068,8 +2032,16 @@ module.exports = async function handler(req, res) {
         total_ms: 0,
         time_to_first_validated_sentence_ms: 0,
     };
+    // Đếm theo request logic để kiểm chứng Gemini chỉ còn một lượt embedding bình thường.
+    const providerCalls = {
+        gemini_embedding_calls: 0,
+        gemini_generation_calls: 0,
+        gemini_utility_calls: 0,
+        deepseek_generation_calls: 0,
+        deepseek_utility_calls: 0
+    };
     const historySummaryPromise = measureStage(stageTimings, 'history_summary_ms', () =>
-        summarizeHistory(safeHistory, apiKey, 8000, deadlineAt)
+        summarizeHistory(safeHistory, apiKey, 8000, deadlineAt, providerCalls)
     );
     const locationLookupRequested = isLocationLookupRequested(userMessage, safeHistory);
     const publishedLocationsPromise = locationLookupRequested
@@ -2111,7 +2083,7 @@ module.exports = async function handler(req, res) {
             // P2.4: ưu tiên viết lại câu độc lập bằng model tiện ích; lỗi/timeout →
             // fallback BOT-04 (nối keyword thô câu trước) như hiện trạng.
             const rewritten = await measureStage(stageTimings, 'query_rewrite_ms', () =>
-                rewriteFollowUpQuery(searchQuery, prevUserText, apiKey, 2000, deadlineAt)
+                rewriteFollowUpQuery(searchQuery, prevUserText, apiKey, 2000, deadlineAt, providerCalls)
             );
             if (rewritten) {
                 searchQuery = rewritten;
@@ -2133,7 +2105,7 @@ module.exports = async function handler(req, res) {
     // Fail-open: lỗi/timeout giữ nguyên query gốc.
     if (userLang !== 'vi') {
         const translated = await measureStage(stageTimings, 'query_translate_ms', () =>
-            translateQueryForRetrieval(searchQuery, apiKey, 2000, deadlineAt)
+            translateQueryForRetrieval(searchQuery, apiKey, 2000, deadlineAt, providerCalls)
         );
         if (translated) {
             console.log('[T3.7] Dịch truy hồi:', `${userLang} → vi`);
@@ -2168,11 +2140,12 @@ module.exports = async function handler(req, res) {
         if (process.env.EMBED_TASK_TYPE) {
             embedBody.taskType = process.env.EMBED_TASK_TYPE;
         }
+        providerCalls.gemini_embedding_calls += 1;
         const embedRes = await fetchWithRetry(`${GEMINI_EMBED_API_URL}?key=${apiKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(embedBody)
-        }, 2, 8000, deadlineAt); // Retry tối đa 2 lần cho embedding trong ngân sách request
+        }, 1, 8000, deadlineAt); // Đúng một request Gemini embedding cho mỗi câu hỏi RAG.
         if (!embedRes.ok) {
             console.warn('[api/chat] Embedding thất bại (status', embedRes.status, '), tiếp tục chat không RAG');
             // KHÔNG return lỗi — tiếp tục chat mà không có RAG context
@@ -2337,7 +2310,7 @@ module.exports = async function handler(req, res) {
                 const reranked = shouldSkipRerank(relevantMatches)
                     ? relevantMatches
                     : await measureStage(stageTimings, 'rerank_ms', () =>
-                        rerankWithGemini(standaloneQuery, relevantMatches, apiKey, 8000, deadlineAt)
+                        rerankWithProvider(standaloneQuery, relevantMatches, apiKey, 8000, deadlineAt, providerCalls)
                     );
                 governanceConflict = governanceEnabled ? findCurrentSourceConflict(reranked) : null;
                 const topMatches = governanceConflict
@@ -2704,6 +2677,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             const remainingMs = getRemainingDeadlineMs(deadlineAt, 50000);
             try {
             if (useDeepSeek) {
+            providerCalls.deepseek_generation_calls += 1;
             // Convert Gemini-style payload -> OpenAI-style messages
             const messages = [{ role: 'system', content: finalSystemPrompt }];
             for (const c of contents) {
@@ -2719,7 +2693,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
                 max_tokens: 3072,
                 top_p: 0.8
             };
-            geminiRes = await fetchWithRetry('https://api.deepseek.com/v1/chat/completions', {
+            geminiRes = await fetchWithRetry(DEEPSEEK_CHAT_API_URL, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -2728,18 +2702,27 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
                 body: JSON.stringify(dsPayload)
             }, 2, remainingMs, deadlineAt);
             } else {
+            providerCalls.gemini_generation_calls += 1;
             geminiRes = await fetchWithRetry(`${GEMINI_CHAT_API_URL}&key=${apiKey}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             }, 2, remainingMs, deadlineAt);
             }
-            if (geminiRes.ok || !isRetryableProviderFailure(geminiRes) || providerIndex === providerOrder.length - 1) break;
+            if (geminiRes.ok || !shouldFallbackToNextProvider({
+                provider,
+                nextProvider: providerOrder[providerIndex + 1],
+                response: geminiRes
+            })) break;
             try { await geminiRes.text(); } catch (_) {}
             fallbackUsed = true;
             } catch (error) {
                 providerError = error;
-                if (!isRetryableProviderError(error) || providerIndex === providerOrder.length - 1) throw error;
+                if (!shouldFallbackToNextProvider({
+                    provider,
+                    nextProvider: providerOrder[providerIndex + 1],
+                    error
+                })) throw error;
                 fallbackUsed = true;
             }
         }
@@ -2909,7 +2892,8 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
                         content: content.parts?.map(part => part.text).join('\n') || ''
                     });
                 }
-                const fallbackRes = await fetchWithRetry('https://api.deepseek.com/v1/chat/completions', {
+                providerCalls.deepseek_generation_calls += 1;
+                const fallbackRes = await fetchWithRetry(DEEPSEEK_CHAT_API_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -3021,6 +3005,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             fallback_used: fallbackUsed,
             total_ms: stageTimings.total_ms,
             output_validator_violations: validationResult.violations,
+            ...providerCalls,
             ip: clientIP,
             user_agent: req.headers['user-agent'] || '',
             date_key: currentDate
@@ -3105,6 +3090,10 @@ module.exports.shouldAbstainForMissingRag = shouldAbstainForMissingRag;
 module.exports.getRagAbstentionReply = getRagAbstentionReply;
 module.exports.getRagAbstentionReason = getRagAbstentionReason;
 module.exports.getChatProviderOrder = getChatProviderOrder;
+module.exports.getUtilityProviderOrder = getUtilityProviderOrder;
+module.exports.shouldFallbackToNextProvider = shouldFallbackToNextProvider;
+module.exports.callUtilityText = callUtilityText;
+module.exports.rerankWithProvider = rerankWithProvider;
 module.exports.isRetryableProviderFailure = isRetryableProviderFailure;
 module.exports.buildVerifiedLocationLinks = buildVerifiedLocationLinks;
 module.exports.isRetryableProviderError = isRetryableProviderError;

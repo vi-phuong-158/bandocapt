@@ -1,6 +1,23 @@
 # 04 — Current Tasks
 
+## Cập nhật rate limit ngày 2026-07-23
+
+- `/api/chat` chỉ còn giới hạn theo IP/ngày qua Firebase ETag/CAS (`CHAT_DAILY_IP_LIMIT`, mặc định 50).
+- Đã bỏ quota tổng tháng và không còn đọc/ghi `usage/<month>`; lưu lượng của các IP khác nhau không thể
+  làm chatbot bị khóa vì chạm một counter tổng.
+- Test đồng thời tiếp tục khóa bất biến: 50 request cùng IP chỉ nhận đúng số slot được phép; không có
+  counter tháng phát sinh.
+
 ## Cập nhật T3.8 ngày 2026-07-18
+
+## [DONE 2026-07-23] Giai đoạn 1 — DeepSeek-primary an toàn
+
+- Đã chuyển generation và các tác vụ utility (rewrite, translate, rerank, summarize, groundedness) sang
+  `deepseek-v4-flash`; utility tắt thinking. Gemini còn Gemini Embedding 001, một request cho câu hỏi RAG.
+- Strict là mặc định, không fallback Gemini. Stable chỉ bật bằng `LLM_FALLBACK=gemini` (và utility tương ứng),
+  chỉ cho DeepSeek HTTP 429/5xx; không fallback lỗi mạng/timeout/4xx khác.
+- Đã thêm telemetry số call theo provider và test kiểm chứng strict mode/tắt thinking. Cần cấu hình `DEEPSEEK_API_KEY`
+  cùng các env production trước khi deploy; nên chạy regression majority sau deploy để xác nhận chất lượng model.
 
 - **Gate đã đạt:** Full generation majority DeepSeek 3×30 trên namespace
   `chatbot-tthc-xnc-web-rd-20260715` đạt 2/3, không có hard-fail/provider-error đa số; TYPO01 flaky

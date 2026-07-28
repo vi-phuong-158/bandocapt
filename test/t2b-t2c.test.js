@@ -19,6 +19,8 @@ test.afterEach(() => {
     delete process.env.PINECONE_API_KEY;
     delete process.env.LLM_PRIMARY;
     delete process.env.LLM_FALLBACK;
+    delete process.env.LLM_UTILITY_PRIMARY;
+    delete process.env.LLM_UTILITY_FALLBACK;
     delete process.env.DEEPSEEK_API_KEY;
     delete process.env.CHAT_REQUEST_DEADLINE_MS;
 });
@@ -93,23 +95,32 @@ test('T2B-1 handler emits only validated chunks and done.fullText is their exact
     assert.match(emitted, /chưa được xác minh|chưa xác minh/);
 });
 
-test('T2C provider order defaults to Gemini and only enables configured DeepSeek fallback', () => {
+test('T2C provider order defaults to strict DeepSeek when its key is configured', () => {
     const oldPrimary = process.env.LLM_PRIMARY;
     const oldFallback = process.env.LLM_FALLBACK;
+    const oldUtilityPrimary = process.env.LLM_UTILITY_PRIMARY;
+    const oldUtilityFallback = process.env.LLM_UTILITY_FALLBACK;
     const oldKey = process.env.DEEPSEEK_API_KEY;
     try {
         delete process.env.LLM_PRIMARY;
         delete process.env.LLM_FALLBACK;
+        delete process.env.LLM_UTILITY_PRIMARY;
+        delete process.env.LLM_UTILITY_FALLBACK;
         delete process.env.DEEPSEEK_API_KEY;
         assert.deepEqual(chat.getChatProviderOrder(), ['gemini']);
         process.env.DEEPSEEK_API_KEY = 'test-key';
-        assert.deepEqual(chat.getChatProviderOrder(), ['gemini', 'deepseek']);
-        process.env.LLM_PRIMARY = 'deepseek';
+        assert.deepEqual(chat.getChatProviderOrder(), ['deepseek']);
+        assert.deepEqual(chat.getUtilityProviderOrder(), ['deepseek']);
         process.env.LLM_FALLBACK = 'gemini';
         assert.deepEqual(chat.getChatProviderOrder(), ['deepseek', 'gemini']);
+        process.env.LLM_UTILITY_PRIMARY = 'deepseek';
+        process.env.LLM_UTILITY_FALLBACK = 'gemini';
+        assert.deepEqual(chat.getUtilityProviderOrder(), ['deepseek', 'gemini']);
     } finally {
         if (oldPrimary === undefined) delete process.env.LLM_PRIMARY; else process.env.LLM_PRIMARY = oldPrimary;
         if (oldFallback === undefined) delete process.env.LLM_FALLBACK; else process.env.LLM_FALLBACK = oldFallback;
+        if (oldUtilityPrimary === undefined) delete process.env.LLM_UTILITY_PRIMARY; else process.env.LLM_UTILITY_PRIMARY = oldUtilityPrimary;
+        if (oldUtilityFallback === undefined) delete process.env.LLM_UTILITY_FALLBACK; else process.env.LLM_UTILITY_FALLBACK = oldUtilityFallback;
         if (oldKey === undefined) delete process.env.DEEPSEEK_API_KEY; else process.env.DEEPSEEK_API_KEY = oldKey;
     }
 });
@@ -122,6 +133,68 @@ test('T2C only permits failover for provider/network retry classes', () => {
     assert.equal(chat.isRetryableProviderError(new Error('programming bug')), false);
     assert.equal(chat.isRetryableProviderError(new TypeError('fetch failed')), true);
     assert.equal(chat.isRetryableProviderError(Object.assign(new Error('socket'), { code: 'ECONNRESET' })), true);
+    assert.equal(chat.shouldFallbackToNextProvider({
+        provider: 'deepseek', nextProvider: 'gemini', response: { status: 429 }
+    }), true);
+    assert.equal(chat.shouldFallbackToNextProvider({
+        provider: 'deepseek', nextProvider: 'gemini', response: { status: 400 }
+    }), false);
+    assert.equal(chat.shouldFallbackToNextProvider({
+        provider: 'deepseek', nextProvider: 'gemini', error: new TypeError('fetch failed')
+    }), false);
+});
+
+test('T2C utility tasks use DeepSeek with thinking disabled in strict mode', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    const requests = [];
+    global.fetch = async (url, options) => {
+        requests.push({ url: String(url), body: JSON.parse(options.body) });
+        return {
+            ok: true,
+            status: 200,
+            json: async () => ({ choices: [{ message: { content: 'đã xử lý' } }] })
+        };
+    };
+
+    const calls = { deepseek_utility_calls: 0, gemini_utility_calls: 0 };
+    const result = await chat.callUtilityText({
+        prompt: 'Viết lại câu hỏi', apiKey: 'gemini-test-key', maxOutputTokens: 64,
+        timeoutMs: 1000, deadlineAt: Date.now() + 1000, providerCalls: calls
+    });
+
+    assert.equal(result, 'đã xử lý');
+    assert.equal(requests.length, 1);
+    assert.match(requests[0].url, /api\.deepseek\.com/);
+    assert.deepEqual(requests[0].body.thinking, { type: 'disabled' });
+    assert.equal(calls.deepseek_utility_calls, 1);
+    assert.equal(calls.gemini_utility_calls, 0);
+});
+
+test('T2C stable utility fallback reaches Gemini only after DeepSeek 429', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    process.env.LLM_FALLBACK = 'gemini';
+    const urls = [];
+    global.fetch = async (url, options) => {
+        urls.push(String(url));
+        if (String(url).includes('api.deepseek.com')) {
+            return { ok: false, status: 429, text: async () => 'rate limited' };
+        }
+        return {
+            ok: true,
+            status: 200,
+            json: async () => ({ candidates: [{ content: { parts: [{ text: 'Gemini fallback' }] } }] })
+        };
+    };
+
+    const result = await chat.callUtilityText({
+        prompt: 'dịch truy hồi', apiKey: 'gemini-test-key', maxOutputTokens: 64,
+        timeoutMs: 1000, deadlineAt: Date.now() + 1000
+    });
+
+    assert.equal(result, 'Gemini fallback');
+    assert.equal(urls.length, 2);
+    assert.match(urls[0], /api\.deepseek\.com/);
+    assert.match(urls[1], /generativelanguage\.googleapis\.com/);
 });
 
 test('T2C remaining deadline is capped per stage and fails after the request budget', () => {

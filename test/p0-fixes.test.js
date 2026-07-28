@@ -179,8 +179,8 @@ for (const failure of [401, 403, 429, 500, 'network']) {
 
         assert.equal(res.statusCode, 503);
         assert.equal(res.body.error, 'RATE_LIMIT_UNAVAILABLE');
-        // P1.4.1: reserve IP/ngày và tháng chạy song song — cả 2 counter đều bị đọc trước khi lỗi.
-        assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 2);
+        // Chỉ counter IP/ngày được đọc; không còn request tới counter tổng tháng.
+        assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 1);
         assert.equal(urls.some(url => /pinecone|generativelanguage|openai|cohere/i.test(url)), false);
     });
 }
@@ -205,8 +205,8 @@ test('rate-limit write failure returns 503 before any provider call', async () =
 
     assert.equal(res.statusCode, 503);
     assert.equal(res.body.error, 'RATE_LIMIT_UNAVAILABLE');
-    // P1.4.1: IP/ngày và tháng ghi song song, mỗi counter là 1 read + 1 write fail = 4 lời gọi.
-    assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 4);
+    // Một counter IP/ngày: 1 read + 1 write fail.
+    assert.equal(urls.filter(url => url.includes('quota.example.test')).length, 2);
     assert.equal(urls.some(url => /pinecone|generativelanguage|openai|cohere/i.test(url)), false);
 });
 
@@ -491,9 +491,7 @@ test('50 concurrent reservations stop exactly at daily IP quota', async () => {
     const results = await Promise.all(
         Array.from({ length: 50 }, () => reserveRateLimitQuota({
             fetchImpl: harness.fetch,
-            usageUrl: 'https://quota.example.test/usage/2026_06.json',
             ipUsageUrl: 'https://quota.example.test/usage_ips/2026_06_27/hash.json',
-            monthlyLimit: 3500,
             dailyIpLimit: 20,
             lastAccess,
         }))
@@ -502,11 +500,11 @@ test('50 concurrent reservations stop exactly at daily IP quota', async () => {
     assert.equal(results.filter(result => result.ok).length, 20);
     assert.equal(results.filter(result => !result.ok && result.reason === 'limit_exceeded' && result.scope === 'daily_ip').length, 30);
     assert.equal(results.some(result => result.reason === 'store_error'), false);
-    assert.equal(harness.state.usage.value, 20);
+    assert.equal(harness.state.usage.value, 0);
     assert.equal(harness.state.ip.value.count, 20);
 });
 
-test('50 concurrent reservations stop at monthly quota and rollback daily slot leaks', async () => {
+test('rate limiter does not reserve or enforce a global monthly quota', async () => {
     const { reserveRateLimitQuota } = require('../api/chat');
     const harness = createAtomicQuotaHarness();
     const lastAccess = '2026-06-27T10:00:00+07:00';
@@ -514,19 +512,16 @@ test('50 concurrent reservations stop at monthly quota and rollback daily slot l
     const results = await Promise.all(
         Array.from({ length: 50 }, () => reserveRateLimitQuota({
             fetchImpl: harness.fetch,
-            usageUrl: 'https://quota.example.test/usage/2026_06.json',
             ipUsageUrl: 'https://quota.example.test/usage_ips/2026_06_27/hash.json',
-            monthlyLimit: 7,
             dailyIpLimit: 100,
             lastAccess,
         }))
     );
 
-    assert.equal(results.filter(result => result.ok).length, 7);
-    assert.equal(results.filter(result => !result.ok && result.reason === 'limit_exceeded' && result.scope === 'monthly').length, 43);
+    assert.equal(results.filter(result => result.ok).length, 50);
     assert.equal(results.some(result => result.reason === 'store_error'), false);
-    assert.equal(harness.state.usage.value, 7);
-    assert.equal(harness.state.ip.value.count, 7);
+    assert.equal(harness.state.usage.value, 0);
+    assert.equal(harness.state.ip.value.count, 50);
 });
 
 test('OpenStreetMap attribution is enabled (ToS compliance)', () => {
@@ -1058,16 +1053,14 @@ test('P1.3.2: isAllowedOrigin only trusts x-forwarded-host fallback on Vercel pl
     delete process.env.VERCEL;
 });
 
-test('P1.4.1: reserveRateLimitQuota rolls back the succeeding counter when the other fails, running in parallel', async () => {
+test('P1.4.1: reserveRateLimitQuota rejects an IP that already reached its daily quota', async () => {
     const { reserveRateLimitQuota } = require('../api/chat');
     const harness = createAtomicQuotaHarness({ ip: { count: 20, last_access: null } });
     const lastAccess = '2026-07-02T10:00:00+07:00';
 
     const result = await reserveRateLimitQuota({
         fetchImpl: harness.fetch,
-        usageUrl: 'https://quota.example.test/usage/2026_07.json',
         ipUsageUrl: 'https://quota.example.test/usage_ips/2026_07_02/hash.json',
-        monthlyLimit: 3500,
         dailyIpLimit: 20,
         lastAccess,
     });
@@ -1075,37 +1068,26 @@ test('P1.4.1: reserveRateLimitQuota rolls back the succeeding counter when the o
     assert.equal(result.ok, false);
     assert.equal(result.reason, 'limit_exceeded');
     assert.equal(result.scope, 'daily_ip');
-    // Monthly counter phải được rollback về 0 vì IP-daily đã fail (chạy song song nên monthly
-    // reserve có thể đã thành công trước khi biết ip fail).
     assert.equal(harness.state.usage.value, 0);
+    assert.equal(harness.state.ip.value.count, 20);
 });
 
-test('P1.4.1: partial network failures roll back the counter that reserved successfully', async () => {
+test('P1.4.1: IP rate-limit storage failure fails closed without touching monthly usage', async () => {
     const { reserveRateLimitQuota } = require('../api/chat');
     const lastAccess = '2026-07-02T10:00:00+07:00';
+    const harness = createAtomicQuotaHarness();
+    const result = await reserveRateLimitQuota({
+        fetchImpl: async () => {
+            throw new Error('ip store unavailable');
+        },
+        ipUsageUrl: 'https://quota.example.test/usage_ips/2026_07_02/hash.json',
+        dailyIpLimit: 20,
+        lastAccess,
+    });
 
-    for (const failingScope of ['ip', 'usage']) {
-        const harness = createAtomicQuotaHarness();
-        const fetchImpl = async (url, options) => {
-            const isIpUrl = String(url).includes('/usage_ips/');
-            if ((failingScope === 'ip' && isIpUrl) || (failingScope === 'usage' && !isIpUrl)) {
-                throw new Error(`${failingScope} store unavailable`);
-            }
-            return harness.fetch(url, options);
-        };
-
-        const result = await reserveRateLimitQuota({
-            fetchImpl,
-            usageUrl: 'https://quota.example.test/usage/2026_07.json',
-            ipUsageUrl: 'https://quota.example.test/usage_ips/2026_07_02/hash.json',
-            monthlyLimit: 3500,
-            dailyIpLimit: 20,
-            lastAccess,
-        });
-
-        assert.equal(result.ok, false);
-        assert.equal(result.reason, 'store_error');
-        assert.equal(harness.state.usage.value, 0, `monthly quota leaked when ${failingScope} failed`);
-        assert.equal(harness.state.ip.value.count, 0, `daily quota leaked when ${failingScope} failed`);
-    }
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'store_error');
+    assert.equal(result.scope, 'daily_ip');
+    assert.equal(harness.state.usage.value, 0);
+    assert.equal(harness.state.ip.value.count, 0);
 });

@@ -14,10 +14,11 @@ function safeHTML(html) {
 }
 
 const CHATBOT_TEXT = {
-    assistantName: 'Trợ lý hỗ trợ pháp luật',
-    ready: 'Sẵn sàng hỗ trợ',
-    welcome: 'Xin chào! Tôi là Trợ lý ảo tư vấn tự động các thủ tục hành chính. Tôi có thể giúp gì cho bạn hôm nay?',
-    disclaimer: 'Nội dung tổng hợp bằng AI nên có thể có sai sót, vui lòng kiểm chứng lại thông tin.',
+    assistantName: 'Trợ lý tra cứu thủ tục và địa điểm',
+    ready: 'Hỗ trợ tra cứu tự động',
+    welcome: 'Xin chào! Tôi có thể giúp bạn tìm thủ tục hành chính phù hợp và địa điểm thực hiện gần nhất.',
+    instruction: 'Bạn chỉ cần mô tả thủ tục cần tìm; không cần nhập số CCCD, số điện thoại hoặc thông tin cá nhân.',
+    disclaimer: 'Nội dung được tổng hợp từ dữ liệu công khai. Vui lòng kiểm tra nguồn đính kèm trước khi thực hiện thủ tục.',
     placeholder: 'Nhập câu hỏi...',
     captchaPlaceholder: 'Vui lòng xác minh Turnstile trước...',
     recaptchaPending: 'Đang xác minh lại CAPTCHA...',

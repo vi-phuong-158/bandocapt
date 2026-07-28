@@ -29,6 +29,7 @@ const files = [
     'js/gemini.js',
     'js/lazy-features.js',
     'js/location-data.js',
+    'js/project-info.js',
     'js/tthc-catalog.js',
 ];
 
@@ -97,12 +98,12 @@ function buildStatic() {
 
     fs.writeFileSync(
         path.join(output, 'asset-manifest.json'),
-        JSON.stringify(Object.fromEntries(manifest), null, 2) + '\n',
-        'utf8'
+        JSON.stringify(Object.fromEntries(manifest), null, 2) + '\n'
     );
-    console.log(`Static artifact created: ${files.length} inputs, ${manifest.size} hashed assets in dist/`);
 }
 
-if (require.main === module) buildStatic();
+if (require.main === module) {
+    buildStatic();
+}
 
 module.exports = { buildStatic, contentHash, hashedRelativePath, replaceStaticReferences };
