@@ -317,7 +317,7 @@ test('headquarters with invalid coordinates are skipped instead of randomized', 
 test('DOMPurify is pinned to the patched CDN asset with matching SRI', () => {
     const loader = fs.readFileSync(path.join(ROOT, 'js', 'lazy-features.js'), 'utf8');
     const expected = 'https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.7/purify.min.js';
-    const integrity = 'sha384-6gdBb4YMPz19eGx6Wf1vmT47Jh7wZArqJc84JuA3BRnoZQwt/X5qLfIip51LgpB/';
+    const integrity = 'sha384-C5g1ZoYBpnvKyArNZI21kaBEk3egHOYfHj/cUOHmyJ7CSDMyNMyM+STqfkBt8m2Y';
 
     assert.match(loader, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
     assert.match(loader, new RegExp(integrity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));

@@ -126,7 +126,7 @@ The changes attributable to this task are `package.json`, `scripts/build-static.
 
 ### Bootstrap order
 
-1. Load Marked (SRI `sha384-H+hy9ULve6xfxRkWIh/YOtvDdpXgV2fmAGQkIDTxIgZwNoaoBal14Di2YTMR6MzR`) and DOMPurify (SRI `sha384-6gdBb4YMPz19eGx6Wf1vmT47Jh7wZArqJc84JuA3BRnoZQwt/X5qLfIip51LgpB/`) with `crossOrigin='anonymous'`.
+1. Load Marked (SRI `sha384-H+hy9ULve6xfxRkWIh/YOtvDdpXgV2fmAGQkIDTxIgZwNoaoBal14Di2YTMR6MzR`) and DOMPurify (SRI `sha384-C5g1ZoYBpnvKyArNZI21kaBEk3egHOYfHj/cUOHmyJ7CSDMyNMyM+STqfkBt8m2Y`) with `crossOrigin='anonymous'`.
 2. Load the unchanged `js/gemini.js`, then unchanged `js/chatbot.js`.
 3. Confirm `ChatbotUI.open`, open the UI, and send `BANDOCAPT_CHAT_READY`.
 4. Only then load Turnstile. A usable token plus enabled input sends one `BANDOCAPT_CHAT_CAPTCHA_READY`.

@@ -56,7 +56,7 @@
                     crossOrigin: 'anonymous',
                 }),
                 loadScript('https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.4.7/purify.min.js', {
-                    integrity: 'sha384-6gdBb4YMPz19eGx6Wf1vmT47Jh7wZArqJc84JuA3BRnoZQwt/X5qLfIip51LgpB/',
+                    integrity: 'sha384-C5g1ZoYBpnvKyArNZI21kaBEk3egHOYfHj/cUOHmyJ7CSDMyNMyM+STqfkBt8m2Y',
                     crossOrigin: 'anonymous',
                 }),
             ])

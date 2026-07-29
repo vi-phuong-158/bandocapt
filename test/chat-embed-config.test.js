@@ -78,7 +78,7 @@ test('UI_READY precedes Turnstile and CDN modules retain their SRI attributes', 
     const openedAt = fixture.loaded.findIndex(item => item.src === 'ChatbotUI.open');
     const turnstileAt = fixture.loaded.findIndex(item => item.src.includes('turnstile'));
     assert.equal(marked.integrity, 'sha384-H+hy9ULve6xfxRkWIh/YOtvDdpXgV2fmAGQkIDTxIgZwNoaoBal14Di2YTMR6MzR');
-    assert.equal(domPurify.integrity, 'sha384-6gdBb4YMPz19eGx6Wf1vmT47Jh7wZArqJc84JuA3BRnoZQwt/X5qLfIip51LgpB/');
+    assert.equal(domPurify.integrity, 'sha384-C5g1ZoYBpnvKyArNZI21kaBEk3egHOYfHj/cUOHmyJ7CSDMyNMyM+STqfkBt8m2Y');
     assert.equal(marked.crossOrigin, 'anonymous');
     assert.equal(domPurify.crossOrigin, 'anonymous');
     assert.ok(openedAt >= 0 && openedAt < turnstileAt);
