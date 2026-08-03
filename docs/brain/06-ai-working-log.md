@@ -2450,3 +2450,10 @@
 - **Kiểm tra:** `npm test` 341/341 PASS; `npm run build` sạch; `npx vercel dev --listen 3001 --yes`
   lên "Ready!" trong vài giây (trước đó treo vô thời hạn); `curl` xác nhận `/api/chat` đi qua
   handler thật.
+
+## [2026-08-03] Location intake Google Form
+- **Agent:** Codex
+- **Thay đổi:** Chuyển pipeline cập nhật địa điểm sang khóa `record_id` đa địa điểm/đơn vị; thêm validation allowlist, MIME, chống formula injection, Maps/toạ độ, audit và thu hồi ảnh. Bổ sung runtime Apps Script sinh từ nguồn logic chung, API allowlist công khai, UI/map/chatbot theo `services`, migration dry-run và tài liệu vận hành.
+- **File đã sửa:** `setup/apps-script.js`, `setup/location-intake/`, `scripts/build-location-intake-apps-script.js`, `scripts/migrate-published-locations.js`, `api/google-sheet.js`, `api/chat.js`, `js/location-data.js`, `js/chatbot.js`, `app.js`, `index.html`, `package.json`, test location/chat và `docs/location-intake/`.
+- **Lý do:** Một `unit_code` có thể có nhiều địa điểm; chỉ dữ liệu đã duyệt và thuộc schema công khai mới được hiển thị/tra cứu.
+- **Kiểm tra:** `npm.cmd test` đạt 343/343; `npm.cmd run build` đạt; Playwright đạt 19/19; `npm.cmd audit --omit=dev --audit-level=high` báo 12 high dependency vulnerabilities (một số không có bản vá), không tự nâng dependency ngoài phạm vi.
