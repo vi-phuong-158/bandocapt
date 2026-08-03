@@ -378,3 +378,35 @@ test('province name does not falsely match ward bareName (Phu Tho collision, #1)
     assert.equal(explicitWard.status, 'matched');
     assert.equal(explicitWard.matches[0].name, 'Công an Phường Phú Thọ');
 });
+
+test('citizen ID requests prefer an active eligible point and served_units can match a shared point', () => {
+    const dataset = {
+        cacheStatus: 'fresh',
+        locations: [
+            {
+                name: 'Công an phường Thanh Miếu', address: 'Địa chỉ trụ sở', phone: '0210', lat: 21.3, lng: 105.3,
+                googleMapsUrl: 'https://maps.example/police', services: ['POLICE_OFFICE'], cccdServiceMode: 'NOT_PROVIDED',
+                aliases: { fullName: 'cong an phuong thanh mieu', withoutCongAn: 'phuong thanh mieu', bareName: 'thanh mieu', approved: [] },
+            },
+            {
+                name: 'Điểm cấp căn cước liên phường', address: 'Địa chỉ CCCD', phone: '0211', lat: 21.301, lng: 105.301,
+                googleMapsUrl: 'https://maps.example/cccd', services: ['CITIZEN_ID'], cccdServiceMode: 'PERMANENT', servedUnits: 'Thanh Miếu|Bạch Hạc',
+                aliases: { fullName: 'diem cap can cuoc lien phuong', withoutCongAn: 'diem cap can cuoc lien phuong', bareName: 'diem cap can cuoc lien phuong', approved: ['thanh mieu', 'bach hac'] },
+            },
+        ], conflicts: [],
+    };
+    const result = findVerifiedLocationMatches('Điểm cấp căn cước ở Thanh Miếu', [], dataset);
+    assert.equal(result.status, 'matched');
+    assert.equal(result.matches[0].name, 'Điểm cấp căn cước liên phường');
+    assert.match(formatVerifiedLocationsPrompt(result, dataset), /DICH_VU=CITIZEN_ID/);
+});
+
+test('temporarily paused CCCD points carry a warning into the verified-location prompt', () => {
+    const result = {
+        lookupRequested: true, status: 'matched', matches: [{
+            name: 'Điểm CCCD', address: 'Địa chỉ', phone: '0210', lat: 21.3, lng: 105.3,
+            googleMapsUrl: 'https://maps.example/cccd', services: ['CITIZEN_ID'], cccdServiceMode: 'TEMPORARILY_PAUSED', servedUnits: '',
+        }],
+    };
+    assert.match(formatVerifiedLocationsPrompt(result, { cacheStatus: 'fresh' }), /TAM_DUNG/);
+});

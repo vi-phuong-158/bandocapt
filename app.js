@@ -19,6 +19,7 @@ const detailPhone = document.getElementById("detail-phone");
 const detailPhoneLink = document.getElementById("detail-phone-link");
 const detailHours = document.getElementById("detail-hours");
 const detailHoursContainer = document.getElementById("detail-hours-container");
+const detailServiceMeta = document.getElementById("detail-service-meta");
 const detailHero = document.getElementById("detail-hero");
 const detailImage = document.getElementById("detail-image");
 const actionDirections = document.getElementById("action-directions");
@@ -91,7 +92,7 @@ document
   .addEventListener("click", () => map.zoomOut());
 
 function createCustomIcon(loc) {
-  const isPolice = loc.type === "police_station";
+  const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
 
@@ -350,6 +351,52 @@ function renderLocationPreview(loc, isPolice) {
   previewDistance.hidden = !distance;
 }
 
+function serviceLabel(service) {
+  const labels = {
+    POLICE_OFFICE: "Trụ sở Công an",
+    CITIZEN_ID: "Cấp căn cước",
+    E_IDENTIFICATION: "Định danh điện tử",
+    RESIDENCE: "Cư trú",
+    VEHICLE_REGISTRATION: "Đăng ký xe",
+    DUTY: "Trực ban",
+    CRIME_REPORT: "Tiếp nhận tin báo",
+    OTHER: "Dịch vụ khác",
+  };
+  return labels[service] || service;
+}
+
+function siteTypeLabel(siteType) {
+  const labels = {
+    HEADQUARTERS: "Trụ sở",
+    SERVICE_POINT: "Điểm phục vụ",
+    MOBILE_POINT: "Điểm lưu động",
+  };
+  return labels[siteType] || siteType;
+}
+
+function cccdModeLabel(mode) {
+  const labels = {
+    ACTIVE: "Đang tiếp nhận",
+    TEMPORARILY_PAUSED: "Tạm dừng tiếp nhận",
+    NOT_PROVIDED: "Không cung cấp",
+    UNKNOWN: "Chưa xác minh",
+  };
+  return labels[mode] || mode;
+}
+
+function renderLocationServiceMeta(loc) {
+  if (!detailServiceMeta) return;
+  const rows = [];
+  if (loc.services?.length) {
+    rows.push(`<div><p class="text-[12px] text-textMuted font-medium mb-1.5">Dịch vụ tại địa điểm</p><div class="flex flex-wrap gap-1.5">${loc.services.map(service => `<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">${escapeHtml(serviceLabel(service))}</span>`).join("")}</div></div>`);
+  }
+  if (loc.siteType) rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Loại địa điểm:</span> ${escapeHtml(siteTypeLabel(loc.siteType))}</p>`);
+  if (loc.cccdServiceMode && loc.cccdServiceMode !== "NOT_PROVIDED" && loc.cccdServiceMode !== "UNKNOWN") rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Tiếp nhận căn cước:</span> ${escapeHtml(cccdModeLabel(loc.cccdServiceMode))}</p>`);
+  if (loc.servedUnits) rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Phục vụ:</span> ${escapeHtml(loc.servedUnits)}</p>`);
+  if (loc.verifiedAt) rows.push(`<p class="text-[12px] leading-relaxed text-textMuted">Xác minh: ${escapeHtml(loc.verifiedAt)}</p>`);
+  detailServiceMeta.innerHTML = rows.join("");
+}
+
 function isAllowedLocationImage(imageUrl) {
   if (!imageUrl) return false;
   try {
@@ -375,10 +422,10 @@ if (previousSelectedLocation && previousSelectedLocation.marker) {
     refreshLocationMarker(currentlySelectedLocation);
   }
 
-const isPolice = loc.type === "police_station";
+const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
   renderLocationPreview(loc, isPolice);
 
-detailBadge.textContent = isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD";
+detailBadge.textContent = loc.services?.includes("POLICE_OFFICE") && loc.services?.includes("CITIZEN_ID") ? "Trụ sở và điểm CCCD" : (isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD");
   detailBadge.className = isPolice
     ? "inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu"
     : "inline-block px-3 py-1.5 bg-accent/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 border border-amber-400/20 text-amber-50 shadow-lg transform-gpu";
@@ -435,15 +482,20 @@ if (isWeekday && (isMorning || isAfternoon)) {
   }
 
 const procedureNote =
-    loc.type === "id_center"
+    loc.cccdServiceMode === "TEMPORARILY_PAUSED"
+      ? `<div class="text-[13px] text-amber-800 mt-2.5 bg-amber-50 border border-amber-200/50 p-3 rounded-xl flex items-start gap-2 shadow-sm font-medium"><span class="material-symbols-outlined text-[18px] text-amber-600">info</span><span>Điểm cấp căn cước đang tạm dừng. Vui lòng liên hệ trước khi đến.</span></div>`
+      : loc.services?.includes("CITIZEN_ID")
       ? `<div class="text-[13px] text-amber-800 mt-2.5 bg-amber-50 border border-amber-200/50 p-3 rounded-xl flex items-start gap-2 shadow-sm font-medium">
         <span class="material-symbols-outlined text-[18px] text-amber-600">info</span>
         <span>Lưu ý: Người dân nhớ mang theo CCCD/CMND cũ hoặc Giấy khai sinh.</span>
        </div>`
       : "";
 
-detailHours.innerHTML = `<span class="${statusColor} font-bold">${statusText}</span> <span class="text-slate-300 mx-1.5">•</span> Sáng: 07h30-11h30 | Chiều: 13h00-16h30 ${procedureNote}`;
+detailHours.innerHTML = loc.serviceSchedule
+  ? `<span class="text-slate-600 font-medium">${escapeHtml(loc.serviceSchedule)}</span>${procedureNote}`
+  : `<span class="${statusColor} font-bold">${statusText}</span> <span class="text-slate-300 mx-1.5">•</span> Sáng: 07h30-11h30 | Chiều: 13h00-16h30 ${procedureNote}`;
   detailHoursContainer.style.display = "flex";
+  renderLocationServiceMeta(loc);
 
 if (loc._currentDistance != null) {
     detailDistanceText.textContent = formatDistance(loc._currentDistance);
@@ -550,11 +602,14 @@ if (!showNearby && nearbySpinner) {
 let visibleLocations = [];
 
 locations.forEach((loc) => {
-    const isPolice = loc.type === "police_station";
-    const matchesFilter = (isPolice && showPolice) || (!isPolice && showId);
+    const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
+    const isCccd = loc.services?.includes("CITIZEN_ID") || loc.type === "id_center";
+    const matchesFilter = (isPolice && showPolice) || (isCccd && showId);
     const matchesSearch =
       (loc._nameLower || loc.name.toLowerCase()).includes(searchTerm) ||
-      (loc._addressLower || loc.address.toLowerCase()).includes(searchTerm);
+      (loc._addressLower || loc.address.toLowerCase()).includes(searchTerm) ||
+      (loc._aliasesLower || "").includes(searchTerm) ||
+      (loc._servedUnitsLower || "").includes(searchTerm);
 
 if (matchesFilter && matchesSearch) {
       loc._visible = true;
@@ -615,7 +670,7 @@ function renderResultsList(results) {
 
 resultsList.innerHTML = results
     .map((loc) => {
-      const isPolice = loc.type === "police_station";
+      const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
       const distStr =
         loc._currentDistance != null
           ? loc._currentDistance < 1
@@ -873,9 +928,19 @@ const loc = {
         lat: item.lat,
         lng: item.lng,
         updatedAt: item.updatedAt,
+        siteType: item.siteType,
+        services: item.services,
+        googleMapsUrl: item.googleMapsUrl,
+        cccdServiceMode: item.cccdServiceMode,
+        serviceSchedule: item.serviceSchedule,
+        servedUnits: item.servedUnits,
+        status: item.status,
+        verifiedAt: item.verifiedAt,
         district: address,
         _nameLower: name.toLowerCase(),
         _addressLower: address.toLowerCase(),
+        _aliasesLower: (item.searchAliases || "").toLowerCase(),
+        _servedUnitsLower: (item.servedUnits || "").toLowerCase(),
       };
 
 const marker = L.marker([loc.lat, loc.lng], {
