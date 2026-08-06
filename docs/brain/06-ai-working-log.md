@@ -2404,3 +2404,32 @@
 - **Kiểm tra:** `npm test` 341/341 PASS lại sau khi sửa `package.json`; `npm run build` sạch,
   `output.css` được tái tạo lại đúng dạng minified (bản `--watch` không minify từ lần thử
   `vercel dev` trước đó bị phát hiện và phục hồi bằng `npm run build:css`).
+
+## [2026-08-06] Sửa vercel dev treo vĩnh viễn ở "Creating initial build"
+- **Agent:** Claude Code (Sonnet 5)
+- **Nguyên nhân:** Dự án không có framework front-end (`framework: null`) và không khai
+  `devCommand`. Khi đó Vercel CLI 58.7.1 tự suy đoán `npm run dev` (script watch Tailwind
+  `--watch`, không bao giờ tự thoát) làm dev command, khiến `vercel dev` treo vô thời hạn ngay ở
+  bước "Creating initial build" — không có lỗi, không có timeout, chỉ đứng im. Xác nhận qua tài
+  liệu chính thức Vercel ("Development Command... Nếu chọn 'Other', dev command mặc định rỗng")
+  và thảo luận cộng đồng `vercel/vercel#4637` (cùng triệu chứng, cùng nguyên nhân).
+- **Đã thử và loại:** Dev command dạng lệnh chạy-rồi-thoát (`echo ...`) — CLI bản 58.7.1 báo lỗi
+  "Dev command ... exited with code 0" vì bắt buộc tiến trình phải sống liên tục. Dev command
+  inline `node -e "..."` — bị nuốt/hỏng do quy tắc quote lồng nhau của shell Windows, cũng thoát
+  ngay ở exit code 0 dù script tự nó đúng cú pháp khi chạy trực tiếp.
+- **Quyết định:** Thêm `scripts/vercel-dev-fallback.js` — HTTP server tối giản chỉ `listen(PORT)`
+  và trả 404, không phục vụ logic gì; mục đích DUY NHẤT là giữ tiến trình sống để Vercel CLI hài
+  lòng. `vercel.json` khai `"devCommand": "node scripts/vercel-dev-fallback.js"`. Xác minh: `npx
+  vercel dev` in "Ready! Available at ..." trong vài giây; `curl -X POST /api/chat` trả đúng lỗi
+  validate thật từ handler thật (`BAD_REQUEST: userMessage is required.`), header CSP/CORS từ
+  `vercel.json` đều có — chứng minh route `/api/*` đi qua server thật, không phải fallback.
+- **Giới hạn đã biết, không sửa (nằm ngoài yêu cầu "chỉ sửa treo"):** `vercel dev` không tự phục
+  vụ file tĩnh cục bộ (`GET /` trả 404, rơi vào fallback) — có vẻ do `outputDirectory: "dist"`
+  không được `vercel dev` tự động build/nhận dạng khi dev. Không phải hồi quy: luồng dev đã được
+  tài liệu hoá từ trước ở `05-testing-and-deploy.md` là mở `index.html` trực tiếp (không qua
+  `vercel dev`), và `js/gemini.js` `getApiUrl()` đã tự trỏ sang `http://localhost:3000/api/chat`
+  khi `location.protocol === 'file:'` — đúng luồng này vẫn hoạt động bình thường.
+- **File đã sửa:** `vercel.json`, `scripts/vercel-dev-fallback.js`, `docs/brain/05-testing-and-deploy.md`.
+- **Kiểm tra:** `npm test` 341/341 PASS; `npm run build` sạch; `npx vercel dev --listen 3001 --yes`
+  lên "Ready!" trong vài giây (trước đó treo vô thời hạn); `curl` xác nhận `/api/chat` đi qua
+  handler thật.

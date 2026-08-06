@@ -1,6 +1,7 @@
 {
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "devCommand": "node scripts/vercel-dev-fallback.js",
   "functions": {
     "api/chat.js": {
       "maxDuration": 60

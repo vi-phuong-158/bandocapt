@@ -61,7 +61,13 @@ npm run dev
 ```bash
 npx vercel dev
 ```
-Truy cập: `http://localhost:3000`
+Truy cập: `http://localhost:3000`. Dự án không có framework front-end nên `vercel.json` khai
+`devCommand` trỏ tới `scripts/vercel-dev-fallback.js` (server rỗng, chỉ giữ tiến trình sống).
+Không được để trống hoặc trỏ vào `npm run dev` — đó là lệnh watch CSS không bao giờ thoát, khiến
+Vercel CLI tự suy đoán nhầm nó là dev command và treo vĩnh viễn ở bước "Creating initial build".
+`vercel dev` chỉ phục vụ đúng `/api/*`; frontend tĩnh vẫn phải mở trực tiếp như trên
+(`js/gemini.js` tự trỏ `getApiUrl()` sang `http://localhost:3000/api/chat` khi `location.protocol
+=== 'file:'`).
 
 **Lưu ý quan trọng:** Các biến môi trường Vercel phải được pull về local:
 ```bash
