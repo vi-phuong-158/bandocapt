@@ -15,7 +15,7 @@
 | Ban do | Leaflet.js 1.9.4 + Leaflet.markercluster 1.5.3 + OpenStreetMap tiles |
 | LLM / Chat | DeepSeek V4 Flash (streaming SSE); Gemini chỉ fallback ổn định khi DeepSeek HTTP 429/5xx |
 | Embedding / RAG | Gemini Embedding 001 + Pinecone vector DB |
-| Backend API | Vercel Serverless Functions (Node.js 24.x theo `.vercel/project.json`, CommonJS) + `@vercel/functions` `waitUntil`; CI gác cổng bằng đúng Node 24 |
+| Backend API | Vercel Serverless Functions (Node.js 24.x — pin ở `.nvmrc` và `package.json` `engines.node`, CommonJS) + `@vercel/functions` `waitUntil`; CI gác cổng bằng đúng Node 24. Production/preview trên Vercel: xác minh qua API `GET /v9/projects/{id}` — `nodeVersion: "24.x"` (2026-08-06) |
 | System prompt | Hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`) |
 | Du lieu tru so | Google Sheets `Published_Locations` qua helper + proxy |
 | Telemetry | Firebase Firestore + Firebase Realtime DB fallback |

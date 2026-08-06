@@ -16,8 +16,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          # Khớp runtime production trên Vercel (.vercel/project.json: nodeVersion 24.x).
-          # Gác cổng bằng phiên bản khác với nơi chạy thật thì cổng đó không có giá trị.
+          # Đồng bộ với Node.js 24.x được dự án sử dụng cho local (.nvmrc, package.json
+          # engines.node) và production. Gác cổng bằng phiên bản khác với nơi chạy thật
+          # thì cổng đó không có giá trị.
           node-version: 24
           cache: npm
       - run: npm ci
