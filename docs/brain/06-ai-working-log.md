@@ -2365,7 +2365,42 @@
   động bấm Dừng. Không đổi RAG/Pinecone/provider/prompt/output-validator/Turnstile/rate
   limit/`vercel.json`/`maxDuration` theo đúng phạm vi yêu cầu.
 - **Kiểm tra:** `npm test` 341/341 PASS; `npm run build` sạch (`check:syntax` qua hết,
-  `dist/asset-manifest.json` sinh lại đầy đủ). Chưa chạy smoke test thủ công trên trình duyệt
-  thật (Vercel dev cần `.env.local` với key thật, ngoài phạm vi phiên làm việc này) — hành vi
-  mới nên được xác nhận thêm bằng smoke test theo checklist ở `05-testing-and-deploy.md` trước
-  khi merge `main`.
+  `dist/asset-manifest.json` sinh lại đầy đủ).
+
+## [2026-08-06] Smoke test heartbeat/abort trên trình duyệt thật — 4/4 kịch bản đạt
+- **Agent:** Claude Code (Sonnet 5)
+- **Thay đổi:** `package.json` `engines.node` từ `20.x` lên `24.x` — giá trị cũ lệch với
+  `.vercel/project.json` (`nodeVersion: "24.x"`) và CI vừa nâng lên Node 24, khiến `vercel dev`
+  fail cứng "The engine node is incompatible" ngay bước build đầu tiên. Không đổi hành vi
+  runtime, chỉ đồng bộ khai báo phiên bản.
+- **Phát hiện phụ (không sửa, chỉ ghi nhận):** `npx vercel dev` bị treo vô thời hạn ở bước
+  "Creating initial build" vì tự chạy `npm run dev` (Tailwind `--watch`, không bao giờ thoát)
+  thay vì chỉ serve API + static — có vẻ do zero-config detection nhầm dự án có dev server
+  riêng. Chưa rõ nguyên nhân gốc/khắc phục dứt điểm; nếu cần `vercel dev` thật, cân nhắc đặt
+  `devCommand` tường minh trong Vercel project settings hoặc `vercel.json`.
+- **Cách xác minh:** Vì `vercel dev` không dùng được và `.env.local`/`.env` pulled về máy này
+  chỉ có tên biến, giá trị các key nhạy cảm (GEMINI_API_KEY, DEEPSEEK_API_KEY, PINECONE_API_KEY,
+  TURNSTILE_SECRET_KEY, CHAT_LOG_HASH_SALT) đều rỗng — dựng server độc lập mount thẳng
+  `api/chat.js`/`api/feedback.js` thật (handler kiểu Vercel `(req,res)`), ép `NODE_ENV=development`
+  (`.env.local` có `VERCEL_ENV="production"` từ lần pull production khiến gate `CHAT_LOG_HASH_SALT`
+  kích hoạt oan ở local), và mock riêng `fetch` cho `streamGenerateContent`/`embedContent` của
+  Gemini để mô phỏng độ trễ thật có kiểm soát — toàn bộ còn lại (RAG skip qua fail-open sẵn có,
+  rate limit qua `EVAL_BYPASS_TOKEN` khớp `localhost-bypass` mà `js/chatbot.js` tự gửi, Turnstile
+  qua nhánh `NODE_ENV==='development'` có sẵn) là hành vi PRODUCTION thật, không phải stub riêng.
+- **Kết quả 4/4 kịch bản (mở qua Browser thật, không phải giả lập):**
+  1. **Luồng bình thường:** `status:generating` → `text` → `done` đầy đủ `fullText`/`history`/
+     `sources`/`verifiedLocations`/`finishReason`, render đúng trên DOM.
+  2. **Phản hồi chậm (heartbeat):** mock giữ output-validator chờ đủ câu trong ~20 giây liên tục
+     (vượt xa mốc 15s cũ) — log server xác nhận **5 heartbeat** `status:generating` cách nhau
+     đúng ~5s trước khi đoạn văn bản đã buffer được phát ra; request hoàn tất bình thường, không
+     có timeout giả nào xảy ra.
+  3. **Bấm Dừng trước khi có chữ:** bubble hiện "Đã dừng phản hồi.", KHÔNG có class lỗi đỏ,
+     network request thấy `net::ERR_ABORTED` phía client.
+  4. **Bấm Dừng sau khi đã có một phần chữ:** giữ đúng câu đã nhận ("Đây là câu đầu tiên đã hoàn
+     chỉnh."), thêm notice "Phản hồi đã được dừng trước khi hoàn tất.", không có action bar (không
+     bị coi là câu trả lời hoàn chỉnh), không có class lỗi đỏ.
+- **File đã sửa:** `package.json`. (Harness smoke-test độc lập chỉ tồn tại trong thư mục scratchpad
+  phiên làm việc, không thuộc repo.)
+- **Kiểm tra:** `npm test` 341/341 PASS lại sau khi sửa `package.json`; `npm run build` sạch,
+  `output.css` được tái tạo lại đúng dạng minified (bản `--watch` không minify từ lần thử
+  `vercel dev` trước đó bị phát hiện và phục hồi bằng `npm run build:css`).
