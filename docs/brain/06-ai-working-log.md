@@ -1,5 +1,22 @@
 # 06 — AI Working Log
 
+## [2026-08-06] Sửa flaky test e2e "external procedure deep-link replaces stale list context"
+- **Agent:** Claude Code
+- **Thay đổi:** Thêm `await expect(firstRow).toBeVisible()` trước khi click hàng đầu tiên trong
+  `#tthc-catalog-list .tthc-row`, ở 2 test có pattern "gõ tìm kiếm → Enter → click ngay hàng đầu" mà
+  trước đó chỉ dựa vào auto-wait ngầm của `.click()`: test "external procedure deep-link replaces stale
+  list context" (dòng flaky trên CI) và test "catalog mobile detail keeps summary readable..." (cùng
+  pattern, chưa lộ flaky nhưng cùng rủi ro).
+- **File đã sửa:** `test/e2e/tthc-catalog.spec.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** CI báo fail ngắt quãng tại dòng chờ `.tthc-row` sau khi nhấn Enter — danh sách kết quả
+  chưa render kịp; chạy lại đúng job (không đổi code) thì pass, chạy tại chỗ pass 6/6. Đã đọc
+  `js/tthc-catalog.js`: ô tìm kiếm KHÔNG debounce, `filterBySearch`/`renderListView` chạy đồng bộ ngay
+  trong handler `submit` — nên nguyên nhân không phải debounce mà là biên độ chờ mỏng giữa lúc
+  `ensureCatalogLoaded()` (fetch async) hoàn tất + render xong và lúc `.click()` tự hết kiên nhẫn trên
+  runner CI tải cao. Test khác cùng file dùng pattern gõ-rồi-click (dòng ~37-43) đã an toàn sẵn vì có
+  `await expect(targetRow).toHaveCount(1)` trước khi click.
+- **Kiểm tra:** `npx playwright test test/e2e/tthc-catalog.spec.js` — 6/6 PASS tại chỗ.
+
 ## [2026-08-06] Sửa lỗi chatbot báo "Câu hỏi này không phù hợp" cho câu hỏi hợp lệ
 - **Agent:** Claude Code
 - **Thay đổi:** (1) Thêm `buildDeepSeekChatPayload()` dựng payload chat DeepSeek dùng chung cho lượt stream

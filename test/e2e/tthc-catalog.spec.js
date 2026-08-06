@@ -69,7 +69,9 @@ test('catalog mobile detail keeps summary readable above persistent navigation',
 
     await page.fill('#tthc-catalog-search', 'Việc nộp hồ sơ đăng ký cư trú');
     await page.locator('#tthc-catalog-search').press('Enter');
-    await page.locator('#tthc-catalog-list .tthc-row').first().click();
+    const firstRow = page.locator('#tthc-catalog-list .tthc-row').first();
+    await expect(firstRow).toBeVisible();
+    await firstRow.click();
 
     await expect(page.locator('.tthc-summary-grid')).toBeVisible();
     await expect(page.locator('.tthc-summary-grid .tthc-sum')).toHaveCount(4);
@@ -84,7 +86,9 @@ test('external procedure deep-link replaces stale list context', async ({ page }
 
     await page.fill('#tthc-catalog-search', 'hộ chiếu');
     await page.locator('#tthc-catalog-search').press('Enter');
-    await page.locator('#tthc-catalog-list .tthc-row').first().click();
+    const firstRow = page.locator('#tthc-catalog-list .tthc-row').first();
+    await expect(firstRow).toBeVisible();
+    await firstRow.click();
     await page.locator('#tthc-catalog-close-btn').click();
 
     await page.evaluate(title => window.TthcCatalog.openByTitle(title), 'Cấp đổi giấy chứng nhận căn cước');
