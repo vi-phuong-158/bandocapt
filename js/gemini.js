@@ -114,19 +114,30 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk, 
     if (captchaToken) requestBody.captchaToken = captchaToken;
 
     const controller = new AbortController();
-    const requestTimeoutId = setTimeout(() => controller.abort(), 60000);
+    // Phân loại lý do abort để không quy mọi trường hợp về TIMEOUT chung chung — người dùng
+    // chủ động dừng, mất tín hiệu server (idle) và hết ngân sách tổng request là 3 tình huống
+    // khác nhau. Timer đến sau KHÔNG được ghi đè nguyên nhân đã ghi nhận trước đó.
+    let abortReason = null;
+    const abortWithReason = reason => {
+        if (!abortReason) abortReason = reason;
+        controller.abort();
+    };
+    // 65s: đệm sau maxDuration/deadline backend (60s/55s) để không huỷ đúng lúc server sắp
+    // trả xong; không đổi ngân sách xử lý thực tế phía backend.
+    const requestTimeoutId = setTimeout(() => abortWithReason('request_timeout'), 65000);
     let idleTimeoutId = null;
     const resetIdleTimeout = () => {
         clearTimeout(idleTimeoutId);
-        idleTimeoutId = setTimeout(() => controller.abort(), 15000);
+        // 25s: heartbeat backend 5s/lần liên tục reset mốc này nên chỉ kết nối treo thật mới chạm.
+        idleTimeoutId = setTimeout(() => abortWithReason('idle_timeout'), 25000);
     };
 
     // Wire external signal — cho phép caller huỷ stream (nút Stop).
     if (signal) {
         if (signal.aborted) {
-            controller.abort();
+            abortWithReason('user_cancelled');
         } else {
-            signal.addEventListener('abort', () => controller.abort(), { once: true });
+            signal.addEventListener('abort', () => abortWithReason('user_cancelled'), { once: true });
         }
     }
 
@@ -248,9 +259,14 @@ async function callGeminiStream(userMessage, conversationHistory = [], onChunk, 
 
     } catch (err) {
         if (err.name === 'AbortError') {
-            // Trả partial text nếu đã nhận được một phần — chatbot.js sẽ hiển thị với notice "gián đoạn".
+            // Trả partial text nếu đã nhận được một phần — chatbot.js sẽ hiển thị với notice "gián đoạn"
+            // (hoặc notice "đã dừng" riêng khi UI biết đây là stop chủ động, xem activeAbortMode).
             if (fullText) return { ok: false, error: 'STREAM_ERROR', partialText: fullText };
-            return { ok: false, error: 'TIMEOUT' };
+            if (abortReason === 'user_cancelled') return { ok: false, error: 'USER_CANCELLED' };
+            if (abortReason === 'idle_timeout') return { ok: false, error: 'IDLE_TIMEOUT' };
+            if (abortReason === 'request_timeout') return { ok: false, error: 'REQUEST_TIMEOUT' };
+            // AbortError không rõ nguyên nhân (vd môi trường huỷ ngoài 3 timer trên) — fallback an toàn.
+            return { ok: false, error: 'REQUEST_TIMEOUT' };
         }
         if (err.name === 'TypeError' && err.message.includes('fetch')) {
             return { ok: false, error: 'NETWORK_ERROR' };
@@ -310,6 +326,7 @@ function getErrorMessage(errorCode, lang = 'vi') {
             'INVALID_KEY': '❌ API Key không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại.',
             'RATE_LIMIT': '⏳ Rất xin lỗi, hiện tại đang có quá nhiều người truy cập nên hệ thống tạm thời quá tải. <br><br>Bạn hãy dùng thử <a href="https://notebooklm.google.com/notebook/03f2338f-f7f7-4adf-aba3-52b93672b484" target="_blank" class="px-2 py-1 bg-green-100 text-green-800 rounded font-bold hover:bg-green-200 transition-colors inline-block mt-1">Sổ tay AI</a> để tiếp tục câu hỏi nhé!',
             'BLOCKED_CONTENT': '🚫 Câu hỏi này không phù hợp. Vui lòng hỏi về các quy định pháp luật, thủ tục hành chính.',
+            'EMPTY_RESPONSE': '🔄 Hệ thống chưa soạn xong câu trả lời cho câu hỏi này. Bạn vui lòng gửi lại câu hỏi giúp mình nhé.',
             'NETWORK_ERROR': '📡 Lỗi kết nối mạng. Vui lòng kiểm tra internet và thử lại.',
             'SERVICE_UNAVAILABLE': '🔧 Dịch vụ Gemini AI tạm thời không khả dụng. Vui lòng thử lại sau.',
             'NO_RESPONSE': '🤔 Không nhận được phản hồi từ AI. Vui lòng thử lại.',
@@ -322,6 +339,7 @@ function getErrorMessage(errorCode, lang = 'vi') {
             'INVALID_KEY': '❌ 유효하지 않거나 만료된 API Key입니다.',
             'RATE_LIMIT': '⏳ 죄송합니다. 현재 접속자가 많아 시스템이 지연되고 있습니다. <br><br>대신 <a href="https://notebooklm.google.com/notebook/03f2338f-f7f7-4adf-aba3-52b93672b484" target="_blank" class="px-2 py-1 bg-green-100 text-green-800 rounded font-bold hover:bg-green-200 transition-colors inline-block mt-1">AI 수첩 (Sổ tay AI)</a>을 사용하여 질문을 계속해 주세요!',
             'BLOCKED_CONTENT': '🚫 이 질문에는 답변할 수 없습니다. 출입국 관련 법률에 대해 질문해 주세요.',
+            'EMPTY_RESPONSE': '🔄 아직 답변을 완성하지 못했습니다. 질문을 다시 보내 주시기 바랍니다.',
             'NETWORK_ERROR': '📡 네트워크 오류. 인터넷 연결을 확인해 주세요.',
             'SERVICE_UNAVAILABLE': '🔧 서비스를 일시적으로 사용할 수 없습니다.',
             'STREAM_ERROR': '⚠️ 연결이 중단되었습니다. 다시 시도해 주세요.',
@@ -333,6 +351,7 @@ function getErrorMessage(errorCode, lang = 'vi') {
             'INVALID_KEY': '❌ Invalid or expired API Key. Please check and re-enter.',
             'RATE_LIMIT': '⏳ We apologize, but our system is currently experiencing high traffic. <br><br>Please try our <a href="https://notebooklm.google.com/notebook/03f2338f-f7f7-4adf-aba3-52b93672b484" target="_blank" class="px-2 py-1 bg-green-100 text-green-800 rounded font-bold hover:bg-green-200 transition-colors inline-block mt-1">AI Notebook (Sổ tay AI)</a> to continue your questions!',
             'BLOCKED_CONTENT': '🚫 This question is not within scope. Please ask about immigration or exit-entry regulations.',
+            'EMPTY_RESPONSE': '🔄 The system could not finish composing an answer. Please send your question again.',
             'NETWORK_ERROR': '📡 Network error. Please check your internet connection.',
             'SERVICE_UNAVAILABLE': '🔧 Gemini AI is temporarily unavailable. Please try again later.',
             'STREAM_ERROR': '⚠️ Connection interrupted. Please try again.',
@@ -344,6 +363,7 @@ function getErrorMessage(errorCode, lang = 'vi') {
             'INVALID_KEY': '❌ API Key 无效或已过期。请检查后重新输入。',
             'RATE_LIMIT': '⏳ 非常抱歉，目前访问人数过多，系统暂时繁忙。<br><br>请尝试使用我们的 <a href="https://notebooklm.google.com/notebook/03f2338f-f7f7-4adf-aba3-52b93672b484" target="_blank" class="px-2 py-1 bg-green-100 text-green-800 rounded font-bold hover:bg-green-200 transition-colors inline-block mt-1">AI 笔记本 (Sổ tay AI)</a> 继续提问！',
             'BLOCKED_CONTENT': '🚫 此问题不在服务范围内。请询问有关法律法规的问题。',
+            'EMPTY_RESPONSE': '🔄 系统尚未生成完整答复。请重新发送您的问题。',
             'NETWORK_ERROR': '📡 网络错误。请检查您的网络连接。',
             'SERVICE_UNAVAILABLE': '🔧 Gemini AI 服务暂时不可用。请稍后重试。',
             'STREAM_ERROR': '⚠️ 连接中断。请重试。',
@@ -361,3 +381,7 @@ window.GeminiAI = {
     sendFeedback: callSendFeedback,
     getError: getErrorMessage
 };
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports.__test = { callGeminiStream };
+}

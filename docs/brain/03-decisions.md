@@ -1,5 +1,32 @@
 # 03 — Technical Decisions
 
+## [2026-08-06] Tắt reasoning ở generation DeepSeek + tách EMPTY_RESPONSE khỏi BLOCKED_CONTENT
+
+- **Bối cảnh:** Người dùng báo chatbot trả "Câu hỏi này không phù hợp…" cho câu hỏi hoàn toàn hợp lệ
+  ("thủ tục cấp căn cước công dân"). Tái hiện bằng handler thật: DeepSeek trả HTTP 200 nhưng toàn bộ
+  output nằm ở `reasoning_content`, `delta.content` rỗng suốt → `rawText` rỗng → gắn nhãn
+  `BLOCKED_CONTENT`. Đo 20 lượt hỏi thật: 1 lỗi cứng + 3 câu trả lời bị cắt cụt.
+- **Nguyên nhân:** Quyết định [2026-07-23] chỉ tắt `thinking` cho payload **utility**; payload
+  **generation** bị bỏ sót nên reasoning vẫn tiêu chung ngân sách `max_tokens: 3072` với câu trả lời.
+  Cộng thêm hai nhánh cứu khi stream rỗng đều bị chặn cứng cho DeepSeek (`!useDeepSeek`,
+  `provider !== 'deepseek'`), mà chế độ strict lại không có provider kế tiếp → không còn đường lui nào.
+- **Quyết định:** (1) `buildDeepSeekChatPayload()` dựng payload chat DeepSeek cho cả stream lẫn
+  non-stream và **luôn gửi `thinking: { type: 'disabled' }`** — đồng bộ với utility call. (2) Stream rỗng
+  chữ thì thử lại non-stream ĐÚNG provider đó, sau đó mới sang `providerOrder` kế tiếp nếu có;
+  không hardcode tên provider ở hai nhánh này nữa. (3) `classifyEmptyGenerationError()` chỉ trả
+  `BLOCKED_CONTENT` khi provider nói rõ là chặn (`promptFeedback.blockReason`, finishReason
+  `SAFETY`/`PROHIBITED_CONTENT`/`BLOCKLIST`/`content_filter`); còn lại là `EMPTY_RESPONSE` với thông điệp
+  "hệ thống chưa soạn xong câu trả lời" ở cả 4 ngôn ngữ.
+- **Giữ nguyên chính sách strict:** Vì nhánh (2) đi theo `providerOrder`, chế độ strict
+  (`LLM_PRIMARY=deepseek`, không đặt `LLM_FALLBACK`) vẫn KHÔNG rời DeepSeek sang Gemini — đúng ràng buộc
+  của quyết định [2026-07-23]. Muốn có đường lui phải bật rõ `LLM_FALLBACK=gemini`.
+- **Kiểm chứng:** Cùng bộ 20 lượt hỏi thật, sau sửa: 0 lỗi, 0 cắt cụt (trước: 1 lỗi, 3 cắt cụt). Câu hỏi
+  trong ảnh người dùng báo lỗi: 5/5 lượt trả lời tốt (trước: 1/5 lượt lỗi). Độ trễ giảm còn 6–9s vì
+  không đốt token vào reasoning. 8 test mới ở `test/chat-empty-response.test.js`.
+- **Đánh đổi:** Tắt reasoning có thể làm giảm chất lượng suy luận nhiều bước; chấp nhận được vì câu trả
+  lời phải bám `<retrieved_documents>` chứ không tự suy diễn, và ngân sách 3072 token vốn dành cho câu
+  trả lời. Nếu sau này cần bật lại reasoning thì phải tách ngân sách riêng, không dùng chung `max_tokens`.
+
 ## [2026-07-23] Giai đoạn 1 — DeepSeek-primary, Gemini chỉ embedding
 
 - **Quyết định:** Khi có `DEEPSEEK_API_KEY`, `api/chat.js` mặc định dùng `deepseek-v4-flash` cho generation

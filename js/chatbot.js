@@ -28,6 +28,8 @@ const CHATBOT_TEXT = {
     copied: 'Đã chép',
     copy: 'Sao chép',
     interrupted: 'Phản hồi bị gián đoạn trước khi hoàn tất. Nội dung phía trên có thể chưa đầy đủ.',
+    stopped: 'Đã dừng phản hồi.',
+    stoppedPartial: 'Phản hồi đã được dừng trước khi hoàn tất.',
     feedbackGood: 'Phản hồi hữu ích',
     feedbackBad: 'Báo cáo câu trả lời',
     feedbackThanks: 'Cảm ơn phản hồi của bạn!',
@@ -62,6 +64,9 @@ const CHATBOT_ERROR_MESSAGES = {
     RATE_LIMIT: 'Rất xin lỗi, hiện tại hệ thống đang có nhiều lượt truy cập. Vui lòng thử lại sau.',
     RATE_LIMIT_EXCEEDED: 'Rất xin lỗi, hệ thống đã đạt giới hạn lượt hỏi trong ngày/tháng. Vui lòng thử lại sau.',
     BLOCKED_CONTENT: 'Câu hỏi này không phù hợp. Vui lòng hỏi về các quy định pháp luật hoặc thủ tục hành chính.',
+    // Model không sinh ra chữ nào (hết ngân sách token / dừng bất thường) — lỗi phía hệ thống,
+    // không phải câu hỏi sai, nên tuyệt đối không dùng lại thông điệp của BLOCKED_CONTENT.
+    EMPTY_RESPONSE: 'Hệ thống chưa soạn xong câu trả lời cho câu hỏi này. Bạn vui lòng gửi lại câu hỏi giúp mình nhé.',
     CAPTCHA_FAILED: 'Xác minh CAPTCHA thất bại. Vui lòng thử lại.',
     INVALID_TOKEN: 'Request token không hợp lệ hoặc đã hết hạn. Vui lòng tải lại trang và thử lại.',
     MISSING_TOKEN: 'Thiếu request token. Vui lòng tải lại trang và thử lại.',
@@ -69,6 +74,10 @@ const CHATBOT_ERROR_MESSAGES = {
     SERVICE_UNAVAILABLE: 'Dịch vụ AI tạm thời không khả dụng. Vui lòng thử lại sau.',
     NO_RESPONSE: 'Không nhận được phản hồi từ AI. Vui lòng thử lại.',
     STREAM_ERROR: 'Kết nối bị gián đoạn. Vui lòng thử lại.',
+    USER_CANCELLED: 'Đã dừng phản hồi.',
+    IDLE_TIMEOUT: 'Kết nối với hệ thống bị gián đoạn quá lâu. Vui lòng thử lại.',
+    REQUEST_TIMEOUT: 'Hệ thống chưa hoàn tất phản hồi trong thời gian cho phép. Vui lòng thử lại.',
+    // Giữ TIMEOUT để tương thích ngược (fallback cũ) — luồng mới ưu tiên 3 mã cụ thể ở trên.
     TIMEOUT: 'Phản hồi quá lâu. Vui lòng thử lại.',
     DEFAULT: 'Có lỗi xảy ra. Vui lòng thử lại.'
 };
@@ -752,6 +761,15 @@ async function handleChatSend() {
             appendSources(bubble, result.sources);
             appendVerifiedLocations(bubble, result.verifiedLocations);
             appendQuickReplies(row, result.fullText || rawText);
+        } else if (activeAbortMode === 'stop' || result.error === 'USER_CANCELLED') {
+            // Người dùng chủ động bấm Dừng — không phải lỗi hệ thống: không khung đỏ, không
+            // thông báo timeout. Không lưu vào chatHistory (chỉ nhánh result.ok mới lưu).
+            if (result.partialText) {
+                renderMarkdown(result.partialText, content);
+                appendNotice(bubble, CHATBOT_TEXT.stoppedPartial);
+            } else {
+                content.textContent = CHATBOT_TEXT.stopped;
+            }
         } else {
             bubble.classList.add('ai-chat-bubble--error');
             if (result.partialText) {
@@ -932,7 +950,9 @@ if (typeof module !== 'undefined' && module.exports) {
         formatSourceDate,
         isChatModalViewport,
         syncChatWindowPresentation,
-        detectQuickReplies
+        detectQuickReplies,
+        getChatErrorMessage,
+        CHATBOT_TEXT
     };
 }
 

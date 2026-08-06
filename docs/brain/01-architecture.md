@@ -345,9 +345,14 @@ Biến mới (2026-07-12):
   Bật + đo `--majority` (0 hard fail mới, 100% ca thiếu RAG từ chối đúng) trước khi coi là mặc định.
 
 Biến mới (2026-07-13):
-- `LLM_PRIMARY` / `LLM_FALLBACK`: thứ tự provider generation. Mặc định Gemini; DeepSeek chỉ được thử lại
-  trước chunk hợp lệ đầu tiên khi lỗi timeout/429/5xx/network/block. Thiếu key hoặc cấu hình không hợp lệ
-  thì provider đó bị bỏ qua.
+- `LLM_PRIMARY` / `LLM_FALLBACK`: thứ tự provider generation. **Từ 2026-07-28 (commit `e126799`): có
+  `DEEPSEEK_API_KEY` thì mặc định là DeepSeek và KHÔNG có fallback ngầm** — `LLM_FALLBACK` không đặt thì
+  `providerOrder` chỉ còn một phần tử. Muốn Gemini đỡ lưng phải đặt rõ `LLM_FALLBACK=gemini` (chế độ
+  stable). Provider chỉ được đổi trước chunk hợp lệ đầu tiên, khi lỗi timeout/429/5xx/network — riêng
+  DeepSeek→Gemini chỉ cho 429/5xx. Thiếu key hoặc cấu hình không hợp lệ thì provider đó bị bỏ qua.
+- Stream kết thúc mà không có chữ nào (2026-08-06): thử lại non-stream **đúng provider đó** một lần, rồi
+  mới sang provider kế tiếp nếu `providerOrder` còn phần tử. Vẫn rỗng thì trả `EMPTY_RESPONSE`;
+  `BLOCKED_CONTENT` chỉ dành cho ca provider nói rõ là chặn (xem `classifyEmptyGenerationError`).
 - `CHAT_REQUEST_DEADLINE_MS`: deadline chung của request, mặc định `55000`, phải thấp hơn Vercel
   `maxDuration` 60s. Mỗi stage dùng `min(stage cap, thời gian còn lại)` và hủy fetch/stream khi hết hạn.
 

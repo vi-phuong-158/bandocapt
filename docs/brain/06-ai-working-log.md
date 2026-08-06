@@ -1,5 +1,37 @@
 # 06 — AI Working Log
 
+## [2026-08-06] Sửa lỗi chatbot báo "Câu hỏi này không phù hợp" cho câu hỏi hợp lệ
+- **Agent:** Claude Code
+- **Thay đổi:** (1) Thêm `buildDeepSeekChatPayload()` dựng payload chat DeepSeek dùng chung cho lượt stream
+  và lượt non-stream, **luôn gửi `thinking: { type: 'disabled' }`** — trước đây chỉ utility call tắt
+  reasoning, nhánh generation bỏ sót nên reasoning ăn hết `max_tokens: 3072` và không sinh ra chữ nào.
+  (2) Viết lại hai nhánh cứu khi stream rỗng chữ: thử lại non-stream đúng provider đang dùng, rồi mới sang
+  provider kế tiếp trong `providerOrder` (bỏ hardcode `!useDeepSeek` / `provider !== 'deepseek'` vốn khoá
+  chặt cả hai đường lui khi DeepSeek là provider duy nhất). (3) Thêm `classifyEmptyGenerationError()`:
+  `BLOCKED_CONTENT` chỉ dành cho ca provider nói rõ là chặn, còn lại trả mã mới `EMPTY_RESPONSE` kèm thông
+  điệp "hệ thống chưa soạn xong câu trả lời" cho cả vi/ko/en/zh. (4) Lượt cứu non-stream giữ nguyên
+  finish reason của provider khi chạm trần token, để `wasTruncatedByTokenLimit` vẫn nối được câu chốt.
+- **File đã sửa:** `api/chat.js`, `js/chatbot.js`, `js/gemini.js`, `test/chat-empty-response.test.js` (mới),
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Người dùng báo chatbot từ chối câu "thủ tục cấp căn cước công dân" bằng thông điệp đổ lỗi cho
+  người hỏi. Thực tế DeepSeek trả HTTP 200 với `delta.content` rỗng (toàn bộ output nằm ở
+  `reasoning_content`), không hề có safety filter nào kích hoạt. Lỗi xuất hiện từ commit `e126799`
+  (2026-07-28) khi DeepSeek thành provider mặc định và fallback ngầm sang Gemini bị bỏ.
+- **Kiểm tra:** `node --test test/chat-empty-response.test.js` (9 PASS, phủ cả strict mode không rời
+  DeepSeek lẫn ca Gemini bị chặn thật vẫn giữ `BLOCKED_CONTENT`); toàn bộ 33 file test chạy theo nhóm:
+  **341 PASS / 0 FAIL**; `npm run check:syntax` (PASS). Đo bằng
+  API thật qua handler production, 10 câu hỏi × 2 ngữ cảnh (có/không lịch sử hội thoại): **trước sửa 1 lỗi
+  cứng + 3 câu trả lời cắt cụt / 20 lượt → sau sửa 0/0/20 lượt đều tốt**. Riêng câu hỏi người dùng báo
+  lỗi, chạy 5 lượt có lịch sử: trước sửa hỏng 1/5, sau sửa 5/5 tốt, độ trễ giảm còn 6–9s.
+- **Bật stable mode ở env local:** thêm `LLM_FALLBACK=gemini` vào `.env` (không commit — `.gitignore`
+  chặn `.env*`), `getChatProviderOrder()` nay trả `["deepseek","gemini"]`, chat thật vẫn chạy đúng
+  (2 lượt, 4 nguồn, không lỗi). Biến này đỡ cho cả utility (`getUtilityProviderOrder`) chứ không riêng
+  generation — đã ghi chú vào `docs/brain/05-testing-and-deploy.md`.
+- **Bật stable mode trên Vercel (được người dùng đồng ý rõ):** `LLM_FALLBACK` vốn ĐÃ tồn tại trên project
+  `bandocapt` cho `production,preview` nhưng là `type=sensitive` nên không đọc lại được giá trị cũ (cả API
+  lẫn dashboard). Đã PATCH giá trị thành `gemini` qua Vercel API, giữ nguyên type và target. Giá trị cũ
+  không lưu lại được — nếu cần rollback thì phải ghi đè bằng giá trị mong muốn, không có bản sao.
+  **Chỉ có hiệu lực từ lần deploy kế tiếp, và bản sửa code ở trên vẫn CHƯA được commit/deploy.**
 ## [2026-07-28] Loại bỏ liên kết Báo Phú Thọ dư thừa ở Footer
 - **Agent:** Gemini
 - **Thay đổi:** Xóa nút/liên kết Báo Phú Thọ ở Footer chân trang bảng tìm kiếm; nút "Thông tin công trình" hiển thị full-width. Liên kết Báo Phú Thọ chính thức vẫn duy trì đầy đủ trong Modal "Thông tin công trình".

@@ -38,7 +38,10 @@ NODE_ENV=development
 CHAT_DAILY_IP_LIMIT=50
 RAG_FAIL_CLOSED=0
 LLM_PRIMARY=deepseek
-# Strict default: không đặt LLM_FALLBACK. Stable: LLM_FALLBACK=gemini (chỉ DeepSeek HTTP 429/5xx).
+# Strict default: không đặt LLM_FALLBACK. Stable: LLM_FALLBACK=gemini — DeepSeek HTTP 429/5xx, và (từ
+# 2026-08-06) cả khi DeepSeek trả 200 nhưng không sinh ra chữ nào. Env local đã bật stable.
+# LƯU Ý: LLM_FALLBACK là giá trị đỡ cho CẢ utility (xem getUtilityProviderOrder) — đặt nó thì utility
+# cũng có Gemini dự phòng, trừ khi đặt riêng LLM_UTILITY_FALLBACK bằng một giá trị không hợp lệ.
 LLM_UTILITY_PRIMARY=deepseek
 # Strict default: không đặt LLM_UTILITY_FALLBACK. Stable: LLM_UTILITY_FALLBACK=gemini.
 # GEMINI_UTILITY_MODEL=gemini-flash-lite-latest  # chỉ dùng khi rollback utility sang Gemini
