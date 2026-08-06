@@ -1,5 +1,38 @@
 # 03 — Technical Decisions
 
+## [2026-08-06] Heartbeat SSE + phân loại nguyên nhân abort thay vì mã TIMEOUT chung
+
+- **Bối cảnh:** Chatbot thỉnh thoảng hiện "Phản hồi quá lâu. Vui lòng thử lại." dù backend vẫn xử lý
+  bình thường. Điều tra cho thấy nhiều nguyên nhân khác nhau bị quy về cùng 1 mã `TIMEOUT`: frontend
+  huỷ sau 60s tổng, huỷ sau 15s không nhận thêm dữ liệu SSE, người dùng bấm nút Dừng, và backend vẫn
+  đang buffer đến ranh giới câu cho output-validator (không phát gì trong lúc đó) khiến idle timeout
+  15s dễ chạm dù server không hề treo. Bốn giới hạn thời gian (`CHAT_REQUEST_DEADLINE_MS` 55s, frontend
+  total 60s, Vercel `maxDuration` 60s, frontend idle 15s) cũng nằm sát nhau, gần như không có đệm.
+- **Quyết định:**
+  1. `api/chat.js`: thêm `startSseHeartbeat(res, intervalMs=5000)` — phát lại event `status:generating`
+     đã có sẵn (không tạo protocol mới) mỗi 5s trong lúc chờ generation, KHÔNG đi qua output-validator vì
+     không phải nội dung câu trả lời. Dừng sạch ở mọi điểm thoát (`BLOCKED_CONTENT`, `done`, catch ngoài
+     cùng) cộng listener `close`/`finish` và kiểm tra phòng vệ `writableEnded`/`destroyed` trước mỗi write.
+  2. `js/gemini.js`: thêm `abortReason` (giữ nguyên lý do đầu tiên, timer đến sau không ghi đè). Timeout
+     tổng 60s → 65s (đệm sau `maxDuration`/deadline backend, KHÔNG đổi ngân sách xử lý thực tế phía
+     backend). Idle timeout 15s → 25s (heartbeat 5s/lần liên tục reset nên chỉ kết nối treo thật mới
+     chạm). External signal (nút Dừng) map thành `user_cancelled`. `catch` trả đúng 1 trong
+     `USER_CANCELLED`/`IDLE_TIMEOUT`/`REQUEST_TIMEOUT`, ưu tiên `STREAM_ERROR`+`partialText` nếu đã có
+     nội dung (giữ hành vi cũ). Giữ `TIMEOUT` cũ chỉ để tương thích ngược, luồng mới không phát mã này.
+  3. `js/chatbot.js`: khi biết chắc là người dùng chủ động dừng (`activeAbortMode==='stop'` hoặc
+     `result.error==='USER_CANCELLED'`) thì KHÔNG gắn khung lỗi đỏ và KHÔNG dùng thông điệp timeout —
+     hiện "Đã dừng phản hồi." hoặc giữ `partialText` kèm notice trung tính.
+- **Không đổi:** RAG/Pinecone/provider/`LLM_PRIMARY`/`LLM_FALLBACK`/rerank/system prompt/output-validator/
+  Turnstile/Firebase rate limit/`vercel.json`/`maxDuration`. Backend deadline vẫn 55s như cũ.
+- **Đánh đổi:** Idle timeout 25s nghĩa là kết nối treo THẬT (server chết hẳn, không còn heartbeat) sẽ mất
+  tới 25s mới báo lỗi thay vì 15s trước đây — chấp nhận được vì trường hợp phổ biến hơn nhiều là server
+  vẫn sống nhưng đang buffer, và heartbeat giúp phân biệt rõ hai tình huống này thay vì đoán mò qua timer.
+- **Kiểm chứng:** `npm test` 341/341 PASS (`test/chat-sse-heartbeat.test.js`,
+  `test/gemini-stream-abort.test.js` 10 ca theo đặc tả, `test/chatbot-abort-messages.test.js`). `npm run
+  build` sạch. Chưa chạy smoke test trình duyệt thật trong phiên này (cần key thật ngoài phạm vi).
+- **Người quyết định:** user (giao đặc tả chi tiết) / Claude Code (Sonnet 5) triển khai, user tiếp tục vá
+  thêm `EMPTY_RESPONSE` (xem entry ngay dưới) và làm cứng bộ test tránh flaky giữa Node 20/24.
+
 ## [2026-08-06] Tắt reasoning ở generation DeepSeek + tách EMPTY_RESPONSE khỏi BLOCKED_CONTENT
 
 - **Bối cảnh:** Người dùng báo chatbot trả "Câu hỏi này không phù hợp…" cho câu hỏi hoàn toàn hợp lệ

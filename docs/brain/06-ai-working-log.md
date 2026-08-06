@@ -2316,3 +2316,56 @@
 - **File đã sửa:** `presentation/build_poster.js`, `presentation/asset/poster-bg-ai-20260722.png`, `presentation/asset/poster-qr-bandocapt.png`, `presentation/Ban-do-Cong-an-so-Phu-Tho-poster-A3.png`, `docs/brain/06-ai-working-log.md`.
 - **Lý do:** Cung cấp ấn phẩm truyền thông quét mã nhanh cho công trình thanh niên chào mừng ra mắt Câu lạc bộ Đổi mới sáng tạo Công an tỉnh Phú Thọ.
 - **Kiểm tra:** Chạy `node presentation/build_poster.js`; kiểm tra kích thước A3 3508×4961 px ở 300 dpi và xác nhận QR trỏ trực tiếp URL production trước khi ghép poster.
+
+## [2026-08-06] Vá timeout giả trong luồng chatbot: heartbeat SSE + phân loại abort
+- **Agent:** Claude Code (Sonnet 5), tiếp nối và hoàn thiện bởi user (vi-phuong-158)
+- **Thay đổi:**
+  - `api/chat.js`: thêm helper thuần `startSseHeartbeat(res, intervalMs=5000)` — phát định kỳ
+    `data: {"status":"generating"}` (event trạng thái đã có sẵn từ P3.1, không chứa nội dung
+    câu trả lời) trong lúc backend vẫn đang chờ Gemini/DeepSeek hoặc buffer đến ranh giới câu
+    cho output-validator. Gắn heartbeat ngay sau khi mở SSE và trước vòng đọc stream chính;
+    dừng sạch (`clearInterval`) tại mọi điểm thoát: `BLOCKED_CONTENT`, event `done`, và nhánh
+    catch ngoài cùng; đồng thời tự dừng qua listener `res.on('close'|'finish')` và kiểm tra
+    phòng vệ `res.writableEnded`/`res.destroyed` trước mỗi lần `write()`.
+  - `js/gemini.js`: thêm `abortReason` + helper `abortWithReason()` (giữ nguyên lý do đầu
+    tiên, timer đến sau không ghi đè). Timeout tổng 60s → 65s (đệm sau maxDuration/deadline
+    backend), idle timeout 15s → 25s (heartbeat 5s/lần liên tục reset). External signal (nút
+    Dừng) map thành `user_cancelled`. Nhánh `AbortError` trong `catch` trả `STREAM_ERROR` +
+    `partialText` nếu đã có nội dung; nếu không, trả đúng 1 trong
+    `USER_CANCELLED`/`IDLE_TIMEOUT`/`REQUEST_TIMEOUT` theo `abortReason` (fallback
+    `REQUEST_TIMEOUT` nếu không xác định được). Giữ `TIMEOUT` cũ chỉ để tương thích ngược.
+  - `js/chatbot.js`: thêm text `stopped`/`stoppedPartial` và mã lỗi
+    `USER_CANCELLED`/`IDLE_TIMEOUT`/`REQUEST_TIMEOUT` trong `CHATBOT_ERROR_MESSAGES`. Khi
+    `activeAbortMode === 'stop'` hoặc `result.error === 'USER_CANCELLED'`: không gắn class lỗi
+    đỏ, hiện "Đã dừng phản hồi." (chưa có text) hoặc giữ `partialText` + notice "Phản hồi đã
+    được dừng trước khi hoàn tất." (đã có text) — không coi đây là lỗi timeout, không lưu vào
+    `chatHistory` như phản hồi hoàn chỉnh (nhánh này vốn đã không lưu).
+  - Test mới: `test/chat-sse-heartbeat.test.js` (helper thuần: phát định kỳ, dừng sạch khi
+    finish/close/writableEnded, `stop()` idempotent trên mock không phải EventEmitter, cộng 1
+    test hồi quy luồng thành công qua handler thật không phát heartbeat thừa),
+    `test/gemini-stream-abort.test.js` (10 ca theo đặc tả: user cancel tức thời/đã aborted
+    trước khi gọi, idle timeout 25s, heartbeat liên tục reset idle qua 25s, request timeout
+    tổng 65s dù có heartbeat, partial text ưu tiên `STREAM_ERROR`, user cancel không bị timer
+    ghi đè, luồng thành công không hồi quy), `test/chatbot-abort-messages.test.js` (mapping
+    thông điệp UI). User sau đó thay `flushRealAsyncSetup()` đếm cứng vòng `setImmediate`
+    (flaky khác nhau giữa Node 20/24 vì tốc độ hoàn tất `crypto.subtle` HMAC khác nhau) bằng
+    `waitForFetchCall()` chờ đúng mốc `fetch()` đã được gọi qua cờ `fetchCalled`, và nâng CI
+    `.github/workflows/ci.yml` lên Node 24 khớp runtime production trên Vercel.
+  - Song song, user tự phát hiện và vá `EMPTY_RESPONSE` (DeepSeek trả HTTP 200 nhưng đưa hết
+    output vào `reasoning_content`, `delta.content` rỗng khiến handler gắn nhầm nhãn
+    `BLOCKED_CONTENT`) trong cùng nhánh — xem chi tiết message commit `fa7e528`, không thuộc
+    phạm vi yêu cầu ban đầu của task này nhưng nằm chung file/hunk nên gộp cùng đợt vá.
+- **File đã sửa:** `api/chat.js`, `js/gemini.js`, `js/chatbot.js`, `test/chat-sse-heartbeat.test.js`,
+  `test/gemini-stream-abort.test.js`, `test/chatbot-abort-messages.test.js`,
+  `.github/workflows/ci.yml`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Chatbot thỉnh thoảng hiện "Phản hồi quá lâu. Vui lòng thử lại." dù backend vẫn
+  đang xử lý bình thường — nguyên nhân là 4 giới hạn thời gian gần sát nhau
+  (`CHAT_REQUEST_DEADLINE_MS` 55s, frontend total 60s, Vercel `maxDuration` 60s, frontend idle
+  15s) cộng với việc mọi nhánh abort đều quy về cùng 1 mã `TIMEOUT`, kể cả khi người dùng chủ
+  động bấm Dừng. Không đổi RAG/Pinecone/provider/prompt/output-validator/Turnstile/rate
+  limit/`vercel.json`/`maxDuration` theo đúng phạm vi yêu cầu.
+- **Kiểm tra:** `npm test` 341/341 PASS; `npm run build` sạch (`check:syntax` qua hết,
+  `dist/asset-manifest.json` sinh lại đầy đủ). Chưa chạy smoke test thủ công trên trình duyệt
+  thật (Vercel dev cần `.env.local` với key thật, ngoài phạm vi phiên làm việc này) — hành vi
+  mới nên được xác nhận thêm bằng smoke test theo checklist ở `05-testing-and-deploy.md` trước
+  khi merge `main`.

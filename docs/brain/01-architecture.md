@@ -72,7 +72,7 @@ bandocapt/
 | `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker/cluster, preview vi tri mobile | `index.html`, `js/app-navigation.js` | `js/location-data.js`, `api/google-sheet.js`, `data.js`, Leaflet.markercluster |
 | `data.js` | Fallback tinh cho map khi Google Sheets loi | `app.js` | - |
 | `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check, doc them `search_aliases` neu co | `app.js`, `lib/published-locations.js`, test | - |
-| `js/gemini.js` | Goi `POST /api/chat` (parse SSE stream) va `POST /api/feedback` (`sendFeedback`); ky HMAC dung chung qua `signRequestToken` | `js/chatbot.js` | `api/chat.js`, `api/feedback.js` |
+| `js/gemini.js` | Goi `POST /api/chat` (parse SSE stream) va `POST /api/feedback` (`sendFeedback`); ky HMAC dung chung qua `signRequestToken`. (2026-08-06) Phan loai abort qua `abortReason`: `USER_CANCELLED`/`IDLE_TIMEOUT` (25s)/`REQUEST_TIMEOUT` (65s), uu tien `STREAM_ERROR`+`partialText` neu da co noi dung | `js/chatbot.js` | `api/chat.js`, `api/feedback.js` |
 | `js/lazy-features.js` | Nap chat/catalog khi click/hover; pin SRI marked/DOMPurify, nap Turnstile sau chat, giu proxy deep-link `TthcCatalog`; loi tai hien thong bao retryable cho nguoi dung | `index.html` | `js/gemini.js`, `js/chatbot.js`, `js/tthc-catalog.js` |
 | `js/chatbot.js` | UI chat, toggle panel, render stream; doi catalog/index de resolve deeplink theo ID -> title/alias, hien trang thai neu catalog thieu; dung `verifiedLocations` tao link chi duong hoac thong bao thieu toa do; action bar 👍/👎 + form bao cao | `js/lazy-features.js` | `js/gemini.js`, `window.TthcCatalog` |
 | `js/tthc-catalog.js` | UI danh muc TTHC duyet 2 tang (3 view): home search-first + luoi 17 linh vuc gom 4 cum -> danh sach thu tuc/ket qua tim kiem (hang chia dong) -> chi tiet (tom tat + note phi + accordion). `parseProcedureSections`/`classifySection` nhan CA nhan TTHC ("Ho so:") lan nhan wiki danh so cua guide ("15.1. Trinh tu:"). Public `resolveProcedureId`/`openProcedure`/`openByTitle` giu nguyen (deep-link tu chat mo thang chi tiet); chi warm index nhe, catalog day du chi fetch khi mo panel | `js/lazy-features.js`, `js/chatbot.js`, `js/app-navigation.js` | `data/tthc-index.json`, `data/tthc-catalog.json` |
@@ -86,7 +86,7 @@ bandocapt/
 | `api/feedback.js` | Serverless nhan bao cao/phan hoi nguoi dung ve cau tra loi chatbot; tai dung CORS/HMAC/sanitize tu helper chung; rate limit best-effort IP/ngay + ghi `chat_feedback/<date_key>` tren RTDB voi TTL | `js/gemini.js` | `lib/request-security.js`, Firebase RTDB |
 | `scripts/read-feedback.js` | Doc `chat_feedback/<date_key>` tu RTDB, in bao cao theo ngay (loc `--down`) de admin ra soat | Developer / cron | Firebase RTDB, `.env` |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
-| `api/chat.js` | Serverless chinh: xac thuc, rate limit atomic chi theo IP/ngay (khong quota tong ngay/thang), RAG Pinecone; Gemini chi mot request embedding/cau hoi RAG, DeepSeek V4 Flash sinh cau tra loi va utility (rewrite/dich/rerank/tom tat/groundedness, utility tat thinking); strict default khong fallback, stable chi DeepSeek 429/5xx -> Gemini; T2C deadline/telemetry; stream model da validator | `js/gemini.js` | Pinecone, Gemini/DeepSeek, Firebase, `@vercel/functions`, `data/tthc-catalog.json`, `lib/published-locations.js`, `lib/request-security.js` |
+| `api/chat.js` | Serverless chinh: xac thuc, rate limit atomic chi theo IP/ngay (khong quota tong ngay/thang), RAG Pinecone; Gemini chi mot request embedding/cau hoi RAG, DeepSeek V4 Flash sinh cau tra loi va utility (rewrite/dich/rerank/tom tat/groundedness, utility tat thinking); strict default khong fallback, stable chi DeepSeek 429/5xx -> Gemini; T2C deadline/telemetry; stream model da validator. (2026-08-06) `startSseHeartbeat()` phat `status:generating` moi 5s trong luc cho generation, tranh client tu huy do idle timeout gia | `js/gemini.js` | Pinecone, Gemini/DeepSeek, Firebase, `@vercel/functions`, `data/tthc-catalog.json`, `lib/published-locations.js`, `lib/request-security.js` |
 | `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live, mac dinh gom `tthc_*` + `guide_*` co noi dung (loc guide rong/noi bo), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
 | `scripts/scrape-phutho-tthc.js` | Thu thap tuan tu 18 linh vuc/chi tiet TTHC Cong an Phu Tho; sinh snapshot co hash + CSV doi chieu 39 record HIGH, khong tu dong approved/ghi Pinecone | Developer / nguoi duyet T3.3 | `https://congan.phutho.gov.vn/TTHC.aspx`, `data/corpus-governance-draft.csv` |
 | `scripts/generate-phutho-xa-review.js` | Loc day du 43 muc cap xa tu snapshot; doi chieu corpus cu, de xuat tao moi/cap nhat/loai va sinh CSV + Markdown de nguoi dung duyet | Developer / nguoi duyet T3.3 mo rong | `data/tthc-phutho-source.json`, `data/corpus-governance-draft.csv` |
@@ -235,10 +235,17 @@ Headers bat buoc:
 
 SSE response events:
 
-- `{ "status": "generating" }` (P3.1: phát 1 lần sau khâu truy hồi, trước token đầu — client đổi nhãn typing "Đang tra cứu…" → "Đang soạn trả lời…"; client cũ bỏ qua an toàn)
+- `{ "status": "generating" }` (P3.1: phát lần đầu sau khâu truy hồi, trước token đầu — client đổi nhãn typing "Đang tra cứu…" → "Đang soạn trả lời…"; client cũ bỏ qua an toàn). **(2026-08-06) Sau lần đầu, cùng event này được `startSseHeartbeat()` phát lại định kỳ 5s/lần trong suốt lúc backend chờ Gemini/DeepSeek hoặc buffer đến ranh giới câu cho output-validator** — heartbeat không mang nội dung câu trả lời, chỉ giữ kết nối sống và liên tục reset idle timeout phía client; dừng sạch khi response finish/close/error.
 - `{ "text": "chunk" }`
 - `{ "done": true, "fullText": "...", "history": [...], "sources": [...], "verifiedLocations": [{ "name": "...", "address": "...", "mapsUrl": "..." }] }`
 - `{ "error": "..." }`
+
+**(2026-08-06) Phân loại timeout/abort phía client (`js/gemini.js`):** không còn quy mọi abort về
+1 mã `TIMEOUT` chung. `callGeminiStream` trả `USER_CANCELLED` (nút Dừng hoặc external signal),
+`IDLE_TIMEOUT` (25s không nhận thêm dữ liệu — heartbeat liên tục reset mốc này), `REQUEST_TIMEOUT`
+(hết ngân sách tổng 65s), hoặc `STREAM_ERROR` kèm `partialText` nếu đã nhận được một phần nội dung
+trước khi bị abort (ưu tiên cao nhất, bất kể lý do abort). Mã `TIMEOUT` cũ vẫn được giữ trong
+`js/chatbot.js` chỉ để tương thích ngược, luồng mới không còn phát mã này.
 
 `verifiedLocations` chi co khi matcher `Published_Locations` tim thay tru so da xac minh. Client dung truong
 nay de tao deeplink Google Maps, khong phu thuoc model co tu viet URL trong cau tra loi hay khong. `mapsUrl`
