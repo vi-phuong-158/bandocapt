@@ -1,5 +1,65 @@
 # 03 — Technical Decisions
 
+## [2026-08-06] Heartbeat SSE + phân loại nguyên nhân abort thay vì mã TIMEOUT chung
+
+- **Bối cảnh:** Chatbot thỉnh thoảng hiện "Phản hồi quá lâu. Vui lòng thử lại." dù backend vẫn xử lý
+  bình thường. Điều tra cho thấy nhiều nguyên nhân khác nhau bị quy về cùng 1 mã `TIMEOUT`: frontend
+  huỷ sau 60s tổng, huỷ sau 15s không nhận thêm dữ liệu SSE, người dùng bấm nút Dừng, và backend vẫn
+  đang buffer đến ranh giới câu cho output-validator (không phát gì trong lúc đó) khiến idle timeout
+  15s dễ chạm dù server không hề treo. Bốn giới hạn thời gian (`CHAT_REQUEST_DEADLINE_MS` 55s, frontend
+  total 60s, Vercel `maxDuration` 60s, frontend idle 15s) cũng nằm sát nhau, gần như không có đệm.
+- **Quyết định:**
+  1. `api/chat.js`: thêm `startSseHeartbeat(res, intervalMs=5000)` — phát lại event `status:generating`
+     đã có sẵn (không tạo protocol mới) mỗi 5s trong lúc chờ generation, KHÔNG đi qua output-validator vì
+     không phải nội dung câu trả lời. Dừng sạch ở mọi điểm thoát (`BLOCKED_CONTENT`, `done`, catch ngoài
+     cùng) cộng listener `close`/`finish` và kiểm tra phòng vệ `writableEnded`/`destroyed` trước mỗi write.
+  2. `js/gemini.js`: thêm `abortReason` (giữ nguyên lý do đầu tiên, timer đến sau không ghi đè). Timeout
+     tổng 60s → 65s (đệm sau `maxDuration`/deadline backend, KHÔNG đổi ngân sách xử lý thực tế phía
+     backend). Idle timeout 15s → 25s (heartbeat 5s/lần liên tục reset nên chỉ kết nối treo thật mới
+     chạm). External signal (nút Dừng) map thành `user_cancelled`. `catch` trả đúng 1 trong
+     `USER_CANCELLED`/`IDLE_TIMEOUT`/`REQUEST_TIMEOUT`, ưu tiên `STREAM_ERROR`+`partialText` nếu đã có
+     nội dung (giữ hành vi cũ). Giữ `TIMEOUT` cũ chỉ để tương thích ngược, luồng mới không phát mã này.
+  3. `js/chatbot.js`: khi biết chắc là người dùng chủ động dừng (`activeAbortMode==='stop'` hoặc
+     `result.error==='USER_CANCELLED'`) thì KHÔNG gắn khung lỗi đỏ và KHÔNG dùng thông điệp timeout —
+     hiện "Đã dừng phản hồi." hoặc giữ `partialText` kèm notice trung tính.
+- **Không đổi:** RAG/Pinecone/provider/`LLM_PRIMARY`/`LLM_FALLBACK`/rerank/system prompt/output-validator/
+  Turnstile/Firebase rate limit/`vercel.json`/`maxDuration`. Backend deadline vẫn 55s như cũ.
+- **Đánh đổi:** Idle timeout 25s nghĩa là kết nối treo THẬT (server chết hẳn, không còn heartbeat) sẽ mất
+  tới 25s mới báo lỗi thay vì 15s trước đây — chấp nhận được vì trường hợp phổ biến hơn nhiều là server
+  vẫn sống nhưng đang buffer, và heartbeat giúp phân biệt rõ hai tình huống này thay vì đoán mò qua timer.
+- **Kiểm chứng:** `npm test` 341/341 PASS (`test/chat-sse-heartbeat.test.js`,
+  `test/gemini-stream-abort.test.js` 10 ca theo đặc tả, `test/chatbot-abort-messages.test.js`). `npm run
+  build` sạch. Chưa chạy smoke test trình duyệt thật trong phiên này (cần key thật ngoài phạm vi).
+- **Người quyết định:** user (giao đặc tả chi tiết) / Claude Code (Sonnet 5) triển khai, user tiếp tục vá
+  thêm `EMPTY_RESPONSE` (xem entry ngay dưới) và làm cứng bộ test tránh flaky giữa Node 20/24.
+
+## [2026-08-06] Tắt reasoning ở generation DeepSeek + tách EMPTY_RESPONSE khỏi BLOCKED_CONTENT
+
+- **Bối cảnh:** Người dùng báo chatbot trả "Câu hỏi này không phù hợp…" cho câu hỏi hoàn toàn hợp lệ
+  ("thủ tục cấp căn cước công dân"). Tái hiện bằng handler thật: DeepSeek trả HTTP 200 nhưng toàn bộ
+  output nằm ở `reasoning_content`, `delta.content` rỗng suốt → `rawText` rỗng → gắn nhãn
+  `BLOCKED_CONTENT`. Đo 20 lượt hỏi thật: 1 lỗi cứng + 3 câu trả lời bị cắt cụt.
+- **Nguyên nhân:** Quyết định [2026-07-23] chỉ tắt `thinking` cho payload **utility**; payload
+  **generation** bị bỏ sót nên reasoning vẫn tiêu chung ngân sách `max_tokens: 3072` với câu trả lời.
+  Cộng thêm hai nhánh cứu khi stream rỗng đều bị chặn cứng cho DeepSeek (`!useDeepSeek`,
+  `provider !== 'deepseek'`), mà chế độ strict lại không có provider kế tiếp → không còn đường lui nào.
+- **Quyết định:** (1) `buildDeepSeekChatPayload()` dựng payload chat DeepSeek cho cả stream lẫn
+  non-stream và **luôn gửi `thinking: { type: 'disabled' }`** — đồng bộ với utility call. (2) Stream rỗng
+  chữ thì thử lại non-stream ĐÚNG provider đó, sau đó mới sang `providerOrder` kế tiếp nếu có;
+  không hardcode tên provider ở hai nhánh này nữa. (3) `classifyEmptyGenerationError()` chỉ trả
+  `BLOCKED_CONTENT` khi provider nói rõ là chặn (`promptFeedback.blockReason`, finishReason
+  `SAFETY`/`PROHIBITED_CONTENT`/`BLOCKLIST`/`content_filter`); còn lại là `EMPTY_RESPONSE` với thông điệp
+  "hệ thống chưa soạn xong câu trả lời" ở cả 4 ngôn ngữ.
+- **Giữ nguyên chính sách strict:** Vì nhánh (2) đi theo `providerOrder`, chế độ strict
+  (`LLM_PRIMARY=deepseek`, không đặt `LLM_FALLBACK`) vẫn KHÔNG rời DeepSeek sang Gemini — đúng ràng buộc
+  của quyết định [2026-07-23]. Muốn có đường lui phải bật rõ `LLM_FALLBACK=gemini`.
+- **Kiểm chứng:** Cùng bộ 20 lượt hỏi thật, sau sửa: 0 lỗi, 0 cắt cụt (trước: 1 lỗi, 3 cắt cụt). Câu hỏi
+  trong ảnh người dùng báo lỗi: 5/5 lượt trả lời tốt (trước: 1/5 lượt lỗi). Độ trễ giảm còn 6–9s vì
+  không đốt token vào reasoning. 8 test mới ở `test/chat-empty-response.test.js`.
+- **Đánh đổi:** Tắt reasoning có thể làm giảm chất lượng suy luận nhiều bước; chấp nhận được vì câu trả
+  lời phải bám `<retrieved_documents>` chứ không tự suy diễn, và ngân sách 3072 token vốn dành cho câu
+  trả lời. Nếu sau này cần bật lại reasoning thì phải tách ngân sách riêng, không dùng chung `max_tokens`.
+
 ## [2026-07-23] Giai đoạn 1 — DeepSeek-primary, Gemini chỉ embedding
 
 - **Quyết định:** Khi có `DEEPSEEK_API_KEY`, `api/chat.js` mặc định dùng `deepseek-v4-flash` cho generation

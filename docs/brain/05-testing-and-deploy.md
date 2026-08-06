@@ -38,7 +38,10 @@ NODE_ENV=development
 CHAT_DAILY_IP_LIMIT=50
 RAG_FAIL_CLOSED=0
 LLM_PRIMARY=deepseek
-# Strict default: không đặt LLM_FALLBACK. Stable: LLM_FALLBACK=gemini (chỉ DeepSeek HTTP 429/5xx).
+# Strict default: không đặt LLM_FALLBACK. Stable: LLM_FALLBACK=gemini — DeepSeek HTTP 429/5xx, và (từ
+# 2026-08-06) cả khi DeepSeek trả 200 nhưng không sinh ra chữ nào. Env local đã bật stable.
+# LƯU Ý: LLM_FALLBACK là giá trị đỡ cho CẢ utility (xem getUtilityProviderOrder) — đặt nó thì utility
+# cũng có Gemini dự phòng, trừ khi đặt riêng LLM_UTILITY_FALLBACK bằng một giá trị không hợp lệ.
 LLM_UTILITY_PRIMARY=deepseek
 # Strict default: không đặt LLM_UTILITY_FALLBACK. Stable: LLM_UTILITY_FALLBACK=gemini.
 # GEMINI_UTILITY_MODEL=gemini-flash-lite-latest  # chỉ dùng khi rollback utility sang Gemini
@@ -58,7 +61,13 @@ npm run dev
 ```bash
 npx vercel dev
 ```
-Truy cập: `http://localhost:3000`
+Truy cập: `http://localhost:3000`. Dự án không có framework front-end nên `vercel.json` khai
+`devCommand` trỏ tới `scripts/vercel-dev-fallback.js` (server rỗng, chỉ giữ tiến trình sống).
+Không được để trống hoặc trỏ vào `npm run dev` — đó là lệnh watch CSS không bao giờ thoát, khiến
+Vercel CLI tự suy đoán nhầm nó là dev command và treo vĩnh viễn ở bước "Creating initial build".
+`vercel dev` chỉ phục vụ đúng `/api/*`; frontend tĩnh vẫn phải mở trực tiếp như trên
+(`js/gemini.js` tự trỏ `getApiUrl()` sang `http://localhost:3000/api/chat` khi `location.protocol
+=== 'file:'`).
 
 **Lưu ý quan trọng:** Các biến môi trường Vercel phải được pull về local:
 ```bash

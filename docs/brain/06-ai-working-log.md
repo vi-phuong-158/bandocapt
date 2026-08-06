@@ -1,5 +1,54 @@
 # 06 — AI Working Log
 
+## [2026-08-06] Sửa flaky test e2e "external procedure deep-link replaces stale list context"
+- **Agent:** Claude Code
+- **Thay đổi:** Thêm `await expect(firstRow).toBeVisible()` trước khi click hàng đầu tiên trong
+  `#tthc-catalog-list .tthc-row`, ở 2 test có pattern "gõ tìm kiếm → Enter → click ngay hàng đầu" mà
+  trước đó chỉ dựa vào auto-wait ngầm của `.click()`: test "external procedure deep-link replaces stale
+  list context" (dòng flaky trên CI) và test "catalog mobile detail keeps summary readable..." (cùng
+  pattern, chưa lộ flaky nhưng cùng rủi ro).
+- **File đã sửa:** `test/e2e/tthc-catalog.spec.js`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** CI báo fail ngắt quãng tại dòng chờ `.tthc-row` sau khi nhấn Enter — danh sách kết quả
+  chưa render kịp; chạy lại đúng job (không đổi code) thì pass, chạy tại chỗ pass 6/6. Đã đọc
+  `js/tthc-catalog.js`: ô tìm kiếm KHÔNG debounce, `filterBySearch`/`renderListView` chạy đồng bộ ngay
+  trong handler `submit` — nên nguyên nhân không phải debounce mà là biên độ chờ mỏng giữa lúc
+  `ensureCatalogLoaded()` (fetch async) hoàn tất + render xong và lúc `.click()` tự hết kiên nhẫn trên
+  runner CI tải cao. Test khác cùng file dùng pattern gõ-rồi-click (dòng ~37-43) đã an toàn sẵn vì có
+  `await expect(targetRow).toHaveCount(1)` trước khi click.
+- **Kiểm tra:** `npx playwright test test/e2e/tthc-catalog.spec.js` — 6/6 PASS tại chỗ.
+
+## [2026-08-06] Sửa lỗi chatbot báo "Câu hỏi này không phù hợp" cho câu hỏi hợp lệ
+- **Agent:** Claude Code
+- **Thay đổi:** (1) Thêm `buildDeepSeekChatPayload()` dựng payload chat DeepSeek dùng chung cho lượt stream
+  và lượt non-stream, **luôn gửi `thinking: { type: 'disabled' }`** — trước đây chỉ utility call tắt
+  reasoning, nhánh generation bỏ sót nên reasoning ăn hết `max_tokens: 3072` và không sinh ra chữ nào.
+  (2) Viết lại hai nhánh cứu khi stream rỗng chữ: thử lại non-stream đúng provider đang dùng, rồi mới sang
+  provider kế tiếp trong `providerOrder` (bỏ hardcode `!useDeepSeek` / `provider !== 'deepseek'` vốn khoá
+  chặt cả hai đường lui khi DeepSeek là provider duy nhất). (3) Thêm `classifyEmptyGenerationError()`:
+  `BLOCKED_CONTENT` chỉ dành cho ca provider nói rõ là chặn, còn lại trả mã mới `EMPTY_RESPONSE` kèm thông
+  điệp "hệ thống chưa soạn xong câu trả lời" cho cả vi/ko/en/zh. (4) Lượt cứu non-stream giữ nguyên
+  finish reason của provider khi chạm trần token, để `wasTruncatedByTokenLimit` vẫn nối được câu chốt.
+- **File đã sửa:** `api/chat.js`, `js/chatbot.js`, `js/gemini.js`, `test/chat-empty-response.test.js` (mới),
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`
+- **Lý do:** Người dùng báo chatbot từ chối câu "thủ tục cấp căn cước công dân" bằng thông điệp đổ lỗi cho
+  người hỏi. Thực tế DeepSeek trả HTTP 200 với `delta.content` rỗng (toàn bộ output nằm ở
+  `reasoning_content`), không hề có safety filter nào kích hoạt. Lỗi xuất hiện từ commit `e126799`
+  (2026-07-28) khi DeepSeek thành provider mặc định và fallback ngầm sang Gemini bị bỏ.
+- **Kiểm tra:** `node --test test/chat-empty-response.test.js` (9 PASS, phủ cả strict mode không rời
+  DeepSeek lẫn ca Gemini bị chặn thật vẫn giữ `BLOCKED_CONTENT`); toàn bộ 33 file test chạy theo nhóm:
+  **341 PASS / 0 FAIL**; `npm run check:syntax` (PASS). Đo bằng
+  API thật qua handler production, 10 câu hỏi × 2 ngữ cảnh (có/không lịch sử hội thoại): **trước sửa 1 lỗi
+  cứng + 3 câu trả lời cắt cụt / 20 lượt → sau sửa 0/0/20 lượt đều tốt**. Riêng câu hỏi người dùng báo
+  lỗi, chạy 5 lượt có lịch sử: trước sửa hỏng 1/5, sau sửa 5/5 tốt, độ trễ giảm còn 6–9s.
+- **Bật stable mode ở env local:** thêm `LLM_FALLBACK=gemini` vào `.env` (không commit — `.gitignore`
+  chặn `.env*`), `getChatProviderOrder()` nay trả `["deepseek","gemini"]`, chat thật vẫn chạy đúng
+  (2 lượt, 4 nguồn, không lỗi). Biến này đỡ cho cả utility (`getUtilityProviderOrder`) chứ không riêng
+  generation — đã ghi chú vào `docs/brain/05-testing-and-deploy.md`.
+- **Bật stable mode trên Vercel (được người dùng đồng ý rõ):** `LLM_FALLBACK` vốn ĐÃ tồn tại trên project
+  `bandocapt` cho `production,preview` nhưng là `type=sensitive` nên không đọc lại được giá trị cũ (cả API
+  lẫn dashboard). Đã PATCH giá trị thành `gemini` qua Vercel API, giữ nguyên type và target. Giá trị cũ
+  không lưu lại được — nếu cần rollback thì phải ghi đè bằng giá trị mong muốn, không có bản sao.
+  **Chỉ có hiệu lực từ lần deploy kế tiếp, và bản sửa code ở trên vẫn CHƯA được commit/deploy.**
 ## [2026-07-28] Loại bỏ liên kết Báo Phú Thọ dư thừa ở Footer
 - **Agent:** Gemini
 - **Thay đổi:** Xóa nút/liên kết Báo Phú Thọ ở Footer chân trang bảng tìm kiếm; nút "Thông tin công trình" hiển thị full-width. Liên kết Báo Phú Thọ chính thức vẫn duy trì đầy đủ trong Modal "Thông tin công trình".
@@ -2284,3 +2333,120 @@
 - **File đã sửa:** `presentation/build_poster.js`, `presentation/asset/poster-bg-ai-20260722.png`, `presentation/asset/poster-qr-bandocapt.png`, `presentation/Ban-do-Cong-an-so-Phu-Tho-poster-A3.png`, `docs/brain/06-ai-working-log.md`.
 - **Lý do:** Cung cấp ấn phẩm truyền thông quét mã nhanh cho công trình thanh niên chào mừng ra mắt Câu lạc bộ Đổi mới sáng tạo Công an tỉnh Phú Thọ.
 - **Kiểm tra:** Chạy `node presentation/build_poster.js`; kiểm tra kích thước A3 3508×4961 px ở 300 dpi và xác nhận QR trỏ trực tiếp URL production trước khi ghép poster.
+
+## [2026-08-06] Vá timeout giả trong luồng chatbot: heartbeat SSE + phân loại abort
+- **Agent:** Claude Code (Sonnet 5), tiếp nối và hoàn thiện bởi user (vi-phuong-158)
+- **Thay đổi:**
+  - `api/chat.js`: thêm helper thuần `startSseHeartbeat(res, intervalMs=5000)` — phát định kỳ
+    `data: {"status":"generating"}` (event trạng thái đã có sẵn từ P3.1, không chứa nội dung
+    câu trả lời) trong lúc backend vẫn đang chờ Gemini/DeepSeek hoặc buffer đến ranh giới câu
+    cho output-validator. Gắn heartbeat ngay sau khi mở SSE và trước vòng đọc stream chính;
+    dừng sạch (`clearInterval`) tại mọi điểm thoát: `BLOCKED_CONTENT`, event `done`, và nhánh
+    catch ngoài cùng; đồng thời tự dừng qua listener `res.on('close'|'finish')` và kiểm tra
+    phòng vệ `res.writableEnded`/`res.destroyed` trước mỗi lần `write()`.
+  - `js/gemini.js`: thêm `abortReason` + helper `abortWithReason()` (giữ nguyên lý do đầu
+    tiên, timer đến sau không ghi đè). Timeout tổng 60s → 65s (đệm sau maxDuration/deadline
+    backend), idle timeout 15s → 25s (heartbeat 5s/lần liên tục reset). External signal (nút
+    Dừng) map thành `user_cancelled`. Nhánh `AbortError` trong `catch` trả `STREAM_ERROR` +
+    `partialText` nếu đã có nội dung; nếu không, trả đúng 1 trong
+    `USER_CANCELLED`/`IDLE_TIMEOUT`/`REQUEST_TIMEOUT` theo `abortReason` (fallback
+    `REQUEST_TIMEOUT` nếu không xác định được). Giữ `TIMEOUT` cũ chỉ để tương thích ngược.
+  - `js/chatbot.js`: thêm text `stopped`/`stoppedPartial` và mã lỗi
+    `USER_CANCELLED`/`IDLE_TIMEOUT`/`REQUEST_TIMEOUT` trong `CHATBOT_ERROR_MESSAGES`. Khi
+    `activeAbortMode === 'stop'` hoặc `result.error === 'USER_CANCELLED'`: không gắn class lỗi
+    đỏ, hiện "Đã dừng phản hồi." (chưa có text) hoặc giữ `partialText` + notice "Phản hồi đã
+    được dừng trước khi hoàn tất." (đã có text) — không coi đây là lỗi timeout, không lưu vào
+    `chatHistory` như phản hồi hoàn chỉnh (nhánh này vốn đã không lưu).
+  - Test mới: `test/chat-sse-heartbeat.test.js` (helper thuần: phát định kỳ, dừng sạch khi
+    finish/close/writableEnded, `stop()` idempotent trên mock không phải EventEmitter, cộng 1
+    test hồi quy luồng thành công qua handler thật không phát heartbeat thừa),
+    `test/gemini-stream-abort.test.js` (10 ca theo đặc tả: user cancel tức thời/đã aborted
+    trước khi gọi, idle timeout 25s, heartbeat liên tục reset idle qua 25s, request timeout
+    tổng 65s dù có heartbeat, partial text ưu tiên `STREAM_ERROR`, user cancel không bị timer
+    ghi đè, luồng thành công không hồi quy), `test/chatbot-abort-messages.test.js` (mapping
+    thông điệp UI). User sau đó thay `flushRealAsyncSetup()` đếm cứng vòng `setImmediate`
+    (flaky khác nhau giữa Node 20/24 vì tốc độ hoàn tất `crypto.subtle` HMAC khác nhau) bằng
+    `waitForFetchCall()` chờ đúng mốc `fetch()` đã được gọi qua cờ `fetchCalled`, và nâng CI
+    `.github/workflows/ci.yml` lên Node 24 khớp runtime production trên Vercel.
+  - Song song, user tự phát hiện và vá `EMPTY_RESPONSE` (DeepSeek trả HTTP 200 nhưng đưa hết
+    output vào `reasoning_content`, `delta.content` rỗng khiến handler gắn nhầm nhãn
+    `BLOCKED_CONTENT`) trong cùng nhánh — xem chi tiết message commit `fa7e528`, không thuộc
+    phạm vi yêu cầu ban đầu của task này nhưng nằm chung file/hunk nên gộp cùng đợt vá.
+- **File đã sửa:** `api/chat.js`, `js/gemini.js`, `js/chatbot.js`, `test/chat-sse-heartbeat.test.js`,
+  `test/gemini-stream-abort.test.js`, `test/chatbot-abort-messages.test.js`,
+  `.github/workflows/ci.yml`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Chatbot thỉnh thoảng hiện "Phản hồi quá lâu. Vui lòng thử lại." dù backend vẫn
+  đang xử lý bình thường — nguyên nhân là 4 giới hạn thời gian gần sát nhau
+  (`CHAT_REQUEST_DEADLINE_MS` 55s, frontend total 60s, Vercel `maxDuration` 60s, frontend idle
+  15s) cộng với việc mọi nhánh abort đều quy về cùng 1 mã `TIMEOUT`, kể cả khi người dùng chủ
+  động bấm Dừng. Không đổi RAG/Pinecone/provider/prompt/output-validator/Turnstile/rate
+  limit/`vercel.json`/`maxDuration` theo đúng phạm vi yêu cầu.
+- **Kiểm tra:** `npm test` 341/341 PASS; `npm run build` sạch (`check:syntax` qua hết,
+  `dist/asset-manifest.json` sinh lại đầy đủ).
+
+## [2026-08-06] Smoke test heartbeat/abort trên trình duyệt thật — 4/4 kịch bản đạt
+- **Agent:** Claude Code (Sonnet 5)
+- **Thay đổi:** `package.json` `engines.node` từ `20.x` lên `24.x` — giá trị cũ lệch với
+  `.vercel/project.json` (`nodeVersion: "24.x"`) và CI vừa nâng lên Node 24, khiến `vercel dev`
+  fail cứng "The engine node is incompatible" ngay bước build đầu tiên. Không đổi hành vi
+  runtime, chỉ đồng bộ khai báo phiên bản.
+- **Phát hiện phụ (không sửa, chỉ ghi nhận):** `npx vercel dev` bị treo vô thời hạn ở bước
+  "Creating initial build" vì tự chạy `npm run dev` (Tailwind `--watch`, không bao giờ thoát)
+  thay vì chỉ serve API + static — có vẻ do zero-config detection nhầm dự án có dev server
+  riêng. Chưa rõ nguyên nhân gốc/khắc phục dứt điểm; nếu cần `vercel dev` thật, cân nhắc đặt
+  `devCommand` tường minh trong Vercel project settings hoặc `vercel.json`.
+- **Cách xác minh:** Vì `vercel dev` không dùng được và `.env.local`/`.env` pulled về máy này
+  chỉ có tên biến, giá trị các key nhạy cảm (GEMINI_API_KEY, DEEPSEEK_API_KEY, PINECONE_API_KEY,
+  TURNSTILE_SECRET_KEY, CHAT_LOG_HASH_SALT) đều rỗng — dựng server độc lập mount thẳng
+  `api/chat.js`/`api/feedback.js` thật (handler kiểu Vercel `(req,res)`), ép `NODE_ENV=development`
+  (`.env.local` có `VERCEL_ENV="production"` từ lần pull production khiến gate `CHAT_LOG_HASH_SALT`
+  kích hoạt oan ở local), và mock riêng `fetch` cho `streamGenerateContent`/`embedContent` của
+  Gemini để mô phỏng độ trễ thật có kiểm soát — toàn bộ còn lại (RAG skip qua fail-open sẵn có,
+  rate limit qua `EVAL_BYPASS_TOKEN` khớp `localhost-bypass` mà `js/chatbot.js` tự gửi, Turnstile
+  qua nhánh `NODE_ENV==='development'` có sẵn) là hành vi PRODUCTION thật, không phải stub riêng.
+- **Kết quả 4/4 kịch bản (mở qua Browser thật, không phải giả lập):**
+  1. **Luồng bình thường:** `status:generating` → `text` → `done` đầy đủ `fullText`/`history`/
+     `sources`/`verifiedLocations`/`finishReason`, render đúng trên DOM.
+  2. **Phản hồi chậm (heartbeat):** mock giữ output-validator chờ đủ câu trong ~20 giây liên tục
+     (vượt xa mốc 15s cũ) — log server xác nhận **5 heartbeat** `status:generating` cách nhau
+     đúng ~5s trước khi đoạn văn bản đã buffer được phát ra; request hoàn tất bình thường, không
+     có timeout giả nào xảy ra.
+  3. **Bấm Dừng trước khi có chữ:** bubble hiện "Đã dừng phản hồi.", KHÔNG có class lỗi đỏ,
+     network request thấy `net::ERR_ABORTED` phía client.
+  4. **Bấm Dừng sau khi đã có một phần chữ:** giữ đúng câu đã nhận ("Đây là câu đầu tiên đã hoàn
+     chỉnh."), thêm notice "Phản hồi đã được dừng trước khi hoàn tất.", không có action bar (không
+     bị coi là câu trả lời hoàn chỉnh), không có class lỗi đỏ.
+- **File đã sửa:** `package.json`. (Harness smoke-test độc lập chỉ tồn tại trong thư mục scratchpad
+  phiên làm việc, không thuộc repo.)
+- **Kiểm tra:** `npm test` 341/341 PASS lại sau khi sửa `package.json`; `npm run build` sạch,
+  `output.css` được tái tạo lại đúng dạng minified (bản `--watch` không minify từ lần thử
+  `vercel dev` trước đó bị phát hiện và phục hồi bằng `npm run build:css`).
+
+## [2026-08-06] Sửa vercel dev treo vĩnh viễn ở "Creating initial build"
+- **Agent:** Claude Code (Sonnet 5)
+- **Nguyên nhân:** Dự án không có framework front-end (`framework: null`) và không khai
+  `devCommand`. Khi đó Vercel CLI 58.7.1 tự suy đoán `npm run dev` (script watch Tailwind
+  `--watch`, không bao giờ tự thoát) làm dev command, khiến `vercel dev` treo vô thời hạn ngay ở
+  bước "Creating initial build" — không có lỗi, không có timeout, chỉ đứng im. Xác nhận qua tài
+  liệu chính thức Vercel ("Development Command... Nếu chọn 'Other', dev command mặc định rỗng")
+  và thảo luận cộng đồng `vercel/vercel#4637` (cùng triệu chứng, cùng nguyên nhân).
+- **Đã thử và loại:** Dev command dạng lệnh chạy-rồi-thoát (`echo ...`) — CLI bản 58.7.1 báo lỗi
+  "Dev command ... exited with code 0" vì bắt buộc tiến trình phải sống liên tục. Dev command
+  inline `node -e "..."` — bị nuốt/hỏng do quy tắc quote lồng nhau của shell Windows, cũng thoát
+  ngay ở exit code 0 dù script tự nó đúng cú pháp khi chạy trực tiếp.
+- **Quyết định:** Thêm `scripts/vercel-dev-fallback.js` — HTTP server tối giản chỉ `listen(PORT)`
+  và trả 404, không phục vụ logic gì; mục đích DUY NHẤT là giữ tiến trình sống để Vercel CLI hài
+  lòng. `vercel.json` khai `"devCommand": "node scripts/vercel-dev-fallback.js"`. Xác minh: `npx
+  vercel dev` in "Ready! Available at ..." trong vài giây; `curl -X POST /api/chat` trả đúng lỗi
+  validate thật từ handler thật (`BAD_REQUEST: userMessage is required.`), header CSP/CORS từ
+  `vercel.json` đều có — chứng minh route `/api/*` đi qua server thật, không phải fallback.
+- **Giới hạn đã biết, không sửa (nằm ngoài yêu cầu "chỉ sửa treo"):** `vercel dev` không tự phục
+  vụ file tĩnh cục bộ (`GET /` trả 404, rơi vào fallback) — có vẻ do `outputDirectory: "dist"`
+  không được `vercel dev` tự động build/nhận dạng khi dev. Không phải hồi quy: luồng dev đã được
+  tài liệu hoá từ trước ở `05-testing-and-deploy.md` là mở `index.html` trực tiếp (không qua
+  `vercel dev`), và `js/gemini.js` `getApiUrl()` đã tự trỏ sang `http://localhost:3000/api/chat`
+  khi `location.protocol === 'file:'` — đúng luồng này vẫn hoạt động bình thường.
+- **File đã sửa:** `vercel.json`, `scripts/vercel-dev-fallback.js`, `docs/brain/05-testing-and-deploy.md`.
+- **Kiểm tra:** `npm test` 341/341 PASS; `npm run build` sạch; `npx vercel dev --listen 3001 --yes`
+  lên "Ready!" trong vài giây (trước đó treo vô thời hạn); `curl` xác nhận `/api/chat` đi qua
+  handler thật.
