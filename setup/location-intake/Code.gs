@@ -96,8 +96,10 @@ function readLocationState_(spreadsheet) {
 
 function setupLocationIntakeSystem() {
     const pipeline = locationPipeline_();
-    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-    if (!spreadsheet) throw new Error('Hãy chạy từ Google Sheet quản trị.');
+    // Chạy qua Apps Script API (clasp run) không có bảng đang mở; rơi về LOCATION_SPREADSHEET_ID.
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet()
+        || (locationProperties_().getProperty('LOCATION_SPREADSHEET_ID') ? configuredSpreadsheet_() : null);
+    if (!spreadsheet) throw new Error('Hãy chạy từ Google Sheet quản trị, hoặc đặt Script Property LOCATION_SPREADSHEET_ID.');
     requiredProperty_('TEMPLATE_FORM_ID');
     requiredProperty_('DESTINATION_FOLDER_ID');
     Object.entries(pipeline.HEADERS).forEach(([key, headers]) => ensureLocationSheet_(spreadsheet, pipeline.SHEETS[key], headers));
@@ -317,11 +319,15 @@ function writeLocationSetupInfo_(spreadsheet, form) {
     ]);
 }
 
-function healthCheckLocationIntake() {
+function locationIntakeStatus_() {
     const spreadsheet = configuredSpreadsheet_(); const pipeline = locationPipeline_();
     const messages = Object.values(pipeline.SHEETS).map(name => `${spreadsheet.getSheetByName(name) ? '✓' : '✗'} ${name}`);
     messages.push(locationProperties_().getProperty('LOCATION_FORM_ID') ? '✓ Form đã cấu hình' : '✗ Chưa có Form');
-    SpreadsheetApp.getUi().alert(messages.join('\n'));
+    return messages;
+}
+
+function healthCheckLocationIntake() {
+    SpreadsheetApp.getUi().alert(locationIntakeStatus_().join('\n'));
 }
 
 function onOpen() {
@@ -332,4 +338,20 @@ function onOpen() {
         .addItem('Yêu cầu xác minh', 'verifySelectedLocationRequest')
         .addItem('Thu hồi địa điểm công khai', 'revokeSelectedPublishedLocation')
         .addSeparator().addItem('Kiểm tra hệ thống', 'healthCheckLocationIntake').addToUi();
+}
+
+// Entry point cho Apps Script API (`clasp run`): không chạm UI, trả giá trị để kiểm chứng
+// tự động. Dùng cho smoke test trên tài nguyên test, không thay thế luồng duyệt bằng menu.
+function apiHealthCheckLocationIntake() {
+    return locationIntakeStatus_();
+}
+
+function apiReviewLocationRequest(requestId, action, reviewerEmail) {
+    reviewLocationRequest_(String(requestId || ''), String(action || ''),
+        String(reviewerEmail || Session.getEffectiveUser().getEmail() || 'reviewer'));
+    return apiLocationIntakeSnapshot();
+}
+
+function apiLocationIntakeSnapshot() {
+    return readLocationState_(configuredSpreadsheet_());
 }

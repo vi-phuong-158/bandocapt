@@ -7,6 +7,8 @@ const root = path.resolve(__dirname, '..');
 const logicPath = path.join(root, 'setup', 'apps-script.js');
 const runtimePath = path.join(root, 'setup', 'location-intake', 'Code.gs');
 const outputPath = path.join(root, 'setup', 'location-intake', 'dist', 'Code.gs');
+const manifestPath = path.join(root, 'setup', 'location-intake', 'appsscript.json');
+const manifestOutputPath = path.join(root, 'setup', 'location-intake', 'dist', 'appsscript.json');
 const banner = '// GENERATED FILE. Run npm run build:location-intake. Do not edit directly.\n\n';
 
 function buildLocationIntakeAppsScript() {
@@ -17,6 +19,8 @@ function buildLocationIntakeAppsScript() {
     new Function(bundle); // eslint-disable-line no-new-func
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
     fs.writeFileSync(outputPath, bundle, 'utf8');
+    // dist/ là push root của clasp, nên manifest phải nằm cạnh Code.gs.
+    fs.copyFileSync(manifestPath, manifestOutputPath);
     return { outputPath, bytes: Buffer.byteLength(bundle) };
 }
 

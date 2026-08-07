@@ -1,5 +1,43 @@
 # 06 — AI Working Log
 
+## [2026-08-07] Dựng đường deploy clasp cho location intake + entry point API-safe
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - `setup/location-intake/appsscript.json` (mới): manifest khai 6 OAuth scope suy ra từ dịch vụ
+    Google mà runtime thực dùng (`SpreadsheetApp`, `DriveApp`, `FormApp`, `ScriptApp` trigger,
+    `UrlFetchApp` resolve link Maps, `Session` lấy email), `executionApi.access: MYSELF`.
+  - `scripts/build-location-intake-apps-script.js`: copy manifest sang `dist/` để `dist/` thành
+    push root hoàn chỉnh của clasp (đúng 2 file, đã xác minh bằng `clasp show-file-status`).
+  - `setup/location-intake/Code.gs`: (1) `setupLocationIntakeSystem` rơi về Script Property
+    `LOCATION_SPREADSHEET_ID` khi `getActiveSpreadsheet()` trả null; (2) tách
+    `locationIntakeStatus_()` khỏi `healthCheckLocationIntake` để phần tính toán không dính UI;
+    (3) thêm `apiHealthCheckLocationIntake`, `apiReviewLocationRequest`,
+    `apiLocationIntakeSnapshot` — không chạm UI, trả giá trị để kiểm chứng tự động.
+  - `package.json`: script `clasp`, `clasp:push`, `clasp:run`, `clasp:logs`, `clasp:status` gọi
+    `npx @google/clasp@3.3.0` (không thêm dependency, `package-lock.json` vẫn y hệt `main`).
+  - `.gitignore`: chặn `.clasp.json`, `.clasprc.json`, `clasp-creds*.json`. Thêm
+    `setup/location-intake/.clasp.json.example`.
+  - `docs/location-intake/CLASP.md` (mới) và sửa lỗi tên hàm trong `SETUP.md`/`OPERATIONS.md`.
+- **File đã sửa:** `setup/location-intake/appsscript.json`, `setup/location-intake/.clasp.json.example`,
+  `setup/location-intake/Code.gs`, `scripts/build-location-intake-apps-script.js`, `package.json`,
+  `.gitignore`, `docs/location-intake/CLASP.md`, `docs/location-intake/SETUP.md`,
+  `docs/location-intake/OPERATIONS.md`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Smoke test Google là blocker cuối của PR #41, trước đó phải dán code thủ công vào
+  trình soạn Apps Script. Khi dựng đường clasp thì lộ ra hai hàm chính **không chạy được** qua
+  Apps Script API: `setupLocationIntakeSystem` dùng `getActiveSpreadsheet()` (trả null ngoài ngữ
+  cảnh UI) và `healthCheckLocationIntake` dùng `getUi().alert()` (ném lỗi ngoài ngữ cảnh UI).
+- **Lỗi tài liệu đã sửa:** `SETUP.md` và `OPERATIONS.md` (và cả checklist trong mô tả PR #41) ghi
+  hàm `locationIntakeHealthCheck` — hàm này **không tồn tại**; tên thật là `healthCheckLocationIntake`.
+  Người vận hành làm theo tài liệu cũ sẽ không tìm thấy hàm để chạy.
+- **Giới hạn còn lại:** Nộp Form thật kèm tải ảnh vẫn phải do người thật làm — Forms API không hỗ
+  trợ nộp phản hồi có tệp đính kèm. Các bước sau đó (duyệt, công bố theo `record_id`, đối chiếu,
+  thu hồi) đã tự động hoá được bằng `clasp:run` + `clasp:logs`.
+- **Kiểm tra:** `node --test test/*.test.js` **358/358 PASS**; build sinh `dist/Code.gs` (51972 bytes)
+  + `dist/appsscript.json`, `new Function(bundle)` trong build script xác nhận cú pháp;
+  `clasp show-file-status` liệt kê đúng 2 file sẽ đẩy; `git check-ignore` xác nhận `.clasp.json`
+  bị chặn. Chưa chạy `clasp push`/`run` thật vì cần người dùng đăng nhập OAuth trước.
+
 ## [2026-08-06] Sửa flaky test e2e "external procedure deep-link replaces stale list context"
 - **Agent:** Claude Code
 - **Thay đổi:** Thêm `await expect(firstRow).toBeVisible()` trước khi click hàng đầu tiên trong

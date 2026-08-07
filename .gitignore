@@ -6,3 +6,8 @@ dist/
 # Backup Pinecone (pre/post dump + manifest) — audit trail giữ trên máy vận hành,
 # không commit vào git để tránh phình repo. Xem docs/brain/03-decisions.md.
 data/pinecone-backups/
+# clasp: script ID và OAuth token/credential là dữ liệu môi trường, không commit.
+# Xem setup/location-intake/.clasp.json.example và docs/location-intake/CLASP.md.
+.clasp.json
+.clasprc.json
+clasp-creds*.json
