@@ -93,7 +93,11 @@ Apps Script API chạy **không có giao diện và không có bảng đang mở
 | `apiReviewLocationRequest` | Được | Duyệt theo `request_id` (APPROVE/REJECT/NEED_VERIFICATION), trả snapshot sau khi ghi |
 | `apiRevokePublishedLocation` | Được | Thu hồi theo `record_id`, trả ảnh về private, trả snapshot |
 | `apiLocationIntakeSnapshot` | Được | Đọc staging/published/audit để đối chiếu tự động |
-| `setupLocationIntakeSystem` | Được, có điều kiện | Phải đặt `LOCATION_SPREADSHEET_ID` trước |
+| `apiUnitAllowlist` | Được | Đọc `Unit_Allowlist` (kiểm giá trị `active` thật) |
+| `apiFormUnitChoices` | Được | Danh sách đơn vị đang hiển thị trong Form (kiểm bộ lọc active) |
+| `apiFormInfo` | Được | `LOCATION_FORM_ID` + URL công khai/chỉnh sửa |
+| `apiSetFormAccepting` | Được | Tạm dừng/bật nhận phản hồi (`--params '[false]'`/`'[true]'`); bật lại vẫn cần "Phục hồi" thư mục nếu mất liên kết |
+| `setupLocationIntakeSystem` | Được, nhưng KHÔNG khuyến nghị | Phải đặt `LOCATION_SPREADSHEET_ID`; Form tạo qua API bị kẹt ở "Thư mục tải tệp bị thiếu" — chạy từ menu editor để bấm **Phục hồi** được. Xem OPERATIONS.md |
 | `healthCheckLocationIntake` | Không | Bản dùng menu, hiện hộp thoại |
 | `approveSelectedLocationRequest` và các hàm `*Selected*` | Không | Phụ thuộc dòng đang chọn trên bảng |
 

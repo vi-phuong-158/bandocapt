@@ -409,3 +409,11 @@ function apiFormInfo() {
     };
 }
 
+// Tạm dừng/bật lại nhận phản hồi của Form (bảo trì, dọn tài nguyên test). Lưu ý: bật lại vẫn
+// cần "Phục hồi" thư mục tải tệp nếu Form bị mất liên kết (xem OPERATIONS.md).
+function apiSetFormAccepting(accepting) {
+    const form = FormApp.openById(requiredProperty_('LOCATION_FORM_ID'));
+    form.setAcceptingResponses(accepting === true || String(accepting).toLowerCase() === 'true');
+    return { formId: form.getId(), accepting: form.isAcceptingResponses() };
+}
+
