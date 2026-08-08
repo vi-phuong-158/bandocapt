@@ -1,5 +1,16 @@
 # 06 — AI Working Log
 
+## [2026-08-08] Chuyển pptxgenjs sang devDependencies để CI audit xanh
+- **Agent:** Claude Code
+- **Thay đổi:** `package.json`/`package-lock.json` — chuyển `pptxgenjs` từ `dependencies` sang
+  `devDependencies` (chỉ đổi cờ dev, không churn version).
+- **Lý do:** Advisory HIGH mới (chưa có bản vá, range `*`) trong `image-size` kéo vào qua `pptxgenjs`
+  làm `npm audit --omit=dev --audit-level=high` (bước cuối `npm run ci`) fail — lỗi toàn repo do thời
+  điểm, không phải regression của nhánh này. `pptxgenjs` chỉ dùng trong `presentation/build_pptx*.js`
+  (tạo slide offline), không thuộc app/api/build/deploy, nên vốn là devDependency. Sau khi chuyển,
+  `--omit=dev` bỏ qua nó, `image-size` thành `dev:true`, audit exit 0 (còn 6 moderate không chặn).
+- **Kiểm tra:** `npm audit --omit=dev --audit-level=high` exit 0; `npm ls pptxgenjs --omit=dev` rỗng.
+
 ## [2026-08-08] Smoke test location intake end-to-end qua clasp — tìm & vá 3 bug chặn phát hành
 - **Agent:** Claude Code
 - **Bối cảnh:** Chạy smoke test thật trên Google (Sheet/Form/Drive test riêng, không production) qua
