@@ -68,7 +68,10 @@
     const FORMULA_PREFIX = /^[=+\-@]/;
 
     function normalizeLabel(value) {
-        return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        // KH\u00d4NG d\u00f9ng `value || ''`: boolean false v\u00e0 s\u1ed1 0 s\u1ebd b\u1ecb nu\u1ed1t th\u00e0nh '' (Google Sheets l\u01b0u \u00f4
+        // FALSE th\u00e0nh boolean false), khi\u1ebfn normalizeBoolean(false) tr\u1ea3 nh\u1ea7m ACTIVE \u2014 \u0111\u01a1n v\u1ecb \u0111\u00e3 t\u1eaft
+        // v\u1eabn hi\u1ec7n trong Form v\u00e0 v\u1eabn qua \u0111\u01b0\u1ee3c authorizeSubmission.
+        return String(value == null ? '' : value).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
             .replace(/[đĐ]/g, 'd').replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
     }
 
@@ -480,7 +483,7 @@
 
     return {
         SHEETS, STATUSES, REQUEST_TYPES, COORDINATE_STATUSES, HEADERS, PUBLIC_FIELDS, PHU_THO_BOUNDS, IMAGE_MIME_TYPES,
-        normalizeLabel, slugify, normalizeEmail, splitEmails, sanitizeSheetCell, sanitizeUserFields, normalizeServices,
+        normalizeLabel, normalizeBoolean, slugify, normalizeEmail, splitEmails, sanitizeSheetCell, sanitizeUserFields, normalizeServices,
         normalizeLocationType, deriveLegacyType, isGoogleMapsUrl, parseCoordinates, classifyCoordinateStatus,
         validateImageMimeType, validateImageSubmission, buildAllowlistMap, authorizeSubmission, normalizeSubmission,
         buildRecordId, haversineMeters, detectDuplicateWarnings, buildStagingRecord, buildPublishedRecord,

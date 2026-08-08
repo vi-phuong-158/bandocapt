@@ -150,6 +150,21 @@ test('coordinate classification không phụ thuộc global URL (Apps Script V8 
     }
 });
 
+test('đơn vị active=false (boolean từ Sheets) bị loại khỏi allowlist và không authorize được', () => {
+    // Regression: normalizeLabel cũ nuốt boolean false (`false || ''` = '') nên normalizeBoolean(false)
+    // trả nhầm ACTIVE — đơn vị đã tắt vẫn hiện trong Form và vẫn qua authorizeSubmission.
+    assert.equal(pipeline.normalizeBoolean(false), false);
+    assert.equal(pipeline.normalizeBoolean(true), true);
+    assert.equal(pipeline.normalizeBoolean('FALSE'), false);
+    assert.equal(pipeline.normalizeBoolean('off'), false);
+    assert.equal(pipeline.normalizeBoolean(''), true, 'để trống = đang hoạt động');
+    const rows = [{ unit_code: 'CA_X', unit_name: 'Công an phường X', allowed_emails: 'x@example.gov.vn', active: false }];
+    assert.equal(pipeline.buildAllowlistMap(rows).byUnitName.size, 0, 'đơn vị tắt không vào allowlist map');
+    const auth = pipeline.authorizeSubmission('Công an phường X', 'x@example.gov.vn', rows);
+    assert.equal(auth.authorized, false);
+    assert.equal(auth.error, 'UNIT_NOT_IN_ALLOWLIST');
+});
+
 test('warns instead of merging an equally named point within 50 meters', () => {
     const old = { record_id: 'OLD_1', name: 'Điểm tiếp dân', coordinates: '21.3200,105.3600' };
     const warnings = pipeline.detectDuplicateWarnings({ recordId: 'NEW_1', requestType: pipeline.REQUEST_TYPES.create, locationName: 'Điểm tiếp dân', coordinates: '21.3202,105.3600' }, [old]);

@@ -1,5 +1,32 @@
 # 06 — AI Working Log
 
+## [2026-08-08] Smoke test 2 case cuối — vá bug đơn vị active=false + phát hiện thư mục upload
+- **Agent:** Claude Code
+- **Case 1 (một đơn vị nhiều địa điểm, không đè):** gửi Form địa điểm thứ hai cho `TEST_CA_01`, duyệt
+  qua `apiReviewLocationRequest`. `Published_Locations` có **2 record cùng `TEST_CA_01`, khác
+  `record_id`** (Công an phường A / POLICE_OFFICE và Điểm CCCD 1 / CITIZEN_ID), không đè nhau. ĐẠT.
+- **Case 2 (đơn vị active=FALSE) — tìm ra BUG thật thứ 4:**
+  - `Unit_Allowlist` lưu ô FALSE thành **boolean `false`**. `normalizeLabel` cũ dùng `String(value || '')`
+    → `false || ''` = `''`, nên `normalizeBoolean(false)` trả nhầm **ACTIVE**. Hậu quả: đơn vị đã tắt
+    **vẫn hiện trong Form** VÀ **vẫn qua `authorizeSubmission`** (lỗi bảo mật — đơn vị ngừng vẫn gửi/duyệt
+    được). `apiFormUnitChoices` xác nhận form cũ có "TEST - Công an phường Ba (ngưng)".
+  - Vá: `normalizeLabel` dùng `String(value == null ? '' : value)` (không nuốt `false`/`0`); export
+    `normalizeBoolean`; form filter trong Code.gs đổi sang `!pipeline.normalizeBoolean(row.active)` cho
+    khớp đúng logic với `authorizeSubmission`. Thêm regression test. Sau khi tạo lại Form, `apiFormUnitChoices`
+    trả `['Hai', 'Một']` — TEST_CA_03 đã biến mất. ĐẠT.
+- **Phát hiện vận hành thứ 5 (không phải code bug, nhưng bắt buộc ghi):** Form sao chép từ mẫu có câu hỏi
+  tải tệp bị **mất liên kết thư mục lưu upload**, Google tự tắt nhận phản hồi kèm hộp thoại *"Thư mục Tải
+  lên tệp bị thiếu"*. Chủ Form phải mở editor bấm **Phục hồi**. `FormApp.isAcceptingResponses()` vẫn trả
+  `true` nên không phát hiện tự động được — đã thử `apiForceFormOpen` báo `accepting/published: true` mà
+  công khai vẫn chặn, cho tới khi chạy setup từ **menu** mới hiện đúng hộp thoại. Ghi vào `SETUP.md` bước 8
+  và `OPERATIONS.md`. Buộc phải copy mẫu vì `FormApp` không tạo được câu hỏi tải tệp bằng code.
+- **Thêm helper `api*` (chạy qua clasp run):** `apiUnitAllowlist`, `apiFormUnitChoices`, `apiFormInfo`
+  (đọc allowlist/lựa chọn đơn vị/URL form để kiểm chứng). Bỏ helper chẩn đoán tạm `apiForceFormOpen`.
+- **File đã sửa:** `setup/apps-script.js`, `setup/location-intake/Code.gs`, `test/location-pipeline.test.js`,
+  `docs/location-intake/{SETUP,OPERATIONS}.md`, `docs/brain/{03-decisions,06-ai-working-log}.md`.
+- **Kiểm tra:** `node --test test/*.test.js` **360/360 PASS**; smoke Case 1 & 2 đạt qua `clasp:run`,
+  đối chiếu `Published_Locations` trực tiếp.
+
 ## [2026-08-08] Chuyển pptxgenjs sang devDependencies để CI audit xanh
 - **Agent:** Claude Code
 - **Thay đổi:** `package.json`/`package-lock.json` — chuyển `pptxgenjs` từ `dependencies` sang

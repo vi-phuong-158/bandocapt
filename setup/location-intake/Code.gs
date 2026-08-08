@@ -152,7 +152,7 @@ function buildLocationForm_(spreadsheet) {
 
 function addLocationFormQuestions_(form, spreadsheet) {
     const pipeline = locationPipeline_();
-    const units = readLocationObjects_(spreadsheet.getSheetByName(pipeline.SHEETS.allowlist)).filter(row => pipeline.normalizeLabel(row.active) !== 'false')
+    const units = readLocationObjects_(spreadsheet.getSheetByName(pipeline.SHEETS.allowlist)).filter(row => pipeline.normalizeBoolean(row.active))
         .map(row => String(row.unit_name || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b, 'vi'));
     if (!units.length) throw new Error('Unit_Allowlist chưa có đơn vị hoạt động.');
     const q = LOCATION_INTAKE.questions;
@@ -384,3 +384,28 @@ function apiRevokePublishedLocation(recordId, reviewerEmail) {
         return apiLocationIntakeSnapshot();
     } finally { lock.releaseLock(); }
 }
+
+// Trả danh sách lựa chọn đơn vị đang hiển thị trong Form thật, để kiểm chứng bộ lọc
+// active=FALSE (đơn vị ngừng không được xuất hiện cho người gửi chọn).
+function apiFormUnitChoices() {
+    const form = FormApp.openById(requiredProperty_('LOCATION_FORM_ID'));
+    const item = form.getItems(FormApp.ItemType.LIST)
+        .find(it => it.getTitle() === LOCATION_INTAKE.questions.unit);
+    if (!item) return { error: 'UNIT_QUESTION_NOT_FOUND' };
+    return item.asListItem().getChoices().map(choice => choice.getValue());
+}
+
+function apiUnitAllowlist() {
+    const pipeline = locationPipeline_();
+    return readLocationObjects_(configuredSpreadsheet_().getSheetByName(pipeline.SHEETS.allowlist));
+}
+
+function apiFormInfo() {
+    const props = locationProperties_();
+    return {
+        formId: props.getProperty('LOCATION_FORM_ID'),
+        publicUrl: props.getProperty('LOCATION_FORM_PUBLIC_URL'),
+        editUrl: props.getProperty('LOCATION_FORM_EDIT_URL'),
+    };
+}
+

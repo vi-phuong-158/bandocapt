@@ -12,3 +12,5 @@
 ## Sự cố
 
 Chạy `healthCheckLocationIntake` để kiểm tra cấu hình/trigger. Nếu ảnh không thể public do chính sách Workspace, không cố bypass chính sách: chuyển yêu cầu về `NEED_VERIFICATION`, thông báo quản trị viên và dùng phương án lưu trữ được phê duyệt. Với lỗi trigger, kiểm tra quyền người sở hữu trigger và `Approval_Audit_Log` trước khi cài lại.
+
+**Form báo "không còn chấp nhận phản hồi":** hầu như luôn do thư mục tải tệp bị thiếu sau khi Form được sao chép từ mẫu (xem `SETUP.md` bước 8). Mở Form trong trình chỉnh sửa, bấm **Phục hồi** ở hộp thoại *"Thư mục Tải lên tệp bị thiếu"*. Lưu ý `FormApp.isAcceptingResponses()` vẫn trả `true` trong tình huống này nên **không** dùng nó để phát hiện; phải mở Form kiểm tra bằng mắt. Mỗi lần chạy lại `setupLocationIntakeSystem` tạo Form mới → phải khôi phục lại.

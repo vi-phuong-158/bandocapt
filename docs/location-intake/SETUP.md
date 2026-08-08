@@ -9,6 +9,7 @@
 5. Trong **Project Settings → Script properties**, đặt `TEMPLATE_FORM_ID` và `DESTINATION_FOLDER_ID`. Không commit ID thật vào repository.
 6. Chạy `setupLocationIntakeSystem`. Lệnh này tạo các sheet `Unit_Allowlist`, `Location_Staging`, `Published_Locations`, `Approval_Audit_Log`, `Intake_Setup_Info`; sao chép Form mẫu; lưu `LOCATION_FORM_ID`; và cài trigger submit/edit.
 7. Cấp quyền theo các hộp thoại OAuth rồi chạy `healthCheckLocationIntake` để kiểm tra Form, trigger, thư mục ảnh và sheet.
+8. **BẮT BUỘC — khôi phục thư mục tải tệp:** Mở Form vừa tạo (link edit trong sheet `Intake_Setup_Info`). Vì Form được **sao chép** từ mẫu có câu hỏi tải tệp, bản sao **mất liên kết thư mục lưu file upload**, và Google **tự tắt nhận phản hồi** kèm hộp thoại *"Thư mục Tải lên tệp bị thiếu"*. Bấm **Phục hồi (Restore)** để Google tạo lại thư mục; chỉ khi đó Form mới nhận phản hồi. Nếu bỏ qua, người dân mở link Form sẽ thấy *"không còn chấp nhận phản hồi"*. Đây là hệ quả cố hữu vì Apps Script `FormApp` không tạo được câu hỏi tải tệp bằng code nên buộc phải copy mẫu.
 
 Để đẩy code bằng `clasp` thay vì dán tay, xem `docs/location-intake/CLASP.md`.
 
