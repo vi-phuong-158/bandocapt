@@ -341,3 +341,8 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
   lớp soft-cap preference (`feat/t36-soft-cap-preference`). Hồ sơ đối chiếu:
   `data/tthc-phutho-xe-cap-review.md`. Điểm quay lại nếu sau này muốn khớp đúng cấp xã.
 - **[TODO — cần người dùng duyệt] T3.8:** Chỉ chuyển production sau báo cáo gate đạt. Trước đó phải review/approve corpus law/guide cần giữ, seed chúng sang namespace ứng viên và chỉ khi đó mới chạy backfill apply có xác nhận namespace.
+## [DONE-CODE 2026-08-03] Location intake Google Form
+
+- Implemented the record-ID intake pipeline, generated Apps Script runtime, public API filtering, service-aware map/chatbot behavior, safe export migration and operations documentation.
+- Remaining human setup: supply the real template Form ID, destination Drive folder ID and 148-unit email allowlist in Script Properties/`Unit_Allowlist`, then authorize the Apps Script project and run its health check. No production deployment was performed.
+

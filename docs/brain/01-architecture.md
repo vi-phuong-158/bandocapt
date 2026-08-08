@@ -393,6 +393,17 @@ Biến mới (2026-07-13):
 - Runtime mo ta dia gioi hien hanh theo mo hinh `tinh Phu Tho -> xa/phuong`; alias lich su chi duoc dung neu backend da match tu `search_aliases`.
 - Vector Pinecone `tru_so` van duoc giu trong index de rollback, nhung runtime `api/chat.js` loai bo khoi prompt va citation.
 - `Published_Locations` public khong doc `Form_Responses`; pipeline admin van di qua `Unit_Allowlist` -> `Location_Staging` -> `Published_Locations`.
+
+## Location intake (2026-08-03)
+
+- `setup/apps-script.js` is the single UMD/IIFE source of location intake rules. It runs in Node tests and in the generated Apps Script bundle; no business-rule copy is maintained in `docs/Form`.
+- `scripts/build-location-intake-apps-script.js` concatenates the pure module with `setup/location-intake/Code.gs` into the generated deployable `setup/location-intake/dist/Code.gs`, and copies `setup/location-intake/appsscript.json` next to it so `dist/` is a complete clasp push root.
+- The thin Apps Script runtime owns only Google integrations: Form, Spreadsheet, Drive, Maps redirect fetch, Script Properties, installable triggers, LockService, menu and health check.
+- Intake flow is `Unit_Allowlist -> Location_Staging -> Published_Locations -> api/google-sheet.js -> js/location-data.js/app.js/chatbot`. A unit may own many `record_id`; all update/report/stop operations require and operate on `target_record_id`.
+- `Published_Locations` has a public allowlist schema. `api/google-sheet.js` filters the GViz table again before responding, so accidental internal columns cannot leak through the proxy.
+- `scripts/migrate-published-locations.js` migrates exported JSON in dry-run mode by default and writes only an explicit output file on `--apply`; it never changes a production sheet.
+- Deploy/run bằng `clasp` (`npm run clasp:push|clasp:run|clasp:logs`, pin `@google/clasp@3.3.0` qua `npx`, không thêm dependency). Push root là `dist/`, cấu hình môi trường (`.clasp.json`, `.clasprc.json`, `clasp-creds*.json`) không commit. Xem `docs/location-intake/CLASP.md`.
+- Apps Script API không có UI và không có bảng đang mở, nên runtime tách đôi: hàm menu (`healthCheckLocationIntake`, `*Selected*`) chạm `getUi()`/`getActiveRange()` và chỉ dùng trong Sheet; hàm `api*` (`apiHealthCheckLocationIntake`, `apiReviewLocationRequest`, `apiLocationIntakeSnapshot`) trả giá trị và gọi được qua `clasp run`. `setupLocationIntakeSystem` rơi về Script Property `LOCATION_SPREADSHEET_ID` khi `getActiveSpreadsheet()` trả null.
 - Provider generation theo `LLM_PRIMARY`/`LLM_FALLBACK` (xem "Bien moi truong 2026-07-13"): mac dinh
   van la Gemini ke ca khi co `DEEPSEEK_API_KEY` — key nay chi tu dong lam **fallback** (khi
   `LLM_FALLBACK` khong dat rieng) va **CHI** duoc thu truoc khi da phat chunk hop le dau tien, gap

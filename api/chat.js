@@ -1630,11 +1630,17 @@ function buildVerifiedLocationLinks(matches = []) {
     return matches
         .filter(match => match?.name)
         .slice(0, 4)
-        .map(match => ({
-            name: String(match.name),
-            address: String(match.address || ''),
-            mapsUrl: String(match.googleMapsUrl || ''),
-        }));
+        .map(match => {
+            const result = {
+                name: String(match.name),
+                address: String(match.address || ''),
+                mapsUrl: String(match.googleMapsUrl || ''),
+            };
+            if (Array.isArray(match.services) && match.services.length) result.services = match.services;
+            if (match.cccdServiceMode) result.cccdServiceMode = String(match.cccdServiceMode);
+            if (match.servedUnits) result.servedUnits = String(match.servedUnits);
+            return result;
+        });
 }
 
 function isClearlyOutOfScope(text) {

@@ -1,5 +1,115 @@
 # 06 — AI Working Log
 
+## [2026-08-08] Smoke test 2 case cuối — vá bug đơn vị active=false + phát hiện thư mục upload
+- **Agent:** Claude Code
+- **Case 1 (một đơn vị nhiều địa điểm, không đè):** gửi Form địa điểm thứ hai cho `TEST_CA_01`, duyệt
+  qua `apiReviewLocationRequest`. `Published_Locations` có **2 record cùng `TEST_CA_01`, khác
+  `record_id`** (Công an phường A / POLICE_OFFICE và Điểm CCCD 1 / CITIZEN_ID), không đè nhau. ĐẠT.
+- **Case 2 (đơn vị active=FALSE) — tìm ra BUG thật thứ 4:**
+  - `Unit_Allowlist` lưu ô FALSE thành **boolean `false`**. `normalizeLabel` cũ dùng `String(value || '')`
+    → `false || ''` = `''`, nên `normalizeBoolean(false)` trả nhầm **ACTIVE**. Hậu quả: đơn vị đã tắt
+    **vẫn hiện trong Form** VÀ **vẫn qua `authorizeSubmission`** (lỗi bảo mật — đơn vị ngừng vẫn gửi/duyệt
+    được). `apiFormUnitChoices` xác nhận form cũ có "TEST - Công an phường Ba (ngưng)".
+  - Vá: `normalizeLabel` dùng `String(value == null ? '' : value)` (không nuốt `false`/`0`); export
+    `normalizeBoolean`; form filter trong Code.gs đổi sang `!pipeline.normalizeBoolean(row.active)` cho
+    khớp đúng logic với `authorizeSubmission`. Thêm regression test. Sau khi tạo lại Form, `apiFormUnitChoices`
+    trả `['Hai', 'Một']` — TEST_CA_03 đã biến mất. ĐẠT.
+- **Phát hiện vận hành thứ 5 (không phải code bug, nhưng bắt buộc ghi):** Form sao chép từ mẫu có câu hỏi
+  tải tệp bị **mất liên kết thư mục lưu upload**, Google tự tắt nhận phản hồi kèm hộp thoại *"Thư mục Tải
+  lên tệp bị thiếu"*. Chủ Form phải mở editor bấm **Phục hồi**. `FormApp.isAcceptingResponses()` vẫn trả
+  `true` nên không phát hiện tự động được — đã thử `apiForceFormOpen` báo `accepting/published: true` mà
+  công khai vẫn chặn, cho tới khi chạy setup từ **menu** mới hiện đúng hộp thoại. Ghi vào `SETUP.md` bước 8
+  và `OPERATIONS.md`. Buộc phải copy mẫu vì `FormApp` không tạo được câu hỏi tải tệp bằng code.
+- **Thêm helper `api*` (chạy qua clasp run):** `apiUnitAllowlist`, `apiFormUnitChoices`, `apiFormInfo`
+  (đọc allowlist/lựa chọn đơn vị/URL form để kiểm chứng). Bỏ helper chẩn đoán tạm `apiForceFormOpen`.
+- **File đã sửa:** `setup/apps-script.js`, `setup/location-intake/Code.gs`, `test/location-pipeline.test.js`,
+  `docs/location-intake/{SETUP,OPERATIONS}.md`, `docs/brain/{03-decisions,06-ai-working-log}.md`.
+- **Kiểm tra:** `node --test test/*.test.js` **360/360 PASS**; smoke Case 1 & 2 đạt qua `clasp:run`,
+  đối chiếu `Published_Locations` trực tiếp.
+
+## [2026-08-08] Chuyển pptxgenjs sang devDependencies để CI audit xanh
+- **Agent:** Claude Code
+- **Thay đổi:** `package.json`/`package-lock.json` — chuyển `pptxgenjs` từ `dependencies` sang
+  `devDependencies` (chỉ đổi cờ dev, không churn version).
+- **Lý do:** Advisory HIGH mới (chưa có bản vá, range `*`) trong `image-size` kéo vào qua `pptxgenjs`
+  làm `npm audit --omit=dev --audit-level=high` (bước cuối `npm run ci`) fail — lỗi toàn repo do thời
+  điểm, không phải regression của nhánh này. `pptxgenjs` chỉ dùng trong `presentation/build_pptx*.js`
+  (tạo slide offline), không thuộc app/api/build/deploy, nên vốn là devDependency. Sau khi chuyển,
+  `--omit=dev` bỏ qua nó, `image-size` thành `dev:true`, audit exit 0 (còn 6 moderate không chặn).
+- **Kiểm tra:** `npm audit --omit=dev --audit-level=high` exit 0; `npm ls pptxgenjs --omit=dev` rỗng.
+
+## [2026-08-08] Smoke test location intake end-to-end qua clasp — tìm & vá 3 bug chặn phát hành
+- **Agent:** Claude Code
+- **Bối cảnh:** Chạy smoke test thật trên Google (Sheet/Form/Drive test riêng, không production) qua
+  `clasp:run`. Toàn bộ luồng đạt: gửi hợp lệ → PENDING; email sai đơn vị → BLOCKED; update thiếu mã →
+  `TARGET_RECORD_ID_REQUIRED`; duyệt → published + ảnh public (Drive API xác nhận `anyone/reader`); lọc
+  field công khai đúng (published chỉ 19 field allowlist); thu hồi → gỡ published + ảnh về private (Drive
+  API xác nhận chỉ còn owner).
+- **Bug đã vá (chỉ runtime GAS thật mới lộ, unit test mock Google nên không bắt được):**
+  1. **`isGoogleMapsUrl` dùng `new URL()`** (`setup/apps-script.js`) — Apps Script V8 KHÔNG có global
+     `URL`, `new URL()` ném ReferenceError, `catch` nuốt lỗi trả `false` → **mọi link Maps thành
+     INVALID_LINK, không địa điểm nào công bố được**. Thay bằng tách host bằng regex, chạy giống nhau ở
+     Node và GAS. Thêm regression test gỡ `globalThis.URL` để mô phỏng GAS (`test/location-pipeline.test.js`).
+  2. **`setProperties({...}, true)`** (`setup/location-intake/Code.gs`) — cờ thứ hai là `deleteAllOthers`,
+     xoá sạch mọi Script Property gồm `TEMPLATE_FORM_ID`/`DESTINATION_FOLDER_ID`. Hậu quả: setup không
+     chạy xong, và nghiêm trọng hơn **mỗi lần gửi Form đều hỏng chuyển ảnh** (cần `DESTINATION_FOLDER_ID`).
+     Bỏ cờ `true`.
+  3. **Form không nhận phản hồi** — mô hình Publish mới của Google Forms: form copy khởi đầu chưa publish;
+     `setAcceptingResponses(true)` ném "Operation not supported on unpublished form", và khi đặt ở giữa
+     chuỗi thì bị mutation sau (thêm câu hỏi/`setDestination`) đảo lại. Vá: `setPublished(true)`
+     (feature-detect) + đặt `setAcceptingResponses(true)`/`setPublished(true)` SAU CÙNG.
+- **Lỗi tài liệu đã sửa:** tên hàm `locationIntakeHealthCheck` (không tồn tại → `healthCheckLocationIntake`,
+  đã sửa ở commit trước); tên sheet `Audit_Log`/`Location_Intake_Info` (thật là `Approval_Audit_Log`/
+  `Intake_Setup_Info`) trong SETUP/OPERATIONS/SECURITY.
+- **Thêm:** `apiRevokePublishedLocation(recordId, reviewerEmail)` — bản API-safe của
+  `revokeSelectedPublishedLocation` để thu hồi chạy được qua `clasp run`. Ghi chú vận hành GCP vào
+  `docs/location-intake/CLASP.md`: phải bật **Drive API** trong project chuẩn (thiếu nó duyệt/thu hồi ném
+  `Permission denied while enabling APIs: drive`, áp dụng cả trigger thật), và login cần
+  `--include-clasp-scopes` để `push` không bị `Insufficient Permission`.
+- **File đã sửa:** `setup/apps-script.js`, `setup/location-intake/Code.gs`, `test/location-pipeline.test.js`,
+  `docs/location-intake/{CLASP,SETUP,OPERATIONS,SECURITY}.md`, `docs/brain/03-decisions.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Kiểm tra:** `node --test test/*.test.js` **359/359 PASS** (thêm 1 regression test); build sạch;
+  smoke test thật 6/6 kịch bản đạt, đối chiếu quyền Drive bằng Drive API trực tiếp trước và sau duyệt/thu hồi.
+
+## [2026-08-07] Dựng đường deploy clasp cho location intake + entry point API-safe
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - `setup/location-intake/appsscript.json` (mới): manifest khai 6 OAuth scope suy ra từ dịch vụ
+    Google mà runtime thực dùng (`SpreadsheetApp`, `DriveApp`, `FormApp`, `ScriptApp` trigger,
+    `UrlFetchApp` resolve link Maps, `Session` lấy email), `executionApi.access: MYSELF`.
+  - `scripts/build-location-intake-apps-script.js`: copy manifest sang `dist/` để `dist/` thành
+    push root hoàn chỉnh của clasp (đúng 2 file, đã xác minh bằng `clasp show-file-status`).
+  - `setup/location-intake/Code.gs`: (1) `setupLocationIntakeSystem` rơi về Script Property
+    `LOCATION_SPREADSHEET_ID` khi `getActiveSpreadsheet()` trả null; (2) tách
+    `locationIntakeStatus_()` khỏi `healthCheckLocationIntake` để phần tính toán không dính UI;
+    (3) thêm `apiHealthCheckLocationIntake`, `apiReviewLocationRequest`,
+    `apiLocationIntakeSnapshot` — không chạm UI, trả giá trị để kiểm chứng tự động.
+  - `package.json`: script `clasp`, `clasp:push`, `clasp:run`, `clasp:logs`, `clasp:status` gọi
+    `npx @google/clasp@3.3.0` (không thêm dependency, `package-lock.json` vẫn y hệt `main`).
+  - `.gitignore`: chặn `.clasp.json`, `.clasprc.json`, `clasp-creds*.json`. Thêm
+    `setup/location-intake/.clasp.json.example`.
+  - `docs/location-intake/CLASP.md` (mới) và sửa lỗi tên hàm trong `SETUP.md`/`OPERATIONS.md`.
+- **File đã sửa:** `setup/location-intake/appsscript.json`, `setup/location-intake/.clasp.json.example`,
+  `setup/location-intake/Code.gs`, `scripts/build-location-intake-apps-script.js`, `package.json`,
+  `.gitignore`, `docs/location-intake/CLASP.md`, `docs/location-intake/SETUP.md`,
+  `docs/location-intake/OPERATIONS.md`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Smoke test Google là blocker cuối của PR #41, trước đó phải dán code thủ công vào
+  trình soạn Apps Script. Khi dựng đường clasp thì lộ ra hai hàm chính **không chạy được** qua
+  Apps Script API: `setupLocationIntakeSystem` dùng `getActiveSpreadsheet()` (trả null ngoài ngữ
+  cảnh UI) và `healthCheckLocationIntake` dùng `getUi().alert()` (ném lỗi ngoài ngữ cảnh UI).
+- **Lỗi tài liệu đã sửa:** `SETUP.md` và `OPERATIONS.md` (và cả checklist trong mô tả PR #41) ghi
+  hàm `locationIntakeHealthCheck` — hàm này **không tồn tại**; tên thật là `healthCheckLocationIntake`.
+  Người vận hành làm theo tài liệu cũ sẽ không tìm thấy hàm để chạy.
+- **Giới hạn còn lại:** Nộp Form thật kèm tải ảnh vẫn phải do người thật làm — Forms API không hỗ
+  trợ nộp phản hồi có tệp đính kèm. Các bước sau đó (duyệt, công bố theo `record_id`, đối chiếu,
+  thu hồi) đã tự động hoá được bằng `clasp:run` + `clasp:logs`.
+- **Kiểm tra:** `node --test test/*.test.js` **358/358 PASS**; build sinh `dist/Code.gs` (51972 bytes)
+  + `dist/appsscript.json`, `new Function(bundle)` trong build script xác nhận cú pháp;
+  `clasp show-file-status` liệt kê đúng 2 file sẽ đẩy; `git check-ignore` xác nhận `.clasp.json`
+  bị chặn. Chưa chạy `clasp push`/`run` thật vì cần người dùng đăng nhập OAuth trước.
+
 ## [2026-08-06] Sửa flaky test e2e "external procedure deep-link replaces stale list context"
 - **Agent:** Claude Code
 - **Thay đổi:** Thêm `await expect(firstRow).toBeVisible()` trước khi click hàng đầu tiên trong
@@ -2450,3 +2560,10 @@
 - **Kiểm tra:** `npm test` 341/341 PASS; `npm run build` sạch; `npx vercel dev --listen 3001 --yes`
   lên "Ready!" trong vài giây (trước đó treo vô thời hạn); `curl` xác nhận `/api/chat` đi qua
   handler thật.
+
+## [2026-08-03] Location intake Google Form
+- **Agent:** Codex
+- **Thay đổi:** Chuyển pipeline cập nhật địa điểm sang khóa `record_id` đa địa điểm/đơn vị; thêm validation allowlist, MIME, chống formula injection, Maps/toạ độ, audit và thu hồi ảnh. Bổ sung runtime Apps Script sinh từ nguồn logic chung, API allowlist công khai, UI/map/chatbot theo `services`, migration dry-run và tài liệu vận hành.
+- **File đã sửa:** `setup/apps-script.js`, `setup/location-intake/`, `scripts/build-location-intake-apps-script.js`, `scripts/migrate-published-locations.js`, `api/google-sheet.js`, `api/chat.js`, `js/location-data.js`, `js/chatbot.js`, `app.js`, `index.html`, `package.json`, test location/chat và `docs/location-intake/`.
+- **Lý do:** Một `unit_code` có thể có nhiều địa điểm; chỉ dữ liệu đã duyệt và thuộc schema công khai mới được hiển thị/tra cứu.
+- **Kiểm tra:** `npm.cmd test` đạt 343/343; `npm.cmd run build` đạt; Playwright đạt 19/19; `npm.cmd audit --omit=dev --audit-level=high` báo 12 high dependency vulnerabilities (một số không có bản vá), không tự nâng dependency ngoài phạm vi.
