@@ -105,10 +105,12 @@ function setupLocationIntakeSystem() {
     Object.entries(pipeline.HEADERS).forEach(([key, headers]) => ensureLocationSheet_(spreadsheet, pipeline.SHEETS[key], headers));
     ensureLocationSheet_(spreadsheet, pipeline.SHEETS.info, ['key', 'value', 'note']);
     const form = buildLocationForm_(spreadsheet);
+    // KHÔNG dùng deleteAllOthers=true: cờ đó xoá luôn TEMPLATE_FORM_ID và DESTINATION_FOLDER_ID,
+    // mà DESTINATION_FOLDER_ID còn cần mỗi lần nhận Form để chuyển ảnh (xem uploadedImage_).
     locationProperties_().setProperties({
         LOCATION_SPREADSHEET_ID: spreadsheet.getId(), LOCATION_FORM_ID: form.getId(),
         LOCATION_FORM_PUBLIC_URL: form.getPublishedUrl(), LOCATION_FORM_EDIT_URL: form.getEditUrl(),
-    }, true);
+    });
     installLocationTriggers_(form, spreadsheet);
     writeLocationSetupInfo_(spreadsheet, form);
     SpreadsheetApp.flush();
@@ -118,21 +120,33 @@ function buildLocationForm_(spreadsheet) {
     const templateFile = DriveApp.getFileById(requiredProperty_('TEMPLATE_FORM_ID'));
     const copy = templateFile.makeCopy(`${LOCATION_INTAKE.formTitle} - ${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd_HHmmss')}`);
     const form = FormApp.openById(copy.getId());
+    const normalizeTitle_ = value => String(value == null ? '' : value).normalize('NFC').trim();
     const uploads = form.getItems(FormApp.ItemType.FILE_UPLOAD);
-    if (uploads.length !== 1 || uploads[0].getTitle() !== LOCATION_INTAKE.imageQuestion) {
+    const upload = uploads.find(item => normalizeTitle_(item.getTitle()) === normalizeTitle_(LOCATION_INTAKE.imageQuestion));
+    if (uploads.length !== 1 || !upload) {
+        const found = uploads.map(item => `“${item.getTitle()}”`).join(', ') || '(không có câu tải tệp nào)';
         copy.setTrashed(true);
-        throw new Error('Form mẫu phải có đúng một câu tải ảnh tên “Ảnh địa điểm”.');
+        throw new Error(`Form mẫu phải có đúng một câu tải tệp tên “Ảnh địa điểm”. Thực tế: ${uploads.length} câu tải tệp — ${found}.`);
     }
-    const upload = uploads[0];
     form.getItems().forEach(item => { if (item.getId() !== upload.getId()) form.deleteItem(item); });
+    // Đưa tiêu đề về đúng dạng canonical để submit-time answers.get(imageQuestion) luôn khớp.
+    upload.setTitle(LOCATION_INTAKE.imageQuestion);
+    // Google Forms tạo bằng copy khởi đầu ở trạng thái CHƯA publish; setAcceptingResponses và
+    // getPublishedUrl sẽ ném "Operation not supported on unpublished form" cho tới khi publish.
+    // setPublished chỉ có ở runtime Forms mới nên feature-detect trước khi gọi.
+    try { if (typeof form.setPublished === 'function') form.setPublished(true); } catch (_) {}
     form.setTitle(LOCATION_INTAKE.formTitle).setCollectEmail(true).setAllowResponseEdits(true)
-        .setLimitOneResponsePerUser(false).setShuffleQuestions(false).setAcceptingResponses(true)
+        .setLimitOneResponsePerUser(false).setShuffleQuestions(false)
         .setDescription('Biểu mẫu nội bộ. Mỗi lần gửi tương ứng một địa điểm vật lý.')
         .setConfirmationMessage('Đã tiếp nhận. Dữ liệu chỉ hiển thị sau khi được phê duyệt.');
     addLocationFormQuestions_(form, spreadsheet);
     form.moveItem(upload, form.getItems().length - 1);
     try { form.removeDestination(); } catch (_) {}
     form.setDestination(FormApp.DestinationType.SPREADSHEET, spreadsheet.getId());
+    // Đặt publish + accepting SAU CÙNG: dưới mô hình publish mới, thêm câu hỏi/đổi destination
+    // có thể đảo form về "không nhận phản hồi". Khẳng định lại sau mọi mutation.
+    try { if (typeof form.setPublished === 'function') form.setPublished(true); } catch (_) {}
+    form.setAcceptingResponses(true);
     return form;
 }
 
@@ -354,4 +368,19 @@ function apiReviewLocationRequest(requestId, action, reviewerEmail) {
 
 function apiLocationIntakeSnapshot() {
     return readLocationState_(configuredSpreadsheet_());
+}
+
+// Bản API-safe của revokeSelectedPublishedLocation: nhận record_id qua tham số thay vì dòng
+// đang chọn, để thu hồi chạy được qua clasp run. Cùng logic khoá + trả ảnh về private.
+function apiRevokePublishedLocation(recordId, reviewerEmail) {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(30000);
+    try {
+        const spreadsheet = configuredSpreadsheet_();
+        const result = locationPipeline_().applyRevocation(readLocationState_(spreadsheet), String(recordId || ''),
+            String(reviewerEmail || Session.getEffectiveUser().getEmail() || 'reviewer'), 'Thu hồi thủ công (API)', new Date());
+        if (result.revokedImageFileId) revokeImagePublic_(result.revokedImageFileId);
+        writeLocationState_(spreadsheet, result);
+        return apiLocationIntakeSnapshot();
+    } finally { lock.releaseLock(); }
 }

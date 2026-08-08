@@ -142,16 +142,14 @@
     }
 
     function isGoogleMapsUrl(value) {
-        try {
-            const url = new URL(String(value || '').trim());
-            const host = url.hostname.toLowerCase();
-            return url.protocol === 'https:' && (
-                host === 'maps.app.goo.gl' || host === 'goo.gl' || host.endsWith('.google.com') ||
-                host === 'google.com' || host.endsWith('.google.com.vn')
-            );
-        } catch (_) {
-            return false;
-        }
+        // KHÔNG dùng `new URL()`: Apps Script V8 không có global URL (là host object của
+        // trình duyệt/Node), gọi sẽ ném và mọi link Maps bị coi là INVALID_LINK. Tách host
+        // bằng regex để chạy giống nhau ở Node lẫn GAS.
+        const match = String(value || '').trim().match(/^https:\/\/([^/?#]+)/i);
+        if (!match) return false;
+        const host = match[1].toLowerCase().replace(/:\d+$/, '');
+        return host === 'maps.app.goo.gl' || host === 'goo.gl' || host.endsWith('.google.com') ||
+            host === 'google.com' || host.endsWith('.google.com.vn') || host === 'google.com.vn';
     }
 
     function parseCoordinates(input, bounds = PHU_THO_BOUNDS) {

@@ -11,4 +11,4 @@
 
 ## Sự cố
 
-Chạy `healthCheckLocationIntake` để kiểm tra cấu hình/trigger. Nếu ảnh không thể public do chính sách Workspace, không cố bypass chính sách: chuyển yêu cầu về `NEED_VERIFICATION`, thông báo quản trị viên và dùng phương án lưu trữ được phê duyệt. Với lỗi trigger, kiểm tra quyền người sở hữu trigger và `Audit_Log` trước khi cài lại.
+Chạy `healthCheckLocationIntake` để kiểm tra cấu hình/trigger. Nếu ảnh không thể public do chính sách Workspace, không cố bypass chính sách: chuyển yêu cầu về `NEED_VERIFICATION`, thông báo quản trị viên và dùng phương án lưu trữ được phê duyệt. Với lỗi trigger, kiểm tra quyền người sở hữu trigger và `Approval_Audit_Log` trước khi cài lại.

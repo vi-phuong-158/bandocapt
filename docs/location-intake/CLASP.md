@@ -50,17 +50,20 @@ Trong **Project Settings → Script properties**, đặt:
 
 `run-function` gọi Apps Script API nên cần thêm, chỉ làm một lần:
 
-1. Bật Apps Script API tại <https://script.google.com/home/usersettings>.
-2. Gắn script vào một **GCP project chuẩn** (Project Settings → Google Cloud Platform project).
-3. Trong GCP project đó, tạo **OAuth client ID** loại *Desktop app*, tải file JSON về, đặt tên
-   `clasp-creds.json` (mẫu tên này đã bị `.gitignore` chặn).
-4. Đăng nhập lại kèm scope của manifest:
+1. Bật Apps Script API **cấp tài khoản** tại <https://script.google.com/home/usersettings>.
+2. Gắn script vào một **GCP project chuẩn** (Project Settings → Google Cloud Platform project → Change project → dán project number → Set project).
+3. Trong **đúng GCP project đó**, bật hai API (đây là điểm rất hay quên — bật cấp tài khoản ở mục 1 KHÁC bật trong project):
+   - **Apps Script API**: `https://console.developers.google.com/apis/api/script.googleapis.com/overview?project=<PROJECT_NUMBER>`
+   - **Google Drive API**: `https://console.developers.google.com/apis/api/drive.googleapis.com/overview?project=<PROJECT_NUMBER>` — cần vì `setImagePublic_`/`revokeImagePublic_` gọi `DriveApp.setSharing`, đi qua Drive API. Thiếu nó, duyệt/thu hồi sẽ ném `Permission denied while enabling APIs: drive`. **Lưu ý vận hành:** khi đã gắn project chuẩn thì **trigger duyệt thật cũng chạy dưới project đó**, nên Drive API phải bật kể cả khi không dùng clasp.
+4. Cấu hình OAuth consent screen (User type **External**, thêm chính email bạn vào **Test users**).
+5. Tạo **OAuth client ID** loại *Desktop app*, tải file JSON, đặt tên `clasp-creds.json` (đã bị `.gitignore` chặn).
+6. Đăng nhập kèm **cả hai** bộ scope — thực thi (manifest) và quản lý (để `push` vẫn chạy):
 
 ```bash
-npm run clasp -- login --creds clasp-creds.json --use-project-scopes
+npm run clasp -- login --creds clasp-creds.json --use-project-scopes --include-clasp-scopes
 ```
 
-Nếu bỏ qua mục 4, `push` và `logs` vẫn dùng bình thường; chỉ `run` là không chạy được.
+**Đừng quên `--include-clasp-scopes`.** Nếu chỉ `--use-project-scopes`, token thiếu scope `script.projects` và `clasp:push` sẽ báo `Insufficient Permission`. Nếu bỏ qua toàn bộ mục 4, `push` và `logs` vẫn chạy nhưng `run` thì không.
 
 ## Lệnh hằng ngày
 
@@ -73,8 +76,9 @@ là push root, nên chỉ đúng hai file đó lên Google — không đẩy nh�
 
 ```bash
 npm run clasp:run -- apiHealthCheckLocationIntake
-npm run clasp:run -- apiReviewLocationRequest --params '["REQ-001","APPROVE","reviewer@example.com"]'
 npm run clasp:run -- apiLocationIntakeSnapshot
+npm run clasp:run -- apiReviewLocationRequest --params '["<request_id>","APPROVE","reviewer@example.com"]'
+npm run clasp:run -- apiRevokePublishedLocation --params '["<record_id>","reviewer@example.com"]'
 npm run clasp:logs
 ```
 
@@ -86,7 +90,8 @@ Apps Script API chạy **không có giao diện và không có bảng đang mở
 | Hàm | Qua `clasp run` | Ghi chú |
 | --- | --- | --- |
 | `apiHealthCheckLocationIntake` | Được | Trả mảng trạng thái thay vì hộp thoại |
-| `apiReviewLocationRequest` | Được | Duyệt theo `request_id`, trả snapshot sau khi ghi |
+| `apiReviewLocationRequest` | Được | Duyệt theo `request_id` (APPROVE/REJECT/NEED_VERIFICATION), trả snapshot sau khi ghi |
+| `apiRevokePublishedLocation` | Được | Thu hồi theo `record_id`, trả ảnh về private, trả snapshot |
 | `apiLocationIntakeSnapshot` | Được | Đọc staging/published/audit để đối chiếu tự động |
 | `setupLocationIntakeSystem` | Được, có điều kiện | Phải đặt `LOCATION_SPREADSHEET_ID` trước |
 | `healthCheckLocationIntake` | Không | Bản dùng menu, hiện hộp thoại |

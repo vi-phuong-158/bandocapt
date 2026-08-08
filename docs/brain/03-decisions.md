@@ -1141,3 +1141,10 @@
 - **Decision:** `setupLocationIntakeSystem` rơi về Script Property `LOCATION_SPREADSHEET_ID` khi `getActiveSpreadsheet()` trả null, thay vì tạo hàm setup thứ hai cho API.
 - **Giới hạn đã biết:** Nộp Google Form kèm tải ảnh không tự động hoá được (Forms API không hỗ trợ nộp phản hồi có tệp). Bước này vẫn phải do người thật làm, và chính nó mới kiểm chứng MIME thật, quyền Drive thật và allowlist email thật.
 
+## [2026-08-08] Ràng buộc runtime GAS phát hiện qua smoke test thật
+
+- **Decision:** Không dùng `new URL()`/`URLSearchParams` hay host object của trình duyệt/Node trong `setup/apps-script.js`. Apps Script V8 KHÔNG có `URL` global; unit test chạy trên Node có `URL` nên không bắt được. Phân tích host bằng regex; có regression test gỡ `globalThis.URL` để chốt ràng buộc.
+- **Decision:** Không dùng `PropertiesService.setProperties(props, true)` — cờ `deleteAllOthers=true` xoá cả `TEMPLATE_FORM_ID`/`DESTINATION_FOLDER_ID` mà runtime cần mỗi lần nhận Form.
+- **Decision:** Khi gắn GCP project chuẩn cho Apps Script phải bật **Drive API** trong chính project đó (không chỉ Apps Script API). `DriveApp.setSharing` đi qua Drive API; thiếu sẽ hỏng cả `clasp run` lẫn trigger duyệt thật. Chi tiết ở `docs/location-intake/CLASP.md`.
+- **Trạng thái:** Toàn bộ luồng đã smoke test end-to-end trên tài nguyên test (không production), 6/6 kịch bản đạt, đối chiếu quyền ảnh public/private bằng Drive API. Xem `06-ai-working-log.md` [2026-08-08].
+

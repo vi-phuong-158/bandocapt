@@ -7,7 +7,7 @@
 3. Tạo Google Spreadsheet vận hành và mở Apps Script gắn với spreadsheet đó.
 4. Chạy `npm run build:location-intake`, dán nội dung `setup/location-intake/dist/Code.gs` vào Apps Script.
 5. Trong **Project Settings → Script properties**, đặt `TEMPLATE_FORM_ID` và `DESTINATION_FOLDER_ID`. Không commit ID thật vào repository.
-6. Chạy `setupLocationIntakeSystem`. Lệnh này tạo các sheet `Unit_Allowlist`, `Location_Staging`, `Published_Locations`, `Audit_Log`, `Location_Intake_Info`; sao chép Form mẫu; lưu `LOCATION_FORM_ID`; và cài trigger submit/edit.
+6. Chạy `setupLocationIntakeSystem`. Lệnh này tạo các sheet `Unit_Allowlist`, `Location_Staging`, `Published_Locations`, `Approval_Audit_Log`, `Intake_Setup_Info`; sao chép Form mẫu; lưu `LOCATION_FORM_ID`; và cài trigger submit/edit.
 7. Cấp quyền theo các hộp thoại OAuth rồi chạy `healthCheckLocationIntake` để kiểm tra Form, trigger, thư mục ảnh và sheet.
 
 Để đẩy code bằng `clasp` thay vì dán tay, xem `docs/location-intake/CLASP.md`.

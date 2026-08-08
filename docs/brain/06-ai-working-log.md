@@ -1,5 +1,39 @@
 # 06 — AI Working Log
 
+## [2026-08-08] Smoke test location intake end-to-end qua clasp — tìm & vá 3 bug chặn phát hành
+- **Agent:** Claude Code
+- **Bối cảnh:** Chạy smoke test thật trên Google (Sheet/Form/Drive test riêng, không production) qua
+  `clasp:run`. Toàn bộ luồng đạt: gửi hợp lệ → PENDING; email sai đơn vị → BLOCKED; update thiếu mã →
+  `TARGET_RECORD_ID_REQUIRED`; duyệt → published + ảnh public (Drive API xác nhận `anyone/reader`); lọc
+  field công khai đúng (published chỉ 19 field allowlist); thu hồi → gỡ published + ảnh về private (Drive
+  API xác nhận chỉ còn owner).
+- **Bug đã vá (chỉ runtime GAS thật mới lộ, unit test mock Google nên không bắt được):**
+  1. **`isGoogleMapsUrl` dùng `new URL()`** (`setup/apps-script.js`) — Apps Script V8 KHÔNG có global
+     `URL`, `new URL()` ném ReferenceError, `catch` nuốt lỗi trả `false` → **mọi link Maps thành
+     INVALID_LINK, không địa điểm nào công bố được**. Thay bằng tách host bằng regex, chạy giống nhau ở
+     Node và GAS. Thêm regression test gỡ `globalThis.URL` để mô phỏng GAS (`test/location-pipeline.test.js`).
+  2. **`setProperties({...}, true)`** (`setup/location-intake/Code.gs`) — cờ thứ hai là `deleteAllOthers`,
+     xoá sạch mọi Script Property gồm `TEMPLATE_FORM_ID`/`DESTINATION_FOLDER_ID`. Hậu quả: setup không
+     chạy xong, và nghiêm trọng hơn **mỗi lần gửi Form đều hỏng chuyển ảnh** (cần `DESTINATION_FOLDER_ID`).
+     Bỏ cờ `true`.
+  3. **Form không nhận phản hồi** — mô hình Publish mới của Google Forms: form copy khởi đầu chưa publish;
+     `setAcceptingResponses(true)` ném "Operation not supported on unpublished form", và khi đặt ở giữa
+     chuỗi thì bị mutation sau (thêm câu hỏi/`setDestination`) đảo lại. Vá: `setPublished(true)`
+     (feature-detect) + đặt `setAcceptingResponses(true)`/`setPublished(true)` SAU CÙNG.
+- **Lỗi tài liệu đã sửa:** tên hàm `locationIntakeHealthCheck` (không tồn tại → `healthCheckLocationIntake`,
+  đã sửa ở commit trước); tên sheet `Audit_Log`/`Location_Intake_Info` (thật là `Approval_Audit_Log`/
+  `Intake_Setup_Info`) trong SETUP/OPERATIONS/SECURITY.
+- **Thêm:** `apiRevokePublishedLocation(recordId, reviewerEmail)` — bản API-safe của
+  `revokeSelectedPublishedLocation` để thu hồi chạy được qua `clasp run`. Ghi chú vận hành GCP vào
+  `docs/location-intake/CLASP.md`: phải bật **Drive API** trong project chuẩn (thiếu nó duyệt/thu hồi ném
+  `Permission denied while enabling APIs: drive`, áp dụng cả trigger thật), và login cần
+  `--include-clasp-scopes` để `push` không bị `Insufficient Permission`.
+- **File đã sửa:** `setup/apps-script.js`, `setup/location-intake/Code.gs`, `test/location-pipeline.test.js`,
+  `docs/location-intake/{CLASP,SETUP,OPERATIONS,SECURITY}.md`, `docs/brain/03-decisions.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Kiểm tra:** `node --test test/*.test.js` **359/359 PASS** (thêm 1 regression test); build sạch;
+  smoke test thật 6/6 kịch bản đạt, đối chiếu quyền Drive bằng Drive API trực tiếp trước và sau duyệt/thu hồi.
+
 ## [2026-08-07] Dựng đường deploy clasp cho location intake + entry point API-safe
 - **Agent:** Claude Code
 - **Thay đổi:**

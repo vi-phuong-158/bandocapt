@@ -132,6 +132,24 @@ test('classifies Maps coordinate conditions without losing the original URL', ()
     assert.equal(pipeline.classifyCoordinateStatus({ coordinates: '21.32,105.36', manuallyConfirmed: true }).status, pipeline.COORDINATE_STATUSES.manuallyConfirmed);
 });
 
+test('coordinate classification không phụ thuộc global URL (Apps Script V8 không có URL)', () => {
+    // Regression: bản cũ dùng `new URL()`; trong runtime GAS không có URL global nên mọi link
+    // Maps bị coi là INVALID_LINK. Mô phỏng GAS bằng cách gỡ globalThis.URL rồi kiểm.
+    const savedURL = globalThis.URL;
+    delete globalThis.URL;
+    try {
+        assert.equal(pipeline.isGoogleMapsUrl('https://maps.app.goo.gl/nRFwzQUUHzMNPcoo8'), true);
+        assert.equal(pipeline.isGoogleMapsUrl('https://www.google.com/maps/place/x/@21.3171337,105.3950943,15z'), true);
+        assert.equal(pipeline.isGoogleMapsUrl('https://evil.example.com/@21.32,105.40'), false);
+        assert.equal(
+            pipeline.classifyCoordinateStatus({ mapsUrl: 'https://www.google.com/maps/place/x/@21.3171337,105.3950943,15z' }).status,
+            pipeline.COORDINATE_STATUSES.extracted,
+        );
+    } finally {
+        globalThis.URL = savedURL;
+    }
+});
+
 test('warns instead of merging an equally named point within 50 meters', () => {
     const old = { record_id: 'OLD_1', name: 'Điểm tiếp dân', coordinates: '21.3200,105.3600' };
     const warnings = pipeline.detectDuplicateWarnings({ recordId: 'NEW_1', requestType: pipeline.REQUEST_TYPES.create, locationName: 'Điểm tiếp dân', coordinates: '21.3202,105.3600' }, [old]);
