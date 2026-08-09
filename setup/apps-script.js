@@ -331,6 +331,12 @@
         if (!submission.services.length && submission.requestType !== REQUEST_TYPES.stop) errors.push('SERVICES_MISSING');
         if (!submission.address && submission.requestType !== REQUEST_TYPES.stop) errors.push('ADDRESS_MISSING');
         if (requiresExistingTarget(submission.requestType) && !submission.targetRecordId) errors.push('TARGET_RECORD_ID_REQUIRED');
+        // "Thêm địa điểm mới" theo định nghĩa là tạo bản ghi mới, nên không có bản ghi đích nào để
+        // trỏ tới. Nhận target_record_id ở đây là mâu thuẫn ngữ nghĩa và trước đây bị nuốt im lặng:
+        // requiresExistingTarget(create) = false nên hai rule target bỏ qua, còn dòng `recordId` bên
+        // dưới vẫn kế thừa giá trị đó => APPROVE là ghi đè bản ghi đang publish. Chặn hẳn, không warning.
+        const isCreate = submission.requestType === REQUEST_TYPES.create;
+        if (isCreate && submission.targetRecordId) errors.push('CREATE_TARGET_RECORD_ID_NOT_ALLOWED');
         const targetRecord = submission.targetRecordId
             ? publishedRecords.find(record => record.record_id === submission.targetRecordId)
             : null;
@@ -338,13 +344,18 @@
         // `record_id` KHÔNG phải bí mật — nó nằm trong payload công khai của `/api/google-sheet`, nên
         // biết record_id không được tạo ra quyền sửa. Chủ sở hữu phải khớp đơn vị đã authorize từ
         // Unit_Allowlist (suy ra ở server), không lấy theo unit_code người gửi tự khai. Kiểm tra này
-        // KHÔNG gác sau requiresExistingTarget: một yêu cầu `create` mang sẵn target_record_id vẫn
-        // được dòng `recordId` bên dưới nhận làm record_id, và khi duyệt sẽ ghi đè đúng bản ghi đó.
+        // độc lập với rule create ở trên: yêu cầu create trỏ sang đơn vị khác sẽ dính cả hai lỗi.
         if (targetRecord && !sameUnitCode(targetRecord.unit_code, authorization.unitCode)) errors.push('TARGET_RECORD_UNIT_MISMATCH');
         if (submission.requestType !== REQUEST_TYPES.stop && ![COORDINATE_STATUSES.extracted, COORDINATE_STATUSES.manuallyConfirmed].includes(submission.coordinateStatus)) errors.push(`COORDINATE_${submission.coordinateStatus}`);
         if (submission.imageMimeType && !validateImageMimeType(submission.imageMimeType)) errors.push('IMAGE_MIME_NOT_ALLOWED');
         if (!submission.imageFileId && submission.requestType !== REQUEST_TYPES.stop) errors.push('IMAGE_REQUIRED');
-        const recordId = submission.targetRecordId || submission.recordId || buildRecordId(authorization.unitCode || submission.unitCode, submission.locationName, now);
+        // CREATE luôn nhận id do pipeline sinh. `submission.recordId` hiện không có caller nào truyền
+        // (Form dựng submission theo danh sách trường cố định và không có câu hỏi nào map sang recordId;
+        // migration đi qua migrateLegacyLocations chứ không qua đây), nên giữ nó ở nhánh không-create
+        // chỉ để không đổi hành vi ngoài phạm vi task.
+        const recordId = isCreate
+            ? buildRecordId(authorization.unitCode || submission.unitCode, submission.locationName, now)
+            : (submission.targetRecordId || submission.recordId || buildRecordId(authorization.unitCode || submission.unitCode, submission.locationName, now));
         const warnings = detectDuplicateWarnings({ ...submission, recordId }, publishedRecords);
         const isoNow = asIsoString(now);
         return sanitizeUserFields({
@@ -448,6 +459,12 @@
         // validation_errors. Ghi đè (dòng publish bên dưới) và xoá (nhánh stop) đều đi qua đây.
         if (publishedIndex >= 0 && !sameUnitCode(publishedRecords[publishedIndex].unit_code, previous.unit_code)) {
             throw new Error(`TARGET_RECORD_UNIT_MISMATCH:${targetId}`);
+        }
+        // Chốt chặn thứ hai cho bất biến CREATE. buildStagingRecord đã BLOCK ở khâu nhận, nhưng dòng
+        // staging nằm trong Google Sheet và người duyệt có thể xoá tay ô validation_errors. Cùng đơn vị
+        // nên guard cross-unit ngay trên không bắt được ca này.
+        if (previous.request_type === REQUEST_TYPES.create && previous.target_record_id) {
+            throw new Error(`CREATE_TARGET_RECORD_ID_NOT_ALLOWED:${targetId}`);
         }
         const isoNow = asIsoString(reviewedAt);
         if (previous.request_type === REQUEST_TYPES.stop) {

