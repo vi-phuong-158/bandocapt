@@ -498,6 +498,18 @@ function gatewayAuthorizedStaff_(email, allowlistRows) {
     return normalized;
 }
 
+function appendGatewayAuditIfMissing_(privateSpreadsheet, record, staffEmail) {
+    const pipeline = locationPipeline_();
+    const auditSheet = privateSpreadsheet.getSheetByName(pipeline.SHEETS.audit);
+    if (readLocationObjects_(auditSheet).some(entry => entry.action === 'GATEWAY_SUBMIT' && entry.request_id === record.request_id)) return true;
+    try {
+        appendLocationObject_(auditSheet, pipeline.buildAuditEntry('GATEWAY_SUBMIT', { timestamp: record.updated_at, recordId: record.record_id, requestId: record.request_id, unitCode: record.unit_code, actorEmail: staffEmail, submitterEmail: staffEmail, nextStatus: record.status, snapshot: record }));
+        return true;
+    } catch (_) {
+        return false;
+    }
+}
+
 function gatewayPreflightSubmitRequest_(body, privateSpreadsheet, publicSpreadsheet) {
     const pipeline = locationPipeline_();
     const allowlistRows = readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist));
@@ -533,7 +545,8 @@ function gatewaySubmitRequest_(body, privateSpreadsheet, publicSpreadsheet, ledg
 
     const existing = state.stagingRecords.find(record => record.request_id === body.requestId);
     if (existing) {
-        updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'DONE', staging_ref: existing.request_id, record_id: existing.record_id, last_error: '' });
+        const auditWritten = appendGatewayAuditIfMissing_(privateSpreadsheet, existing, staffEmail);
+        updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'DONE', staging_ref: existing.request_id, record_id: existing.record_id, last_error: auditWritten ? '' : 'AUDIT_APPEND_FAILED' });
         writeGatewayLedger_(gatewayLedgerSheet_(privateSpreadsheet), ledgerRecords);
         return { status: 'ALREADY_PROCESSED', recordId: existing.record_id, requestId: existing.request_id };
     }
@@ -562,9 +575,9 @@ function gatewaySubmitRequest_(body, privateSpreadsheet, publicSpreadsheet, ledg
     }
     updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'STAGING_PERSISTED', staging_ref: record.request_id, record_id: record.record_id, last_error: '' });
     writeGatewayLedger_(gatewayLedgerSheet_(privateSpreadsheet), ledgerRecords);
-    updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'DONE' });
+    const auditWritten = appendGatewayAuditIfMissing_(privateSpreadsheet, record, staffEmail);
+    updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'DONE', last_error: auditWritten ? '' : 'AUDIT_APPEND_FAILED' });
     writeGatewayLedger_(gatewayLedgerSheet_(privateSpreadsheet), ledgerRecords);
-    appendLocationObject_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.audit), pipeline.buildAuditEntry('GATEWAY_SUBMIT', { timestamp: record.updated_at, recordId: record.record_id, requestId: record.request_id, unitCode: record.unit_code, actorEmail: staffEmail, submitterEmail: staffEmail, nextStatus: record.status, snapshot: record }));
     return { status: 'PROCESSED', recordId: record.record_id, requestId: record.request_id };
 }
 

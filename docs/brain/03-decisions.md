@@ -10,7 +10,10 @@
 - **Lý do:** Web App cần mở cho Vercel ở gate sau, nên HMAC phải fail closed; claim trước side effect
   chặn cả retry tuần tự lẫn race/crash làm duplicate Drive file hoặc private event.
 - **Đánh đổi:** Gate này chưa có Google identity/session hay Vercel caller, vì vậy `staffEmail` chỉ là
-  dữ liệu trusted trong body HMAC. Gate auth sau bắt buộc derive nó từ session đã verify, không lấy từ browser.
+  dữ liệu trusted trong body HMAC. M86 chỉ chứng minh GAS-half; Gate Auth/API sau bắt buộc derive
+  `requestId` từ `operationId` của session đã verify, không lấy từ browser. Audit gateway là
+  best-effort: lỗi append audit không làm request business đã xong trả failure, mà được ghi
+  `AUDIT_APPEND_FAILED` trong ledger để vận hành theo dõi.
 - **Người quyết định:** user (Gate 6B scope) / Codex
 
 ## [2026-08-09] Gate 6A dual-workbook health gate và migration chỉ local

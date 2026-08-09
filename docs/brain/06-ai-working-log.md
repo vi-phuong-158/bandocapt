@@ -1,5 +1,21 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Gate 6B review fix — runtime acceptance harness and audit semantics
+- **Agent:** Codex
+- **Thay đổi:** Thêm `test/gateway-runtime.test.js`: chạy source production trong Node VM, fake
+  `SpreadsheetApp`, `DriveApp`, `LockService`, `PropertiesService`, `Utilities` và `ContentService`, sau đó
+  gọi trực tiếp `doPost()`. Harness chứng minh runtime M58–M63, M83–M85, M87 và M89 (gồm crash sau
+  `createFile()` trước persist pointer). Sửa audit `GATEWAY_SUBMIT` sang best-effort: request business đã
+  thành công không trả error vì audit fail; ledger `DONE` giữ `AUDIT_APPEND_FAILED` để theo dõi.
+  M86 được ghi rõ là GAS-half; Vercel-half chưa thuộc scope gate này.
+- **File đã sửa:** `setup/location-intake/Code.gs`, `test/gateway-runtime.test.js`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`, `docs/location-intake/STAFF_PORTAL_PLAN.md`.
+- **Lý do:** Đồng bộ evidence acceptance với side effect thực của gateway và loại bỏ semantics
+  retry không thể phục hồi khi audit append lỗi.
+- **Kiểm tra:** `node --test test/gateway-runtime.test.js` 5/5 và `npm test` 396/396 pass; không gọi
+  Apps Script Web App hay Google production.
+
 ## [2026-08-09] Gate 6B — private Apps Script gateway, HMAC and ledger recovery
 - **Agent:** Codex
 - **Thay đổi:** Thêm `doPost` chỉ cho phép `resolveUnits`, `submitRequest`, `writeVerificationEvent`.

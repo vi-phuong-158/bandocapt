@@ -144,6 +144,11 @@ Vercel trusted caller (gate sau)
 -> append staging hoặc verification -> ledger DONE
 ```
 
+`test/gateway-runtime.test.js` chạy hai source production (`setup/apps-script.js` và
+`setup/location-intake/Code.gs`) trong Node VM, fake toàn bộ Apps Script services và gọi thẳng
+`doPost()`. Harness nghiệm thu runtime M58–M63, M83–M85, M87 và M89; M86 mới là GAS-half, vì
+Vercel chưa có trong gate này.
+
 ### Luong chatbot RAG
 
 ```text
