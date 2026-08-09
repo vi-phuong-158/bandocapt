@@ -1,5 +1,28 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Đóng bất biến CREATE — create không được ghi đè bản ghi đang publish
+- **Agent:** Claude Code
+- **Thay đổi:** Yêu cầu `create` mang `target_record_id` nay bị BLOCK bằng mã lỗi mới
+  `CREATE_TARGET_RECORD_ID_NOT_ALLOWED`; `record_id` của `create` luôn do `buildRecordId` sinh, không
+  còn kế thừa `target_record_id`. Chốt chặn thứ hai trong `applyApproval`.
+- **File đã sửa:** `setup/apps-script.js`, `test/location-pipeline.test.js`,
+  `docs/location-intake/SECURITY.md`.
+- **Lý do:** P2 còn lại sau vòng review trước. `requiresExistingTarget(create)` = false nên hai rule
+  target bỏ qua nhánh create, mà `recordId = submission.targetRecordId || ...` vẫn kế thừa giá trị đó
+  → yêu cầu "Thêm địa điểm mới" trỏ vào bản ghi **cùng đơn vị** đi tới `PENDING` bình thường và khi
+  duyệt thì ghi đè bản ghi đang publish. Guard cross-unit không bắt được vì cùng `unit_code`. Đây
+  không phải ngữ nghĩa hợp lệ của "thêm mới".
+- **Phạm vi `submission.recordId`:** đã kiểm chứng không có caller nào truyền vào. `onLocationFormSubmit`
+  dựng submission theo danh sách trường cố định và **không** có `recordId`; bảng `LOCATION_INTAKE.questions`
+  không có câu hỏi nào map sang `recordId` (chỉ `target: 'Mã địa điểm đang có'`); `answer_()` tra theo
+  tiêu đề câu hỏi nên thêm câu hỏi lạ cũng không chèn được; repo không dùng `namedValues`; migration đi
+  qua `migrateLegacyLocations` chứ không qua `buildStagingRecord`. Vì vậy đường người dùng **không**
+  điều khiển được `recordId` — giữ nguyên nhánh không-create, không mở rộng patch.
+- **Kiểm tra:** 4 test mới (case A cùng đơn vị + tamper, C create sạch, D hai create không đè, E update
+  không bị chặn nhầm) và cập nhật 2 test cũ đang khẳng định tiền đề lỗ hổng. Xác minh ngược: gỡ bản vá
+  → 3 test fail; case C/D/E pass ở cả hai trạng thái nên không phải bẫy false-positive. `npm test`
+  **371/371**, build sạch, `npx playwright test` **19/19**, audit exit 0.
+
 ## [2026-08-09] Vá formula injection qua target_record_id (phát hiện khi review PR #41)
 - **Agent:** Claude Code
 - **Thay đổi:** Thêm `record_id` và `target_record_id` vào danh sách cột được `sanitizeUserFields`

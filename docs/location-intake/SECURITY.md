@@ -14,6 +14,12 @@
   `Published_Locations`, phòng trường hợp ô `validation_errors` bị xoá tay trong Sheet). Bản ghi published
   thiếu `unit_code` không chứng minh được chủ sở hữu nên không ai sửa được cho tới khi quản trị viên bổ sung.
 
+- "Thêm địa điểm mới" luôn tạo bản ghi mới. Yêu cầu `create` mang theo `target_record_id` bị chặn bằng
+  `CREATE_TARGET_RECORD_ID_NOT_ALLOWED` (không phải warning), và `record_id` của `create` luôn do
+  `buildRecordId` sinh ở server chứ không kế thừa giá trị người gửi nhập. Kiểm tra chạy ở hai nơi:
+  `buildStagingRecord` và `applyApproval` (phòng ô `validation_errors` bị xoá tay trong Sheet). Nhờ vậy
+  một `create` không bao giờ ghi đè được bản ghi đang có trong `Published_Locations`, kể cả bản ghi của
+  chính đơn vị mình — ca mà kiểm tra cross-unit không bắt được.
 - **Còn mở:** `Unit_Allowlist` (email cán bộ) nằm cùng bảng tính với `Published_Locations`, mà bảng tính
   đó phải cho "ai có liên kết đều xem" để endpoint GViz không xác thực trong `lib/published-locations.js`
   đọc được. `GOOGLE_SHEET_ID` là biến môi trường, không phải kiểm soát truy cập. Phải tách
