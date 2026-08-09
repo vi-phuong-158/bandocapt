@@ -14,4 +14,10 @@
   `Published_Locations`, phòng trường hợp ô `validation_errors` bị xoá tay trong Sheet). Bản ghi published
   thiếu `unit_code` không chứng minh được chủ sở hữu nên không ai sửa được cho tới khi quản trị viên bổ sung.
 
+- **Còn mở:** `Unit_Allowlist` (email cán bộ) nằm cùng bảng tính với `Published_Locations`, mà bảng tính
+  đó phải cho "ai có liên kết đều xem" để endpoint GViz không xác thực trong `lib/published-locations.js`
+  đọc được. `GOOGLE_SHEET_ID` là biến môi trường, không phải kiểm soát truy cập. Phải tách
+  `Unit_Allowlist` sang bảng tính riêng không chia sẻ công khai trước khi điền email cán bộ thật và
+  trước khi triển khai Staff Location Portal. Xem cảnh báo trong `SETUP.md`.
+
 Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, Spreadsheet và thư mục ảnh. Khi nghi lộ ảnh hoặc cấu hình sai, thu hồi quyền Drive trước, sau đó xử lý record published và audit theo quy trình vận hành.

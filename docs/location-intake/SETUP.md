@@ -17,6 +17,14 @@
 
 Điền đủ 148 đơn vị vào `Unit_Allowlist`: `unit_code`, `unit_name`, `allowed_emails`, `active`. Mỗi email phải khớp với đơn vị người gửi chọn; không để một dòng active không có email. Người vận hành cần quyền chỉnh sửa Form/Spreadsheet, quyền di chuyển và chia sẻ tệp trong thư mục ảnh, và quyền quản lý trigger. Người duyệt cần quyền Spreadsheet/Drive tương ứng; người dùng công khai không cần quyền vào Drive folder.
 
+> **⚠ Chưa điền email cán bộ thật vào bộ tài nguyên production.** `lib/published-locations.js` đọc
+> `Published_Locations` qua endpoint GViz **không xác thực**, nên bảng tính chứa sheet đó phải ở chế độ
+> ai có liên kết đều xem được. `Unit_Allowlist` hiện nằm **cùng bảng tính**, tức là bất kỳ ai biết
+> `GOOGLE_SHEET_ID` đều đọc được toàn bộ email cán bộ — `GOOGLE_SHEET_ID` chỉ là biến môi trường phía
+> máy chủ chứ không phải cơ chế kiểm soát truy cập. Chừng nào `Unit_Allowlist` chưa được tách sang một
+> bảng tính riêng **không** chia sẻ công khai (ID chỉ nằm trong Script Properties), chỉ dùng email thử
+> nghiệm. Việc tách là điều kiện bắt buộc trước khi triển khai Staff Location Portal.
+
 ## Chính sách ảnh công khai
 
 Ảnh chỉ được chuyển sang `ANYONE_WITH_LINK` sau khi duyệt. Nếu Workspace cấm chia sẻ này, duy trì chính sách tổ chức và thay đường dẫn công khai bằng một cơ chế lưu trữ đã được phê duyệt; không nới chính sách miền chỉ để chạy hệ thống. Khi ngừng hoạt động, runtime cố gắng thu hồi sharing của ảnh đã công bố.
