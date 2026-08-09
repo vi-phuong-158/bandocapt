@@ -25,7 +25,7 @@
   đọc được. `GOOGLE_SHEET_ID` là biến môi trường, không phải kiểm soát truy cập. Phải tách
   `Unit_Allowlist` sang bảng tính riêng không chia sẻ công khai trước khi điền email cán bộ thật và
   trước khi triển khai Staff Location Portal. Xem cảnh báo trong `SETUP.md`.
-  Kế hoạch tách + migration 9 bước: `STAFF_PORTAL_PLAN.md` §2–§3 (chưa thực hiện). Phạm vi rộng hơn
+  Kế hoạch tách workbook + migration: `STAFF_PORTAL_PLAN.md` §2–§3 (chưa thực hiện). Phạm vi rộng hơn
   allowlist: `Location_Staging` và `Approval_Audit_Log` chứa `submitter_email`/`submitter_phone` nên
   cũng phải nằm phía riêng tư — tách mỗi `Unit_Allowlist` chỉ vá được một nửa lỗ rò PII.
 

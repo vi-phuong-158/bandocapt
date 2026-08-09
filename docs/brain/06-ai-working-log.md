@@ -38,8 +38,8 @@
 - **Thay đổi:** Chỉ docs + một pure helper. **Không code Portal.** (1) Xác minh PR #41 đã merge thật
   trên GitHub (state `MERGED`, merge commit `1f56121`, đầu nhánh `ce50ab1`) trước khi sửa file nào.
   (2) Gate 3: đảo quyết định "không xây auth" thành auth **có phạm vi** chỉ cho `/can-bo`, ghi rõ
-  danh sách ngoài scope. (3) Gate 4: viết kế hoạch kiến trúc/bảo mật đầy đủ. (4) Gate 5: 75 ca kiểm
-  thử + 14 threat + 14 invariant. (5) Prerequisite duy nhất có code:
+  danh sách ngoài scope. (3) Gate 4: viết kế hoạch kiến trúc/bảo mật đầy đủ. (4) Gate 5: 89 ca kiểm
+  thử + threat model + 17 invariant. (5) Prerequisite duy nhất có code:
   `resolveUnitsByEmail(email, allowlistRows)` + 9 test.
 - **File đã sửa:** `setup/apps-script.js`, `test/location-pipeline.test.js`,
   `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/01-architecture.md`,
@@ -70,7 +70,9 @@
   `npm run build` sạch. `npm run test:e2e` 19/19 PASS. `npm audit --omit=dev --audit-level=high`
   exit 0. Không chạm production, không migrate Sheet, không deploy.
 - **Còn chặn:** `Unit_Allowlist` vẫn nằm cùng bảng tính link-readable với `Published_Locations`.
-  Phải tách trước khi điền email cán bộ thật. Kế hoạch migration 9 bước ở PLAN §3, **chưa chạy**.
+  Phải tách trước khi điền email cán bộ thật — cùng với `Location_Staging`/`Approval_Audit_Log`
+  (chứa `submitter_email`/`submitter_phone`), vì tách mỗi allowlist chỉ vá được một nửa lỗ rò PII.
+  Kế hoạch migration ở PLAN §3, **chưa chạy**.
 
 ## [2026-08-09] Đóng bất biến CREATE — create không được ghi đè bản ghi đang publish
 - **Agent:** Claude Code
