@@ -7,7 +7,8 @@
   gọi trực tiếp `doPost()`. Harness chứng minh runtime M58–M63, M83–M85, M87–M89 (gồm crash sau
   `createFile()` trước persist pointer). Sửa audit `GATEWAY_SUBMIT` sang best-effort: request business đã
   thành công không trả error vì audit fail; ledger `DONE` giữ `AUDIT_APPEND_FAILED` để theo dõi.
-  M86 được ghi rõ là GAS-half; Vercel-half chưa thuộc scope gate này.
+  M86 được ghi rõ là GAS-half; Vercel-half chưa thuộc scope gate này. Đồng bộ metadata
+  audit runtime là 9 moderate transitive (không có high/critical).
 - **File đã sửa:** `setup/location-intake/Code.gs`, `test/gateway-runtime.test.js`,
   `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
   `docs/brain/06-ai-working-log.md`, `docs/location-intake/STAFF_PORTAL_PLAN.md`.

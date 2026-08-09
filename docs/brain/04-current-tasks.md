@@ -376,7 +376,7 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 - **Gate 6B validation:** `npm test` 397/397 (bao gồm harness local gọi `doPost()` với fake
   Spreadsheet/Drive/Lock/Properties/Utilities/ContentService), `npm run build`, `npm run test:e2e` 19/19 và
   `npm audit --omit=dev --audit-level=high` đều pass. Audit không có high/critical; registry hiện báo
-  6 moderate transitive và chỉ đề xuất `npm audit fix --force` với breaking change `firebase-admin`.
+  9 moderate transitive và chỉ đề xuất `npm audit fix --force` với breaking change `firebase-admin`.
   Không dùng credential/email/workbook thật. M86 hiện chỉ nghiệm thu GAS-half; Vercel derive
   cùng `requestId` từ `operationId` là scope gate Auth/API tiếp theo.
 
