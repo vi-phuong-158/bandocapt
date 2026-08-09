@@ -1,5 +1,21 @@
 # 03 — Technical Decisions
 
+## [2026-08-09] Khóa contract retry, confirm và login trước implementation Staff Portal
+
+- **Idempotency qua HTTP retry:** Browser tạo UUID `operationId` ổn định cho đúng một thao tác;
+  Vercel derive opaque `requestId` từ verified `session.email + action + operationId`. Browser không
+  chọn `requestId` hay quyền. Gateway idempotent theo `action + requestId`; cùng key nhưng payload
+  khác bị reject. Điều này bao phủ trường hợp Apps Script thành công nhưng response về browser/Vercel
+  timeout, nên retry không duplicate staging hoặc Drive upload.
+- **Confirm contract:** `POST /api/can-bo/confirm` bắt buộc `{ recordId, snapshotHash, operationId }`.
+  Thiếu hash bị reject; server chỉ ghi `Staff_Verification_Audit` sau khi compare hash của record hiện
+  tại, do đó stale-confirm protection không phụ thuộc vào UI tự giác refresh.
+- **CSRF/session contract:** Mọi POST state-changing kiểm `Origin`. Các endpoint protected cần session;
+  riêng `/api/can-bo/auth/google` không cần session trước đó vì nó tạo session, nhưng phải verify Google
+  credential, kiểm Origin và IP rate-limit.
+- **Duplicate allowlist:** `buildAllowlistMap` hiện last-row-wins, không merge rows. Health gate/migration
+  validator phải block rollout khi duplicate `unit_name` khác nội dung quyền; không được dựa vào thứ tự row.
+
 ## [2026-08-09] Finalize dual-workbook Staff Portal plan và idempotent recovery
 
 - **Dual-workbook boundary:** `PUBLIC_LOCATION_SPREADSHEET_ID` chỉ chứa
@@ -13,7 +29,7 @@
   atomic cross-workbook transaction.
 - **Gateway HMAC:** dùng query parameters `action`, `timestamp`, `signature`; canonical string cố
   định `POST\naction\ntimestamp\nsha256Hex(rawBody)`. Timestamp ±5 phút chỉ là freshness; mọi state-changing
-  call phải có `requestId` do Vercel server sinh trong signed body để chống replay business.
+  call phải có `requestId` do Vercel derive trong signed body để chống replay business.
 - **Confirm:** luôn ghi `Staff_Verification_Audit` trong private workbook, với canonical SHA-256
   snapshot hash và reject `STALE_RECORD` khi record đã đổi. Không ghi confirm vào
   `Approval_Audit_Log` và không đổi public content.

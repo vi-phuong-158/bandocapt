@@ -1,5 +1,21 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Chốt request-changes PR #43 trước implementation Staff Portal
+- **Agent:** Codex
+- **Thay đổi:** Sửa ba P1 contract: `operationId` browser ổn định và `requestId` Vercel derive để
+  idempotent qua HTTP retry; payload `confirm` bắt buộc `recordId`, `snapshotHash`, `operationId`;
+  `/auth/google` là ngoại lệ session nhưng vẫn check Origin, Google credential và IP rate limit.
+  Dọn P2: ghi đúng current duplicate allowlist là last-row-wins, thêm health gate chặn duplicate
+  xung đột; matrix minh bạch coverage và bổ sung M86/B14/N67 (89 ca, 17 threat/invariant).
+- **File đã sửa:** `docs/location-intake/STAFF_PORTAL_PLAN.md`,
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md`, `docs/location-intake/README.md`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Áp dụng review `REQUEST_CHANGES_BEFORE_IMPLEMENTATION` cho PR #43 mà không triển khai
+  Portal, migrate workbook hay deploy production.
+- **Kiểm tra:** `git diff --check`, kiểm đếm matrix 89 ca / 17 threat / 17 invariant; CI Draft PR
+  phải chạy lại sau push.
+
 ## [2026-08-09] Finalize Staff Portal plan và đóng E2E runner hang
 - **Agent:** Codex
 - **Thay đổi:** Khóa dual-workbook public/private, config hai ID, read/write boundary, failure model

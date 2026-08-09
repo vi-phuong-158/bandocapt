@@ -408,9 +408,10 @@ Biến mới (2026-07-13):
   kiểm tra một đơn vị mà **người gửi tự khai** (đường Google Form). `resolveUnitsByEmail(email, rows)`
   đi chiều ngược: từ email suy ra `[{ unitCode, unitName }]` được phép — cần cho Staff Portal vì
   client không được quyết định `unit_code`. Cả hai dựng trên `buildAllowlistMap`, nên tập đơn vị hai
-  chiều **không thể lệch nhau**; sửa `buildAllowlistMap` (lọc `active`, bỏ dòng thiếu `unit_name`,
-  gộp dòng trùng tên) ảnh hưởng đồng thời cả hai. `resolveUnitsByEmail` hiện **chưa có caller runtime** —
-  nó là prerequisite của kế hoạch `docs/location-intake/STAFF_PORTAL_PLAN.md` (chưa triển khai).
+  chiều **không thể lệch nhau**; `buildAllowlistMap` hiện lọc `active`, bỏ dòng thiếu `unit_name` và
+  có semantics duplicate **last-row-wins**. Health gate Portal phải chặn duplicate xung đột trước
+  rollout, không được coi behavior này là merge dữ liệu. `resolveUnitsByEmail` hiện **chưa có caller
+  runtime** — nó là prerequisite của kế hoạch `docs/location-intake/STAFF_PORTAL_PLAN.md` (chưa triển khai).
 - **(2026-08-09) Staff Portal dùng dual-workbook boundary.** Public read tiếp tục đi qua
   `GOOGLE_SHEET_ID` → `Published_Locations`; private operational sheets (allowlist, staging, audit,
   verification, setup và Form Responses) chỉ Apps Script/backend trusted đọc/ghi qua
@@ -421,6 +422,11 @@ Biến mới (2026-07-13):
   có thể giữ npm child process sau khi test xong. `globalSetup` start/stop `preview-server` trong
   cùng runner và server đóng keep-alive connections; đây là test infrastructure, không thay đổi
   production runtime.
+- **(2026-08-09) Staff Portal retry/auth contracts.** Browser tạo `operationId` UUID ổn định cho
+  một thao tác; Vercel derive `requestId` từ verified session email + action + operationId để HTTP
+  retry không duplicate staging/Drive/audit. `POST /api/can-bo/confirm` luôn cần `recordId` +
+  `snapshotHash` + `operationId`; `/auth/google` là ngoại lệ duy nhất không cần pre-existing session
+  nhưng vẫn bắt buộc Origin, Google credential verification và IP rate limit.
 - Apps Script API không có UI và không có bảng đang mở, nên runtime tách đôi: hàm menu (`healthCheckLocationIntake`, `*Selected*`) chạm `getUi()`/`getActiveRange()` và chỉ dùng trong Sheet; hàm `api*` (`apiHealthCheckLocationIntake`, `apiReviewLocationRequest`, `apiLocationIntakeSnapshot`) trả giá trị và gọi được qua `clasp run`. `setupLocationIntakeSystem` rơi về Script Property `LOCATION_SPREADSHEET_ID` khi `getActiveSpreadsheet()` trả null.
 - Provider generation theo `LLM_PRIMARY`/`LLM_FALLBACK` (xem "Bien moi truong 2026-07-13"): mac dinh
   van la Gemini ke ca khi co `DEEPSEEK_API_KEY` — key nay chi tu dong lam **fallback** (khi

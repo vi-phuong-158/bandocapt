@@ -356,13 +356,14 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 
 ## [PLAN — CHỜ NGƯỜI DÙNG REVIEW 2026-08-09] Staff Location Portal `/can-bo`
 
-- **Trạng thái:** Gate 3–5 đã xong; **Gate 6 (implementation) CHƯA được phép bắt đầu.** Chưa có
+- **Trạng thái:** Review PR #43 đã khóa 3 P1 contract và 2 P2 hygiene trong plan; **Gate 6
+  (implementation) vẫn CHƯA được phép bắt đầu cho tới khi reviewer duyệt lại.** Chưa có
   `/can-bo`, chưa có Google Sign-In, chưa có `/api/can-bo/*`, chưa có gateway HMAC, chưa migrate
   Sheet, chưa deploy.
 - **Tài liệu nguồn sự thật:**
   - `docs/location-intake/STAFF_PORTAL_PLAN.md` — kiến trúc, auth, session, phân quyền đa đơn vị,
     semantics confirm/update/stop/image, gateway, rate limit, UI tiếng Việt.
-  - `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md` — 86 ca kiểm thử, threat model, 17 invariant.
+  - `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md` — 89 ca kiểm thử, threat model, 17 invariant.
   - `docs/brain/03-decisions.md` [2026-08-09] — quyết định mở scope auth.
 - **Đã có sẵn (prerequisite):** `resolveUnitsByEmail(email, allowlistRows)` trong
   `setup/apps-script.js` + 9 test trong `test/location-pipeline.test.js`. Chưa có caller runtime.

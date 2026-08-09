@@ -170,9 +170,9 @@ resolveUnitsByEmail(email, allowlistRows) → [{ unitCode, unitName }]
 test) lẫn Apps Script (GAS runtime), và đã là nguồn sự thật duy nhất cho phân quyền địa điểm.
 **Không** đặt logic security này chỉ trong Vercel route hoặc frontend.
 
-Nó dựng trên `buildAllowlistMap` — cùng bộ lọc `active`, cùng cách bỏ dòng thiếu `unit_name`, cùng
-cách gộp dòng trùng tên — để hai chiều không thể lệch nhau. Nếu duyệt `rows` riêng, Portal có thể
-chào một đơn vị mà `buildStagingRecord` sau đó lại từ chối.
+Nó dựng trên `buildAllowlistMap` — cùng bộ lọc `active`, cùng cách bỏ dòng thiếu `unit_name` và
+cùng semantics duplicate hiện hành — để hai chiều không thể lệch nhau. Nếu duyệt `rows` riêng,
+Portal có thể chào một đơn vị mà `buildStagingRecord` sau đó lại từ chối.
 
 ### 4.2. Luật bắt buộc của `resolveUnitsByEmail`
 
@@ -182,12 +182,31 @@ chào một đơn vị mà `buildStagingRecord` sau đó lại từ chối.
 | Bỏ qua đơn vị `active=FALSE` | `buildAllowlistMap` |
 | Bỏ qua đơn vị không cấu hình email | `allowedEmails.includes()` trên mảng rỗng luôn false |
 | Một email ở nhiều đơn vị → trả đủ | trả mảng |
-| Deduplicate đơn vị | `Set` theo `unitCode` đã lowercase |
+| Deduplicate đơn vị trả về | `Set` theo `unitCode` đã lowercase |
 | Fail closed | email rỗng/không khớp → `[]`, không bao giờ ném để "mở" |
 | Không trả internal notes | chỉ `unitCode`, `unitName` |
 | Không trả toàn bộ allowlist | chỉ đơn vị khớp email |
 
-Ca kiểm thử: B08–B13 trong test matrix, đã pass trong `test/location-pipeline.test.js`.
+Ca kiểm thử: B08–B14 trong test matrix; B08–B13 đã pass trong `test/location-pipeline.test.js`.
+
+### 4.3. Duplicate allowlist — health gate bắt buộc trước Portal
+
+`buildAllowlistMap()` đang dùng `Map.set()`. Vì vậy **code prerequisite hiện tại là last-row-wins**
+khi có hai dòng cùng `normalizeLabel(unit_name)`; nó không thật sự merge các dòng. Đây là hành vi
+đã được B12 xác nhận để giữ `resolveUnitsByEmail` và `authorizeSubmission` cùng nguồn sự thật,
+không phải một quy tắc dữ liệu được phép dùng trong production.
+
+Trước khi bật Portal, health check/migration validator phải nhóm toàn bộ rows theo normalized
+`unit_name` và:
+
+- báo **error, chặn rollout** nếu duplicate khác `unit_code`, `active`, hoặc tập
+  `allowed_emails` sau normalize;
+- báo warning để dọn dữ liệu nếu duplicate hoàn toàn tương đương;
+- không âm thầm phụ thuộc thứ tự row để quyết định quyền.
+
+Cho đến khi health gate pass, không được nạp allowlist cán bộ thật. B14 là acceptance test cho
+duplicate xung đột; implementation có thể thay helper sau health gate nhưng phải giữ hai chiều
+authorization/resolve có cùng semantics.
 
 ---
 
@@ -371,14 +390,15 @@ verification_id, request_id, record_id, unit_code, staff_email, verified_at,
 snapshot_hash, source, note
 ```
 
-`source` luôn là `STAFF_PORTAL`. `request_id` do Vercel sinh và là idempotency key cho confirm.
+`source` luôn là `STAFF_PORTAL`. `request_id` do Vercel derive từ identity/action/`operationId` và
+là idempotency key cho confirm.
 
 `snapshot_hash` là SHA-256 của canonical JSON với property order cố định trên các public content
 fields: `record_id`, `unit_code`, `name`, `site_type`, `services`, `address`, `phone`,
 `coordinates`, `google_maps_url`, `cccd_service_mode`, `service_schedule`, `served_units`,
 `image_url`, `updated_at`. Không hash object chưa sort hoặc JSON stringify không deterministic.
 
-Browser gửi `recordId + snapshotHash`; server đọc record hiện tại và tính lại hash. Hash lệch →
+Browser gửi `recordId + snapshotHash + operationId`; server đọc record hiện tại và tính lại hash. Hash lệch →
 reject `STALE_RECORD`, không ghi success, UI báo: **"Thông tin vừa được cập nhật. Vui lòng kiểm
 tra lại trước khi xác nhận."** Authorization cross-unit vẫn chạy trước stale check.
 
@@ -517,8 +537,8 @@ POST <APPS_SCRIPT_WEB_APP_URL>?action=submitRequest&timestamp=<unix_seconds>&sig
 ```
 
 Apps Script đọc `e.parameter.action`, `e.parameter.timestamp`, `e.parameter.signature` và raw
-`e.postData.contents`. `requestId` nằm trong signed JSON body; frontend không tự chọn identity hay
-idempotency key.
+`e.postData.contents`. `requestId` do Vercel **derive** và nằm trong signed JSON body; frontend
+không tự chọn identity, quyền, hoặc `requestId`.
 
 **Canonical data:**
 
@@ -540,22 +560,36 @@ POST\naction\ntimestamp\nsha256Hex(rawBody)
 - **không** nhận secret từ frontend dưới bất kỳ hình thức nào.
 
 Timestamp window ±5 phút là freshness check, **không phải replay protection hoàn chỉnh**. Phase 1
-bắt buộc idempotency business: mọi state-changing call có `requestId` do Vercel server sinh, nằm
-trong signed body. Với cùng `action + requestId`, Apps Script trả kết quả hiện tại hoặc
-`ALREADY_PROCESSED`, không upload/ghi staging/ghi verification lần hai. Approval và reconciliation
-dùng cùng `request_id + target_record_id + request_type` để biết operation đã hoàn tất tới bước nào.
-Nonce trong `CacheService` chỉ là defense-in-depth optional, không thay thế business idempotency.
+bắt buộc idempotency business xuyên qua HTTP retry:
+
+- Browser sinh UUID `operationId` **một lần cho mỗi thao tác người dùng**, giữ nguyên ID đó khi
+  browser retry sau timeout; `operationId` không mang quyền và không được dùng để xác thực người dùng.
+- Vercel lấy `session.email` đã verify và `action`, validate định dạng UUID, rồi derive deterministic
+  opaque `requestId = base64url(HMAC-SHA-256("staff-request-id\\n" + session.email + "\\n" + action +
+  "\\n" + operationId, STAFF_SESSION_SECRET))`. Browser không gửi hoặc chọn `requestId`.
+- Vercel gửi `requestId` trong body đã ký. Cùng `session.email + action + operationId` phải luôn ra
+  cùng `requestId`, kể cả khi lần gọi Apps Script trước đã thành công nhưng response về browser/Vercel
+  bị timeout.
+- Apps Script idempotent theo `action + requestId`: trả kết quả hiện tại hoặc `ALREADY_PROCESSED`,
+  không upload/ghi staging/ghi verification lần hai. Cùng key nhưng payload hash khác → reject
+  `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`.
+
+Approval và reconciliation dùng `request_id + target_record_id + request_type` để biết operation đã
+hoàn tất tới bước nào. Nonce trong `CacheService` chỉ là defense-in-depth optional, không thay thế
+business idempotency.
 
 ---
 
 ## 18. CSRF / Origin
 
-Mọi POST tới `/api/can-bo/*` phải:
+Mọi POST state-changing tới `/api/can-bo/*` phải validate `Origin` bằng `isAllowedOrigin` trong
+`lib/request-security.js` (**tái dùng, không viết stack bảo mật trùng lặp**); cookie `SameSite=Lax`
+là lớp phòng thủ thứ hai, không phải lớp duy nhất.
 
-- yêu cầu session cán bộ hợp lệ;
-- validate `Origin` bằng `isAllowedOrigin` trong `lib/request-security.js` (**tái dùng, không viết
-  stack bảo mật trùng lặp**);
-- cookie `SameSite=Lax` là lớp phòng thủ thứ hai, không phải lớp duy nhất.
+Mọi endpoint protected phải yêu cầu session cán bộ hợp lệ, **ngoại trừ**
+`POST /api/can-bo/auth/google`: endpoint này tạo session đầu tiên nên không thể đòi session có sẵn.
+Nó bắt buộc verify Google credential theo §5, validate `Origin`, và IP rate-limit theo §19. Các
+POST protected khác (`/logout`, `/confirm`, `/requests`) phải có session trước khi xử lý.
 
 **Chính sách `Origin` vắng mặt phải được ghi rõ và test** (case N66). Đề xuất: state-changing POST
 thiếu `Origin` → **từ chối** (fail closed). Trình duyệt hiện đại luôn gửi `Origin` cho POST
@@ -591,15 +625,18 @@ Không over-engineer: tái dùng cơ chế counter Firebase ETag/CAS đã có ch
 ## 20. Web API dự kiến
 
 ```text
-POST /api/can-bo/auth/google     body { credential } → set session cookie
+POST /api/can-bo/auth/google     body { credential } → verify credential + Origin + IP rate-limit → set session cookie
 POST /api/can-bo/logout          xoá cookie
 
 GET  /api/can-bo/me              → { email, authorizedUnits[] }
 GET  /api/can-bo/locations       ?unitCode= → bản ghi của đơn vị được phép
 
-POST /api/can-bo/confirm         { recordId }          → verification event
-POST /api/can-bo/requests        { type, unitCode, recordId?, changes{}, image? } → staging
+POST /api/can-bo/confirm         { recordId, snapshotHash, operationId } → verification event
+POST /api/can-bo/requests        { type, unitCode, recordId?, changes{}, image?, operationId } → staging
 ```
+
+`operationId` phải là UUID được browser giữ ổn định cho đúng thao tác/retry (§17). `snapshotHash`
+là bắt buộc cho `confirm`; thiếu hash phải reject, không được suy đoán từ record hiện tại.
 
 Route không bắt buộc đúng tên nếu implementation tìm được cấu trúc tốt hơn.
 
@@ -820,9 +857,11 @@ mutation lần hai.
 
 ### 28.1. Idempotency theo business request
 
-- Mỗi state-changing request có `request_id` duy nhất do Vercel server sinh.
-- `submitRequest` retry cùng ID không upload ảnh lần hai và không thêm staging row lần hai.
-- `confirm` retry cùng ID không thêm `Staff_Verification_Audit` event lần hai.
+- Mỗi state-changing request có `request_id` do Vercel derive từ verified session email, action và
+  browser `operationId`; browser retry phải reuse cùng `operationId`.
+- `submitRequest` retry sau client/Vercel timeout với cùng operation không upload ảnh lần hai và
+  không thêm staging row lần hai.
+- `confirm` retry với cùng operation không thêm `Staff_Verification_Audit` event lần hai.
 - Approval/reconciliation retry cùng ID không duplicate `Published_Locations` hoặc tạo record mới.
 - `create` vẫn giữ invariant PR #41: không có `target_record_id`, `record_id` do server sinh.
 

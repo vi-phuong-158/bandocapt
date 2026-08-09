@@ -1,10 +1,13 @@
 # Staff Location Portal — ma trận kiểm thử, threat model, invariant
 
 > Đi kèm [`STAFF_PORTAL_PLAN.md`](STAFF_PORTAL_PLAN.md). **Portal chưa được code.** Đây là hợp đồng
-> chấp nhận: implementation chỉ được coi là xong khi **86 ca** dưới đây pass.
+> chấp nhận: implementation chỉ được coi là xong khi **89 ca** dưới đây pass.
 >
-> **Trạng thái hôm nay:** 9 ca đã có test thật (B08–B13 + 3 ca hỗ trợ) trong
-> `test/location-pipeline.test.js`, nhờ helper `resolveUnitsByEmail`. 66 ca còn lại là ĐẶC TẢ.
+> **Trạng thái hôm nay:** 9 test prerequisite mới (B08–B13 + 3 ca hỗ trợ) đã có trong
+> `test/location-pipeline.test.js`; 11 control đã có từ PR #41 được kế thừa: E24–E27, J44–J46,
+> K50–K51, L53, P73. 69 ca Portal còn lại là ĐẶC TẢ chờ implementation. Tổng = 9 + 11 + 69 = 89.
+> Trước nghiệm thu, implementation PR phải link 11 control kế thừa tới test cụ thể thay vì chỉ
+> tuyên bố coverage.
 
 Cột **Lớp** cho biết ca chạy ở đâu: `pure` (unit test module thuần) · `vercel` (Vercel route) ·
 `gas` (Apps Script gateway/pipeline) · `e2e` (Playwright).
@@ -27,7 +30,7 @@ Cột **Lớp** cho biết ca chạy ở đâu: `pure` (unit test module thuần
 
 ---
 
-## B. Allowlist (7 ca) — ĐÃ CÓ TEST
+## B. Allowlist (8 ca; B08–B13 đã có test)
 
 | ID | Ca | Kỳ vọng | Lớp | Trạng thái |
 | --- | --- | --- | --- | --- |
@@ -36,8 +39,9 @@ Cột **Lớp** cho biết ca chạy ở đâu: `pure` (unit test module thuần
 | B09b | Đơn vị active nhưng `allowed_emails` rỗng | Không bao giờ được trả | pure | ✅ pass |
 | B10 | Email thuộc đúng 1 đơn vị active | Trả đúng 1 đơn vị | pure | ✅ pass |
 | B11 | Email thuộc nhiều đơn vị active | Trả đủ các đơn vị đúng | pure | ✅ pass |
-| B12 | Dòng allowlist trùng lặp | Deduplicate còn 1 | pure | ✅ pass |
+| B12 | Dòng trùng lặp tương đương | Trả 1 đơn vị; current helper last-row-wins nhưng hai chiều không lệch | pure | ✅ pass |
 | B13 | Email khác hoa thường / có khoảng trắng thừa | Normalize đúng, vẫn khớp | pure | ✅ pass |
+| B14 | Dòng trùng `unit_name` nhưng khác `unit_code`/`active`/email | Health check báo error, chặn rollout; không phụ thuộc thứ tự row | gas/pure |
 
 Ca hỗ trợ đã có thêm: không rò `allowed_emails`/`notes` ra ngoài; tập đơn vị trả ra khớp đúng tập mà
 `authorizeSubmission` chấp nhận (chống lệch hai chiều).
@@ -172,7 +176,7 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 
 ---
 
-## M. Gateway HMAC và idempotency (9 ca)
+## M. Gateway HMAC và idempotency (10 ca)
 
 | ID | Ca | Kỳ vọng | Lớp |
 | --- | --- | --- | --- |
@@ -185,16 +189,18 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 | M83 | Replay `submitRequest` cùng `requestId` | Không thêm staging row thứ hai | gas |
 | M84 | Replay `submitRequest` có ảnh cùng `requestId` | Không upload Drive file thứ hai | gas |
 | M85 | Replay confirmation cùng `requestId` | Không thêm verification event thứ hai | gas |
+| M86 | Gateway đã success nhưng response về Vercel/browser timeout; browser retry cùng `operationId` | Vercel derive cùng `requestId`; chỉ có một staging row và một Drive file | vercel + gas |
 
 ---
 
-## N. CSRF / Origin (3 ca)
+## N. CSRF / Origin (4 ca)
 
 | ID | Ca | Kỳ vọng | Lớp |
 | --- | --- | --- | --- |
 | N64 | Origin được phép | Pass | vercel |
 | N65 | POST state-changing từ Origin lạ | Reject | vercel |
 | N66 | POST thiếu `Origin` | Theo đúng chính sách đã ghi (đề xuất: reject) và **có test** | vercel |
+| N67 | `POST /auth/google` không có session nhưng credential + Origin hợp lệ | Verify credential, IP rate-limit, tạo session; không áp session guard trước login | vercel |
 
 ---
 
@@ -227,8 +233,8 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 
 | ID | Ca | Kỳ vọng | Lớp |
 | --- | --- | --- | --- |
-| H76 | `snapshotHash` khớp record hiện tại | Ghi `Staff_Verification_Audit` đúng một lần | vercel + gas |
-| H77 | `snapshotHash` cũ sau khi Published thay đổi | Reject `STALE_RECORD`, không ghi success | vercel |
+| H76 | `POST /confirm { recordId, snapshotHash, operationId }`, hash khớp record hiện tại | Ghi `Staff_Verification_Audit` đúng một lần | vercel + gas |
+| H77 | `POST /confirm` thiếu hash hoặc có `snapshotHash` cũ sau khi Published thay đổi | Reject `SNAPSHOT_HASH_REQUIRED`/`STALE_RECORD`, không ghi success | vercel |
 | H78 | Target cross-unit với hash hợp lệ | Reject authorization trước confirm | vercel + gas |
 
 ## Q. Consistency giữa hai workbook (3 ca)
@@ -245,13 +251,13 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 
 | # | Mối đe doạ | Mitigation | Test |
 | --- | --- | --- | --- |
-| T1 | Người dùng sửa `unit_code` trong payload để thao tác đơn vị khác | Server không đọc `unit_code` từ client; tập đơn vị suy ra từ `resolveUnitsByEmail` với allowlist hiện tại | D20, D21, B08–B13 |
+| T1 | Người dùng sửa `unit_code` trong payload để thao tác đơn vị khác | Server không đọc `unit_code` từ client; tập đơn vị suy ra từ `resolveUnitsByEmail` với allowlist hiện tại | D20, D21, B08–B14 |
 | T2 | Người dùng sửa `target_record_id` sang bản ghi đơn vị khác (`record_id` là công khai) | `sameUnitCode(targetRecord.unit_code, authorization.unitCode)` ở `buildStagingRecord` **và** `applyApproval`, cộng lớp Vercel | E22, E23, E24 |
 | T3 | Người dùng khai `submitter_email` của người khác để đổ lỗi | `submitter_email` luôn lấy từ session đã verify; body bị bỏ qua | F28 |
 | T4 | Session bị đánh cắp hoặc dùng lại sau khi quyền bị thu hồi | Cookie `HttpOnly`/`Secure`/`SameSite=Lax`, `Max-Age` giới hạn; **reauthorize theo allowlist hiện tại trước mỗi thao tác ghi** | C15, C16, C17, C18 |
 | T5 | Formula injection qua trường nhập tự do (`=IMPORTXML(...)`) | `sanitizeUserFields` tiền tố `'` cho chuỗi bắt đầu `= + - @`, **gồm cả `record_id` và `target_record_id`** | Đã có test PR #41 |
-| T6 | CSRF: site lạ khiến trình duyệt cán bộ gửi POST | Validate `Origin` bằng `lib/request-security.js` + `SameSite=Lax` + yêu cầu session | N64, N65, N66 |
-| T7 | Replay request gateway đã bắt được | HMAC raw-body + timestamp ±5 phút + business `requestId` idempotency; nonce chỉ optional | M60–M63, M83–M85 |
+| T6 | CSRF: site lạ khiến trình duyệt cán bộ gửi POST | Validate `Origin` bằng `lib/request-security.js` + `SameSite=Lax`; session cho protected POST, Google credential verify cho `/auth/google` | N64–N67 |
+| T7 | Replay request gateway đã bắt được | HMAC raw-body + timestamp ±5 phút + business `requestId` derive từ `operationId`; nonce chỉ optional | M60–M63, M83–M86 |
 | T8 | Gọi thẳng Apps Script gateway (Web App phải mở "Anyone") | Query-param HMAC là lớp xác thực duy nhất → fail closed tuyệt đối; secret không tới browser | M58–M63, M83–M85 |
 | T9 | Workbook công khai làm rò PII cán bộ (email, số điện thoại) | Tách toàn bộ operational sheets sang private workbook | P71–P75, P82 |
 | T10 | File Drive mồ côi do upload tách rời việc ghi staging | Một business request duy nhất; upload sau authorization; cleanup khi ghi staging fail | L57 |
@@ -270,7 +276,7 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 | ID | Invariant | Ca kiểm chứng |
 | --- | --- | --- |
 | INV-01 | Danh tính Google được **server** verify (chữ ký, `aud`, `iss`, `exp`, `email_verified`), không chỉ decode | A01–A07 |
-| INV-02 | Email quyết định tập đơn vị được phép; **client không quyết định quyền** | B08–B13, D19–D21 |
+| INV-02 | Email quyết định tập đơn vị được phép; **client không quyết định quyền** | B08–B14, D19–D21 |
 | INV-03 | Một email có thể có **nhiều** đơn vị | B11 |
 | INV-04 | Sửa bản ghi chéo đơn vị **không thể xảy ra** ở bất kỳ lớp nào | E22–E24, H35 |
 | INV-05 | CREATE **không bao giờ** ghi đè bản ghi đang có | E26, E27, J45, J46 |
