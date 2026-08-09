@@ -1,5 +1,20 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Vá formula injection qua target_record_id (phát hiện khi review PR #41)
+- **Agent:** Claude Code
+- **Thay đổi:** Thêm `record_id` và `target_record_id` vào danh sách cột được `sanitizeUserFields`
+  tiền tố dấu nháy.
+- **File đã sửa:** `setup/apps-script.js`, `test/location-pipeline.test.js`.
+- **Lý do:** Hai cột này bị bỏ sót. `target_record_id` là ô nhập tự do trong Form và
+  `recordId = submission.targetRecordId || ...` kế thừa thẳng giá trị đó, nên `=IMPORTXML(...)` vào
+  được cột `record_id` của `Location_Staging` ở trạng thái **PENDING** (không sinh validation error),
+  rồi sang `Published_Locations` khi quản trị viên duyệt. Đây đúng là kịch bản `SECURITY.md` tuyên bố
+  đã chặn. Cần email trong allowlist nên là rủi ro người trong cuộc, nhưng vẫn phá vỡ control đã công bố.
+- **Kiểm tra:** Đã xác minh trước khi vá (`record_id` giữ nguyên công thức, `status=PENDING`,
+  `validation_errors` rỗng). Test mới giữ cả ca dương: `record_id` do `slugify` sinh ra chỉ gồm
+  `[A-Z0-9_]` nên không bị thêm dấu nháy oan. `npm test` **367/367**, build sạch,
+  `npx playwright test` **19/19**, audit exit 0.
+
 ## [2026-08-09] Vá lỗ hổng cross-unit target record trong pipeline địa điểm
 - **Agent:** Claude Code
 - **Thay đổi:** Chặn một đơn vị nhắm tới `record_id` đã publish của đơn vị khác. Thêm helper nội bộ
