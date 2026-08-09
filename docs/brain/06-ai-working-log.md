@@ -1,5 +1,27 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Khóa contract atomic-idempotency-claim P1 cho Staff Portal gateway
+- **Agent:** Claude Code (Opus 5)
+- **Thay đổi:** Đóng P1 cuối của vòng review: idempotency theo `requestId` (M83–M86) chỉ chống
+  **replay tuần tự**, chưa chống **race đồng thời** (A check → B check → cả hai upload → mới lock).
+  (1) PLAN §17.1 mới — bắt buộc *check → claim → side-effect → finalize* nằm trong **cùng một
+  `LockService` lock**, ghi ledger `IN_PROGRESS` **trước** upload/append, finalize `DONE` sau; ledger
+  `Idempotency_Ledger` (private workbook). (2) PLAN §21 thứ tự `submitRequest` chèn bước acquire
+  lock + atomic claim trước side-effect, cleanup giữ `IN_PROGRESS` để reconcile. (3) Matrix +M87
+  (hai request đồng thời cùng `requestId` → đúng một side-effect) và +M88 (cùng key khác payload →
+  `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`); 89 → **91 ca**. Threat +T7b, INV-16/T16 trỏ
+  M83–M88. (4) Session Max-Age chốt **8 giờ** (bỏ khỏi open questions). (5) `Staff_Verification_Audit`
+  giữ nguyên quyết định đã chốt ở PLAN §13 — không mở lại.
+- **File đã sửa:** `docs/location-intake/STAFF_PORTAL_PLAN.md`,
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md`, `docs/location-intake/README.md`,
+  `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Deterministic `requestId` một mình không chặn race vì cả hai request đọc trạng thái
+  "chưa xử lý" trước khi bên nào ghi dấu; phải atomic-claim trước side-effect. Vẫn không code Portal,
+  không migrate workbook, không deploy.
+- **Kiểm tra:** `npm test` 380/380 pass; `npm run build` exit 0; `npm run test:e2e` 19/19 pass;
+  `npm audit --omit=dev --audit-level=high` exit 0. Đếm matrix: 91 ca. Push HEAD lên
+  `plan/staff-location-portal` để CI/Vercel chạy trên đúng HEAD đó.
+
 ## [2026-08-09] Chốt request-changes PR #43 trước implementation Staff Portal
 - **Agent:** Codex
 - **Thay đổi:** Sửa ba P1 contract: `operationId` browser ổn định và `requestId` Vercel derive để

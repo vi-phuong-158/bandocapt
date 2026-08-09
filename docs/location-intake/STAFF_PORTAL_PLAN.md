@@ -74,7 +74,7 @@ môi trường, không phải cơ chế kiểm soát truy cập — ai biết ID
 
 | | Bảng tính CÔNG KHAI | Bảng tính RIÊNG TƯ (staff) |
 | --- | --- | --- |
-| Sheet | `Published_Locations` và chỉ sheet thật sự công khai | `Unit_Allowlist`, `Location_Staging`, `Approval_Audit_Log`, `Staff_Verification_Audit`, `Intake_Setup_Info`, các sheet Form Responses |
+| Sheet | `Published_Locations` và chỉ sheet thật sự công khai | `Unit_Allowlist`, `Location_Staging`, `Approval_Audit_Log`, `Staff_Verification_Audit`, `Idempotency_Ledger`, `Intake_Setup_Info`, các sheet Form Responses |
 | Chia sẻ | "Anyone with link" — bắt buộc, để GViz đọc được | **KHÔNG** publish to web, **KHÔNG** anyone-with-link |
 | ID xuất hiện ở | `PUBLIC_LOCATION_SPREADSHEET_ID`/`GOOGLE_SHEET_ID` (server env) | **CHỈ** Apps Script Script Properties (`PRIVATE_LOCATION_SPREADSHEET_ID`) |
 | Frontend thấy ID? | Không cần thiết, nhưng không phải bí mật | **Tuyệt đối không** |
@@ -101,7 +101,7 @@ Không dùng public workbook ID để suy ra private workbook.
 
 | Boundary | Cho phép |
 | --- | --- |
-| Private read/write | `Unit_Allowlist`, `Location_Staging`, `Approval_Audit_Log`, `Staff_Verification_Audit`, `Intake_Setup_Info`, Form Responses |
+| Private read/write | `Unit_Allowlist`, `Location_Staging`, `Approval_Audit_Log`, `Staff_Verification_Audit`, `Idempotency_Ledger`, `Intake_Setup_Info`, Form Responses |
 | Public write | Chỉ `Published_Locations`, chỉ qua admin approval/revoke lifecycle |
 | Public read | `Published_Locations` qua `/api/google-sheet`, `lib/published-locations.js`, GViz, map và chatbot |
 
@@ -245,8 +245,9 @@ Backend **phải** verify, không chỉ decode. Acceptance contract:
 { "email": "...", "unitCodes": ["..."], "exp": 0, "version": 1 }
 ```
 
-- Cookie: `HttpOnly` · `Secure` (production) · `SameSite=Lax` · `Max-Age` có giới hạn (đề xuất 8–12
-  giờ, một ca làm việc; chốt con số ở implementation).
+- Cookie: `HttpOnly` · `Secure` (production) · `SameSite=Lax` · `Max-Age` = **8 giờ** (đã chốt: một
+  ca làm việc, giới hạn cửa sổ giá trị của session bị đánh cắp). Quan trọng hơn con số này là
+  reauthorize allowlist trước mỗi thao tác ghi (§6.1) — kể cả trong 8 giờ đó, quyền vẫn được kiểm lại.
 - `version` để vô hiệu hoá hàng loạt session cũ khi đổi format hoặc khi cần force logout.
 
 ### 6.1. `unitCodes` trong session KHÔNG phải quyền vĩnh viễn
@@ -574,6 +575,37 @@ bắt buộc idempotency business xuyên qua HTTP retry:
   không upload/ghi staging/ghi verification lần hai. Cùng key nhưng payload hash khác → reject
   `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`.
 
+### 17.1. Atomic claim TRƯỚC side-effect — chống race, không chỉ chống replay
+
+Idempotency theo `requestId` ở trên **chống replay tuần tự** (request thứ hai thấy request thứ nhất
+đã xong). Nó **chưa đủ** để chống race đồng thời:
+
+```text
+request A: check "requestId đã xử lý?" → chưa
+request B: check "requestId đã xử lý?" → chưa   (A chưa kịp ghi dấu)
+request A: upload ảnh + append staging
+request B: upload ảnh + append staging          ← hai file Drive, hai dòng staging
+```
+
+Deterministic `requestId` một mình không chặn được ca này vì cả hai request đọc trạng thái "chưa xử
+lý" trước khi bên nào ghi. Bắt buộc **atomic claim trước side-effect**:
+
+- Toàn bộ critical section — *kiểm tra idempotency → claim → side-effect (upload + append) →
+  finalize* — phải nằm trong **cùng một `LockService` script lock** (`waitLock(30000)`), giống
+  `onLocationFormSubmit` hiện có. Không release lock giữa claim và side-effect.
+- Trong lock, thứ tự bắt buộc: **claim trước, side-effect sau**. Ghi một dòng ledger idempotency
+  (sheet `Idempotency_Ledger` hoặc tương đương) trạng thái `IN_PROGRESS` cho `action + requestId`
+  **trước khi** upload Drive hoặc append staging. Chỉ sau khi side-effect thành công mới cập nhật
+  ledger sang `DONE` kèm con trỏ tới kết quả (`record_id`, `image_file_id`).
+- Request đồng thời B block ở `waitLock`; khi vào được lock, nó đọc ledger thấy `DONE` (hoặc
+  `IN_PROGRESS` của một attempt đã chết → reconcile idempotently theo §manual) và trả
+  `ALREADY_PROCESSED`, **không** upload/append lần hai.
+- `LockService` là mutex, **không phải transaction**: nếu process chết giữa side-effect và finalize,
+  ledger còn `IN_PROGRESS`. Lần retry cùng `requestId` phải dò con trỏ ledger để biết bước nào đã
+  xong (đã có file? đã có staging row?) rồi chỉ hoàn tất phần thiếu, không lặp lại phần đã xong.
+- **Cùng `requestId` nhưng body hash khác** (`operationId` bị tái sử dụng cho payload khác) → reject
+  `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`, không ghi đè claim cũ.
+
 Approval và reconciliation dùng `request_id + target_record_id + request_type` để biết operation đã
 hoàn tất tới bước nào. Nonce trong `CacheService` chỉ là defense-in-depth optional, không thay thế
 business idempotency.
@@ -661,22 +693,31 @@ POST /upload → nhận file id → POST /requests với file id
 vì bước hai có thể không bao giờ xảy ra (người dùng đóng tab, mạng rớt) → file mồ côi trong Drive
 mà không có dòng staging nào trỏ tới, và không có cách nào biết nó thuộc về ai.
 
-**Thứ tự bắt buộc trong `submitRequest`:**
+**Thứ tự bắt buộc trong `submitRequest`** (các bước từ 6 trở đi nằm **trong cùng một `LockService`
+lock**, xem §17.1):
 
 1. authenticate session;
 2. authorize đơn vị (reauthorize theo allowlist hiện tại);
 3. authorize bản ghi đích (`record.unit_code ∈ authorizedUnits`);
 4. validate các trường;
 5. validate ảnh (MIME, kích thước, đúng một ảnh);
-6. upload ảnh vào Drive;
-7. ghi dòng `Location_Staging`;
-8. nếu bước 7 fail sau khi bước 6 đã tạo file → **cleanup file** khi khả thi (bọc try/catch, không
-   để lỗi cleanup che lỗi gốc).
+6. **acquire lock** (`waitLock(30000)`);
+7. **atomic claim**: đọc ledger theo `action + requestId`. `DONE` → trả kết quả cũ
+   (`ALREADY_PROCESSED`), thoát; `IN_PROGRESS` từ attempt chết → reconcile; chưa có → ghi ledger
+   `IN_PROGRESS`. Body hash khác cùng key → reject `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`;
+8. upload ảnh vào Drive;
+9. ghi dòng `Location_Staging`;
+10. finalize ledger sang `DONE` kèm con trỏ (`record_id`, `image_file_id`);
+11. **release lock**;
+12. nếu bước 9 fail sau khi bước 8 đã tạo file → **cleanup file** khi khả thi (bọc try/catch, không
+    để lỗi cleanup che lỗi gốc), và ledger giữ `IN_PROGRESS` để retry reconcile.
 
-Ảnh chỉ được upload **sau khi** đã qua toàn bộ authorization — không upload rồi mới kiểm quyền.
+Claim (bước 7) phải xảy ra **trước** mọi side-effect (bước 8–9) và trong cùng lock — đây là điểm
+chống race, không chỉ chống replay tuần tự. Ảnh chỉ được upload **sau khi** đã qua toàn bộ
+authorization và đã claim — không upload rồi mới kiểm quyền hoặc mới claim.
 
-Apps Script dùng `LockService` ở vùng ghi critical (đã có sẵn trong `onLocationFormSubmit` và
-`reviewLocationRequest_`; gateway phải theo cùng mẫu).
+Mẫu `LockService` đã có sẵn trong `onLocationFormSubmit` và `reviewLocationRequest_`; gateway phải
+theo cùng mẫu (bao cả critical section, không chỉ dòng append).
 
 ---
 

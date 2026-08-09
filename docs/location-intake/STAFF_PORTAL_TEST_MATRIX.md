@@ -1,11 +1,11 @@
 # Staff Location Portal — ma trận kiểm thử, threat model, invariant
 
 > Đi kèm [`STAFF_PORTAL_PLAN.md`](STAFF_PORTAL_PLAN.md). **Portal chưa được code.** Đây là hợp đồng
-> chấp nhận: implementation chỉ được coi là xong khi **89 ca** dưới đây pass.
+> chấp nhận: implementation chỉ được coi là xong khi **91 ca** dưới đây pass.
 >
 > **Trạng thái hôm nay:** 9 test prerequisite mới (B08–B13 + 3 ca hỗ trợ) đã có trong
 > `test/location-pipeline.test.js`; 11 control đã có từ PR #41 được kế thừa: E24–E27, J44–J46,
-> K50–K51, L53, P73. 69 ca Portal còn lại là ĐẶC TẢ chờ implementation. Tổng = 9 + 11 + 69 = 89.
+> K50–K51, L53, P73. 71 ca Portal còn lại là ĐẶC TẢ chờ implementation. Tổng = 9 + 11 + 71 = 91.
 > Trước nghiệm thu, implementation PR phải link 11 control kế thừa tới test cụ thể thay vì chỉ
 > tuyên bố coverage.
 
@@ -176,7 +176,7 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 
 ---
 
-## M. Gateway HMAC và idempotency (10 ca)
+## M. Gateway HMAC và idempotency (12 ca)
 
 | ID | Ca | Kỳ vọng | Lớp |
 | --- | --- | --- | --- |
@@ -186,10 +186,12 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 | M61 | Timestamp quá cũ (> 5 phút) | Reject | gas |
 | M62 | Timestamp tương lai ngoài cửa sổ | Reject | gas |
 | M63 | Thiếu hoàn toàn chữ ký | Reject (fail closed) | gas |
-| M83 | Replay `submitRequest` cùng `requestId` | Không thêm staging row thứ hai | gas |
-| M84 | Replay `submitRequest` có ảnh cùng `requestId` | Không upload Drive file thứ hai | gas |
-| M85 | Replay confirmation cùng `requestId` | Không thêm verification event thứ hai | gas |
+| M83 | Replay `submitRequest` cùng `requestId` (tuần tự) | Không thêm staging row thứ hai | gas |
+| M84 | Replay `submitRequest` có ảnh cùng `requestId` (tuần tự) | Không upload Drive file thứ hai | gas |
+| M85 | Replay confirmation cùng `requestId` (tuần tự) | Không thêm verification event thứ hai | gas |
 | M86 | Gateway đã success nhưng response về Vercel/browser timeout; browser retry cùng `operationId` | Vercel derive cùng `requestId`; chỉ có một staging row và một Drive file | vercel + gas |
+| M87 | **Hai `submitRequest` ĐỒNG THỜI** cùng `requestId`/`operationId` (race, không phải replay tuần tự) | Đúng một request thực hiện side-effect: **một** Drive file, **một** staging row; request kia trả `ALREADY_PROCESSED`. Claim atomic trước side-effect trong cùng `LockService` lock (PLAN §17.1) | gas |
+| M88 | Cùng idempotency key (`requestId`) nhưng **payload khác** (body hash khác) | Reject `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`; không ghi đè claim cũ, không side-effect | gas |
 
 ---
 
@@ -258,6 +260,7 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 | T5 | Formula injection qua trường nhập tự do (`=IMPORTXML(...)`) | `sanitizeUserFields` tiền tố `'` cho chuỗi bắt đầu `= + - @`, **gồm cả `record_id` và `target_record_id`** | Đã có test PR #41 |
 | T6 | CSRF: site lạ khiến trình duyệt cán bộ gửi POST | Validate `Origin` bằng `lib/request-security.js` + `SameSite=Lax`; session cho protected POST, Google credential verify cho `/auth/google` | N64–N67 |
 | T7 | Replay request gateway đã bắt được | HMAC raw-body + timestamp ±5 phút + business `requestId` derive từ `operationId`; nonce chỉ optional | M60–M63, M83–M86 |
+| T7b | Race đồng thời: hai request cùng `requestId` cùng vượt qua check trước khi bên nào ghi dấu → double upload/append | Atomic claim ledger **trước** side-effect trong cùng `LockService` lock (PLAN §17.1); reject key tái dùng với payload khác | M87, M88 |
 | T8 | Gọi thẳng Apps Script gateway (Web App phải mở "Anyone") | Query-param HMAC là lớp xác thực duy nhất → fail closed tuyệt đối; secret không tới browser | M58–M63, M83–M85 |
 | T9 | Workbook công khai làm rò PII cán bộ (email, số điện thoại) | Tách toàn bộ operational sheets sang private workbook | P71–P75, P82 |
 | T10 | File Drive mồ côi do upload tách rời việc ghi staging | Một business request duy nhất; upload sau authorization; cleanup khi ghi staging fail | L57 |
@@ -266,7 +269,7 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 | T13 | Một cán bộ làm cạn quota của cả đơn vị dùng chung NAT | Rate limit key chính là email đã verify, IP chỉ là key phụ | O68, O69, O70 |
 | T14 | Update xoá mất dữ liệu do hiểu sai "trường vắng mặt" | Merge phía server; omitted ≠ delete; ba trạng thái tường minh | I36–I42 |
 | T15 | Private workbook accidentally public/publish-to-web | Permission checklist, unauthenticated verification và deployment gate | P82 |
-| T16 | Partial cross-workbook approval | `request_id`, idempotent writes, reconciliation, state checks và LockService; LockService không phải transaction | M83–M85, Q79–Q81 |
+| T16 | Partial cross-workbook approval | `request_id`, idempotent writes, reconciliation, state checks và LockService; LockService không phải transaction | M83–M87, Q79–Q81 |
 | T17 | Staff confirm snapshot cũ sau khi Published thay đổi | Canonical snapshot hash và compare current hash trước ghi | H76–H78 |
 
 ---
@@ -290,7 +293,7 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 | INV-13 | Secret **không** tới browser (`STAFF_SESSION_SECRET`, `LOCATION_GATEWAY_SECRET`, `PRIVATE_LOCATION_SPREADSHEET_ID`) | P72, M58–M63, M83–M85 |
 | INV-14 | Apps Script private gateway **fail closed** | M63, T8 |
 | INV-15 | Private operational data + staff PII không nằm trong public-readable workbook | P71–P75, P82 |
-| INV-16 | Cross-workbook approval/revoke recoverable và idempotent theo `request_id` | M83–M85, Q79–Q81 |
+| INV-16 | Cross-workbook approval/revoke recoverable và idempotent theo `request_id`; claim atomic trước side-effect chống cả replay tuần tự lẫn race đồng thời | M83–M88, Q79–Q81 |
 | INV-17 | Staff confirmation gắn đúng snapshot/version record đã nhìn thấy | H76–H78 |
 
 Một invariant bị vi phạm = implementation chưa xong, không phải "cải thiện sau".
