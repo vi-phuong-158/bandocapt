@@ -1,5 +1,56 @@
 # 03 — Technical Decisions
 
+## [2026-08-09] Cho phép authentication có phạm vi cho Staff Location Portal `/can-bo`
+
+- **Quyết định CŨ bị thay đổi một phần:** `04-current-tasks.md` mục "Không làm lúc này" ghi
+  *"Xây hệ thống đăng nhập / auth người dùng — ngoài scope dự án"*. Quyết định đó vẫn đúng cho
+  bản đồ công khai và chatbot, nhưng KHÔNG còn đúng cho khu vực cán bộ.
+- **Quyết định MỚI — Staff Portal Authentication được phép:** Được xây authentication giới hạn
+  phạm vi, chỉ phục vụ `/can-bo` và các API `/api/can-bo/*`, với đúng năm mục đích:
+  1. xác minh danh tính cán bộ bằng Google Sign-In (server verify ID token);
+  2. map email đã xác minh → tập đơn vị được phép (`authorizedUnits[]`, quan hệ 1:N);
+  3. bảo vệ Staff Location Portal API;
+  4. ghi đúng `submitter_email` từ session, không lấy từ request body;
+  5. chặn sửa dữ liệu chéo đơn vị ở tầng Vercel, CỘNG THÊM (không thay thế) các guard pipeline
+     đã có từ PR #41.
+- **KHÔNG phải** auth framework chung cho toàn dự án. Ngoài phạm vi, không được mở rộng thành:
+  tài khoản người dân · đăng nhập chatbot · đăng nhập bản đồ public · database username/password
+  riêng · IAM tổng quát · đưa Supabase vào chỉ để làm auth cho Portal · OTP email (nếu Google
+  Sign-In hoạt động) · role system toàn dự án.
+- **Lý do đổi quyết định:** Luồng Google Form của PR #41 chạy đúng về mặt bảo mật nhưng sai về
+  mặt UX cho đúng nhóm người dùng nó nhắm tới:
+  - bắt cán bộ nhập lại từ đầu những dữ liệu hệ thống đã có (địa chỉ, toạ độ, dịch vụ, ảnh),
+    chỉ để sửa một trường như số điện thoại;
+  - Form hiển thị enum kỹ thuật (`HEADQUARTERS`, `E_IDENTIFICATION`, `TEMPORARILY_PAUSED`…)
+    thay vì tiếng Việt;
+  - không hỗ trợ được workflow thật *"xem dữ liệu cũ → xác nhận đúng, hoặc chỉnh một phần"* —
+    Form không biết bản ghi hiện tại đang ghi gì;
+  - một đơn vị có nhiều địa điểm thì cán bộ phải tự tra và gõ tay `target_record_id`.
+- **Ranh giới giữ nguyên:** Portal chỉ đổi lớp NHẬP LIỆU. Luồng dữ liệu vẫn là
+  `Location_Staging → Admin approval → Published_Locations`. Cán bộ KHÔNG direct-write dữ liệu
+  công khai, KHÔNG approve/reject/publish/revoke. Mọi bất biến của PR #41 (CREATE không mang
+  `target_record_id`, `record_id` do server sinh, cross-unit bị chặn ở cả `buildStagingRecord`
+  lẫn `applyApproval`, formula injection) giữ nguyên, không được regress.
+- **Điều kiện chặn production (chưa xử lý, phải làm trước khi có email cán bộ thật):**
+  `Unit_Allowlist` phải chuyển sang bảng tính riêng KHÔNG chia sẻ công khai. Hiện nó nằm cùng
+  bảng tính với `Published_Locations`, mà bảng tính đó buộc phải link-readable để endpoint GViz
+  không xác thực trong `lib/published-locations.js` đọc được.
+- **Trạng thái:** Mới là KẾ HOẠCH. Chưa code Portal, chưa có `/can-bo`, chưa có Google Sign-In,
+  chưa có gateway HMAC, chưa migrate Sheet. Thiết kế đầy đủ:
+  `docs/location-intake/STAFF_PORTAL_PLAN.md`; ma trận kiểm thử + threat model:
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md`.
+- **Prerequisite duy nhất đã code trong phiên này:** pure helper
+  `resolveUnitsByEmail(email, allowlistRows)` trong `setup/apps-script.js` — chiều ngược của
+  `authorizeSubmission`, dựng trên `buildAllowlistMap` để hai chiều không thể lệch nhau. Không
+  caller nào gọi nó ở runtime hiện tại nên không đổi hành vi production; nó tồn tại để khoá sớm
+  mô hình 1:N và các luật fail-closed trước khi ai đó cài quyền vào Vercel route hoặc frontend.
+- **Đánh đổi:** Thêm một bề mặt tấn công mới (session cookie, Google token verify, gateway
+  server-to-server) vào một dự án trước đây hoàn toàn không có auth. Chấp nhận vì thay thế nó là
+  giữ Google Form — vốn đã có bề mặt riêng (Drive folder, Form sharing) và UX không dùng được cho
+  148 đơn vị. Bù lại bằng: fail closed ở mọi lớp, reauthorize theo allowlist hiện tại trước mỗi
+  thao tác ghi, và giữ nguyên approval pipeline nên không có đường ghi thẳng ra dữ liệu công khai.
+- **Người quyết định:** user (giao đặc tả Gate 3–5) / Claude Code (Opus 5) thiết kế.
+
 ## [2026-08-06] Heartbeat SSE + phân loại nguyên nhân abort thay vì mã TIMEOUT chung
 
 - **Bối cảnh:** Chatbot thỉnh thoảng hiện "Phản hồi quá lâu. Vui lòng thử lại." dù backend vẫn xử lý

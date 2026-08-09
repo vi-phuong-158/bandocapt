@@ -1,0 +1,264 @@
+# Staff Location Portal — ma trận kiểm thử, threat model, invariant
+
+> Đi kèm [`STAFF_PORTAL_PLAN.md`](STAFF_PORTAL_PLAN.md). **Portal chưa được code.** Đây là hợp đồng
+> chấp nhận: implementation chỉ được coi là xong khi 75 ca dưới đây pass.
+>
+> **Trạng thái hôm nay:** 9 ca đã có test thật (B08–B13 + 3 ca hỗ trợ) trong
+> `test/location-pipeline.test.js`, nhờ helper `resolveUnitsByEmail`. 66 ca còn lại là ĐẶC TẢ.
+
+Cột **Lớp** cho biết ca chạy ở đâu: `pure` (unit test module thuần) · `vercel` (Vercel route) ·
+`gas` (Apps Script gateway/pipeline) · `e2e` (Playwright).
+
+---
+
+## A. Xác thực Google (7 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| A01 | ID token hợp lệ | Pass, tạo session | vercel |
+| A02 | Chữ ký sai | Reject 401 | vercel |
+| A03 | `aud` ≠ `GOOGLE_CLIENT_ID` | Reject 401 | vercel |
+| A04 | `iss` không thuộc issuer Google | Reject 401 | vercel |
+| A05 | Token hết hạn (`exp` quá khứ) | Reject 401 | vercel |
+| A06 | `email_verified === false` | Reject 401 | vercel |
+| A07 | Token thiếu claim `email` | Reject 401 | vercel |
+
+> A02–A07 phải fail **trước khi** chạm allowlist. Không được decode-then-trust.
+
+---
+
+## B. Allowlist (6 ca) — ĐÃ CÓ TEST
+
+| ID | Ca | Kỳ vọng | Lớp | Trạng thái |
+| --- | --- | --- | --- | --- |
+| B08 | Email không có trong allowlist | `[]`, từ chối đăng nhập | pure | ✅ pass |
+| B09 | Email thuộc đơn vị `active=FALSE` | Đơn vị đó không được trả | pure | ✅ pass |
+| B09b | Đơn vị active nhưng `allowed_emails` rỗng | Không bao giờ được trả | pure | ✅ pass |
+| B10 | Email thuộc đúng 1 đơn vị active | Trả đúng 1 đơn vị | pure | ✅ pass |
+| B11 | Email thuộc nhiều đơn vị active | Trả đủ các đơn vị đúng | pure | ✅ pass |
+| B12 | Dòng allowlist trùng lặp | Deduplicate còn 1 | pure | ✅ pass |
+| B13 | Email khác hoa thường / có khoảng trắng thừa | Normalize đúng, vẫn khớp | pure | ✅ pass |
+
+Ca hỗ trợ đã có thêm: không rò `allowed_emails`/`notes` ra ngoài; tập đơn vị trả ra khớp đúng tập mà
+`authorizeSubmission` chấp nhận (chống lệch hai chiều).
+
+---
+
+## C. Session (5 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| C14 | Session hợp lệ, còn hạn | Pass | vercel |
+| C15 | Session hết hạn | Reject 401 | vercel |
+| C16 | Session bị sửa payload (chữ ký không khớp) | Reject 401 | vercel |
+| C17 | Email bị gỡ khỏi allowlist **sau khi** đăng nhập | Thao tác ghi bị từ chối | vercel |
+| C18 | Đơn vị bị `active=FALSE` **sau khi** đăng nhập | Thao tác ghi bị từ chối | vercel |
+
+> C17/C18 là lý do `unitCodes` trong session không phải quyền vĩnh viễn (PLAN §6.1). Chúng phải fail
+> **dù cookie còn hạn và chữ ký hợp lệ**.
+
+---
+
+## D. Phân quyền đơn vị (3 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| D19 | Người dùng yêu cầu đơn vị mình được phép | Pass | vercel |
+| D20 | Người dùng gửi `unitCode` không được phép | Reject 403 | vercel |
+| D21 | Frontend sửa `unit_code` trong payload | Không leo thang quyền; server dùng tập từ allowlist | vercel |
+
+---
+
+## E. Phân quyền bản ghi (6 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| E22 | Target thuộc đơn vị mình | Pass | vercel |
+| E23 | Target thuộc đơn vị khác | Reject ở **Vercel** | vercel |
+| E24 | Target thuộc đơn vị khác, gọi thẳng gateway/pipeline | Reject `TARGET_RECORD_UNIT_MISMATCH` ở **pipeline** | gas/pure |
+| E25 | Thiếu target ở request cần target (`update`/`correct`/`stop`/`confirm`) | Reject `TARGET_RECORD_ID_REQUIRED` | pure |
+| E26 | `create` kèm `target_record_id` | Reject `CREATE_TARGET_RECORD_ID_NOT_ALLOWED` | pure |
+| E27 | `create` | `record_id` do server sinh (`buildRecordId`) | pure |
+
+> E23 và E24 phải pass **độc lập**. Xoá guard Vercel mà E24 vẫn pass là đúng thiết kế
+> defense-in-depth; xoá guard pipeline mà E24 vẫn pass là **hồi quy PR #41**.
+
+---
+
+## F. Danh tính người thực hiện (1 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| F28 | Request body chứa `submitter_email` của người khác | Bị bỏ qua/từ chối; audit ghi email từ **session** | vercel |
+
+---
+
+## G. Đọc dữ liệu published (3 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| G29 | Người dùng chỉ có đơn vị A | Chỉ nhận bản ghi của A | vercel |
+| G30 | Người dùng nhiều đơn vị | Chỉ nhận bản ghi của các đơn vị được phép | vercel |
+| G31 | Toàn bộ dataset không rò xuống browser | Response không chứa bản ghi ngoài phạm vi | e2e |
+
+---
+
+## H. Confirm (4 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| H32 | Confirm target hợp lệ | Ghi verification/audit event | gas |
+| H33 | Confirm không đổi nội dung công khai | `Published_Locations` byte-identical trước/sau | gas |
+| H34 | Confirm không vào hàng đợi duyệt nội dung | Không sinh dòng `PENDING` cần admin xử lý | gas |
+| H35 | Confirm bản ghi của đơn vị khác | Reject | vercel + gas |
+
+---
+
+## I. Merge khi update (7 ca)
+
+Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay đổi `public_phone`.
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| I36 | Chỉ đổi số điện thoại | `address` giữ nguyên | vercel |
+| I37 | ⇢ | `coordinates` giữ nguyên | vercel |
+| I38 | ⇢ | `services` giữ nguyên | vercel |
+| I39 | ⇢ | `google_maps_url` giữ nguyên | vercel |
+| I40 | ⇢ | ảnh giữ nguyên | vercel |
+| I41 | Xoá tường minh một trường được phép rỗng | Theo đúng semantics đã ghi (PLAN §14.2) | vercel |
+| I42 | Trường vắng mặt trong payload | **Không** bị xoá | vercel |
+
+> I42 là ca dễ hỏng nhất. Nếu backend coi key vắng mặt là `""`, một PATCH chỉ có `phone` sẽ xoá sạch
+> địa chỉ và toạ độ, rồi `buildStagingRecord` trả `ADDRESS_MISSING` — triệu chứng hiện ra rất xa
+> nguyên nhân.
+
+---
+
+## J. Create (5 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| J43 | Create hợp lệ | Vào `Location_Staging`, status `PENDING` | gas |
+| J44 | Create không có ảnh | Reject `IMAGE_REQUIRED` | pure |
+| J45 | Create | `record_id` mới do server sinh | pure |
+| J46 | Hai create cùng đơn vị | Hai `record_id` phân biệt | pure |
+| J47 | Trước khi duyệt | `Published_Locations` không đổi | gas |
+
+---
+
+## K. Stop (4 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| K48 | Báo ngừng hoạt động | Vào staging, không xoá ngay | gas |
+| K49 | Trước khi duyệt | `Published_Locations` không đổi | gas |
+| K50 | Sau khi admin duyệt | Bản ghi bị xoá khỏi `Published_Locations` | pure |
+| K51 | Sau khi duyệt | `Approval_Audit_Log` giữ snapshot bản ghi đã xoá | pure |
+
+---
+
+## L. Ảnh (6 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| L52 | Ảnh hợp lệ | Chấp nhận | gas |
+| L53 | MIME không hợp lệ | Reject `IMAGE_MIME_NOT_ALLOWED` | pure |
+| L54 | Ảnh vượt giới hạn | Reject | vercel |
+| L55 | Update không kèm ảnh mới | Giữ ảnh cũ, **không** đòi upload lại | vercel |
+| L56 | Update kèm ảnh mới | Ảnh mới thay ảnh đề xuất | vercel |
+| L57 | Ghi staging fail **sau khi** đã upload | Cleanup file Drive nếu đã tạo | gas |
+
+> L54: MIME phải lấy từ `DriveApp.File.getMimeType()`, không tin `Content-Type` client khai.
+
+---
+
+## M. Gateway HMAC (6 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| M58 | Chữ ký hợp lệ | Pass | gas |
+| M59 | Chữ ký sai | Reject | gas |
+| M60 | Body bị sửa sau khi ký | Reject (hash body nằm trong canonical data) | gas |
+| M61 | Timestamp quá cũ (> 5 phút) | Reject | gas |
+| M62 | Timestamp tương lai ngoài cửa sổ | Reject | gas |
+| M63 | Thiếu hoàn toàn chữ ký | Reject (fail closed) | gas |
+
+---
+
+## N. CSRF / Origin (3 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| N64 | Origin được phép | Pass | vercel |
+| N65 | POST state-changing từ Origin lạ | Reject | vercel |
+| N66 | POST thiếu `Origin` | Theo đúng chính sách đã ghi (đề xuất: reject) và **có test** | vercel |
+
+---
+
+## O. Rate limit (4 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| O67 | Sử dụng bình thường | Pass | vercel |
+| O68 | Một email vượt `STAFF_DAILY_REQUEST_LIMIT` | Bị throttle | vercel |
+| O69 | Email thứ hai dùng chung IP | **Không** bị chặn oan bởi hạn mức của email thứ nhất | vercel |
+| O70 | Request chưa xác thực gửi email tuỳ ý để chọn limiter key | Không được phép — key chỉ lấy từ email **đã verify** | vercel |
+
+---
+
+## P. Tách dữ liệu công khai / riêng tư (5 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| P71 | GViz công khai truy cập `Unit_Allowlist` | Không thể (khác spreadsheet) | vận hành |
+| P72 | Browser lấy allowlist | Không có đường nào | e2e |
+| P73 | Payload `/api/google-sheet` | Không chứa email cán bộ | vercel ✅ (đã có allowlist cột) |
+| P74 | Bảng tính riêng tư | Không publish-to-web, không anyone-with-link | vận hành |
+| P75 | Apps Script vẫn resolve được email → units | Pass sau khi đổi config | gas |
+
+> P71/P74 là kiểm tra **vận hành**, không phải test tự động — phải nằm trong checklist migration
+> (PLAN §3) và được ký xác nhận trước khi điền email thật.
+
+---
+
+# Threat model
+
+| # | Mối đe doạ | Mitigation | Test |
+| --- | --- | --- | --- |
+| T1 | Người dùng sửa `unit_code` trong payload để thao tác đơn vị khác | Server không đọc `unit_code` từ client; tập đơn vị suy ra từ `resolveUnitsByEmail` với allowlist hiện tại | D20, D21, B08–B13 |
+| T2 | Người dùng sửa `target_record_id` sang bản ghi đơn vị khác (`record_id` là công khai) | `sameUnitCode(targetRecord.unit_code, authorization.unitCode)` ở `buildStagingRecord` **và** `applyApproval`, cộng lớp Vercel | E22, E23, E24 |
+| T3 | Người dùng khai `submitter_email` của người khác để đổ lỗi | `submitter_email` luôn lấy từ session đã verify; body bị bỏ qua | F28 |
+| T4 | Session bị đánh cắp hoặc dùng lại sau khi quyền bị thu hồi | Cookie `HttpOnly`/`Secure`/`SameSite=Lax`, `Max-Age` giới hạn; **reauthorize theo allowlist hiện tại trước mỗi thao tác ghi** | C15, C16, C17, C18 |
+| T5 | Formula injection qua trường nhập tự do (`=IMPORTXML(...)`) | `sanitizeUserFields` tiền tố `'` cho chuỗi bắt đầu `= + - @`, **gồm cả `record_id` và `target_record_id`** | Đã có test PR #41 |
+| T6 | CSRF: site lạ khiến trình duyệt cán bộ gửi POST | Validate `Origin` bằng `lib/request-security.js` + `SameSite=Lax` + yêu cầu session | N64, N65, N66 |
+| T7 | Replay request gateway đã bắt được | HMAC ràng buộc body + cửa sổ timestamp ±5 phút; **giới hạn đã biết ở Phase 1**, nonce là phương án phase sau | M60, M61, M62 |
+| T8 | Gọi thẳng Apps Script gateway (Web App phải mở "Anyone") | HMAC là lớp xác thực duy nhất → phải fail closed tuyệt đối; secret không bao giờ tới browser | M58–M63 |
+| T9 | Bảng tính công khai làm rò PII cán bộ (email, số điện thoại) | Tách bảng tính riêng tư; `Location_Staging`/`Approval_Audit_Log` cũng phải chuyển | P71–P75 |
+| T10 | File Drive mồ côi do upload tách rời việc ghi staging | Một business request duy nhất; upload sau authorization; cleanup khi ghi staging fail | L57 |
+| T11 | Vô tình publish thẳng, bỏ qua duyệt | Portal không có action approve/publish; gateway chỉ có 3 action, không có action nào chạm `Published_Locations` | J47, K49, H33 |
+| T12 | Admin xoá tay ô `validation_errors` trong Sheet rồi duyệt | Chốt chặn thứ hai trong `applyApproval` cho cả cross-unit lẫn bất biến CREATE | E24, E26 |
+| T13 | Một cán bộ làm cạn quota của cả đơn vị dùng chung NAT | Rate limit key chính là email đã verify, IP chỉ là key phụ | O68, O69, O70 |
+| T14 | Update xoá mất dữ liệu do hiểu sai "trường vắng mặt" | Merge phía server; omitted ≠ delete; ba trạng thái tường minh | I36–I42 |
+
+---
+
+# Acceptance criteria — invariant
+
+| ID | Invariant | Ca kiểm chứng |
+| --- | --- | --- |
+| INV-01 | Danh tính Google được **server** verify (chữ ký, `aud`, `iss`, `exp`, `email_verified`), không chỉ decode | A01–A07 |
+| INV-02 | Email quyết định tập đơn vị được phép; **client không quyết định quyền** | B08–B13, D19–D21 |
+| INV-03 | Một email có thể có **nhiều** đơn vị | B11 |
+| INV-04 | Sửa bản ghi chéo đơn vị **không thể xảy ra** ở bất kỳ lớp nào | E22–E24, H35 |
+| INV-05 | CREATE **không bao giờ** ghi đè bản ghi đang có | E26, E27, J45, J46 |
+| INV-06 | Cán bộ **không** direct-write `Published_Locations` | J47, K49, H33, T11 |
+| INV-07 | Mọi thay đổi **nội dung** phải qua staging + admin approval | J43, J47, K48, K49 |
+| INV-08 | Confirm **không** thay đổi nội dung công khai | H33, H34 |
+| INV-09 | Email cán bộ **không** nằm trong bảng tính đọc được công khai | P71–P75 |
+| INV-10 | `submitter_email` **luôn** lấy từ session | F28 |
+| INV-11 | Dữ liệu hiện có được tái sử dụng; update **không** bắt nhập lại trường không đổi | I36–I42 |
+| INV-12 | Update **không** bắt upload ảnh mới nếu target đã có ảnh hợp lệ | L55 |
+| INV-13 | Secret **không** tới browser (`STAFF_SESSION_SECRET`, `LOCATION_GATEWAY_SECRET`, `STAFF_SPREADSHEET_ID`) | P72, M58–M63 |
+| INV-14 | Apps Script private gateway **fail closed** | M63, T8 |
+
+Một invariant bị vi phạm = implementation chưa xong, không phải "cải thiện sau".

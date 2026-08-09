@@ -238,7 +238,13 @@
 ## Không làm lúc này
 
 - Thêm framework frontend (React, Vue) — quyết định dùng Vanilla JS có chủ đích, xem 03-decisions.
-- Xây hệ thống đăng nhập / auth người dùng — ngoài scope dự án.
+- ~~Xây hệ thống đăng nhập / auth người dùng — ngoài scope dự án.~~
+  **[SỬA 2026-08-09] Vẫn đúng cho bản đồ công khai và chatbot, KHÔNG còn đúng cho `/can-bo`.**
+  Auth có phạm vi cho Staff Location Portal đã được cho phép — xem `03-decisions.md`
+  ([2026-08-09] Cho phép authentication có phạm vi cho Staff Location Portal `/can-bo`).
+  Ngoài phạm vi đó vẫn KHÔNG làm: tài khoản người dân, đăng nhập chatbot, đăng nhập bản đồ
+  public, database username/password riêng, IAM tổng quát, Supabase chỉ để auth Portal, OTP
+  email khi Google Sign-In hoạt động, role system toàn dự án.
 - Tích hợp thanh toán — ngoài scope.
 
 ---
@@ -345,4 +351,25 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 
 - Implemented the record-ID intake pipeline, generated Apps Script runtime, public API filtering, service-aware map/chatbot behavior, safe export migration and operations documentation.
 - Remaining human setup: supply the real template Form ID, destination Drive folder ID and 148-unit email allowlist in Script Properties/`Unit_Allowlist`, then authorize the Apps Script project and run its health check. No production deployment was performed.
+- **[MERGED 2026-08-09] PR #41** → merge commit `1f56121`, đầu nhánh `ce50ab1`. Đây là nền cho
+  Staff Location Portal bên dưới.
+
+## [PLAN — CHỜ NGƯỜI DÙNG REVIEW 2026-08-09] Staff Location Portal `/can-bo`
+
+- **Trạng thái:** Gate 3–5 đã xong; **Gate 6 (implementation) CHƯA được phép bắt đầu.** Chưa có
+  `/can-bo`, chưa có Google Sign-In, chưa có `/api/can-bo/*`, chưa có gateway HMAC, chưa migrate
+  Sheet, chưa deploy.
+- **Tài liệu nguồn sự thật:**
+  - `docs/location-intake/STAFF_PORTAL_PLAN.md` — kiến trúc, auth, session, phân quyền đa đơn vị,
+    semantics confirm/update/stop/image, gateway, rate limit, UI tiếng Việt.
+  - `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md` — 75 ca kiểm thử, threat model, 14 invariant.
+  - `docs/brain/03-decisions.md` [2026-08-09] — quyết định mở scope auth.
+- **Đã có sẵn (prerequisite):** `resolveUnitsByEmail(email, allowlistRows)` trong
+  `setup/apps-script.js` + 9 test trong `test/location-pipeline.test.js`. Chưa có caller runtime.
+- **CHẶN PRODUCTION (bắt buộc trước khi điền email cán bộ thật):** `Unit_Allowlist` phải tách sang
+  bảng tính riêng, không "ai có liên kết đều xem". Kế hoạch migration 9 bước nằm trong
+  `STAFF_PORTAL_PLAN.md` §3; **không được chạy trên production khi chưa có người dùng duyệt.**
+- **Google Form giữ lại tạm thời** làm đường dự phòng, nhưng dự phòng KHÔNG tức thời — xem
+  `STAFF_PORTAL_PLAN.md` §26 (Form sao chép mất liên kết thư mục upload, chủ sở hữu phải mở Form
+  editor bấm *Phục hồi/Restore* trước khi dùng lại).
 

@@ -1,5 +1,44 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Staff Location Portal Gate 3–5 — mở scope auth, thiết kế kiến trúc, ma trận kiểm thử
+- **Agent:** Claude Code (Opus 5)
+- **Thay đổi:** Chỉ docs + một pure helper. **Không code Portal.** (1) Xác minh PR #41 đã merge thật
+  trên GitHub (state `MERGED`, merge commit `1f56121`, đầu nhánh `ce50ab1`) trước khi sửa file nào.
+  (2) Gate 3: đảo quyết định "không xây auth" thành auth **có phạm vi** chỉ cho `/can-bo`, ghi rõ
+  danh sách ngoài scope. (3) Gate 4: viết kế hoạch kiến trúc/bảo mật đầy đủ. (4) Gate 5: 75 ca kiểm
+  thử + 14 threat + 14 invariant. (5) Prerequisite duy nhất có code:
+  `resolveUnitsByEmail(email, allowlistRows)` + 9 test.
+- **File đã sửa:** `setup/apps-script.js`, `test/location-pipeline.test.js`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/01-architecture.md`,
+  `docs/location-intake/STAFF_PORTAL_PLAN.md` (mới),
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md` (mới),
+  `docs/location-intake/README.md`, `docs/location-intake/SECURITY.md`.
+- **Lý do:** Google Form của PR #41 đúng về bảo mật nhưng không dùng được cho 148 đơn vị — nó không
+  biết bản ghi hiện tại đang ghi gì, nên sửa một trường vẫn phải nhập lại toàn bộ (gồm cả chụp lại
+  ảnh, vì `IMAGE_REQUIRED` áp cho mọi request không phải `stop`), hiển thị enum tiếng Anh, và bắt gõ
+  tay `target_record_id`. Portal thay lớp **nhập liệu**, giữ nguyên lớp **duyệt**.
+- **Vì sao helper này là prerequisite chứ không để lại cho phiên implementation:** repo chỉ có chiều
+  `authorizeSubmission(unitName, email)` — kiểm tra một đơn vị mà **người gửi tự khai**. Portal cần
+  chiều ngược vì client không được quyết định `unit_code`, và chiều đó chưa tồn tại ở đâu cả. Nếu để
+  lại, nơi tự nhiên nhất để viết nó là Vercel route — tức là đặt logic phân quyền ra ngoài module đã
+  được unit test, và tách khỏi `buildAllowlistMap`. Dựng trên `buildAllowlistMap` khiến hai chiều
+  **không thể lệch nhau**: có một test khẳng định mọi đơn vị `resolveUnitsByEmail` trả ra đều phải
+  qua được `authorizeSubmission`, và hai đơn vị bị loại (inactive, thiếu email) đều phải bị từ chối.
+  Không caller runtime nào gọi nó → không đổi hành vi production.
+- **Chốt thiết kế đáng ghi (chi tiết trong PLAN):** confirm là audit event, **không** vào hàng đợi
+  duyệt và **không** đổi nội dung công khai (nếu không, 148 đơn vị bấm "thông tin chính xác" sẽ làm
+  ngập hàng đợi admin). Update merge ở **server**: omitted ≠ delete, ba trạng thái tường minh
+  (vắng mặt / xoá tường minh / thay thế). Ảnh: Portal tự điền `imageFileId` hiện tại vào submission
+  nên **không phải sửa rule `IMAGE_REQUIRED`** của pipeline — không nới guard đã có, chỉ cấp đủ dữ
+  liệu cho nó. Bản ghi legacy thiếu ảnh: cho update metadata + `IMAGE_MISSING_WARNING` (cột
+  `warnings`, không phải `validation_errors`), vì bắt upload ảnh sẽ chặn đúng những sửa đổi cần nhất.
+  Khôi phục Drive file ID qua `findPublishedImageFileId` đã có, fallback parse `id=` từ `image_url`.
+- **Kiểm tra:** `npm test` 380/380 PASS (371 trước + 9 ca mới B08–B13 và ca chống lệch hai chiều).
+  `npm run build` sạch. `npm run test:e2e` 19/19 PASS. `npm audit --omit=dev --audit-level=high`
+  exit 0. Không chạm production, không migrate Sheet, không deploy.
+- **Còn chặn:** `Unit_Allowlist` vẫn nằm cùng bảng tính link-readable với `Published_Locations`.
+  Phải tách trước khi điền email cán bộ thật. Kế hoạch migration 9 bước ở PLAN §3, **chưa chạy**.
+
 ## [2026-08-09] Đóng bất biến CREATE — create không được ghi đè bản ghi đang publish
 - **Agent:** Claude Code
 - **Thay đổi:** Yêu cầu `create` mang `target_record_id` nay bị BLOCK bằng mã lỗi mới

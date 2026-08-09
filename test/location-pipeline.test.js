@@ -430,3 +430,83 @@ test('update đúng record cùng đơn vị không bị bất biến CREATE ch�
     assert.equal(state.publishedRecords.length, 1);
     assert.equal(state.publishedRecords[0].address, 'Địa chỉ đã cập nhật');
 });
+
+// ---------------------------------------------------------------------------
+// resolveUnitsByEmail — prerequisite Staff Portal (Gate 4.5).
+// Ca B08–B13 trong docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md.
+// ---------------------------------------------------------------------------
+
+function multiUnitAllowlist() {
+    return [
+        { unit_code: 'CA_A', unit_name: 'Công an phường A', allowed_emails: 'canbo@example.gov.vn', active: true },
+        { unit_code: 'CA_B', unit_name: 'Công an phường B', allowed_emails: 'canbo@example.gov.vn; khac@example.gov.vn', active: true },
+        { unit_code: 'CA_C', unit_name: 'Công an phường C', allowed_emails: 'canbo@example.gov.vn', active: false },
+        { unit_code: 'CA_D', unit_name: 'Công an phường D', allowed_emails: '', active: true },
+    ];
+}
+
+test('B08 email lạ không nhận được đơn vị nào', () => {
+    assert.deepEqual(pipeline.resolveUnitsByEmail('nguoila@example.gov.vn', multiUnitAllowlist()), []);
+});
+
+test('B09 đơn vị inactive bị bỏ qua dù email có trong dòng đó', () => {
+    const units = pipeline.resolveUnitsByEmail('canbo@example.gov.vn', multiUnitAllowlist());
+    assert.equal(units.some(unit => unit.unitCode === 'CA_C'), false, 'CA_C đã tắt');
+});
+
+test('B09b đơn vị active nhưng chưa cấu hình email không lọt ra', () => {
+    const units = pipeline.resolveUnitsByEmail('', multiUnitAllowlist());
+    assert.deepEqual(units, [], 'email rỗng fail closed, không khớp dòng allowed_emails rỗng');
+    const other = pipeline.resolveUnitsByEmail('khac@example.gov.vn', multiUnitAllowlist());
+    assert.deepEqual(other.map(unit => unit.unitCode), ['CA_B'], 'CA_D thiếu email không bao giờ được trả');
+});
+
+test('B10 email thuộc đúng một đơn vị active trả đúng một đơn vị', () => {
+    const units = pipeline.resolveUnitsByEmail('khac@example.gov.vn', multiUnitAllowlist());
+    assert.deepEqual(units, [{ unitCode: 'CA_B', unitName: 'Công an phường B' }]);
+});
+
+test('B11 một email thuộc nhiều đơn vị active trả đủ các đơn vị đó', () => {
+    const units = pipeline.resolveUnitsByEmail('canbo@example.gov.vn', multiUnitAllowlist());
+    assert.deepEqual(units.map(unit => unit.unitCode).sort(), ['CA_A', 'CA_B']);
+});
+
+test('B12 dòng allowlist trùng lặp chỉ sinh một đơn vị', () => {
+    const rows = [
+        { unit_code: 'CA_A', unit_name: 'Công an phường A', allowed_emails: 'canbo@example.gov.vn', active: true },
+        { unit_code: 'CA_A', unit_name: 'Công an phường A', allowed_emails: 'canbo@example.gov.vn', active: true },
+        { unit_code: 'ca_a', unit_name: 'Công an  phường A ', allowed_emails: 'canbo@example.gov.vn', active: true },
+    ];
+    const units = pipeline.resolveUnitsByEmail('canbo@example.gov.vn', rows);
+    assert.equal(units.length, 1, 'ba dòng cùng một đơn vị chỉ sinh một entry');
+    // unit_code lấy theo dòng cuối cùng, giống hệt buildAllowlistMap/authorizeSubmission — quan trọng
+    // là hai chiều không lệch nhau, chứ không phải dòng nào thắng.
+    assert.equal(units[0].unitCode, pipeline.authorizeSubmission(units[0].unitName, 'canbo@example.gov.vn', rows).unitCode);
+});
+
+test('B13 email được chuẩn hóa hoa thường và khoảng trắng trước khi tra cứu', () => {
+    const units = pipeline.resolveUnitsByEmail('  CanBo@Example.GOV.VN  ', multiUnitAllowlist());
+    assert.deepEqual(units.map(unit => unit.unitCode).sort(), ['CA_A', 'CA_B']);
+});
+
+test('resolveUnitsByEmail không rò allowed_emails hay notes ra ngoài', () => {
+    const rows = [{
+        unit_code: 'CA_A', unit_name: 'Công an phường A', allowed_emails: 'canbo@example.gov.vn; sep@example.gov.vn',
+        active: true, notes: 'ghi chú nội bộ',
+    }];
+    assert.deepEqual(pipeline.resolveUnitsByEmail('canbo@example.gov.vn', rows), [
+        { unitCode: 'CA_A', unitName: 'Công an phường A' },
+    ]);
+});
+
+test('resolveUnitsByEmail khớp đúng tập đơn vị mà authorizeSubmission chấp nhận', () => {
+    const rows = multiUnitAllowlist();
+    for (const unit of pipeline.resolveUnitsByEmail('canbo@example.gov.vn', rows)) {
+        assert.equal(pipeline.authorizeSubmission(unit.unitName, 'canbo@example.gov.vn', rows).authorized, true,
+            `${unit.unitCode} phải qua được authorizeSubmission`);
+    }
+    for (const unitName of ['Công an phường C', 'Công an phường D']) {
+        assert.equal(pipeline.authorizeSubmission(unitName, 'canbo@example.gov.vn', rows).authorized, false,
+            `${unitName} không được resolve nên cũng phải bị authorizeSubmission từ chối`);
+    }
+});

@@ -10,3 +10,16 @@ Thành phần chính:
 - `scripts/migrate-published-locations.js`: migration JSON an toàn, mặc định dry-run.
 
 Xem [thiết lập](SETUP.md), [vận hành](OPERATIONS.md), [migration](MIGRATION.md) và [bảo mật](SECURITY.md) trước khi dùng dữ liệu thật.
+
+## Staff Location Portal — kế hoạch, chưa triển khai
+
+Lớp nhập liệu Google Form dự kiến được thay bằng Staff Location Portal tại `/can-bo` (đăng nhập
+Google, cán bộ xem đúng dữ liệu đơn vị mình, xác nhận hoặc đề nghị chỉnh sửa). Luồng duyệt giữ
+nguyên: `Location_Staging → Admin approval → Published_Locations`.
+
+- [`STAFF_PORTAL_PLAN.md`](STAFF_PORTAL_PLAN.md) — kiến trúc, auth, session, phân quyền đa đơn vị,
+  semantics confirm/update/stop/ảnh, gateway riêng tư.
+- [`STAFF_PORTAL_TEST_MATRIX.md`](STAFF_PORTAL_TEST_MATRIX.md) — 75 ca kiểm thử, threat model, 14 invariant.
+
+**Chưa có code Portal.** Điều kiện chặn: `Unit_Allowlist` phải chuyển sang bảng tính riêng tư trước
+khi điền email cán bộ thật.

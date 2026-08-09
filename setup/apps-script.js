@@ -222,6 +222,31 @@
         return { byUnitName };
     }
 
+    // Chiều NGƯỢC của authorizeSubmission: từ email suy ra tập đơn vị được phép, thay vì kiểm tra
+    // một đơn vị người gửi tự khai. Staff Portal cần chiều này vì client không được quyết định
+    // `unit_code` (xem docs/location-intake/STAFF_PORTAL_PLAN.md, INV-02/INV-03). Một email có thể
+    // thuộc NHIỀU đơn vị, nên trả mảng chứ không trả một giá trị.
+    //
+    // Dựng trên buildAllowlistMap để tập đơn vị trả ra luôn khớp đúng tập mà authorizeSubmission
+    // chấp nhận: cùng bộ lọc `active`, cùng cách bỏ dòng thiếu unit_name, cùng cách gộp dòng trùng
+    // tên. Nếu tự duyệt rows riêng thì Portal có thể chào một đơn vị mà khâu nhận lại từ chối.
+    // Fail closed: email rỗng/không khớp trả mảng rỗng, và chỉ trả unitCode/unitName —
+    // KHÔNG trả allowed_emails hay notes ra ngoài.
+    function resolveUnitsByEmail(email, allowlistRows) {
+        const normalized = normalizeEmail(email);
+        if (!normalized) return [];
+        const seen = new Set();
+        const units = [];
+        buildAllowlistMap(allowlistRows).byUnitName.forEach(entry => {
+            if (!entry.allowedEmails.includes(normalized)) return;
+            const key = String(entry.unitCode || '').trim().toLowerCase();
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            units.push({ unitCode: entry.unitCode, unitName: entry.unitName });
+        });
+        return units;
+    }
+
     function authorizeSubmission(unitName, submitterEmail, allowlistRows) {
         const entry = buildAllowlistMap(allowlistRows).byUnitName.get(normalizeLabel(unitName));
         if (!entry) return { authorized: false, unitCode: slugify(unitName), error: 'UNIT_NOT_IN_ALLOWLIST' };
@@ -532,7 +557,7 @@
         SHEETS, STATUSES, REQUEST_TYPES, COORDINATE_STATUSES, HEADERS, PUBLIC_FIELDS, PHU_THO_BOUNDS, IMAGE_MIME_TYPES,
         normalizeLabel, normalizeBoolean, slugify, normalizeEmail, splitEmails, sanitizeSheetCell, sanitizeUserFields, normalizeServices,
         normalizeLocationType, deriveLegacyType, isGoogleMapsUrl, parseCoordinates, classifyCoordinateStatus,
-        validateImageMimeType, validateImageSubmission, buildAllowlistMap, authorizeSubmission, normalizeSubmission,
+        validateImageMimeType, validateImageSubmission, buildAllowlistMap, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
         buildRecordId, haversineMeters, detectDuplicateWarnings, buildStagingRecord, buildPublishedRecord,
         buildAuditEntry, applyApproval, applyReviewAction, applyRevocation, migrateLegacyLocations,
     };
