@@ -1,5 +1,22 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Gate 6A — dual-workbook storage boundary và migration dry-run
+- **Agent:** Codex
+- **Thay đổi:** Thêm schema private `Staff_Verification_Audit`/`Idempotency_Ledger`, phân loại sheet
+  private/public và cập nhật generated Apps Script để Form, allowlist, staging, audit và setup info
+  dùng workbook private; `Published_Locations` dùng workbook public. Thêm health validator chặn hai
+  workbook chung ID, public ID lệch hoặc duplicate allowlist xung đột. Thêm migration JSON-only
+  `migrate:location-workbooks`, mặc định dry-run và chỉ ghi khi có `--apply --output-dir`.
+- **File đã sửa:** `setup/apps-script.js`, `setup/location-intake/Code.gs`,
+  `scripts/migrate-location-workbooks.js`, `test/dual-workbook.test.js`, `package.json`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Tách PII operational khỏi workbook GViz public và khóa precondition rollout trước khi
+  triển khai gateway hoặc staff auth.
+- **Kiểm tra:** `npm test` 385/385 pass; `npm run build` pass; `npm run test:e2e` 19/19 pass;
+  `npm audit --omit=dev --audit-level=high` pass (0 high/critical; 9 moderate transitive không có fix).
+  Không migrate workbook thật, không nhập email thật, không deploy.
+
 ## [2026-08-09] Khóa crash recovery Drive ↔ ledger ↔ staging cho PR #43
 - **Agent:** Codex
 - **Thay đổi:** Thay contract `IN_PROGRESS` mơ hồ bằng lifecycle ledger private có resource state:

@@ -1,5 +1,18 @@
 # 03 — Technical Decisions
 
+## [2026-08-09] Gate 6A dual-workbook health gate và migration chỉ local
+
+- **Quyết định:** `PRIVATE_LOCATION_SPREADSHEET_ID` và `PUBLIC_LOCATION_SPREADSHEET_ID` là bắt buộc
+  và phải khác nhau; `GOOGLE_SHEET_ID` phải trỏ workbook public. Duplicate `unit_name` có quyền
+  khác nhau block rollout thay vì last-row-wins im lặng; duplicate tương đương chỉ warning. Tool
+  `migrate:location-workbooks` chỉ xử lý JSON fixture/export, dry-run mặc định và chỉ ghi local với
+  `--apply --output-dir` mới.
+- **Lý do:** Giữ ranh giới PII trước khi gateway/auth được bật, đồng thời bảo đảm migration tooling
+  không có đường vô tình đổi spreadsheet production hoặc Script Properties.
+- **Đánh đổi:** Chưa chứng minh được quyền Google Drive/Sheet production; đó là operational gate
+  cần owner thực hiện sau này, không được thay bằng fixture local.
+- **Người quyết định:** user (Gate 6 contract) / Codex
+
 ## [2026-08-09] Khóa crash recovery Drive của Idempotency Ledger
 
 - **Không dùng `IN_PROGRESS` mơ hồ:** ledger private có `CLAIMED`, `UPLOAD_PERSISTED`,

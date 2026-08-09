@@ -28,11 +28,21 @@ function locationProperties_() {
     return PropertiesService.getScriptProperties();
 }
 
-function configuredSpreadsheet_() {
-    const id = locationProperties_().getProperty('LOCATION_SPREADSHEET_ID');
-    if (!id) throw new Error('Chưa chạy setupLocationIntakeSystem.');
+function configuredPrivateSpreadsheet_() {
+    const id = locationProperties_().getProperty('PRIVATE_LOCATION_SPREADSHEET_ID');
+    if (!id) throw new Error('Thiếu Script Property PRIVATE_LOCATION_SPREADSHEET_ID.');
     return SpreadsheetApp.openById(id);
 }
+
+function configuredPublicSpreadsheet_() {
+    const id = locationProperties_().getProperty('PUBLIC_LOCATION_SPREADSHEET_ID');
+    if (!id) throw new Error('Thiếu Script Property PUBLIC_LOCATION_SPREADSHEET_ID.');
+    return SpreadsheetApp.openById(id);
+}
+
+// Các menu và Form hiện thuộc workbook riêng tư. Tên cũ được giữ chỉ để các helper UI không có
+// quyền chọn nhầm workbook public.
+function configuredSpreadsheet_() { return configuredPrivateSpreadsheet_(); }
 
 function requiredProperty_(name) {
     const value = locationProperties_().getProperty(name);
@@ -78,41 +88,37 @@ function appendLocationObject_(sheet, record) {
     sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length).setValues([headers.map(header => record[header] || '')]);
 }
 
-function writeLocationState_(spreadsheet, state) {
+function writeLocationState_(privateSpreadsheet, publicSpreadsheet, state) {
     const pipeline = locationPipeline_();
-    replaceLocationSheet_(spreadsheet.getSheetByName(pipeline.SHEETS.staging), pipeline.HEADERS.staging, state.stagingRecords);
-    replaceLocationSheet_(spreadsheet.getSheetByName(pipeline.SHEETS.published), pipeline.HEADERS.published, state.publishedRecords);
-    replaceLocationSheet_(spreadsheet.getSheetByName(pipeline.SHEETS.audit), pipeline.HEADERS.audit, state.auditEntries);
+    replaceLocationSheet_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.staging), pipeline.HEADERS.staging, state.stagingRecords);
+    replaceLocationSheet_(publicSpreadsheet.getSheetByName(pipeline.SHEETS.published), pipeline.HEADERS.published, state.publishedRecords);
+    replaceLocationSheet_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.audit), pipeline.HEADERS.audit, state.auditEntries);
 }
 
-function readLocationState_(spreadsheet) {
+function readLocationState_(privateSpreadsheet, publicSpreadsheet) {
     const pipeline = locationPipeline_();
     return {
-        stagingRecords: readLocationObjects_(spreadsheet.getSheetByName(pipeline.SHEETS.staging)),
-        publishedRecords: readLocationObjects_(spreadsheet.getSheetByName(pipeline.SHEETS.published)),
-        auditEntries: readLocationObjects_(spreadsheet.getSheetByName(pipeline.SHEETS.audit)),
+        stagingRecords: readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.staging)),
+        publishedRecords: readLocationObjects_(publicSpreadsheet.getSheetByName(pipeline.SHEETS.published)),
+        auditEntries: readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.audit)),
     };
 }
 
 function setupLocationIntakeSystem() {
     const pipeline = locationPipeline_();
-    // Chạy qua Apps Script API (clasp run) không có bảng đang mở; rơi về LOCATION_SPREADSHEET_ID.
-    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet()
-        || (locationProperties_().getProperty('LOCATION_SPREADSHEET_ID') ? configuredSpreadsheet_() : null);
-    if (!spreadsheet) throw new Error('Hãy chạy từ Google Sheet quản trị, hoặc đặt Script Property LOCATION_SPREADSHEET_ID.');
+    const privateSpreadsheet = configuredPrivateSpreadsheet_();
+    const publicSpreadsheet = configuredPublicSpreadsheet_();
     requiredProperty_('TEMPLATE_FORM_ID');
     requiredProperty_('DESTINATION_FOLDER_ID');
-    Object.entries(pipeline.HEADERS).forEach(([key, headers]) => ensureLocationSheet_(spreadsheet, pipeline.SHEETS[key], headers));
-    ensureLocationSheet_(spreadsheet, pipeline.SHEETS.info, ['key', 'value', 'note']);
-    const form = buildLocationForm_(spreadsheet);
-    // KHÔNG dùng deleteAllOthers=true: cờ đó xoá luôn TEMPLATE_FORM_ID và DESTINATION_FOLDER_ID,
-    // mà DESTINATION_FOLDER_ID còn cần mỗi lần nhận Form để chuyển ảnh (xem uploadedImage_).
+    pipeline.PRIVATE_SHEET_KEYS.forEach(key => ensureLocationSheet_(privateSpreadsheet, pipeline.SHEETS[key], pipeline.HEADERS[key] || ['key', 'value', 'note']));
+    pipeline.PUBLIC_SHEET_KEYS.forEach(key => ensureLocationSheet_(publicSpreadsheet, pipeline.SHEETS[key], pipeline.HEADERS[key]));
+    const form = buildLocationForm_(privateSpreadsheet);
     locationProperties_().setProperties({
-        LOCATION_SPREADSHEET_ID: spreadsheet.getId(), LOCATION_FORM_ID: form.getId(),
+        LOCATION_FORM_ID: form.getId(),
         LOCATION_FORM_PUBLIC_URL: form.getPublishedUrl(), LOCATION_FORM_EDIT_URL: form.getEditUrl(),
     });
-    installLocationTriggers_(form, spreadsheet);
-    writeLocationSetupInfo_(spreadsheet, form);
+    installLocationTriggers_(form, privateSpreadsheet);
+    writeLocationSetupInfo_(privateSpreadsheet, form);
     SpreadsheetApp.flush();
 }
 
@@ -230,7 +236,8 @@ function onLocationFormSubmit(event) {
     lock.waitLock(30000);
     try {
         const pipeline = locationPipeline_();
-        const spreadsheet = configuredSpreadsheet_();
+        const privateSpreadsheet = configuredPrivateSpreadsheet_();
+        const publicSpreadsheet = configuredPublicSpreadsheet_();
         const answers = answerMap_(event.response);
         const q = LOCATION_INTAKE.questions;
         const response = event.response;
@@ -245,15 +252,15 @@ function onLocationFormSubmit(event) {
             searchAliases: answer_(answers, q.aliases), reviewNote: answer_(answers, q.note), submittedAt: response.getTimestamp(),
         };
         submission.mapsUrlResolved = resolveGoogleMapsUrl_(submission.mapsUrlOriginal);
-        const authorization = pipeline.authorizeSubmission(unitName, submission.submitterEmail, readLocationObjects_(spreadsheet.getSheetByName(pipeline.SHEETS.allowlist)));
+        const authorization = pipeline.authorizeSubmission(unitName, submission.submitterEmail, readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist)));
         if (authorization.authorized) {
             const image = uploadedImage_(answers, authorization.unitCode, submission.locationName, requestId);
             if (image.ok) Object.assign(submission, { imageFileId: image.fileId, imageDriveUrl: image.driveUrl, imageMimeType: image.mimeType });
         }
-        const state = readLocationState_(spreadsheet);
-        const record = pipeline.buildStagingRecord(submission, readLocationObjects_(spreadsheet.getSheetByName(pipeline.SHEETS.allowlist)), new Date(), { publishedRecords: state.publishedRecords });
-        appendLocationObject_(spreadsheet.getSheetByName(pipeline.SHEETS.staging), record);
-        appendLocationObject_(spreadsheet.getSheetByName(pipeline.SHEETS.audit), pipeline.buildAuditEntry('FORM_SUBMIT', { timestamp: record.updated_at, recordId: record.record_id, requestId: record.request_id, unitCode: record.unit_code, actorEmail: record.submitter_email, submitterEmail: record.submitter_email, nextStatus: record.status, note: record.validation_errors || record.warnings, snapshot: record }));
+        const state = readLocationState_(privateSpreadsheet, publicSpreadsheet);
+        const record = pipeline.buildStagingRecord(submission, readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist)), new Date(), { publishedRecords: state.publishedRecords });
+        appendLocationObject_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.staging), record);
+        appendLocationObject_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.audit), pipeline.buildAuditEntry('FORM_SUBMIT', { timestamp: record.updated_at, recordId: record.record_id, requestId: record.request_id, unitCode: record.unit_code, actorEmail: record.submitter_email, submitterEmail: record.submitter_email, nextStatus: record.status, note: record.validation_errors || record.warnings, snapshot: record }));
     } finally { lock.releaseLock(); }
 }
 
@@ -272,8 +279,9 @@ function reviewLocationRequest_(requestId, action, reviewerEmail) {
     const lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
-        const spreadsheet = configuredSpreadsheet_();
-        let state = readLocationState_(spreadsheet);
+        const privateSpreadsheet = configuredPrivateSpreadsheet_();
+        const publicSpreadsheet = configuredPublicSpreadsheet_();
+        let state = readLocationState_(privateSpreadsheet, publicSpreadsheet);
         const row = state.stagingRecords.find(record => record.request_id === requestId);
         if (!row) throw new Error('Không tìm thấy yêu cầu cần duyệt.');
         if (action === 'APPROVE' && row.request_type !== locationPipeline_().REQUEST_TYPES.stop) {
@@ -282,7 +290,7 @@ function reviewLocationRequest_(requestId, action, reviewerEmail) {
         }
         state = locationPipeline_().applyReviewAction(state, requestId, action, reviewerEmail, row.review_note || '', new Date());
         if (state.revokedImageFileId) revokeImagePublic_(state.revokedImageFileId);
-        writeLocationState_(spreadsheet, state);
+        writeLocationState_(privateSpreadsheet, publicSpreadsheet, state);
     } finally { lock.releaseLock(); }
 }
 
@@ -311,15 +319,21 @@ function reviewSelectedLocationRequest_(action) {
 }
 
 function revokeSelectedPublishedLocation() {
+    const ui = SpreadsheetApp.getUi();
+    const response = ui.prompt('Thu hồi địa điểm công khai', 'Nhập mã địa điểm cần thu hồi.', ui.ButtonSet.OK_CANCEL);
+    if (response.getSelectedButton() !== ui.Button.OK) return;
+    revokePublishedLocationById_(response.getResponseText(), Session.getEffectiveUser().getEmail() || 'reviewer');
+}
+
+function revokePublishedLocationById_(recordId, reviewerEmail) {
     const lock = LockService.getScriptLock();
     lock.waitLock(30000);
     try {
-        const spreadsheet = configuredSpreadsheet_(); const sheet = spreadsheet.getActiveSheet();
-        if (sheet.getName() !== locationPipeline_().SHEETS.published || sheet.getActiveRange().getRow() < 2) throw new Error('Hãy chọn một dòng trong Published_Locations.');
-        const recordColumn = locationHeaders_(sheet).indexOf('record_id') + 1;
-        const result = locationPipeline_().applyRevocation(readLocationState_(spreadsheet), String(sheet.getRange(sheet.getActiveRange().getRow(), recordColumn).getValue() || ''), Session.getEffectiveUser().getEmail() || 'reviewer', 'Thu hồi thủ công', new Date());
+        const privateSpreadsheet = configuredPrivateSpreadsheet_();
+        const publicSpreadsheet = configuredPublicSpreadsheet_();
+        const result = locationPipeline_().applyRevocation(readLocationState_(privateSpreadsheet, publicSpreadsheet), String(recordId || ''), reviewerEmail, 'Thu hồi thủ công', new Date());
         if (result.revokedImageFileId) revokeImagePublic_(result.revokedImageFileId);
-        writeLocationState_(spreadsheet, result);
+        writeLocationState_(privateSpreadsheet, publicSpreadsheet, result);
     } finally { lock.releaseLock(); }
 }
 
@@ -334,8 +348,9 @@ function writeLocationSetupInfo_(spreadsheet, form) {
 }
 
 function locationIntakeStatus_() {
-    const spreadsheet = configuredSpreadsheet_(); const pipeline = locationPipeline_();
-    const messages = Object.values(pipeline.SHEETS).map(name => `${spreadsheet.getSheetByName(name) ? '✓' : '✗'} ${name}`);
+    const privateSpreadsheet = configuredPrivateSpreadsheet_(); const publicSpreadsheet = configuredPublicSpreadsheet_(); const pipeline = locationPipeline_();
+    const messages = pipeline.PRIVATE_SHEET_KEYS.map(key => `${privateSpreadsheet.getSheetByName(pipeline.SHEETS[key]) ? '✓' : '✗'} ${pipeline.SHEETS[key]} (riêng tư)`)
+        .concat(pipeline.PUBLIC_SHEET_KEYS.map(key => `${publicSpreadsheet.getSheetByName(pipeline.SHEETS[key]) ? '✓' : '✗'} ${pipeline.SHEETS[key]} (công khai)`));
     messages.push(locationProperties_().getProperty('LOCATION_FORM_ID') ? '✓ Form đã cấu hình' : '✗ Chưa có Form');
     return messages;
 }
@@ -367,22 +382,14 @@ function apiReviewLocationRequest(requestId, action, reviewerEmail) {
 }
 
 function apiLocationIntakeSnapshot() {
-    return readLocationState_(configuredSpreadsheet_());
+    return readLocationState_(configuredPrivateSpreadsheet_(), configuredPublicSpreadsheet_());
 }
 
 // Bản API-safe của revokeSelectedPublishedLocation: nhận record_id qua tham số thay vì dòng
 // đang chọn, để thu hồi chạy được qua clasp run. Cùng logic khoá + trả ảnh về private.
 function apiRevokePublishedLocation(recordId, reviewerEmail) {
-    const lock = LockService.getScriptLock();
-    lock.waitLock(30000);
-    try {
-        const spreadsheet = configuredSpreadsheet_();
-        const result = locationPipeline_().applyRevocation(readLocationState_(spreadsheet), String(recordId || ''),
-            String(reviewerEmail || Session.getEffectiveUser().getEmail() || 'reviewer'), 'Thu hồi thủ công (API)', new Date());
-        if (result.revokedImageFileId) revokeImagePublic_(result.revokedImageFileId);
-        writeLocationState_(spreadsheet, result);
-        return apiLocationIntakeSnapshot();
-    } finally { lock.releaseLock(); }
+    revokePublishedLocationById_(String(recordId || ''), String(reviewerEmail || Session.getEffectiveUser().getEmail() || 'reviewer'));
+    return apiLocationIntakeSnapshot();
 }
 
 // Trả danh sách lựa chọn đơn vị đang hiển thị trong Form thật, để kiểm chứng bộ lọc
@@ -397,7 +404,7 @@ function apiFormUnitChoices() {
 
 function apiUnitAllowlist() {
     const pipeline = locationPipeline_();
-    return readLocationObjects_(configuredSpreadsheet_().getSheetByName(pipeline.SHEETS.allowlist));
+    return readLocationObjects_(configuredPrivateSpreadsheet_().getSheetByName(pipeline.SHEETS.allowlist));
 }
 
 function apiFormInfo() {

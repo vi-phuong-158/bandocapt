@@ -10,8 +10,13 @@
         staging: 'Location_Staging',
         published: 'Published_Locations',
         audit: 'Approval_Audit_Log',
+        verification: 'Staff_Verification_Audit',
+        idempotency: 'Idempotency_Ledger',
         info: 'Intake_Setup_Info',
     });
+
+    const PRIVATE_SHEET_KEYS = Object.freeze(['allowlist', 'staging', 'audit', 'verification', 'idempotency', 'info']);
+    const PUBLIC_SHEET_KEYS = Object.freeze(['published']);
 
     const STATUSES = Object.freeze({
         pending: 'PENDING',
@@ -60,6 +65,14 @@
         audit: [
             'timestamp', 'action', 'record_id', 'request_id', 'unit_code', 'actor_email',
             'submitter_email', 'previous_status', 'next_status', 'note', 'snapshot_json',
+        ],
+        verification: [
+            'verification_id', 'request_id', 'record_id', 'unit_code', 'staff_email', 'verified_at',
+            'snapshot_hash', 'source', 'note',
+        ],
+        idempotency: [
+            'action', 'request_id', 'body_hash', 'status', 'image_resource_key', 'image_file_id',
+            'staging_ref', 'record_id', 'last_error', 'updated_at',
         ],
     });
 
@@ -220,6 +233,50 @@
             });
         });
         return { byUnitName };
+    }
+
+    function normalizedAllowlistEntry(row) {
+        const unitName = String(row?.unit_name || '').trim();
+        return {
+            normalizedUnitName: normalizeLabel(unitName),
+            unitCode: String(row?.unit_code || slugify(unitName)).trim().toLowerCase(),
+            active: normalizeBoolean(row?.active),
+            allowedEmails: unique(splitEmails(row?.allowed_emails)).sort(),
+        };
+    }
+
+    function validateAllowlistDuplicates(rows) {
+        const groups = new Map();
+        for (const row of rows || []) {
+            const entry = normalizedAllowlistEntry(row);
+            if (!entry.normalizedUnitName) continue;
+            const group = groups.get(entry.normalizedUnitName) || [];
+            group.push(entry);
+            groups.set(entry.normalizedUnitName, group);
+        }
+        const errors = [];
+        const warnings = [];
+        for (const [unitName, entries] of groups.entries()) {
+            if (entries.length < 2) continue;
+            const [first, ...rest] = entries;
+            const conflict = rest.some(entry => entry.unitCode !== first.unitCode || entry.active !== first.active || entry.allowedEmails.join('|') !== first.allowedEmails.join('|'));
+            (conflict ? errors : warnings).push({ code: conflict ? 'ALLOWLIST_DUPLICATE_CONFLICT' : 'ALLOWLIST_DUPLICATE_EQUIVALENT', unitName });
+        }
+        return { ok: errors.length === 0, errors, warnings };
+    }
+
+    function validateDualWorkbookConfig(config = {}, allowlistRows = []) {
+        const privateSpreadsheetId = String(config.privateSpreadsheetId || '').trim();
+        const publicSpreadsheetId = String(config.publicSpreadsheetId || '').trim();
+        const googleSheetId = String(config.googleSheetId || '').trim();
+        const errors = [];
+        if (!privateSpreadsheetId) errors.push('PRIVATE_LOCATION_SPREADSHEET_ID_MISSING');
+        if (!publicSpreadsheetId) errors.push('PUBLIC_LOCATION_SPREADSHEET_ID_MISSING');
+        if (!googleSheetId) errors.push('GOOGLE_SHEET_ID_MISSING');
+        if (privateSpreadsheetId && publicSpreadsheetId && privateSpreadsheetId === publicSpreadsheetId) errors.push('PRIVATE_AND_PUBLIC_WORKBOOK_MUST_DIFFER');
+        if (publicSpreadsheetId && googleSheetId && publicSpreadsheetId !== googleSheetId) errors.push('GOOGLE_SHEET_ID_MUST_MATCH_PUBLIC_WORKBOOK');
+        const duplicates = validateAllowlistDuplicates(allowlistRows);
+        return { ok: errors.length === 0 && duplicates.ok, errors: [...errors, ...duplicates.errors.map(item => item.code)], warnings: duplicates.warnings };
     }
 
     // Chiều NGƯỢC của authorizeSubmission: từ email suy ra tập đơn vị được phép, thay vì kiểm tra
@@ -554,10 +611,10 @@
     }
 
     return {
-        SHEETS, STATUSES, REQUEST_TYPES, COORDINATE_STATUSES, HEADERS, PUBLIC_FIELDS, PHU_THO_BOUNDS, IMAGE_MIME_TYPES,
+        SHEETS, PRIVATE_SHEET_KEYS, PUBLIC_SHEET_KEYS, STATUSES, REQUEST_TYPES, COORDINATE_STATUSES, HEADERS, PUBLIC_FIELDS, PHU_THO_BOUNDS, IMAGE_MIME_TYPES,
         normalizeLabel, normalizeBoolean, slugify, normalizeEmail, splitEmails, sanitizeSheetCell, sanitizeUserFields, normalizeServices,
         normalizeLocationType, deriveLegacyType, isGoogleMapsUrl, parseCoordinates, classifyCoordinateStatus,
-        validateImageMimeType, validateImageSubmission, buildAllowlistMap, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
+        validateImageMimeType, validateImageSubmission, buildAllowlistMap, validateAllowlistDuplicates, validateDualWorkbookConfig, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
         buildRecordId, haversineMeters, detectDuplicateWarnings, buildStagingRecord, buildPublishedRecord,
         buildAuditEntry, applyApproval, applyReviewAction, applyRevocation, migrateLegacyLocations,
     };
