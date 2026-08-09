@@ -6,5 +6,12 @@
 - MIME được lấy từ `DriveApp.File.getMimeType()`, không tin phần mở rộng; chỉ JPEG, PNG, WebP, HEIC, HEIF và đúng một ảnh được chấp nhận.
 - Ảnh staging không công khai. Chỉ ảnh đã duyệt dùng `ANYONE_WITH_LINK`; thu hồi `STOP` sẽ thử đặt lại private/no access.
 - Không ghi Form ID, Drive folder ID, email allowlist thật hoặc secret vào mã nguồn. Dùng Script Properties và phân quyền tối thiểu.
+- `record_id` **không phải bí mật** — nó nằm trong payload công khai của `/api/google-sheet`. Vì vậy biết
+  `record_id` không tạo ra quyền sửa: mọi yêu cầu trỏ tới một bản ghi đã publish đều phải có
+  `unit_code` của bản ghi đó khớp đơn vị mà `Unit_Allowlist` đã authorize cho email người gửi, nếu không
+  bị chặn bằng `TARGET_RECORD_UNIT_MISMATCH`. Kiểm tra chạy ở hai nơi: `buildStagingRecord` (khâu nhận,
+  gồm cả yêu cầu `create` có mang sẵn `target_record_id`) và `applyApproval` (ngay trước khi ghi/xoá
+  `Published_Locations`, phòng trường hợp ô `validation_errors` bị xoá tay trong Sheet). Bản ghi published
+  thiếu `unit_code` không chứng minh được chủ sở hữu nên không ai sửa được cho tới khi quản trị viên bổ sung.
 
 Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, Spreadsheet và thư mục ảnh. Khi nghi lộ ảnh hoặc cấu hình sai, thu hồi quyền Drive trước, sau đó xử lý record published và audit theo quy trình vận hành.

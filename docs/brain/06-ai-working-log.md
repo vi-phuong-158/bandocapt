@@ -1,5 +1,29 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Vá lỗ hổng cross-unit target record trong pipeline địa điểm
+- **Agent:** Claude Code
+- **Thay đổi:** Chặn một đơn vị nhắm tới `record_id` đã publish của đơn vị khác. Thêm helper nội bộ
+  `sameUnitCode()`; `buildStagingRecord` resolve target một lần rồi kiểm chủ sở hữu, `applyApproval`
+  kiểm lại ngay trước khi ghi/xoá `Published_Locations`. Mã lỗi mới: `TARGET_RECORD_UNIT_MISMATCH`.
+- **File đã sửa:** `setup/apps-script.js`, `test/location-pipeline.test.js`,
+  `docs/location-intake/SECURITY.md`.
+- **Lý do:** Rule cũ chỉ hỏi "target có tồn tại không" (`TARGET_RECORD_ID_NOT_FOUND`), không hỏi
+  "target có thuộc đơn vị đã authorize không". Mà `record_id` và `unit_code` đều nằm trong payload
+  công khai của `/api/google-sheet`, nên `record_id` không phải bí mật — cán bộ đơn vị A chọn đúng
+  đơn vị mình trong Form, dán `record_id` của đơn vị B, hồ sơ vẫn `PENDING` và khi duyệt sẽ ghi đè
+  (update/correct/confirm) hoặc xoá (stop) bản ghi của B. Phát hiện thêm biến thể nặng hơn: yêu cầu
+  `create` mang sẵn `target_record_id` thì `requiresExistingTarget` = false nên bỏ qua cả hai rule
+  target cũ, nhưng dòng `recordId = submission.targetRecordId || ...` vẫn kế thừa record_id đó →
+  duyệt là đè. Cả hai biến thể nay đều bị chặn.
+- **Kiểm tra:** 6 test mới trong `test/location-pipeline.test.js` (update/create/stop cross-unit,
+  ghi đè khi `validation_errors` bị xoá tay, ca dương không hồi quy, lệch hoa thường vs thiếu
+  `unit_code`). Đã xác minh ngược: gỡ riêng bản vá thì 5/6 test fail, ca dương vẫn pass (không phải
+  bẫy false-positive); áp lại thì 21/21 pass. Toàn bộ: `npm test` **366/366**, `npm run build` sạch
+  (`dist/Code.gs` sinh lại có chứa rule mới), `npx playwright test` **19/19**,
+  `npm audit --omit=dev --audit-level=high` exit 0. **Chưa** smoke trên Google: `clasp push` bị
+  chặn quyền trong phiên này, và ca cross-unit đầu-cuối vẫn cần gửi Form thủ công (Forms API không
+  nhận câu trả lời có tải tệp) — xem mục Còn lại trong báo cáo.
+
 ## [2026-08-08] Smoke test 2 case cuối — vá bug đơn vị active=false + phát hiện thư mục upload
 - **Agent:** Claude Code
 - **Case 1 (một đơn vị nhiều địa điểm, không đè):** gửi Form địa điểm thứ hai cho `TEST_CA_01`, duyệt
