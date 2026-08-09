@@ -16,8 +16,9 @@
 ## [2026-08-09] Gate 6A public workbook alias phải fail-closed khi drift
 
 - **Quyết định:** Runtime public đọc `PUBLIC_LOCATION_SPREADSHEET_ID` nếu có và yêu cầu nó trùng
-  `GOOGLE_SHEET_ID`; lệch ID bị từ chối trước request GViz. Apps Script health check xác minh
-  private workbook không public và public workbook link-readable.
+  `GOOGLE_SHEET_ID`; lệch ID bị từ chối trước request GViz. Apps Script health check fail closed khi
+  thiếu sheet bắt buộc; private workbook phải `PRIVATE`, public workbook phải đồng thời
+  `ANYONE_WITH_LINK` và `VIEW`.
 - **Lý do:** Alias lệch có thể khiến map/chat đọc workbook khác với workbook được migration/kiểm
   quyền, tạo lỗi dữ liệu hoặc mở sai ranh giới privacy.
 - **Đánh đổi:** Cấu hình cũ chỉ có `GOOGLE_SHEET_ID` vẫn tương thích; production phải bổ sung

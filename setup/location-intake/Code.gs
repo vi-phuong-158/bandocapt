@@ -360,19 +360,24 @@ function dualWorkbookHealth_() {
         const privateSpreadsheet = SpreadsheetApp.openById(privateId);
         const publicSpreadsheet = SpreadsheetApp.openById(publicId);
         const pipeline = locationPipeline_();
-        const allowlistRows = readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist));
+        const privateSheetNames = pipeline.PRIVATE_SHEET_KEYS.filter(key => privateSpreadsheet.getSheetByName(pipeline.SHEETS[key])).map(key => pipeline.SHEETS[key]);
+        const publicSheetNames = pipeline.PUBLIC_SHEET_KEYS.filter(key => publicSpreadsheet.getSheetByName(pipeline.SHEETS[key])).map(key => pipeline.SHEETS[key]);
+        const requiredSheets = pipeline.validateRequiredWorkbookSheets({ privateSheetNames, publicSheetNames });
+        result.errors.push(...requiredSheets.errors);
+        const allowlistSheet = privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist);
+        const allowlistRows = allowlistSheet ? readLocationObjects_(allowlistSheet) : [];
         const config = pipeline.validateDualWorkbookConfig({ privateSpreadsheetId: privateId, publicSpreadsheetId: publicId, googleSheetId: publicId }, allowlistRows);
-        result.errors = config.errors;
-        result.warnings = config.warnings;
+        result.errors.push(...config.errors);
+        result.warnings.push(...config.warnings);
         const privateFile = DriveApp.getFileById(privateId);
         const publicFile = DriveApp.getFileById(publicId);
         result.privacy.privateWorkbookPrivate = privateFile.getSharingAccess() === DriveApp.Access.PRIVATE;
-        result.privacy.publicWorkbookLinkReadable = publicFile.getSharingAccess() === DriveApp.Access.ANYONE_WITH_LINK;
+        result.privacy.publicWorkbookLinkReadable = pipeline.isPublicWorkbookLinkView(publicFile.getSharingAccess(), publicFile.getSharingPermission());
         if (!result.privacy.privateWorkbookPrivate) result.errors.push('PRIVATE_WORKBOOK_NOT_PRIVATE');
         if (!result.privacy.publicWorkbookLinkReadable) result.errors.push('PUBLIC_WORKBOOK_NOT_LINK_READABLE');
         result.sheets = {
-            private: pipeline.PRIVATE_SHEET_KEYS.filter(key => privateSpreadsheet.getSheetByName(pipeline.SHEETS[key])).map(key => pipeline.SHEETS[key]),
-            public: pipeline.PUBLIC_SHEET_KEYS.filter(key => publicSpreadsheet.getSheetByName(pipeline.SHEETS[key])).map(key => pipeline.SHEETS[key]),
+            private: privateSheetNames,
+            public: publicSheetNames,
         };
     } catch (error) {
         result.errors.push('WORKBOOK_ACCESS_CHECK_FAILED');

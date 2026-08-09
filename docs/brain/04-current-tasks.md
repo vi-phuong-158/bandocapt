@@ -373,7 +373,7 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 - **Google Form giữ lại tạm thời** làm đường dự phòng, nhưng dự phòng KHÔNG tức thời — xem
   `STAFF_PORTAL_PLAN.md` §26 (Form sao chép mất liên kết thư mục upload, chủ sở hữu phải mở Form
   editor bấm *Phục hồi/Restore* trước khi dùng lại).
-- **Gate 6A validation:** `npm test` 385/385, `npm run build`, `npm run test:e2e` 19/19 và
+- **Gate 6A validation:** `npm test` 388/388, `npm run build`, `npm run test:e2e` 19/19 và
   `npm audit --omit=dev --audit-level=high` đều pass. Audit còn 9 moderate transitive, không có
   high/critical và không có fix khả dụng. Không dùng credential/email/workbook thật.
 

@@ -279,6 +279,25 @@
         return { ok: errors.length === 0 && duplicates.ok, errors: [...errors, ...duplicates.errors.map(item => item.code)], warnings: duplicates.warnings };
     }
 
+    function validateRequiredWorkbookSheets({ privateSheetNames = [], publicSheetNames = [] } = {}) {
+        const privatePresent = new Set(privateSheetNames);
+        const publicPresent = new Set(publicSheetNames);
+        const errors = [];
+        PRIVATE_SHEET_KEYS.forEach(key => {
+            const name = SHEETS[key];
+            if (!privatePresent.has(name)) errors.push(`REQUIRED_PRIVATE_SHEET_MISSING:${name}`);
+        });
+        PUBLIC_SHEET_KEYS.forEach(key => {
+            const name = SHEETS[key];
+            if (!publicPresent.has(name)) errors.push(`REQUIRED_PUBLIC_SHEET_MISSING:${name}`);
+        });
+        return { ok: errors.length === 0, errors };
+    }
+
+    function isPublicWorkbookLinkView(sharingAccess, sharingPermission) {
+        return String(sharingAccess || '') === 'ANYONE_WITH_LINK' && String(sharingPermission || '') === 'VIEW';
+    }
+
     // Chiều NGƯỢC của authorizeSubmission: từ email suy ra tập đơn vị được phép, thay vì kiểm tra
     // một đơn vị người gửi tự khai. Staff Portal cần chiều này vì client không được quyết định
     // `unit_code` (xem docs/location-intake/STAFF_PORTAL_PLAN.md, INV-02/INV-03). Một email có thể
@@ -614,7 +633,7 @@
         SHEETS, PRIVATE_SHEET_KEYS, PUBLIC_SHEET_KEYS, STATUSES, REQUEST_TYPES, COORDINATE_STATUSES, HEADERS, PUBLIC_FIELDS, PHU_THO_BOUNDS, IMAGE_MIME_TYPES,
         normalizeLabel, normalizeBoolean, slugify, normalizeEmail, splitEmails, sanitizeSheetCell, sanitizeUserFields, normalizeServices,
         normalizeLocationType, deriveLegacyType, isGoogleMapsUrl, parseCoordinates, classifyCoordinateStatus,
-        validateImageMimeType, validateImageSubmission, buildAllowlistMap, validateAllowlistDuplicates, validateDualWorkbookConfig, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
+        validateImageMimeType, validateImageSubmission, buildAllowlistMap, validateAllowlistDuplicates, validateDualWorkbookConfig, validateRequiredWorkbookSheets, isPublicWorkbookLinkView, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
         buildRecordId, haversineMeters, detectDuplicateWarnings, buildStagingRecord, buildPublishedRecord,
         buildAuditEntry, applyApproval, applyReviewAction, applyRevocation, migrateLegacyLocations,
     };

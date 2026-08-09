@@ -1,5 +1,19 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Gate 6A review fix — health gate must prove sheets and view-only public access
+- **Agent:** Codex
+- **Thay đổi:** Health check fail closed khi thiếu bất kỳ sheet private/public bắt buộc, trả mã
+  `REQUIRED_PRIVATE_SHEET_MISSING:<name>` hoặc `REQUIRED_PUBLIC_SHEET_MISSING:<name>`. Public workbook
+  chỉ pass khi sharing access là `ANYONE_WITH_LINK` **và** sharing permission là `VIEW`; link `EDIT`,
+  `COMMENT` hoặc `PRIVATE` đều fail. Thêm helper thuần và test cho cả hai rule.
+- **File đã sửa:** `setup/apps-script.js`, `setup/location-intake/Code.gs`,
+  `test/dual-workbook.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`,
+  `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Đảm bảo health gate không báo PASS cho schema chưa đủ hoặc public workbook có thể bị
+  sửa bởi bất kỳ ai có link.
+- **Kiểm tra:** Chạy lại `npm test`, build, E2E và audit trước khi push HEAD mới; không gọi Google
+  production, không migrate workbook, không nhập email thật.
+
 ## [2026-08-09] Gate 6A follow-up — enforce public ID alias and runtime privacy health gate
 - **Agent:** Codex
 - **Thay đổi:** Thêm resolver public workbook fail-closed khi `PUBLIC_LOCATION_SPREADSHEET_ID` lệch

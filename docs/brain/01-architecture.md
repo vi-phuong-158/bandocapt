@@ -427,7 +427,8 @@ Biến mới (2026-07-13):
   và không có đường gọi Google API hay đổi Script Properties.
 - Public runtime hiện resolve `PUBLIC_LOCATION_SPREADSHEET_ID` với `GOOGLE_SHEET_ID` như alias bắt
   buộc đồng nhất; nếu hai biến lệch nhau thì fail closed trước khi gọi GViz. Apps Script health
-  check cũng kiểm tra quyền chia sẻ thực tế của hai workbook và duplicate allowlist.
+  check cũng fail closed khi thiếu bất kỳ private/public sheet bắt buộc, duplicate allowlist, private
+  workbook không `PRIVATE`, hoặc public workbook không đồng thời `ANYONE_WITH_LINK` + `VIEW`.
 - **(2026-08-09) Playwright preview lifecycle.** Không dùng `webServer: npm run preview` vì Windows
   có thể giữ npm child process sau khi test xong. `globalSetup` start/stop `preview-server` trong
   cùng runner và server đóng keep-alive connections; đây là test infrastructure, không thay đổi

@@ -41,6 +41,30 @@ test('dual-workbook config rejects missing, shared, and mismatched public IDs', 
     assert.equal(pipeline.validateDualWorkbookConfig({ privateSpreadsheetId: 'private', publicSpreadsheetId: 'public', googleSheetId: 'public' }).ok, true);
 });
 
+test('health gate fails closed when a required private or public sheet is missing', () => {
+    const complete = pipeline.validateRequiredWorkbookSheets({
+        privateSheetNames: pipeline.PRIVATE_SHEET_KEYS.map(key => pipeline.SHEETS[key]),
+        publicSheetNames: pipeline.PUBLIC_SHEET_KEYS.map(key => pipeline.SHEETS[key]),
+    });
+    assert.equal(complete.ok, true);
+
+    const missing = pipeline.validateRequiredWorkbookSheets({
+        privateSheetNames: pipeline.PRIVATE_SHEET_KEYS.filter(key => key !== 'staging').map(key => pipeline.SHEETS[key]),
+        publicSheetNames: [],
+    });
+    assert.equal(missing.ok, false);
+    assert.deepEqual(missing.errors, [
+        'REQUIRED_PRIVATE_SHEET_MISSING:Location_Staging',
+        'REQUIRED_PUBLIC_SHEET_MISSING:Published_Locations',
+    ]);
+});
+
+test('health gate accepts only link-view access for the public workbook', () => {
+    assert.equal(pipeline.isPublicWorkbookLinkView('ANYONE_WITH_LINK', 'VIEW'), true);
+    assert.equal(pipeline.isPublicWorkbookLinkView('ANYONE_WITH_LINK', 'EDIT'), false);
+    assert.equal(pipeline.isPublicWorkbookLinkView('PRIVATE', 'VIEW'), false);
+});
+
 test('dry-run migration separates public records from private operational sheets without writing', () => {
     const source = {
         publishedRecords: [{ record_id: 'REC_1', unit_code: 'CA_A', name: 'Trụ sở A', address: 'A', phone: '0123', coordinates: '21.3,105.4', status: 'APPROVED' }],
