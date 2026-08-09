@@ -164,6 +164,17 @@ test('M87 simulates a second request arriving during the first locked upload and
     assert.equal(records(runtime, 'Location_Staging').length, 1);
 });
 
+test('M88 rejects a reused requestId with a different payload through doPost without another side effect', () => {
+    const runtime = setupRuntime();
+    const body = createBody('payload-drift-request-1');
+    assert.equal(callGateway(runtime, 'submitRequest', body).status, 'PROCESSED');
+    const changedBody = JSON.parse(JSON.stringify(body));
+    changedBody.submission.locationName = 'Trụ sở đã bị sửa';
+    assert.equal(callGateway(runtime, 'submitRequest', changedBody).error, 'IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD');
+    assert.equal(runtime.folder.createCount, 1);
+    assert.equal(records(runtime, 'Location_Staging').length, 1);
+});
+
 test('M89 simulates a crash after Drive createFile before pointer persistence and retries without a second file or staging row', () => {
     const runtime = setupRuntime();
     const body = createBody('crash-request-0001');

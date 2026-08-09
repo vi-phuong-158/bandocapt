@@ -4,7 +4,7 @@
 - **Agent:** Codex
 - **Thay đổi:** Thêm `test/gateway-runtime.test.js`: chạy source production trong Node VM, fake
   `SpreadsheetApp`, `DriveApp`, `LockService`, `PropertiesService`, `Utilities` và `ContentService`, sau đó
-  gọi trực tiếp `doPost()`. Harness chứng minh runtime M58–M63, M83–M85, M87 và M89 (gồm crash sau
+  gọi trực tiếp `doPost()`. Harness chứng minh runtime M58–M63, M83–M85, M87–M89 (gồm crash sau
   `createFile()` trước persist pointer). Sửa audit `GATEWAY_SUBMIT` sang best-effort: request business đã
   thành công không trả error vì audit fail; ledger `DONE` giữ `AUDIT_APPEND_FAILED` để theo dõi.
   M86 được ghi rõ là GAS-half; Vercel-half chưa thuộc scope gate này.
@@ -13,7 +13,7 @@
   `docs/brain/06-ai-working-log.md`, `docs/location-intake/STAFF_PORTAL_PLAN.md`.
 - **Lý do:** Đồng bộ evidence acceptance với side effect thực của gateway và loại bỏ semantics
   retry không thể phục hồi khi audit append lỗi.
-- **Kiểm tra:** `node --test test/gateway-runtime.test.js` 5/5 và `npm test` 396/396 pass; không gọi
+- **Kiểm tra:** `node --test test/gateway-runtime.test.js` 6/6 và `npm test` 397/397 pass; không gọi
   Apps Script Web App hay Google production.
 
 ## [2026-08-09] Gate 6B — private Apps Script gateway, HMAC and ledger recovery

@@ -969,7 +969,7 @@ Evidence: một test pass và `npm.cmd run test:e2e` pass **19/19**, exit code 0
 
 Gate 6A đã hoàn tất dual-workbook health/migration tooling local; Gate 6B đã có private Apps Script
 gateway runtime với HMAC và idempotency ledger, kèm harness local gọi `doPost()` với fake Apps Script
-services cho M58–M63, M83–M85, M87 và M89. M86 mới là GAS-half; Vercel derive `requestId` từ
+services cho M58–M63, M83–M85 và M87–M89. M86 mới là GAS-half; Vercel derive `requestId` từ
 `operationId` thuộc gate Auth/API sau. Vẫn chưa có `/can-bo`, Google Sign-In runtime, `/api/can-bo/*`,
 workbook migration, real staff email hay production deploy.
 
