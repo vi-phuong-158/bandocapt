@@ -1,5 +1,24 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Khóa crash recovery Drive ↔ ledger ↔ staging cho PR #43
+- **Agent:** Codex
+- **Thay đổi:** Thay contract `IN_PROGRESS` mơ hồ bằng lifecycle ledger private có resource state:
+  `CLAIMED → UPLOAD_PERSISTED → STAGING_PERSISTED → DONE`, cùng nhánh `CLEANUP_PENDING`,
+  `RESOURCE_RETAINED`, `FAILED_CLEANED`. Claim ghi deterministic `image_resource_key`; upload
+  persist `image_file_id` trong lock trước staging append; crash trước persist recovery qua key.
+  Cleanup + ledger update bắt buộc xong trước release lock. Thêm M89, matrix 91 → 92; sửa hygiene
+  migration 1–7 và diễn giải đúng 7 ca B + 2 test hỗ trợ.
+- **File đã sửa:** `docs/location-intake/STAFF_PORTAL_PLAN.md`,
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md`, `docs/location-intake/README.md`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Retry phải biết chính xác side-effect Drive đã xảy ra khi process chết giữa upload,
+  ledger và staging; không được race với cleanup của attempt trước.
+- **Kiểm tra:** `npm test` 380/380 pass; `npm run build` pass; `npm run test:e2e` 19/19 pass,
+  exit code 0; `npm audit --omit=dev --audit-level=high` exit code 0 (0 high/critical, 9 moderate);
+  matrix 92 ID không trùng, 17 primary threats, 17 invariants. CI/Vercel phải pass trên HEAD mới
+  trước final review.
+
 ## [2026-08-09] Khóa contract atomic-idempotency-claim P1 cho Staff Portal gateway
 - **Agent:** Claude Code (Opus 5)
 - **Thay đổi:** Đóng P1 cuối của vòng review: idempotency theo `requestId` (M83–M86) chỉ chống

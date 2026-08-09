@@ -132,7 +132,7 @@ Chỉ viết kế hoạch. Không chạy trên production. Có thể tạo fixtu
    public/anyone-with-link/publish-to-web. Chỉ sau smoke + privacy pass mới cô lập/xoá private sheets
    khỏi workbook cũ. Rollback trước cleanup là config switch; sau cleanup phải dùng backup/export.
 
-**Không** chạy bước 1–9 trên production trong phiên này.
+**Không** chạy bước 1–7 trên production trong phiên này.
 
 ---
 
@@ -594,17 +594,55 @@ lý" trước khi bên nào ghi. Bắt buộc **atomic claim trước side-effec
   finalize* — phải nằm trong **cùng một `LockService` script lock** (`waitLock(30000)`), giống
   `onLocationFormSubmit` hiện có. Không release lock giữa claim và side-effect.
 - Trong lock, thứ tự bắt buộc: **claim trước, side-effect sau**. Ghi một dòng ledger idempotency
-  (sheet `Idempotency_Ledger` hoặc tương đương) trạng thái `IN_PROGRESS` cho `action + requestId`
-  **trước khi** upload Drive hoặc append staging. Chỉ sau khi side-effect thành công mới cập nhật
-  ledger sang `DONE` kèm con trỏ tới kết quả (`record_id`, `image_file_id`).
+  (sheet `Idempotency_Ledger`) trạng thái `CLAIMED` cho `action + requestId` **trước khi** upload
+  Drive hoặc append staging. Claim luôn phải chứa `body_hash` và `image_resource_key` deterministic
+  (`staff-request-<requestId>` trong private Drive folder), nên crash sau claim không để lại một
+  side-effect không thể truy vết.
 - Request đồng thời B block ở `waitLock`; khi vào được lock, nó đọc ledger thấy `DONE` (hoặc
-  `IN_PROGRESS` của một attempt đã chết → reconcile idempotently theo §manual) và trả
+  trạng thái recoverable của một attempt đã chết → reconcile idempotently theo §17.2) và trả
   `ALREADY_PROCESSED`, **không** upload/append lần hai.
-- `LockService` là mutex, **không phải transaction**: nếu process chết giữa side-effect và finalize,
-  ledger còn `IN_PROGRESS`. Lần retry cùng `requestId` phải dò con trỏ ledger để biết bước nào đã
-  xong (đã có file? đã có staging row?) rồi chỉ hoàn tất phần thiếu, không lặp lại phần đã xong.
+- `LockService` là mutex, **không phải transaction**: recovery không được giả định process luôn chạy
+  tới finalize. Sau upload phải persist `image_file_id` và trạng thái `UPLOAD_PERSISTED` **vẫn trong
+  lock, trước** khi append staging; sau append phải persist `staging_ref`/`record_id` và
+  `STAGING_PERSISTED`, rồi mới `DONE`.
 - **Cùng `requestId` nhưng body hash khác** (`operationId` bị tái sử dụng cho payload khác) → reject
   `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`, không ghi đè claim cũ.
+
+### 17.2. Crash recovery Drive ↔ ledger ↔ staging
+
+`Idempotency_Ledger` là private sheet, có tối thiểu:
+
+```text
+action, request_id, body_hash, status, image_resource_key, image_file_id,
+staging_ref, record_id, last_error, updated_at
+```
+
+Lifecycle của request có ảnh là `CLAIMED → UPLOAD_PERSISTED → STAGING_PERSISTED → DONE`.
+`CLAIMED` luôn có `image_resource_key`, còn mọi trạng thái sau upload luôn có `image_file_id`; không
+release lock với trạng thái mơ hồ về side-effect.
+
+Recovery cùng `action + requestId`, luôn giữ cùng script lock:
+
+1. Nếu có `staging_ref` hoặc tìm thấy một staging row cùng `request_id`, persist con trỏ còn thiếu rồi
+   finalize `DONE`; không append thêm row.
+2. Nếu ledger có `image_file_id`, verify file còn tồn tại rồi reuse nó. Nếu chưa có pointer, tìm trong
+   private upload folder đúng filename/resource key deterministic `staff-request-<requestId>`.
+   - Một file: persist `image_file_id` + `UPLOAD_PERSISTED`, rồi tiếp tục append staging.
+   - Không có file: upload đúng một file với resource key đó, **ngay lập tức persist** file ID +
+     `UPLOAD_PERSISTED` trước bất kỳ append nào.
+   - Nhiều file: fail closed `IDEMPOTENCY_RESOURCE_AMBIGUOUS`, không upload mới; dọn/reconcile thủ
+     công hoặc theo job vận hành có lock.
+3. Nếu append staging lỗi sau upload, trong **cùng lock** ghi `last_error`, chuyển ledger sang
+   `CLEANUP_PENDING`, rồi thử cleanup file. Cleanup thành công → `FAILED_CLEANED`; cleanup thất bại →
+   `RESOURCE_RETAINED` và giữ nguyên `image_file_id`. Chỉ sau update ledger + cleanup attempt mới
+   release lock.
+4. Retry từ `RESOURCE_RETAINED` reuse pointer để append staging, không upload file mới. Retry từ
+   `FAILED_CLEANED` có thể tạo lại đúng resource key sau khi xác minh file cũ đã mất. Cả hai nhánh
+   vẫn chỉ tạo tối đa một staging row.
+
+Vì vậy crash đúng sau `DriveApp` upload nhưng trước lần ghi ledger tiếp theo vẫn recover được qua
+resource key deterministic; cleanup của attempt A không thể xóa file mà attempt B đang reuse vì B
+không vào critical section trước khi A hoàn tất cleanup/ledger update.
 
 Approval và reconciliation dùng `request_id + target_record_id + request_type` để biết operation đã
 hoàn tất tới bước nào. Nonce trong `CacheService` chỉ là defense-in-depth optional, không thay thế
@@ -702,15 +740,17 @@ lock**, xem §17.1):
 4. validate các trường;
 5. validate ảnh (MIME, kích thước, đúng một ảnh);
 6. **acquire lock** (`waitLock(30000)`);
-7. **atomic claim**: đọc ledger theo `action + requestId`. `DONE` → trả kết quả cũ
-   (`ALREADY_PROCESSED`), thoát; `IN_PROGRESS` từ attempt chết → reconcile; chưa có → ghi ledger
-   `IN_PROGRESS`. Body hash khác cùng key → reject `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`;
-8. upload ảnh vào Drive;
-9. ghi dòng `Location_Staging`;
-10. finalize ledger sang `DONE` kèm con trỏ (`record_id`, `image_file_id`);
-11. **release lock**;
-12. nếu bước 9 fail sau khi bước 8 đã tạo file → **cleanup file** khi khả thi (bọc try/catch, không
-    để lỗi cleanup che lỗi gốc), và ledger giữ `IN_PROGRESS` để retry reconcile.
+7. **atomic claim/recovery**: đọc ledger theo `action + requestId`. `DONE` → trả kết quả cũ
+   (`ALREADY_PROCESSED`), thoát; trạng thái recoverable → reconcile theo §17.2; chưa có → ghi
+   `CLAIMED` với body hash + deterministic `image_resource_key`. Body hash khác cùng key → reject
+   `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`;
+8. lookup/reuse file theo ledger/resource key, hoặc upload ảnh vào Drive đúng một lần;
+9. **persist ngay** `image_file_id` + `UPLOAD_PERSISTED` vào ledger;
+10. ghi dòng `Location_Staging`, rồi persist `staging_ref`/`record_id` + `STAGING_PERSISTED`;
+11. finalize ledger sang `DONE`;
+12. nếu bước 10 fail sau upload: ghi `CLEANUP_PENDING`, cleanup và update `FAILED_CLEANED` hoặc
+    `RESOURCE_RETAINED` **trong lock**; không release lock trước khi trạng thái resource xác định;
+13. **release lock**.
 
 Claim (bước 7) phải xảy ra **trước** mọi side-effect (bước 8–9) và trong cùng lock — đây là điểm
 chống race, không chỉ chống replay tuần tự. Ảnh chỉ được upload **sau khi** đã qua toàn bộ

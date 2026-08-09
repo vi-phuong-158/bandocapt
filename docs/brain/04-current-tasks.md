@@ -363,7 +363,7 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 - **Tài liệu nguồn sự thật:**
   - `docs/location-intake/STAFF_PORTAL_PLAN.md` — kiến trúc, auth, session, phân quyền đa đơn vị,
     semantics confirm/update/stop/image, gateway, rate limit, UI tiếng Việt.
-  - `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md` — 91 ca kiểm thử, threat model, 17 invariant.
+  - `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md` — 92 ca kiểm thử, threat model, 17 invariant.
   - `docs/brain/03-decisions.md` [2026-08-09] — quyết định mở scope auth.
 - **Đã có sẵn (prerequisite):** `resolveUnitsByEmail(email, allowlistRows)` trong
   `setup/apps-script.js` + 9 test trong `test/location-pipeline.test.js`. Chưa có caller runtime.

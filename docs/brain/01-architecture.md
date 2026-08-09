@@ -414,7 +414,7 @@ Biến mới (2026-07-13):
   runtime** — nó là prerequisite của kế hoạch `docs/location-intake/STAFF_PORTAL_PLAN.md` (chưa triển khai).
 - **(2026-08-09) Staff Portal dùng dual-workbook boundary.** Public read tiếp tục đi qua
   `GOOGLE_SHEET_ID` → `Published_Locations`; private operational sheets (allowlist, staging, audit,
-  verification, setup và Form Responses) chỉ Apps Script/backend trusted đọc/ghi qua
+  verification, idempotency ledger, setup và Form Responses) chỉ Apps Script/backend trusted đọc/ghi qua
   `PRIVATE_LOCATION_SPREADSHEET_ID`. Admin approval là public write duy nhất qua
   `PUBLIC_LOCATION_SPREADSHEET_ID`; cross-workbook approval recover theo `request_id`, không coi
   `LockService` là transaction phân tán.
@@ -427,6 +427,11 @@ Biến mới (2026-07-13):
   retry không duplicate staging/Drive/audit. `POST /api/can-bo/confirm` luôn cần `recordId` +
   `snapshotHash` + `operationId`; `/auth/google` là ngoại lệ duy nhất không cần pre-existing session
   nhưng vẫn bắt buộc Origin, Google credential verification và IP rate limit.
+- **(2026-08-09) Staff Portal Drive crash recovery.** `Idempotency_Ledger` private claim một
+  `image_resource_key` deterministic trước side-effect. Upload persist `image_file_id` trong cùng
+  script lock trước staging append; retry crash lookup theo resource key, reuse/cleanup idempotently.
+  Cleanup và ledger state update hoàn tất trong lock, nên retry không thể reuse file đang bị attempt
+  trước xóa.
 - Apps Script API không có UI và không có bảng đang mở, nên runtime tách đôi: hàm menu (`healthCheckLocationIntake`, `*Selected*`) chạm `getUi()`/`getActiveRange()` và chỉ dùng trong Sheet; hàm `api*` (`apiHealthCheckLocationIntake`, `apiReviewLocationRequest`, `apiLocationIntakeSnapshot`) trả giá trị và gọi được qua `clasp run`. `setupLocationIntakeSystem` rơi về Script Property `LOCATION_SPREADSHEET_ID` khi `getActiveSpreadsheet()` trả null.
 - Provider generation theo `LLM_PRIMARY`/`LLM_FALLBACK` (xem "Bien moi truong 2026-07-13"): mac dinh
   van la Gemini ke ca khi co `DEEPSEEK_API_KEY` — key nay chi tu dong lam **fallback** (khi

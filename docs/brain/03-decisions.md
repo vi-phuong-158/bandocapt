@@ -1,5 +1,17 @@
 # 03 — Technical Decisions
 
+## [2026-08-09] Khóa crash recovery Drive của Idempotency Ledger
+
+- **Không dùng `IN_PROGRESS` mơ hồ:** ledger private có `CLAIMED`, `UPLOAD_PERSISTED`,
+  `STAGING_PERSISTED`, `DONE`, `CLEANUP_PENDING`, `RESOURCE_RETAINED` và `FAILED_CLEANED` cùng
+  resource pointer/state cần recovery. Claim persist deterministic `image_resource_key` trước upload.
+- **Crash window sau upload:** persist `image_file_id` ngay sau upload, trong cùng `LockService` lock
+  và trước staging append. Nếu process chết sớm hơn, retry lookup exact deterministic resource key;
+  không thấy file mới upload, thấy một file reuse, thấy nhiều file fail closed để reconcile.
+- **Cleanup safety:** staging append fail phải cập nhật ledger + cleanup trước release lock. Cleanup fail
+  giữ pointer `RESOURCE_RETAINED` để retry reuse file, không tạo file mới; do đó attempt kế tiếp không
+  race với cleanup của attempt cũ.
+
 ## [2026-08-09] Khóa contract retry, confirm và login trước implementation Staff Portal
 
 - **Idempotency qua HTTP retry:** Browser tạo UUID `operationId` ổn định cho đúng một thao tác;
@@ -21,8 +33,8 @@
 - **Dual-workbook boundary:** `PUBLIC_LOCATION_SPREADSHEET_ID` chỉ chứa
   `Published_Locations` và là nguồn `GOOGLE_SHEET_ID` cho public map/chatbot/GViz. Private
   `PRIVATE_LOCATION_SPREADSHEET_ID` chứa toàn bộ operational sheets: `Unit_Allowlist`,
-  `Location_Staging`, `Approval_Audit_Log`, `Staff_Verification_Audit`, `Intake_Setup_Info` và
-  Form Responses. Không public/link-share private workbook.
+  `Location_Staging`, `Approval_Audit_Log`, `Staff_Verification_Audit`, `Idempotency_Ledger`,
+  `Intake_Setup_Info` và Form Responses. Không public/link-share private workbook.
 - **Distributed approval:** public write và private status/audit không phải transaction nguyên tử.
   `request_id + target_record_id + request_type` là reconciliation key; `reconcileLocationRequest`
   là recovery path chính thức. `LockService` chỉ chống concurrency trong Apps Script, không bảo đảm
