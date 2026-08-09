@@ -1,5 +1,18 @@
 # 03 — Technical Decisions
 
+## [2026-08-09] Gate 6B private gateway is HMAC-only and ledger-first
+
+- **Quyết định:** Apps Script `doPost` chỉ expose ba action `resolveUnits`, `submitRequest` và
+  `writeVerificationEvent`. Query chứa `action`, Unix `timestamp`, chữ ký hex; canonical data là
+  `POST\naction\ntimestamp\nsha256(rawBody)`. State-changing action chạy trong một Script Lock:
+  reauthorize/validate, ghi `CLAIMED` với body hash + resource key deterministic, rồi mới chạm Drive,
+  staging hoặc verification; cùng key khác body hash bị reject.
+- **Lý do:** Web App cần mở cho Vercel ở gate sau, nên HMAC phải fail closed; claim trước side effect
+  chặn cả retry tuần tự lẫn race/crash làm duplicate Drive file hoặc private event.
+- **Đánh đổi:** Gate này chưa có Google identity/session hay Vercel caller, vì vậy `staffEmail` chỉ là
+  dữ liệu trusted trong body HMAC. Gate auth sau bắt buộc derive nó từ session đã verify, không lấy từ browser.
+- **Người quyết định:** user (Gate 6B scope) / Codex
+
 ## [2026-08-09] Gate 6A dual-workbook health gate và migration chỉ local
 
 - **Quyết định:** `PRIVATE_LOCATION_SPREADSHEET_ID` và `PUBLIC_LOCATION_SPREADSHEET_ID` là bắt buộc

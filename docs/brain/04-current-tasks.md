@@ -354,11 +354,11 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 - **[MERGED 2026-08-09] PR #41** → merge commit `1f56121`, đầu nhánh `ce50ab1`. Đây là nền cho
   Staff Location Portal bên dưới.
 
-## [IN PROGRESS — GATE 6A COMPLETE 2026-08-09] Staff Location Portal `/can-bo`
+## [IN PROGRESS — GATE 6A PASS, GATE 6B COMPLETE LOCAL 2026-08-09] Staff Location Portal `/can-bo`
 
 - **Trạng thái:** Baseline planning `093c547` đã được duyệt cho implementation. **Phase 6A hoàn tất
-  local:** schema/config dual-workbook, health gate duplicate allowlist và migration tooling dry-run.
-  Chưa có `/can-bo`, Google Sign-In hay `/api/can-bo/*`; 6B gateway HMAC/idempotency là bước kế.
+  local:** schema/config dual-workbook, health gate duplicate allowlist, migration tooling dry-run và
+  gateway HMAC/idempotency private. Chưa có `/can-bo`, Google Sign-In hay `/api/can-bo/*`.
   Chưa migrate Sheet, chưa deploy.
 - **Tài liệu nguồn sự thật:**
   - `docs/location-intake/STAFF_PORTAL_PLAN.md` — kiến trúc, auth, session, phân quyền đa đơn vị,
@@ -373,7 +373,8 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 - **Google Form giữ lại tạm thời** làm đường dự phòng, nhưng dự phòng KHÔNG tức thời — xem
   `STAFF_PORTAL_PLAN.md` §26 (Form sao chép mất liên kết thư mục upload, chủ sở hữu phải mở Form
   editor bấm *Phục hồi/Restore* trước khi dùng lại).
-- **Gate 6A validation:** `npm test` 388/388, `npm run build`, `npm run test:e2e` 19/19 và
-  `npm audit --omit=dev --audit-level=high` đều pass. Audit còn 9 moderate transitive, không có
-  high/critical và không có fix khả dụng. Không dùng credential/email/workbook thật.
+- **Gate 6B validation:** `npm test` 391/391, `npm run build`, `npm run test:e2e` 19/19 và
+  `npm audit --omit=dev --audit-level=high` đều pass. Audit không có high/critical; registry hiện báo
+  6 moderate transitive và chỉ đề xuất `npm audit fix --force` với breaking change `firebase-admin`.
+  Không dùng credential/email/workbook thật.
 

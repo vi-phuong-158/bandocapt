@@ -1,5 +1,22 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Gate 6B — private Apps Script gateway, HMAC and ledger recovery
+- **Agent:** Codex
+- **Thay đổi:** Thêm `doPost` chỉ cho phép `resolveUnits`, `submitRequest`, `writeVerificationEvent`.
+  Gateway verify canonical HMAC raw-body + timestamp ±5 phút trước parse, fail closed khi thiếu/sai
+  envelope. State write chạy dưới một Script Lock, claim `Idempotency_Ledger` trước Drive/Sheet, persist
+  pointer file trước staging và recovery/cleanup cho ledger state interrupted. Thêm M58–M63, M83–M89
+  contract tests thuần; không thêm Google Sign-In, Vercel `/api/can-bo/*`, UI hay production migration.
+- **File đã sửa:** `setup/apps-script.js`, `setup/location-intake/Code.gs`,
+  `test/dual-workbook.test.js`, `docs/location-intake/STAFF_PORTAL_PLAN.md`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Đặt server-to-server private boundary và replay/crash protection trước authentication/UI,
+  không để một Web App mở cho Vercel có đường bypass write vào dữ liệu riêng tư.
+- **Kiểm tra:** `npm run ci` pass (391/391, build, audit không high/critical); `npm run test:e2e` 19/19
+  pass. Không gọi Apps Script Web App, Google production, không migrate workbook và không dùng
+  secret/email thật.
+
 ## [2026-08-09] Gate 6A review fix — health gate must prove sheets and view-only public access
 - **Agent:** Codex
 - **Thay đổi:** Health check fail closed khi thiếu bất kỳ sheet private/public bắt buộc, trả mã

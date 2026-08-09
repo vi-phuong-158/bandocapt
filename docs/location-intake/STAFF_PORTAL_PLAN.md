@@ -1,8 +1,8 @@
 # Staff Location Portal — kế hoạch kiến trúc và bảo mật
 
-> **Trạng thái: KẾ HOẠCH, CHƯA TRIỂN KHAI.** Tài liệu này không mô tả code đang chạy. Không có
-> `/can-bo`, không có Google Sign-In, không có `/api/can-bo/*`, không có gateway HMAC và không có
-> bảng tính riêng nào tồn tại tại thời điểm viết. Chủ dự án phải duyệt trước khi bắt đầu code.
+> **Trạng thái: Gate 6A/6B đã có code, chưa deploy.** Không có `/can-bo`, Google Sign-In hay
+> `/api/can-bo/*`; gateway Apps Script chỉ là private server-to-server boundary, chưa được deploy hoặc
+> nối với Vercel. Không có migration production, email cán bộ thật hay workbook production nào được dùng.
 >
 > Nền tảng: PR #41 (merge commit `1f56121`). Quyết định mở scope auth:
 > `docs/brain/03-decisions.md` — [2026-08-09]. Ma trận kiểm thử và threat model:
@@ -506,7 +506,7 @@ Hai nguồn, theo thứ tự:
 
 ## 16. Apps Script private gateway
 
-Portal cần một gateway server-to-server. **Không code trong task này.**
+Portal dùng gateway server-to-server đã được code ở Gate 6B; deployment và Vercel caller vẫn là gate sau.
 
 **Action tối thiểu — chỉ ba, không thêm:**
 
@@ -967,8 +967,9 @@ Evidence: một test pass và `npm.cmd run test:e2e` pass **19/19**, exit code 0
 
 ## 30. Trạng thái kế hoạch sau Gate finalization
 
-Đây vẫn là planning/security prerequisite branch. Chưa có `/can-bo`, Google Sign-In runtime,
-`/api/can-bo/*`, HMAC gateway runtime, workbook migration, real staff email hay production deploy.
+Gate 6A đã hoàn tất dual-workbook health/migration tooling local; Gate 6B đã có private Apps Script
+gateway runtime với HMAC và idempotency ledger. Vẫn chưa có `/can-bo`, Google Sign-In runtime,
+`/api/can-bo/*`, workbook migration, real staff email hay production deploy.
 
 Production chỉ được mở sau khi private/public workbook boundary, dual-workbook smoke/reconciliation,
 OAuth/session/gateway implementation và toàn bộ acceptance matrix được review và approve.

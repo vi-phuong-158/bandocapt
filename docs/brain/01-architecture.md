@@ -99,7 +99,8 @@ bandocapt/
 | `data/tthc-phutho-high-review.csv` | Bang ghep an toan theo title + cap cho 39 record HIGH; `review_suggestion` van bat buoc kiem tay | T3.3 reviewer | snapshot nguon + governance draft |
 | `scripts/apply-phutho-tthc-approvals.js` | T3.4 chi merge 17 doi chieu da duyet va KBTT giu nguyen; backup pre/post, verify metadata va bat bien text/vector | Developer duoc uy quyen | Pinecone, snapshot + manifest duyet |
 | `scripts/patch-matt26265-mau-don.js` | Script mot-muc de xoa gia tri `mau_don` loi thoi cua `tthc_matt26265`; mac dinh dry-run, chi backup + upsert khi co `--apply`, giu nguyen vector/text/content_hash | Developer duoc uy quyen | Pinecone, `.env`, `data/pinecone-backups/` |
-| `setup/apps-script.js` | Pipeline private allowlist/staging/audit -> public published approval. Định nghĩa schema `Staff_Verification_Audit`/`Idempotency_Ledger`, kiểm config dual workbook và duplicate allowlist fail-closed. Phân quyền hai chiều: `authorizeSubmission` (unitName+email -> authorized?) và `resolveUnitsByEmail` (email -> units[], prerequisite Portal) | Google Apps Script, `test/location-pipeline.test.js`, `test/dual-workbook.test.js` | SpreadsheetApp; `PRIVATE_LOCATION_SPREADSHEET_ID`, `PUBLIC_LOCATION_SPREADSHEET_ID` |
+| `setup/apps-script.js` | Pipeline private allowlist/staging/audit -> public published approval. Định nghĩa schema `Staff_Verification_Audit`/`Idempotency_Ledger`, health/config dual workbook và helper gateway thuần: canonical HMAC envelope, clock window, constant-time compare, deterministic resource key, claim/recovery ledger | Google Apps Script runtime, `test/location-pipeline.test.js`, `test/dual-workbook.test.js` | SpreadsheetApp; `PRIVATE_LOCATION_SPREADSHEET_ID`, `PUBLIC_LOCATION_SPREADSHEET_ID` |
+| `setup/location-intake/Code.gs` | Apps Script integration: Form/admin menu và `doPost` gateway private. Gateway chỉ nhận `resolveUnits`, `submitRequest`, `writeVerificationEvent`; kiểm HMAC raw-body trước parse, state write nằm trong Script Lock với ledger claim trước Drive/Sheet side effect | Apps Script Web App (chưa deploy), bundled `dist/Code.gs` | `LocationApprovalPipeline`, Script Properties, Spreadsheet/Drive/Lock/Content services |
 | `lib/location-workbook-config.js` | Resolve public workbook ID from `PUBLIC_LOCATION_SPREADSHEET_ID`/`GOOGLE_SHEET_ID`; reject drift instead of silently choosing one | `lib/published-locations.js`, tests | server env |
 | `scripts/migrate-location-workbooks.js` | Lập migration fixture/export hai workbook, kiểm public payload không chứa cột private và allowlist không có duplicate xung đột; chỉ ghi file khi có `--apply --output-dir` mới | Developer/test | `setup/apps-script.js`, JSON export local |
 | `scripts/preview-server.js` | Preview HTTP server dùng chung bởi Playwright global setup/teardown; tự đóng keep-alive connections | `test/e2e/global-setup.js`, `npm run preview` | Node `http` |
@@ -130,6 +131,17 @@ Google Form submit
 -> ghi Location_Staging + Approval_Audit_Log
 -> admin approve/reject/revoke
 -> Published_Locations update
+```
+
+### Luong gateway private (Gate 6B; chua noi Vercel)
+
+```text
+Vercel trusted caller (gate sau)
+-> POST Web App ?action&timestamp&signature + raw JSON
+-> doPost: SHA-256(raw body), HMAC verify, ±5 phút, parse
+-> Script Lock: reauthorize/validate -> ledger CLAIMED
+-> reuse/upload Drive deterministic resource -> persist pointer
+-> append staging hoặc verification -> ledger DONE
 ```
 
 ### Luong chatbot RAG

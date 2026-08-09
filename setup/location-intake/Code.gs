@@ -399,6 +399,240 @@ function healthCheckLocationIntake() {
     SpreadsheetApp.getUi().alert(locationIntakeStatus_().join('\n'));
 }
 
+function gatewayHex_(bytes) {
+    return bytes.map(value => {
+        const byte = (Number(value) + 256) % 256;
+        return (`0${byte.toString(16)}`).slice(-2);
+    }).join('');
+}
+
+function gatewaySha256Hex_(value) {
+    return gatewayHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(value), Utilities.Charset.UTF_8));
+}
+
+function gatewayHmacSha256Hex_(value, secret) {
+    return gatewayHex_(Utilities.computeHmacSha256Signature(String(value), String(secret), Utilities.Charset.UTF_8));
+}
+
+function gatewayJson_(payload) {
+    return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function gatewayError_(code) {
+    const error = new Error(code);
+    error.gatewayCode = code;
+    throw error;
+}
+
+function gatewaySecret_() {
+    return String(locationProperties_().getProperty('LOCATION_GATEWAY_SECRET') || '').trim();
+}
+
+function gatewayLedgerSheet_(privateSpreadsheet) {
+    return privateSpreadsheet.getSheetByName(locationPipeline_().SHEETS.idempotency);
+}
+
+function writeGatewayLedger_(sheet, records) {
+    replaceLocationSheet_(sheet, locationPipeline_().HEADERS.idempotency, records);
+}
+
+function updateGatewayLedger_(records, action, requestId, patch) {
+    const row = records.find(record => record.action === action && record.request_id === requestId);
+    if (!row) gatewayError_('IDEMPOTENCY_LEDGER_RECORD_MISSING');
+    Object.assign(row, patch, { updated_at: new Date().toISOString() });
+    return row;
+}
+
+function gatewayFileForResource_(folder, resourceKey) {
+    const matches = [];
+    const files = folder.getFiles();
+    while (files.hasNext()) {
+        const file = files.next();
+        if (file.getName() === resourceKey || file.getName().indexOf(`${resourceKey}.`) === 0) matches.push(file);
+    }
+    if (matches.length > 1) gatewayError_('IDEMPOTENCY_RESOURCE_AMBIGUOUS');
+    return matches[0] || null;
+}
+
+function gatewayImageInput_(body) {
+    const image = body && body.image;
+    if (!image) return null;
+    const mimeType = String(image.mimeType || '').toLowerCase();
+    if (!locationPipeline_().validateImageMimeType(mimeType) || !/^[A-Za-z0-9+/]+={0,2}$/.test(String(image.base64 || ''))) gatewayError_('IMAGE_MIME_NOT_ALLOWED');
+    return { mimeType, base64: String(image.base64) };
+}
+
+function gatewayReusableImage_(folder, ledger, imageInput) {
+    if (!imageInput) return null;
+    let file = null;
+    if (ledger.image_file_id) {
+        try { file = DriveApp.getFileById(ledger.image_file_id); } catch (_) {}
+    }
+    if (!file) file = gatewayFileForResource_(folder, ledger.image_resource_key);
+    if (!file) {
+        const extension = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic', 'image/heif': 'heif' }[imageInput.mimeType] || 'img';
+        try {
+            file = folder.createFile(Utilities.newBlob(Utilities.base64Decode(imageInput.base64), imageInput.mimeType, `${ledger.image_resource_key}.${extension}`));
+        } catch (_) { gatewayError_('IMAGE_UPLOAD_FAILED'); }
+    }
+    return { fileId: file.getId(), driveUrl: file.getUrl(), mimeType: file.getMimeType() };
+}
+
+function gatewaySubmission_(body, staffEmail, imageInput) {
+    const submission = body && body.submission;
+    if (!submission || typeof submission !== 'object' || Array.isArray(submission)) gatewayError_('GATEWAY_SUBMISSION_INVALID');
+    return {
+        ...submission,
+        requestId: body.requestId,
+        submitterEmail: staffEmail,
+        submittedAt: submission.submittedAt || new Date(),
+        imageFileId: imageInput ? 'PENDING_GATEWAY_IMAGE' : '',
+        imageDriveUrl: '', imageMimeType: imageInput ? imageInput.mimeType : '',
+        mapsUrlResolved: submission.mapsUrlResolved || submission.mapsUrlOriginal || submission.mapsUrl,
+    };
+}
+
+function gatewayAuthorizedStaff_(email, allowlistRows) {
+    const normalized = locationPipeline_().normalizeEmail(email);
+    if (!normalized) gatewayError_('GATEWAY_STAFF_EMAIL_INVALID');
+    return normalized;
+}
+
+function gatewayPreflightSubmitRequest_(body, privateSpreadsheet, publicSpreadsheet) {
+    const pipeline = locationPipeline_();
+    const allowlistRows = readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist));
+    const imageInput = gatewayImageInput_(body);
+    const submission = gatewaySubmission_(body, gatewayAuthorizedStaff_(body.staffEmail, allowlistRows), imageInput);
+    const candidate = pipeline.buildStagingRecord(submission, allowlistRows, new Date(), { publishedRecords: readLocationState_(privateSpreadsheet, publicSpreadsheet).publishedRecords });
+    if (candidate.status !== pipeline.STATUSES.pending) gatewayError_(`GATEWAY_REQUEST_VALIDATION_FAILED:${candidate.validation_errors}`);
+}
+
+function gatewayPreflightVerification_(body, privateSpreadsheet, publicSpreadsheet) {
+    const pipeline = locationPipeline_();
+    const allowlistRows = readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist));
+    const staffEmail = gatewayAuthorizedStaff_(body.staffEmail, allowlistRows);
+    const recordId = String(body.recordId || '').trim();
+    const snapshotHash = String(body.snapshotHash || '').toLowerCase();
+    if (!recordId) gatewayError_('TARGET_RECORD_ID_REQUIRED');
+    if (!/^[a-f0-9]{64}$/.test(snapshotHash)) gatewayError_('SNAPSHOT_HASH_REQUIRED');
+    const record = readLocationObjects_(publicSpreadsheet.getSheetByName(pipeline.SHEETS.published)).find(item => item.record_id === recordId);
+    if (!record) gatewayError_('TARGET_RECORD_ID_NOT_FOUND');
+    if (!pipeline.resolveUnitsByEmail(staffEmail, allowlistRows).some(unit => unit.unitCode === record.unit_code)) gatewayError_('TARGET_RECORD_UNIT_MISMATCH');
+    if (gatewaySha256Hex_(pipeline.canonicalJson(record)) !== snapshotHash) gatewayError_('STALE_RECORD');
+}
+
+function gatewaySubmitRequest_(body, privateSpreadsheet, publicSpreadsheet, ledgerRecords, ledger) {
+    const pipeline = locationPipeline_();
+    const allowlistRows = readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist));
+    const imageInput = gatewayImageInput_(body);
+    const staffEmail = gatewayAuthorizedStaff_(body.staffEmail, allowlistRows);
+    const submission = gatewaySubmission_(body, staffEmail, imageInput);
+    const state = readLocationState_(privateSpreadsheet, publicSpreadsheet);
+    const candidate = pipeline.buildStagingRecord(submission, allowlistRows, new Date(), { publishedRecords: state.publishedRecords });
+    if (candidate.status !== pipeline.STATUSES.pending) gatewayError_(`GATEWAY_REQUEST_VALIDATION_FAILED:${candidate.validation_errors}`);
+
+    const existing = state.stagingRecords.find(record => record.request_id === body.requestId);
+    if (existing) {
+        updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'DONE', staging_ref: existing.request_id, record_id: existing.record_id, last_error: '' });
+        writeGatewayLedger_(gatewayLedgerSheet_(privateSpreadsheet), ledgerRecords);
+        return { status: 'ALREADY_PROCESSED', recordId: existing.record_id, requestId: existing.request_id };
+    }
+
+    let image = null;
+    if (imageInput) {
+        image = gatewayReusableImage_(DriveApp.getFolderById(requiredProperty_('DESTINATION_FOLDER_ID')), ledger, imageInput);
+        updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'UPLOAD_PERSISTED', image_file_id: image.fileId, last_error: '' });
+        writeGatewayLedger_(gatewayLedgerSheet_(privateSpreadsheet), ledgerRecords);
+    }
+
+    const record = pipeline.buildStagingRecord({ ...submission, imageFileId: image ? image.fileId : '', imageDriveUrl: image ? image.driveUrl : '', imageMimeType: image ? image.mimeType : '' }, allowlistRows, new Date(), { publishedRecords: state.publishedRecords });
+    if (record.status !== pipeline.STATUSES.pending) gatewayError_(`GATEWAY_REQUEST_VALIDATION_FAILED:${record.validation_errors}`);
+    try {
+        appendLocationObject_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.staging), record);
+    } catch (_) {
+        updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'CLEANUP_PENDING', last_error: 'STAGING_APPEND_FAILED' });
+        try {
+            if (image) DriveApp.getFileById(image.fileId).setTrashed(true);
+            updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'FAILED_CLEANED', image_file_id: '', last_error: 'STAGING_APPEND_FAILED' });
+        } catch (_) {
+            updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'RESOURCE_RETAINED', last_error: 'STAGING_APPEND_FAILED' });
+        }
+        writeGatewayLedger_(gatewayLedgerSheet_(privateSpreadsheet), ledgerRecords);
+        gatewayError_('STAGING_APPEND_FAILED');
+    }
+    updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'STAGING_PERSISTED', staging_ref: record.request_id, record_id: record.record_id, last_error: '' });
+    writeGatewayLedger_(gatewayLedgerSheet_(privateSpreadsheet), ledgerRecords);
+    updateGatewayLedger_(ledgerRecords, 'submitRequest', body.requestId, { status: 'DONE' });
+    writeGatewayLedger_(gatewayLedgerSheet_(privateSpreadsheet), ledgerRecords);
+    appendLocationObject_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.audit), pipeline.buildAuditEntry('GATEWAY_SUBMIT', { timestamp: record.updated_at, recordId: record.record_id, requestId: record.request_id, unitCode: record.unit_code, actorEmail: staffEmail, submitterEmail: staffEmail, nextStatus: record.status, snapshot: record }));
+    return { status: 'PROCESSED', recordId: record.record_id, requestId: record.request_id };
+}
+
+function gatewayWriteVerificationEvent_(body, privateSpreadsheet, publicSpreadsheet, ledgerRecords) {
+    const pipeline = locationPipeline_();
+    const staffEmail = gatewayAuthorizedStaff_(body.staffEmail, readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist)));
+    const recordId = String(body.recordId || '').trim();
+    const snapshotHash = String(body.snapshotHash || '').toLowerCase();
+    if (!recordId) gatewayError_('TARGET_RECORD_ID_REQUIRED');
+    if (!/^[a-f0-9]{64}$/.test(snapshotHash)) gatewayError_('SNAPSHOT_HASH_REQUIRED');
+    const record = readLocationObjects_(publicSpreadsheet.getSheetByName(pipeline.SHEETS.published)).find(item => item.record_id === recordId);
+    if (!record) gatewayError_('TARGET_RECORD_ID_NOT_FOUND');
+    const units = pipeline.resolveUnitsByEmail(staffEmail, readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist)));
+    if (!units.some(unit => unit.unitCode === record.unit_code)) gatewayError_('TARGET_RECORD_UNIT_MISMATCH');
+    if (gatewaySha256Hex_(pipeline.canonicalJson(record)) !== snapshotHash) gatewayError_('STALE_RECORD');
+    const existing = readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.verification)).find(item => item.request_id === body.requestId);
+    if (existing) {
+        updateGatewayLedger_(ledgerRecords, 'writeVerificationEvent', body.requestId, { status: 'DONE', record_id: existing.record_id, staging_ref: existing.verification_id, last_error: '' });
+        writeGatewayLedger_(gatewayLedgerSheet_(privateSpreadsheet), ledgerRecords);
+        return { status: 'ALREADY_PROCESSED', verificationId: existing.verification_id, requestId: body.requestId };
+    }
+    const event = { verification_id: `VER_${Utilities.getUuid()}`, request_id: body.requestId, record_id: recordId, unit_code: record.unit_code, staff_email: staffEmail, verified_at: new Date().toISOString(), snapshot_hash: snapshotHash, source: String(body.source || 'STAFF_PORTAL'), note: String(body.note || '') };
+    appendLocationObject_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.verification), event);
+    updateGatewayLedger_(ledgerRecords, 'writeVerificationEvent', body.requestId, { status: 'DONE', record_id: recordId, staging_ref: event.verification_id, last_error: '' });
+    writeGatewayLedger_(gatewayLedgerSheet_(privateSpreadsheet), ledgerRecords);
+    return { status: 'PROCESSED', verificationId: event.verification_id, requestId: body.requestId };
+}
+
+function doPost(event) {
+    try {
+        const pipeline = locationPipeline_();
+        const parameter = (event && event.parameter) || {};
+        const rawBody = String(event && event.postData && event.postData.contents || '');
+        const envelope = pipeline.validateGatewayEnvelope({
+            action: parameter.action, timestamp: parameter.timestamp, signature: parameter.signature, rawBody,
+            secret: gatewaySecret_(), sha256Hex: gatewaySha256Hex_, hmacSha256Hex: gatewayHmacSha256Hex_,
+        });
+        if (!envelope.ok) return gatewayJson_({ ok: false, error: envelope.error });
+        let body;
+        try { body = JSON.parse(rawBody); } catch (_) { return gatewayJson_({ ok: false, error: 'GATEWAY_BODY_INVALID' }); }
+        if (!body || typeof body !== 'object' || Array.isArray(body)) return gatewayJson_({ ok: false, error: 'GATEWAY_BODY_INVALID' });
+        if (parameter.action === 'resolveUnits') {
+            const privateSpreadsheet = configuredPrivateSpreadsheet_();
+            const email = gatewayAuthorizedStaff_(body.email, readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist)));
+            return gatewayJson_({ ok: true, authorizedUnits: pipeline.resolveUnitsByEmail(email, readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist))) });
+        }
+        const lock = LockService.getScriptLock();
+        lock.waitLock(30000);
+        try {
+            const privateSpreadsheet = configuredPrivateSpreadsheet_();
+            const publicSpreadsheet = configuredPublicSpreadsheet_();
+            if (parameter.action === 'submitRequest') gatewayPreflightSubmitRequest_(body, privateSpreadsheet, publicSpreadsheet);
+            else gatewayPreflightVerification_(body, privateSpreadsheet, publicSpreadsheet);
+            const ledgerRecords = readLocationObjects_(gatewayLedgerSheet_(privateSpreadsheet));
+            const claim = pipeline.claimGatewayIdempotency(ledgerRecords, { action: parameter.action, requestId: body.requestId, bodyHash: envelope.bodyHash, now: new Date() });
+            if (!claim.ok) return gatewayJson_({ ok: false, error: claim.error });
+            if (claim.status === 'CLAIMED') writeGatewayLedger_(gatewayLedgerSheet_(privateSpreadsheet), claim.records);
+            if (claim.status === 'ALREADY_PROCESSED') return gatewayJson_({ ok: true, status: 'ALREADY_PROCESSED', requestId: body.requestId, recordId: claim.record.record_id || '' });
+            const result = parameter.action === 'submitRequest'
+                ? gatewaySubmitRequest_(body, privateSpreadsheet, publicSpreadsheet, claim.records, claim.record)
+                : gatewayWriteVerificationEvent_(body, privateSpreadsheet, publicSpreadsheet, claim.records);
+            return gatewayJson_({ ok: true, ...result });
+        } finally { lock.releaseLock(); }
+    } catch (error) {
+        return gatewayJson_({ ok: false, error: error && error.gatewayCode ? error.gatewayCode : 'GATEWAY_INTERNAL_ERROR' });
+    }
+}
+
 function onOpen() {
     SpreadsheetApp.getUi().createMenu('Bản đồ CA - Địa điểm')
         .addItem('Khởi tạo Form và pipeline', 'setupLocationIntakeSystem')

@@ -17,6 +17,8 @@
 
     const PRIVATE_SHEET_KEYS = Object.freeze(['allowlist', 'staging', 'audit', 'verification', 'idempotency', 'info']);
     const PUBLIC_SHEET_KEYS = Object.freeze(['published']);
+    const GATEWAY_ACTIONS = Object.freeze(['resolveUnits', 'submitRequest', 'writeVerificationEvent']);
+    const GATEWAY_CLOCK_SKEW_SECONDS = 300;
 
     const STATUSES = Object.freeze({
         pending: 'PENDING',
@@ -277,6 +279,64 @@
         if (publicSpreadsheetId && googleSheetId && publicSpreadsheetId !== googleSheetId) errors.push('GOOGLE_SHEET_ID_MUST_MATCH_PUBLIC_WORKBOOK');
         const duplicates = validateAllowlistDuplicates(allowlistRows);
         return { ok: errors.length === 0 && duplicates.ok, errors: [...errors, ...duplicates.errors.map(item => item.code)], warnings: duplicates.warnings };
+    }
+
+    function buildGatewayCanonical(action, timestamp, bodyHash) {
+        return `POST\n${String(action || '')}\n${String(timestamp || '')}\n${String(bodyHash || '')}`;
+    }
+
+    function timingSafeEqual(left, right) {
+        const a = String(left || '');
+        const b = String(right || '');
+        let difference = a.length ^ b.length;
+        const length = Math.max(a.length, b.length);
+        for (let index = 0; index < length; index += 1) difference |= (a.charCodeAt(index) || 0) ^ (b.charCodeAt(index) || 0);
+        return difference === 0;
+    }
+
+    function validateGatewayEnvelope({ action, timestamp, signature, rawBody, secret, nowSeconds = Math.floor(Date.now() / 1000), sha256Hex, hmacSha256Hex } = {}) {
+        if (!GATEWAY_ACTIONS.includes(String(action || ''))) return { ok: false, error: 'GATEWAY_ACTION_NOT_ALLOWED' };
+        if (!/^\d{10}$/.test(String(timestamp || ''))) return { ok: false, error: 'GATEWAY_TIMESTAMP_INVALID' };
+        if (Math.abs(Number(timestamp) - Number(nowSeconds)) > GATEWAY_CLOCK_SKEW_SECONDS) return { ok: false, error: 'GATEWAY_TIMESTAMP_OUT_OF_WINDOW' };
+        if (!/^[a-f0-9]{64}$/i.test(String(signature || ''))) return { ok: false, error: 'GATEWAY_SIGNATURE_INVALID' };
+        if (!secret || typeof sha256Hex !== 'function' || typeof hmacSha256Hex !== 'function') return { ok: false, error: 'GATEWAY_SECRET_NOT_CONFIGURED' };
+        const bodyHash = sha256Hex(String(rawBody == null ? '' : rawBody));
+        const expectedSignature = hmacSha256Hex(buildGatewayCanonical(action, timestamp, bodyHash), secret);
+        if (!timingSafeEqual(String(signature).toLowerCase(), String(expectedSignature).toLowerCase())) return { ok: false, error: 'GATEWAY_SIGNATURE_INVALID' };
+        return { ok: true, bodyHash };
+    }
+
+    function isGatewayRequestId(value) {
+        return /^[A-Za-z0-9_-]{16,128}$/.test(String(value || ''));
+    }
+
+    function buildGatewayResourceKey(requestId) {
+        return `staff-request-${String(requestId || '')}`;
+    }
+
+    function claimGatewayIdempotency(ledgerRecords, { action, requestId, bodyHash, now = new Date() } = {}) {
+        const records = (ledgerRecords || []).map(record => ({ ...record }));
+        if (!isGatewayRequestId(requestId)) return { ok: false, error: 'GATEWAY_REQUEST_ID_INVALID', records };
+        const index = records.findIndex(record => record.action === action && record.request_id === requestId);
+        if (index >= 0) {
+            const existing = records[index];
+            if (existing.body_hash !== bodyHash) return { ok: false, error: 'IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD', records };
+            if (existing.status === 'DONE') return { ok: true, status: 'ALREADY_PROCESSED', record: existing, records };
+            return { ok: true, status: 'RECOVER', record: existing, records };
+        }
+        const record = {
+            action, request_id: requestId, body_hash: bodyHash, status: 'CLAIMED',
+            image_resource_key: action === 'submitRequest' ? buildGatewayResourceKey(requestId) : '',
+            image_file_id: '', staging_ref: '', record_id: '', last_error: '', updated_at: asIsoString(now),
+        };
+        records.push(record);
+        return { ok: true, status: 'CLAIMED', record, records };
+    }
+
+    function canonicalJson(value) {
+        if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+        if (value && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+        return JSON.stringify(value == null ? null : value);
     }
 
     function validateRequiredWorkbookSheets({ privateSheetNames = [], publicSheetNames = [] } = {}) {
@@ -630,10 +690,10 @@
     }
 
     return {
-        SHEETS, PRIVATE_SHEET_KEYS, PUBLIC_SHEET_KEYS, STATUSES, REQUEST_TYPES, COORDINATE_STATUSES, HEADERS, PUBLIC_FIELDS, PHU_THO_BOUNDS, IMAGE_MIME_TYPES,
+        SHEETS, PRIVATE_SHEET_KEYS, PUBLIC_SHEET_KEYS, GATEWAY_ACTIONS, GATEWAY_CLOCK_SKEW_SECONDS, STATUSES, REQUEST_TYPES, COORDINATE_STATUSES, HEADERS, PUBLIC_FIELDS, PHU_THO_BOUNDS, IMAGE_MIME_TYPES,
         normalizeLabel, normalizeBoolean, slugify, normalizeEmail, splitEmails, sanitizeSheetCell, sanitizeUserFields, normalizeServices,
         normalizeLocationType, deriveLegacyType, isGoogleMapsUrl, parseCoordinates, classifyCoordinateStatus,
-        validateImageMimeType, validateImageSubmission, buildAllowlistMap, validateAllowlistDuplicates, validateDualWorkbookConfig, validateRequiredWorkbookSheets, isPublicWorkbookLinkView, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
+        validateImageMimeType, validateImageSubmission, buildAllowlistMap, validateAllowlistDuplicates, validateDualWorkbookConfig, buildGatewayCanonical, timingSafeEqual, validateGatewayEnvelope, isGatewayRequestId, buildGatewayResourceKey, claimGatewayIdempotency, canonicalJson, validateRequiredWorkbookSheets, isPublicWorkbookLinkView, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
         buildRecordId, haversineMeters, detectDuplicateWarnings, buildStagingRecord, buildPublishedRecord,
         buildAuditEntry, applyApproval, applyReviewAction, applyRevocation, migrateLegacyLocations,
     };
