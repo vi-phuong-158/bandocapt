@@ -500,8 +500,16 @@ function appendVerifiedLocations(bubble, locations) {
         const title = document.createElement('strong');
         title.textContent = location.name;
         const address = document.createElement('span');
-        address.textContent = location.address || (hasMapsUrl ? 'Mở chỉ đường trên Google Maps' : 'Chưa có địa chỉ xác minh');
+        const paused = location.cccdServiceMode === 'TEMPORARILY_PAUSED';
+        address.textContent = paused
+            ? 'Điểm cấp căn cước đang tạm dừng. Vui lòng liên hệ trước khi đến.'
+            : (location.address || (hasMapsUrl ? 'Mở chỉ đường trên Google Maps' : 'Chưa có địa chỉ xác minh'));
         copy.append(title, address);
+        if (location.servedUnits) {
+            const served = document.createElement('span');
+            served.textContent = `Phục vụ: ${location.servedUnits}`;
+            copy.appendChild(served);
+        }
         if (!hasMapsUrl) {
             const status = document.createElement('span');
             status.textContent = 'Chưa có tọa độ chỉ đường đã xác minh.';

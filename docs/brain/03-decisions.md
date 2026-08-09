@@ -1125,3 +1125,28 @@
 - **Quyết định:** Importer website từ chối namespace bằng `PINECONE_NAMESPACE` và luôn liệt kê namespace đích; namespace đã có record chỉ được tiếp tục với `--resume`.
 - **Lý do:** Tránh bỏ sót thủ tục cấp thẻ tạm trú hợp lệ trong namespace ứng viên, mất liên kết nguồn chính thức, hoặc upsert nhầm vào namespace production/đã có dữ liệu.
 - **Tác động:** Không đổi cờ `RAG_GOVERNANCE_FILTER` hay namespace production; áp dụng cho dry-run/apply importer và retrieval ứng viên.
+## [2026-08-03] Location intake uses canonical record IDs and generated Apps Script
+
+- **Decision:** A location is identified by `record_id`, not `unit_code`. A unit can have multiple locations; update, report and stop requests require an existing `target_record_id` and cannot silently become creates.
+- **Decision:** `setup/apps-script.js` is the only business-rule source. The Apps Script deployable is generated from it plus a thin integration runtime, keeping Node tests and Google runtime behavior aligned.
+- **Decision:** `Published_Locations` and `api/google-sheet.js` use explicit public field allowlists. Internal submitter/reviewer/validation data stays in staging even if a sheet configuration accidentally exposes extra columns.
+- **Decision:** Migration is an export-to-export JSON workflow, dry-run by default, with backup before output overwrite. It is intentionally not a direct production-sheet mutation tool.
+
+## [2026-08-07] clasp là đường deploy Apps Script, kèm lớp entry point API-safe
+
+- **Decision:** Dùng `@google/clasp` 3.3.0 gọi qua `npx` trong npm script, **không** thêm vào `devDependencies`. Lý do: chỉ người vận hành mới cần, giữ `package-lock.json` không đổi so với `main`, và phiên bản vẫn cố định nên tái lập được. Đổi lại: mỗi máy tốn một lần tải về cache npx.
+- **Decision:** Push root là `setup/location-intake/dist/` (đã nằm trong `.gitignore`), chứa đúng `Code.gs` sinh ra và `appsscript.json`. Không đẩy mã nguồn khác lên Google. `appsscript.json` là file nguồn có commit, build copy sang `dist/`.
+- **Decision:** `.clasp.json`, `.clasprc.json`, `clasp-creds*.json` không commit — chứa script ID và OAuth credential theo môi trường. Có `.clasp.json.example` để dựng lại.
+- **Decision:** Tách hàm menu và hàm API thay vì cố làm một hàm chạy được cả hai nơi. Apps Script API không có UI và không có bảng đang mở, nên `getUi()`/`getActiveRange()` sẽ ném lỗi. Các hàm `api*` trả giá trị để kiểm chứng tự động; hàm menu giữ nguyên trải nghiệm người duyệt.
+- **Decision:** `setupLocationIntakeSystem` rơi về Script Property `LOCATION_SPREADSHEET_ID` khi `getActiveSpreadsheet()` trả null, thay vì tạo hàm setup thứ hai cho API.
+- **Giới hạn đã biết:** Nộp Google Form kèm tải ảnh không tự động hoá được (Forms API không hỗ trợ nộp phản hồi có tệp). Bước này vẫn phải do người thật làm, và chính nó mới kiểm chứng MIME thật, quyền Drive thật và allowlist email thật.
+
+## [2026-08-08] Ràng buộc runtime GAS phát hiện qua smoke test thật
+
+- **Decision:** Không dùng `new URL()`/`URLSearchParams` hay host object của trình duyệt/Node trong `setup/apps-script.js`. Apps Script V8 KHÔNG có `URL` global; unit test chạy trên Node có `URL` nên không bắt được. Phân tích host bằng regex; có regression test gỡ `globalThis.URL` để chốt ràng buộc.
+- **Decision:** Không dùng `PropertiesService.setProperties(props, true)` — cờ `deleteAllOthers=true` xoá cả `TEMPLATE_FORM_ID`/`DESTINATION_FOLDER_ID` mà runtime cần mỗi lần nhận Form.
+- **Decision:** Khi gắn GCP project chuẩn cho Apps Script phải bật **Drive API** trong chính project đó (không chỉ Apps Script API). `DriveApp.setSharing` đi qua Drive API; thiếu sẽ hỏng cả `clasp run` lẫn trigger duyệt thật. Chi tiết ở `docs/location-intake/CLASP.md`.
+- **Decision:** `normalizeLabel` không được dùng `value || ''` — boolean `false`/số `0` (Google Sheets lưu ô FALSE thành boolean false) bị nuốt thành '' làm `normalizeBoolean(false)` trả nhầm ACTIVE, đơn vị đã tắt vẫn hiện trong Form và vẫn qua `authorizeSubmission`. Form filter và authorization dùng chung `normalizeBoolean` để không lệch logic. Có regression test.
+- **Giới hạn vận hành (không sửa được bằng code):** Form sao chép từ mẫu có câu hỏi tải tệp bị mất liên kết thư mục upload → Google tự tắt nhận phản hồi, chủ Form phải mở editor bấm **Phục hồi**. `isAcceptingResponses()` vẫn trả `true` nên không tự phát hiện được. Buộc copy mẫu vì `FormApp` không tạo được câu hỏi tải tệp bằng code. Ghi ở `SETUP.md` bước 8 / `OPERATIONS.md`.
+- **Trạng thái:** Toàn bộ luồng đã smoke test end-to-end trên tài nguyên test (không production), **8/8 kịch bản đạt** (gồm một-đơn-vị-nhiều-địa-điểm và đơn-vị-active-false), đối chiếu quyền ảnh public/private bằng Drive API. Xem `06-ai-working-log.md` [2026-08-08].
+

@@ -4,6 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const handler = require('../api/google-sheet');
+const { filterPublicGoogleVisualizationPayload } = require('../api/google-sheet');
 
 const ORIGINAL_FETCH = global.fetch;
 const ORIGINAL_SHEET_ID = process.env.GOOGLE_SHEET_ID;
@@ -64,6 +65,20 @@ test('Google Sheet API returns validated payload with endpoint cache policy', as
     assert.equal(res.statusCode, 200);
     assert.deepEqual(res.body, { table: { cols: [], rows: [] } });
     assert.equal(res.headers['cache-control'], 'public, s-maxage=60, stale-while-revalidate=300');
+});
+
+test('Google Sheet API removes internal columns while preserving approved public fields', () => {
+    const payload = filterPublicGoogleVisualizationPayload({
+        table: {
+            cols: [
+                { label: 'record_id' }, { label: 'name' }, { label: 'services' },
+                { label: 'submitter_email' }, { label: 'reviewed_by' }, { label: 'secret_note' },
+            ],
+            rows: [{ c: [{ v: 'LOC_1' }, { v: 'Điểm A' }, { v: 'CITIZEN_ID' }, { v: 'user@example.gov.vn' }, { v: 'reviewer@example.gov.vn' }, { v: 'private' }] }],
+        },
+    });
+    assert.deepEqual(payload.table.cols.map(column => column.label), ['record_id', 'name', 'services']);
+    assert.deepEqual(payload.table.rows[0].c.map(cell => cell.v), ['LOC_1', 'Điểm A', 'CITIZEN_ID']);
 });
 
 test('Google Sheet API normalizes invalid upstream payloads to 502', async () => {

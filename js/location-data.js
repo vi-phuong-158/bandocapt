@@ -23,6 +23,14 @@
         searchAliases: ['search_aliases', 'search aliases', 'alias tim kiem', 'aliases', 'alias'],
         recordId: ['record id', 'record_id', 'ma ban ghi'],
         updatedAt: ['updated at', 'updated_at', 'cap nhat luc', 'ngay cap nhat'],
+        siteType: ['site_type', 'site type', 'loai dia diem'],
+        services: ['services', 'dich vu', 'cac chuc nang dich vu tai dia diem'],
+        googleMapsUrl: ['google_maps_url', 'maps url', 'link maps'],
+        cccdServiceMode: ['cccd_service_mode', 'cccd service mode', 'hinh thuc tiep nhan can cuoc'],
+        serviceSchedule: ['service_schedule', 'service schedule', 'lich va thoi gian tiep nhan'],
+        servedUnits: ['served_units', 'served units', 'dia ban hoac don vi duoc phuc vu'],
+        status: ['status', 'trang thai'],
+        verifiedAt: ['verified_at', 'verified at', 'ngay xac minh'],
     });
 
     function normalizeLabel(value) {
@@ -79,6 +87,13 @@
         return cell.v ?? cell.f ?? '';
     }
 
+    function normalizeServices(value, legacyType) {
+        const values = Array.isArray(value) ? value : String(value || '').split(/[|,;]/);
+        const services = values.map(item => String(item || '').trim().toUpperCase().replace(/\s+/g, '_')).filter(Boolean);
+        if (!services.length) services.push(/CCCD|can cuoc|id[ _]center/i.test(normalizeLabel(legacyType)) ? 'CITIZEN_ID' : 'POLICE_OFFICE');
+        return Array.from(new Set(services));
+    }
+
     function resolveColumnIndexes(columns) {
         const labels = (columns || []).map(column => normalizeLabel(column?.label || column?.id));
         const indexes = {};
@@ -119,16 +134,25 @@
             }
 
             const typeRaw = String(getCellValue(row, indexes.type) || '');
+            const services = normalizeServices(getCellValue(row, indexes.services), typeRaw);
             locations.push({
                 id: String(getCellValue(row, indexes.recordId) || sourceRow),
                 name,
-                type: /CCCD|can cuoc|id_center/i.test(normalizeLabel(typeRaw)) ? 'id_center' : 'police_station',
+                type: services.includes('POLICE_OFFICE') ? 'police_station' : (/CCCD|can cuoc|id[ _]center/i.test(normalizeLabel(typeRaw)) ? 'id_center' : 'police_station'),
                 address: String(getCellValue(row, indexes.address) || '').trim(),
                 phone: String(getCellValue(row, indexes.phone) || '').trim(),
                 coordinates: String(getCellValue(row, indexes.coordinates) || '').trim(),
                 imageUrl: String(getCellValue(row, indexes.imageUrl) || '').trim(),
                 searchAliases: String(getCellValue(row, indexes.searchAliases) || '').trim(),
                 updatedAt: String(getCellValue(row, indexes.updatedAt) || '').trim(),
+                siteType: String(getCellValue(row, indexes.siteType) || '').trim(),
+                services,
+                googleMapsUrl: String(getCellValue(row, indexes.googleMapsUrl) || '').trim(),
+                cccdServiceMode: String(getCellValue(row, indexes.cccdServiceMode) || '').trim(),
+                serviceSchedule: String(getCellValue(row, indexes.serviceSchedule) || '').trim(),
+                servedUnits: String(getCellValue(row, indexes.servedUnits) || '').trim(),
+                status: String(getCellValue(row, indexes.status) || '').trim(),
+                verifiedAt: String(getCellValue(row, indexes.verifiedAt) || '').trim(),
                 lat: parsed.lat,
                 lng: parsed.lng,
             });
@@ -140,6 +164,7 @@
     return {
         PHU_THO_BOUNDS,
         normalizeLabel,
+        normalizeServices,
         parseCoordinates,
         normalizePublishedLocations,
     };

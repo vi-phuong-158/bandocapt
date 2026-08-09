@@ -41,3 +41,14 @@ test('chat client preserves location payload and renders deterministic direction
     assert.match(chatbot, /resolveProcedureId/);
     assert.match(chatbot, /Chưa có tọa độ chỉ đường đã xác minh/);
 });
+
+test('API includes populated public service fields for verified location cards', () => {
+    const [location] = chat.buildVerifiedLocationLinks([{
+        name: 'Shared point', address: 'Ward A', googleMapsUrl: 'https://maps.example',
+        services: ['POLICE_OFFICE', 'CITIZEN_ID'], cccdServiceMode: 'ACTIVE', servedUnits: 'Ward A|Ward B',
+    }]);
+    assert.deepEqual(location, {
+        name: 'Shared point', address: 'Ward A', mapsUrl: 'https://maps.example',
+        services: ['POLICE_OFFICE', 'CITIZEN_ID'], cccdServiceMode: 'ACTIVE', servedUnits: 'Ward A|Ward B',
+    });
+});

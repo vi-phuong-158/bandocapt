@@ -64,3 +64,23 @@ test('normalizePublishedLocations rejects an invalid Google payload', () => {
         rejected: [{ row: 0, error: 'SHEET_SCHEMA_INVALID' }],
     });
 });
+
+test('normalizes multiple services and keeps legacy type fallback', () => {
+    const payload = {
+        table: {
+            cols: [
+                { label: 'record_id' }, { label: 'name' }, { label: 'type' }, { label: 'coordinates' },
+                { label: 'services' }, { label: 'served_units' }, { label: 'cccd_service_mode' },
+            ],
+            rows: [
+                { c: [{ v: 'LOC_1' }, { v: 'Trụ sở kiêm CCCD' }, { v: 'police_station' }, { v: '21.325,105.365' }, { v: 'POLICE_OFFICE|CITIZEN_ID' }, { v: 'Xã A|Xã B' }, { v: 'PERMANENT' }] },
+                { c: [{ v: 'LOC_2' }, { v: 'Điểm cũ' }, { v: 'id_center' }, { v: '21.326,105.365' }, { v: '' }, { v: '' }, { v: '' }] },
+            ],
+        },
+    };
+    const result = normalizePublishedLocations(payload);
+    assert.deepEqual(result.locations[0].services, ['POLICE_OFFICE', 'CITIZEN_ID']);
+    assert.equal(result.locations[0].servedUnits, 'Xã A|Xã B');
+    assert.equal(result.locations[0].cccdServiceMode, 'PERMANENT');
+    assert.deepEqual(result.locations[1].services, ['CITIZEN_ID']);
+});
