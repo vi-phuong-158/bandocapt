@@ -100,6 +100,7 @@ bandocapt/
 | `scripts/apply-phutho-tthc-approvals.js` | T3.4 chi merge 17 doi chieu da duyet va KBTT giu nguyen; backup pre/post, verify metadata va bat bien text/vector | Developer duoc uy quyen | Pinecone, snapshot + manifest duyet |
 | `scripts/patch-matt26265-mau-don.js` | Script mot-muc de xoa gia tri `mau_don` loi thoi cua `tthc_matt26265`; mac dinh dry-run, chi backup + upsert khi co `--apply`, giu nguyen vector/text/content_hash | Developer duoc uy quyen | Pinecone, `.env`, `data/pinecone-backups/` |
 | `setup/apps-script.js` | Pipeline private allowlist/staging/audit -> public published approval. Định nghĩa schema `Staff_Verification_Audit`/`Idempotency_Ledger`, kiểm config dual workbook và duplicate allowlist fail-closed. Phân quyền hai chiều: `authorizeSubmission` (unitName+email -> authorized?) và `resolveUnitsByEmail` (email -> units[], prerequisite Portal) | Google Apps Script, `test/location-pipeline.test.js`, `test/dual-workbook.test.js` | SpreadsheetApp; `PRIVATE_LOCATION_SPREADSHEET_ID`, `PUBLIC_LOCATION_SPREADSHEET_ID` |
+| `lib/location-workbook-config.js` | Resolve public workbook ID from `PUBLIC_LOCATION_SPREADSHEET_ID`/`GOOGLE_SHEET_ID`; reject drift instead of silently choosing one | `lib/published-locations.js`, tests | server env |
 | `scripts/migrate-location-workbooks.js` | Lập migration fixture/export hai workbook, kiểm public payload không chứa cột private và allowlist không có duplicate xung đột; chỉ ghi file khi có `--apply --output-dir` mới | Developer/test | `setup/apps-script.js`, JSON export local |
 | `scripts/preview-server.js` | Preview HTTP server dùng chung bởi Playwright global setup/teardown; tự đóng keep-alive connections | `test/e2e/global-setup.js`, `npm run preview` | Node `http` |
 | `scripts/run-regression.js` | Runner regression API that, loc theo ID (ca ID hoi thoai H16/H17); gui `evalDebug:true`, cham 30 ca va bao cao latency tong cung p50/p95 theo tung stage eval-only, provider/fallback. `--strict-gate` chan hard fail/provider error; `--majority`/`--runs N` tong hop hard fail da so va flaky advisory | CLI / agent | `api/chat.js`, `lib/regression-grader.js`, `lib/regression-metrics.js`, expectations/conversations va `test/results/` |
@@ -424,6 +425,9 @@ Biến mới (2026-07-13):
   helper chặn public/private chung ID, `GOOGLE_SHEET_ID` lệch public ID, hoặc duplicate allowlist
   xung đột. `scripts/migrate-location-workbooks.js` chỉ dùng JSON fixture/export, dry-run mặc định,
   và không có đường gọi Google API hay đổi Script Properties.
+- Public runtime hiện resolve `PUBLIC_LOCATION_SPREADSHEET_ID` với `GOOGLE_SHEET_ID` như alias bắt
+  buộc đồng nhất; nếu hai biến lệch nhau thì fail closed trước khi gọi GViz. Apps Script health
+  check cũng kiểm tra quyền chia sẻ thực tế của hai workbook và duplicate allowlist.
 - **(2026-08-09) Playwright preview lifecycle.** Không dùng `webServer: npm run preview` vì Windows
   có thể giữ npm child process sau khi test xong. `globalSetup` start/stop `preview-server` trong
   cùng runner và server đóng keep-alive connections; đây là test infrastructure, không thay đổi

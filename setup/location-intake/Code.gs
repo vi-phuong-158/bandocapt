@@ -347,10 +347,45 @@ function writeLocationSetupInfo_(spreadsheet, form) {
     ]);
 }
 
+function dualWorkbookHealth_() {
+    const properties = locationProperties_();
+    const privateId = String(properties.getProperty('PRIVATE_LOCATION_SPREADSHEET_ID') || '').trim();
+    const publicId = String(properties.getProperty('PUBLIC_LOCATION_SPREADSHEET_ID') || '').trim();
+    const result = { ok: false, errors: [], warnings: [], privacy: { privateWorkbookPrivate: false, publicWorkbookLinkReadable: false } };
+    if (!privateId) result.errors.push('PRIVATE_LOCATION_SPREADSHEET_ID_MISSING');
+    if (!publicId) result.errors.push('PUBLIC_LOCATION_SPREADSHEET_ID_MISSING');
+    if (privateId && publicId && privateId === publicId) result.errors.push('PRIVATE_AND_PUBLIC_WORKBOOK_MUST_DIFFER');
+    if (result.errors.length) return result;
+    try {
+        const privateSpreadsheet = SpreadsheetApp.openById(privateId);
+        const publicSpreadsheet = SpreadsheetApp.openById(publicId);
+        const pipeline = locationPipeline_();
+        const allowlistRows = readLocationObjects_(privateSpreadsheet.getSheetByName(pipeline.SHEETS.allowlist));
+        const config = pipeline.validateDualWorkbookConfig({ privateSpreadsheetId: privateId, publicSpreadsheetId: publicId, googleSheetId: publicId }, allowlistRows);
+        result.errors = config.errors;
+        result.warnings = config.warnings;
+        const privateFile = DriveApp.getFileById(privateId);
+        const publicFile = DriveApp.getFileById(publicId);
+        result.privacy.privateWorkbookPrivate = privateFile.getSharingAccess() === DriveApp.Access.PRIVATE;
+        result.privacy.publicWorkbookLinkReadable = publicFile.getSharingAccess() === DriveApp.Access.ANYONE_WITH_LINK;
+        if (!result.privacy.privateWorkbookPrivate) result.errors.push('PRIVATE_WORKBOOK_NOT_PRIVATE');
+        if (!result.privacy.publicWorkbookLinkReadable) result.errors.push('PUBLIC_WORKBOOK_NOT_LINK_READABLE');
+        result.sheets = {
+            private: pipeline.PRIVATE_SHEET_KEYS.filter(key => privateSpreadsheet.getSheetByName(pipeline.SHEETS[key])).map(key => pipeline.SHEETS[key]),
+            public: pipeline.PUBLIC_SHEET_KEYS.filter(key => publicSpreadsheet.getSheetByName(pipeline.SHEETS[key])).map(key => pipeline.SHEETS[key]),
+        };
+    } catch (error) {
+        result.errors.push('WORKBOOK_ACCESS_CHECK_FAILED');
+    }
+    result.ok = result.errors.length === 0;
+    return result;
+}
+
 function locationIntakeStatus_() {
-    const privateSpreadsheet = configuredPrivateSpreadsheet_(); const publicSpreadsheet = configuredPublicSpreadsheet_(); const pipeline = locationPipeline_();
-    const messages = pipeline.PRIVATE_SHEET_KEYS.map(key => `${privateSpreadsheet.getSheetByName(pipeline.SHEETS[key]) ? '✓' : '✗'} ${pipeline.SHEETS[key]} (riêng tư)`)
-        .concat(pipeline.PUBLIC_SHEET_KEYS.map(key => `${publicSpreadsheet.getSheetByName(pipeline.SHEETS[key]) ? '✓' : '✗'} ${pipeline.SHEETS[key]} (công khai)`));
+    const health = dualWorkbookHealth_();
+    const messages = [`${health.ok ? '✓' : '✗'} dual-workbook health: ${health.ok ? 'PASS' : health.errors.join(', ')}`];
+    (health.sheets?.private || []).forEach(name => messages.push(`✓ ${name} (riêng tư)`));
+    (health.sheets?.public || []).forEach(name => messages.push(`✓ ${name} (công khai)`));
     messages.push(locationProperties_().getProperty('LOCATION_FORM_ID') ? '✓ Form đã cấu hình' : '✗ Chưa có Form');
     return messages;
 }
@@ -372,7 +407,7 @@ function onOpen() {
 // Entry point cho Apps Script API (`clasp run`): không chạm UI, trả giá trị để kiểm chứng
 // tự động. Dùng cho smoke test trên tài nguyên test, không thay thế luồng duyệt bằng menu.
 function apiHealthCheckLocationIntake() {
-    return locationIntakeStatus_();
+    return dualWorkbookHealth_();
 }
 
 function apiReviewLocationRequest(requestId, action, reviewerEmail) {

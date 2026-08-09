@@ -7,6 +7,14 @@ const path = require('node:path');
 const test = require('node:test');
 const pipeline = require('../setup/apps-script');
 const migration = require('../scripts/migrate-location-workbooks');
+const { resolvePublicSpreadsheetId } = require('../lib/location-workbook-config');
+
+test('public workbook config keeps GOOGLE_SHEET_ID as a compatible alias and fails closed on drift', () => {
+    assert.equal(resolvePublicSpreadsheetId({ GOOGLE_SHEET_ID: 'public' }), 'public');
+    assert.equal(resolvePublicSpreadsheetId({ PUBLIC_LOCATION_SPREADSHEET_ID: 'public' }), 'public');
+    assert.equal(resolvePublicSpreadsheetId({ PUBLIC_LOCATION_SPREADSHEET_ID: 'public', GOOGLE_SHEET_ID: 'public' }), 'public');
+    assert.throws(() => resolvePublicSpreadsheetId({ PUBLIC_LOCATION_SPREADSHEET_ID: 'private', GOOGLE_SHEET_ID: 'public' }), /PUBLIC_LOCATION_SPREADSHEET_ID_MISMATCH/);
+});
 
 test('B14 health gate blocks conflicting duplicate allowlist rows', () => {
     const result = pipeline.validateAllowlistDuplicates([

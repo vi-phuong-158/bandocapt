@@ -48,6 +48,11 @@ function planDualWorkbookMigration(source = {}) {
         publicPrivateFieldRows,
         allowlistErrors: allowlistCheck.errors,
         allowlistWarnings: allowlistCheck.warnings,
+        rollback: {
+            sourceUntouched: true,
+            outputIsNewDirectory: true,
+            rollbackAction: 'discard generated fixture directory and keep source export',
+        },
     };
     return {
         ok: publicPrivateFieldRows.length === 0 && allowlistCheck.ok,

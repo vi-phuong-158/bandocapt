@@ -13,6 +13,17 @@
   cần owner thực hiện sau này, không được thay bằng fixture local.
 - **Người quyết định:** user (Gate 6 contract) / Codex
 
+## [2026-08-09] Gate 6A public workbook alias phải fail-closed khi drift
+
+- **Quyết định:** Runtime public đọc `PUBLIC_LOCATION_SPREADSHEET_ID` nếu có và yêu cầu nó trùng
+  `GOOGLE_SHEET_ID`; lệch ID bị từ chối trước request GViz. Apps Script health check xác minh
+  private workbook không public và public workbook link-readable.
+- **Lý do:** Alias lệch có thể khiến map/chat đọc workbook khác với workbook được migration/kiểm
+  quyền, tạo lỗi dữ liệu hoặc mở sai ranh giới privacy.
+- **Đánh đổi:** Cấu hình cũ chỉ có `GOOGLE_SHEET_ID` vẫn tương thích; production phải bổ sung
+  public ID trước khi bật health gate đầy đủ.
+- **Người quyết định:** user (Gate 6A contract) / Codex
+
 ## [2026-08-09] Khóa crash recovery Drive của Idempotency Ledger
 
 - **Không dùng `IN_PROGRESS` mơ hồ:** ledger private có `CLAIMED`, `UPLOAD_PERSISTED`,

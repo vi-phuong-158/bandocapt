@@ -1,5 +1,18 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Gate 6A follow-up — enforce public ID alias and runtime privacy health gate
+- **Agent:** Codex
+- **Thay đổi:** Thêm resolver public workbook fail-closed khi `PUBLIC_LOCATION_SPREADSHEET_ID` lệch
+  `GOOGLE_SHEET_ID`; nâng Apps Script health check để kiểm tra config, duplicate allowlist, sheet
+  presence và quyền chia sẻ private/public; bổ sung rollback model vào migration report.
+- **File đã sửa:** `lib/location-workbook-config.js`, `lib/published-locations.js`, `setup/location-intake/Code.gs`,
+  `scripts/migrate-location-workbooks.js`, `test/dual-workbook.test.js`, `package.json`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Đảm bảo alias public không drift và health gate thực sự kiểm tra privacy boundary trước
+  khi có thể dùng dữ liệu cán bộ thật.
+- **Kiểm tra:** Chạy lại toàn bộ Gate 6A validation sau commit follow-up; không gọi Google production,
+  không migrate workbook, không nhập email thật.
+
 ## [2026-08-09] Gate 6A — dual-workbook storage boundary và migration dry-run
 - **Agent:** Codex
 - **Thay đổi:** Thêm schema private `Staff_Verification_Audit`/`Idempotency_Ledger`, phân loại sheet
