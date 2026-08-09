@@ -1,5 +1,25 @@
 # 03 — Technical Decisions
 
+## [2026-08-09] Finalize dual-workbook Staff Portal plan và idempotent recovery
+
+- **Dual-workbook boundary:** `PUBLIC_LOCATION_SPREADSHEET_ID` chỉ chứa
+  `Published_Locations` và là nguồn `GOOGLE_SHEET_ID` cho public map/chatbot/GViz. Private
+  `PRIVATE_LOCATION_SPREADSHEET_ID` chứa toàn bộ operational sheets: `Unit_Allowlist`,
+  `Location_Staging`, `Approval_Audit_Log`, `Staff_Verification_Audit`, `Intake_Setup_Info` và
+  Form Responses. Không public/link-share private workbook.
+- **Distributed approval:** public write và private status/audit không phải transaction nguyên tử.
+  `request_id + target_record_id + request_type` là reconciliation key; `reconcileLocationRequest`
+  là recovery path chính thức. `LockService` chỉ chống concurrency trong Apps Script, không bảo đảm
+  atomic cross-workbook transaction.
+- **Gateway HMAC:** dùng query parameters `action`, `timestamp`, `signature`; canonical string cố
+  định `POST\naction\ntimestamp\nsha256Hex(rawBody)`. Timestamp ±5 phút chỉ là freshness; mọi state-changing
+  call phải có `requestId` do Vercel server sinh trong signed body để chống replay business.
+- **Confirm:** luôn ghi `Staff_Verification_Audit` trong private workbook, với canonical SHA-256
+  snapshot hash và reject `STALE_RECORD` khi record đã đổi. Không ghi confirm vào
+  `Approval_Audit_Log` và không đổi public content.
+- **E2E lifecycle:** Playwright global setup/teardown quản lý `scripts/preview-server.js` trực tiếp;
+  không dùng nested npm `webServer`, không dùng `--forceExit`/`process.exit(0)` để che process leak.
+
 ## [2026-08-09] Cho phép authentication có phạm vi cho Staff Location Portal `/can-bo`
 
 - **Quyết định CŨ bị thay đổi một phần:** `04-current-tasks.md` mục "Không làm lúc này" ghi

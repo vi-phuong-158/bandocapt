@@ -1,5 +1,22 @@
 # 06 — AI Working Log
 
+## [2026-08-09] Finalize Staff Portal plan và đóng E2E runner hang
+- **Agent:** Codex
+- **Thay đổi:** Khóa dual-workbook public/private, config hai ID, read/write boundary, failure model
+  cross-workbook, `request_id` idempotency/reconciliation, query-param HMAC raw-body, confirm audit
+  riêng với snapshot hash/stale rejection; mở rộng test matrix từ 76 lên 86 ca, 17 threat/invariant.
+  Điều tra và sửa Playwright runner để preview server được quản lý bằng global setup/teardown cùng
+  process runner; không dùng `--forceExit` hoặc `process.exit(0)` để che leak.
+- **File đã sửa:** `docs/location-intake/STAFF_PORTAL_PLAN.md`,
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md`, `docs/location-intake/README.md`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `playwright.config.js`, `scripts/preview-server.js`, `test/e2e/global-setup.js`.
+- **Lý do:** Hoàn tất các gap về privacy, consistency, replay, stale confirmation và lifecycle test
+  trước khi mở Draft PR planning; vẫn không code Staff Portal hoặc migrate/deploy production.
+- **Kiểm tra:** `npm test` 380/380 pass; `npm run build` pass; `npm run test:e2e` 19/19 pass và
+  thoát tự nhiên (exit code 0); `npm audit --omit=dev --audit-level=high` exit code 0 với 0 high/critical
+  (9 moderate đã biết, không có fix khả dụng).
+
 ## [2026-08-09] Staff Location Portal Gate 3–5 — mở scope auth, thiết kế kiến trúc, ma trận kiểm thử
 - **Agent:** Claude Code (Opus 5)
 - **Thay đổi:** Chỉ docs + một pure helper. **Không code Portal.** (1) Xác minh PR #41 đã merge thật

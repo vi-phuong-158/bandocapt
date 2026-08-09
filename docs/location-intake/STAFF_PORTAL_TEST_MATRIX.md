@@ -1,7 +1,7 @@
 # Staff Location Portal — ma trận kiểm thử, threat model, invariant
 
 > Đi kèm [`STAFF_PORTAL_PLAN.md`](STAFF_PORTAL_PLAN.md). **Portal chưa được code.** Đây là hợp đồng
-> chấp nhận: implementation chỉ được coi là xong khi 75 ca dưới đây pass.
+> chấp nhận: implementation chỉ được coi là xong khi **86 ca** dưới đây pass.
 >
 > **Trạng thái hôm nay:** 9 ca đã có test thật (B08–B13 + 3 ca hỗ trợ) trong
 > `test/location-pipeline.test.js`, nhờ helper `resolveUnitsByEmail`. 66 ca còn lại là ĐẶC TẢ.
@@ -27,7 +27,7 @@ Cột **Lớp** cho biết ca chạy ở đâu: `pure` (unit test module thuần
 
 ---
 
-## B. Allowlist (6 ca) — ĐÃ CÓ TEST
+## B. Allowlist (7 ca) — ĐÃ CÓ TEST
 
 | ID | Ca | Kỳ vọng | Lớp | Trạng thái |
 | --- | --- | --- | --- | --- |
@@ -172,7 +172,7 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 
 ---
 
-## M. Gateway HMAC (6 ca)
+## M. Gateway HMAC và idempotency (9 ca)
 
 | ID | Ca | Kỳ vọng | Lớp |
 | --- | --- | --- | --- |
@@ -182,6 +182,9 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 | M61 | Timestamp quá cũ (> 5 phút) | Reject | gas |
 | M62 | Timestamp tương lai ngoài cửa sổ | Reject | gas |
 | M63 | Thiếu hoàn toàn chữ ký | Reject (fail closed) | gas |
+| M83 | Replay `submitRequest` cùng `requestId` | Không thêm staging row thứ hai | gas |
+| M84 | Replay `submitRequest` có ảnh cùng `requestId` | Không upload Drive file thứ hai | gas |
+| M85 | Replay confirmation cùng `requestId` | Không thêm verification event thứ hai | gas |
 
 ---
 
@@ -206,7 +209,7 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 
 ---
 
-## P. Tách dữ liệu công khai / riêng tư (5 ca)
+## P. Tách dữ liệu công khai / riêng tư (6 ca)
 
 | ID | Ca | Kỳ vọng | Lớp |
 | --- | --- | --- | --- |
@@ -215,9 +218,26 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 | P73 | Payload `/api/google-sheet` | Không chứa email cán bộ | vercel ✅ (đã có allowlist cột) |
 | P74 | Bảng tính riêng tư | Không publish-to-web, không anyone-with-link | vận hành |
 | P75 | Apps Script vẫn resolve được email → units | Pass sau khi đổi config | gas |
+| P82 | Private workbook bị public/publish-to-web ngoài ý muốn | Production gate fail, không cho rollout | vận hành |
 
-> P71/P74 là kiểm tra **vận hành**, không phải test tự động — phải nằm trong checklist migration
+> P71/P74/P82 là kiểm tra **vận hành**, không phải test tự động — phải nằm trong checklist migration
 > (PLAN §3) và được ký xác nhận trước khi điền email thật.
+
+## H.1. Confirm snapshot và stale protection (3 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| H76 | `snapshotHash` khớp record hiện tại | Ghi `Staff_Verification_Audit` đúng một lần | vercel + gas |
+| H77 | `snapshotHash` cũ sau khi Published thay đổi | Reject `STALE_RECORD`, không ghi success | vercel |
+| H78 | Target cross-unit với hash hợp lệ | Reject authorization trước confirm | vercel + gas |
+
+## Q. Consistency giữa hai workbook (3 ca)
+
+| ID | Ca | Kỳ vọng | Lớp |
+| --- | --- | --- | --- |
+| Q79 | Public write thành công, private finalize thất bại | Reconciliation hoàn tất, không publish duplicate | gas |
+| Q80 | Private state có, public write thiếu | Retry publish đúng một lần | gas |
+| Q81 | Approval request retry cùng `request_id` | Published không duplicate, trạng thái không mất | gas |
 
 ---
 
@@ -231,14 +251,17 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 | T4 | Session bị đánh cắp hoặc dùng lại sau khi quyền bị thu hồi | Cookie `HttpOnly`/`Secure`/`SameSite=Lax`, `Max-Age` giới hạn; **reauthorize theo allowlist hiện tại trước mỗi thao tác ghi** | C15, C16, C17, C18 |
 | T5 | Formula injection qua trường nhập tự do (`=IMPORTXML(...)`) | `sanitizeUserFields` tiền tố `'` cho chuỗi bắt đầu `= + - @`, **gồm cả `record_id` và `target_record_id`** | Đã có test PR #41 |
 | T6 | CSRF: site lạ khiến trình duyệt cán bộ gửi POST | Validate `Origin` bằng `lib/request-security.js` + `SameSite=Lax` + yêu cầu session | N64, N65, N66 |
-| T7 | Replay request gateway đã bắt được | HMAC ràng buộc body + cửa sổ timestamp ±5 phút; **giới hạn đã biết ở Phase 1**, nonce là phương án phase sau | M60, M61, M62 |
-| T8 | Gọi thẳng Apps Script gateway (Web App phải mở "Anyone") | HMAC là lớp xác thực duy nhất → phải fail closed tuyệt đối; secret không bao giờ tới browser | M58–M63 |
-| T9 | Bảng tính công khai làm rò PII cán bộ (email, số điện thoại) | Tách bảng tính riêng tư; `Location_Staging`/`Approval_Audit_Log` cũng phải chuyển | P71–P75 |
+| T7 | Replay request gateway đã bắt được | HMAC raw-body + timestamp ±5 phút + business `requestId` idempotency; nonce chỉ optional | M60–M63, M83–M85 |
+| T8 | Gọi thẳng Apps Script gateway (Web App phải mở "Anyone") | Query-param HMAC là lớp xác thực duy nhất → fail closed tuyệt đối; secret không tới browser | M58–M63, M83–M85 |
+| T9 | Workbook công khai làm rò PII cán bộ (email, số điện thoại) | Tách toàn bộ operational sheets sang private workbook | P71–P75, P82 |
 | T10 | File Drive mồ côi do upload tách rời việc ghi staging | Một business request duy nhất; upload sau authorization; cleanup khi ghi staging fail | L57 |
 | T11 | Vô tình publish thẳng, bỏ qua duyệt | Portal không có action approve/publish; gateway chỉ có 3 action, không có action nào chạm `Published_Locations` | J47, K49, H33 |
 | T12 | Admin xoá tay ô `validation_errors` trong Sheet rồi duyệt | Chốt chặn thứ hai trong `applyApproval` cho cả cross-unit lẫn bất biến CREATE | E24, E26 |
 | T13 | Một cán bộ làm cạn quota của cả đơn vị dùng chung NAT | Rate limit key chính là email đã verify, IP chỉ là key phụ | O68, O69, O70 |
 | T14 | Update xoá mất dữ liệu do hiểu sai "trường vắng mặt" | Merge phía server; omitted ≠ delete; ba trạng thái tường minh | I36–I42 |
+| T15 | Private workbook accidentally public/publish-to-web | Permission checklist, unauthenticated verification và deployment gate | P82 |
+| T16 | Partial cross-workbook approval | `request_id`, idempotent writes, reconciliation, state checks và LockService; LockService không phải transaction | M83–M85, Q79–Q81 |
+| T17 | Staff confirm snapshot cũ sau khi Published thay đổi | Canonical snapshot hash và compare current hash trước ghi | H76–H78 |
 
 ---
 
@@ -254,11 +277,14 @@ Kịch bản chung: bản ghi published đầy đủ, cán bộ chỉ gửi thay
 | INV-06 | Cán bộ **không** direct-write `Published_Locations` | J47, K49, H33, T11 |
 | INV-07 | Mọi thay đổi **nội dung** phải qua staging + admin approval | J43, J47, K48, K49 |
 | INV-08 | Confirm **không** thay đổi nội dung công khai | H33, H34 |
-| INV-09 | Email cán bộ **không** nằm trong bảng tính đọc được công khai | P71–P75 |
+| INV-09 | Email cán bộ **không** nằm trong bảng tính đọc được công khai | P71–P75, P82 |
 | INV-10 | `submitter_email` **luôn** lấy từ session | F28 |
 | INV-11 | Dữ liệu hiện có được tái sử dụng; update **không** bắt nhập lại trường không đổi | I36–I42 |
 | INV-12 | Update **không** bắt upload ảnh mới nếu target đã có ảnh hợp lệ | L55 |
-| INV-13 | Secret **không** tới browser (`STAFF_SESSION_SECRET`, `LOCATION_GATEWAY_SECRET`, `STAFF_SPREADSHEET_ID`) | P72, M58–M63 |
+| INV-13 | Secret **không** tới browser (`STAFF_SESSION_SECRET`, `LOCATION_GATEWAY_SECRET`, `PRIVATE_LOCATION_SPREADSHEET_ID`) | P72, M58–M63, M83–M85 |
 | INV-14 | Apps Script private gateway **fail closed** | M63, T8 |
+| INV-15 | Private operational data + staff PII không nằm trong public-readable workbook | P71–P75, P82 |
+| INV-16 | Cross-workbook approval/revoke recoverable và idempotent theo `request_id` | M83–M85, Q79–Q81 |
+| INV-17 | Staff confirmation gắn đúng snapshot/version record đã nhìn thấy | H76–H78 |
 
 Một invariant bị vi phạm = implementation chưa xong, không phải "cải thiện sau".

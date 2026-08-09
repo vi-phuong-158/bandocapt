@@ -362,12 +362,12 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 - **Tài liệu nguồn sự thật:**
   - `docs/location-intake/STAFF_PORTAL_PLAN.md` — kiến trúc, auth, session, phân quyền đa đơn vị,
     semantics confirm/update/stop/image, gateway, rate limit, UI tiếng Việt.
-  - `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md` — 75 ca kiểm thử, threat model, 14 invariant.
+  - `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md` — 86 ca kiểm thử, threat model, 17 invariant.
   - `docs/brain/03-decisions.md` [2026-08-09] — quyết định mở scope auth.
 - **Đã có sẵn (prerequisite):** `resolveUnitsByEmail(email, allowlistRows)` trong
   `setup/apps-script.js` + 9 test trong `test/location-pipeline.test.js`. Chưa có caller runtime.
-- **CHẶN PRODUCTION (bắt buộc trước khi điền email cán bộ thật):** `Unit_Allowlist` phải tách sang
-  bảng tính riêng, không "ai có liên kết đều xem". Kế hoạch migration 9 bước nằm trong
+- **CHẶN PRODUCTION (bắt buộc trước khi điền email cán bộ thật):** toàn bộ operational sheets phải
+  tách sang private workbook, không "ai có liên kết đều xem". Kế hoạch migration nằm trong
   `STAFF_PORTAL_PLAN.md` §3; **không được chạy trên production khi chưa có người dùng duyệt.**
 - **Google Form giữ lại tạm thời** làm đường dự phòng, nhưng dự phòng KHÔNG tức thời — xem
   `STAFF_PORTAL_PLAN.md` §26 (Form sao chép mất liên kết thư mục upload, chủ sở hữu phải mở Form

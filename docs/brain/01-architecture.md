@@ -99,7 +99,8 @@ bandocapt/
 | `data/tthc-phutho-high-review.csv` | Bang ghep an toan theo title + cap cho 39 record HIGH; `review_suggestion` van bat buoc kiem tay | T3.3 reviewer | snapshot nguon + governance draft |
 | `scripts/apply-phutho-tthc-approvals.js` | T3.4 chi merge 17 doi chieu da duyet va KBTT giu nguyen; backup pre/post, verify metadata va bat bien text/vector | Developer duoc uy quyen | Pinecone, snapshot + manifest duyet |
 | `scripts/patch-matt26265-mau-don.js` | Script mot-muc de xoa gia tri `mau_don` loi thoi cua `tthc_matt26265`; mac dinh dry-run, chi backup + upsert khi co `--apply`, giu nguyen vector/text/content_hash | Developer duoc uy quyen | Pinecone, `.env`, `data/pinecone-backups/` |
-| `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets. Phan quyen hai chieu: `authorizeSubmission` (unitName+email -> authorized?) va `resolveUnitsByEmail` (email -> units[], chua co caller runtime, prerequisite Staff Portal) | Google Apps Script, `test/location-pipeline.test.js` | SpreadsheetApp |
+| `setup/apps-script.js` | Pipeline private allowlist/staging/audit -> public published approval. Phan quyen hai chieu: `authorizeSubmission` (unitName+email -> authorized?) va `resolveUnitsByEmail` (email -> units[], chua co caller runtime, prerequisite Staff Portal) | Google Apps Script, `test/location-pipeline.test.js` | SpreadsheetApp; `PRIVATE_LOCATION_SPREADSHEET_ID`, `PUBLIC_LOCATION_SPREADSHEET_ID` |
+| `scripts/preview-server.js` | Preview HTTP server dùng chung bởi Playwright global setup/teardown; tự đóng keep-alive connections | `test/e2e/global-setup.js`, `npm run preview` | Node `http` |
 | `scripts/run-regression.js` | Runner regression API that, loc theo ID (ca ID hoi thoai H16/H17); gui `evalDebug:true`, cham 30 ca va bao cao latency tong cung p50/p95 theo tung stage eval-only, provider/fallback. `--strict-gate` chan hard fail/provider error; `--majority`/`--runs N` tong hop hard fail da so va flaky advisory | CLI / agent | `api/chat.js`, `lib/regression-grader.js`, `lib/regression-metrics.js`, expectations/conversations va `test/results/` |
 | `scripts/repair-pinecone-temp-residence.js` | Script sua Pinecone `tthc_matt26265`: backup, re-embed, upsert UTF-8 sach, verify top-1 | CLI / agent | Pinecone, Gemini Embedding API, `.env`, `data/pinecone-backups/` |
 
@@ -410,6 +411,16 @@ Biến mới (2026-07-13):
   chiều **không thể lệch nhau**; sửa `buildAllowlistMap` (lọc `active`, bỏ dòng thiếu `unit_name`,
   gộp dòng trùng tên) ảnh hưởng đồng thời cả hai. `resolveUnitsByEmail` hiện **chưa có caller runtime** —
   nó là prerequisite của kế hoạch `docs/location-intake/STAFF_PORTAL_PLAN.md` (chưa triển khai).
+- **(2026-08-09) Staff Portal dùng dual-workbook boundary.** Public read tiếp tục đi qua
+  `GOOGLE_SHEET_ID` → `Published_Locations`; private operational sheets (allowlist, staging, audit,
+  verification, setup và Form Responses) chỉ Apps Script/backend trusted đọc/ghi qua
+  `PRIVATE_LOCATION_SPREADSHEET_ID`. Admin approval là public write duy nhất qua
+  `PUBLIC_LOCATION_SPREADSHEET_ID`; cross-workbook approval recover theo `request_id`, không coi
+  `LockService` là transaction phân tán.
+- **(2026-08-09) Playwright preview lifecycle.** Không dùng `webServer: npm run preview` vì Windows
+  có thể giữ npm child process sau khi test xong. `globalSetup` start/stop `preview-server` trong
+  cùng runner và server đóng keep-alive connections; đây là test infrastructure, không thay đổi
+  production runtime.
 - Apps Script API không có UI và không có bảng đang mở, nên runtime tách đôi: hàm menu (`healthCheckLocationIntake`, `*Selected*`) chạm `getUi()`/`getActiveRange()` và chỉ dùng trong Sheet; hàm `api*` (`apiHealthCheckLocationIntake`, `apiReviewLocationRequest`, `apiLocationIntakeSnapshot`) trả giá trị và gọi được qua `clasp run`. `setupLocationIntakeSystem` rơi về Script Property `LOCATION_SPREADSHEET_ID` khi `getActiveSpreadsheet()` trả null.
 - Provider generation theo `LLM_PRIMARY`/`LLM_FALLBACK` (xem "Bien moi truong 2026-07-13"): mac dinh
   van la Gemini ke ca khi co `DEEPSEEK_API_KEY` — key nay chi tu dong lam **fallback** (khi

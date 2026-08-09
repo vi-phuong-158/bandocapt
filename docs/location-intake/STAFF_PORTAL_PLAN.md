@@ -70,44 +70,67 @@ Google Visualization **không xác thực**, nên bảng tính chứa sheet đó
 xem". `Unit_Allowlist` (cột `allowed_emails`) nằm **cùng bảng tính đó**. `GOOGLE_SHEET_ID` là biến
 môi trường, không phải cơ chế kiểm soát truy cập — ai biết ID đều đọc được toàn bộ email cán bộ.
 
-**Thiết kế mới — hai bảng tính:**
+**Thiết kế mới — hai workbook độc lập:**
 
 | | Bảng tính CÔNG KHAI | Bảng tính RIÊNG TƯ (staff) |
 | --- | --- | --- |
-| Sheet | `Published_Locations` (+ sheet công khai thật sự cần) | `Unit_Allowlist`, dữ liệu quyền cán bộ về sau |
+| Sheet | `Published_Locations` và chỉ sheet thật sự công khai | `Unit_Allowlist`, `Location_Staging`, `Approval_Audit_Log`, `Staff_Verification_Audit`, `Intake_Setup_Info`, các sheet Form Responses |
 | Chia sẻ | "Anyone with link" — bắt buộc, để GViz đọc được | **KHÔNG** publish to web, **KHÔNG** anyone-with-link |
-| ID xuất hiện ở | `GOOGLE_SHEET_ID` (server env), payload GViz | **CHỈ** Apps Script Script Properties (`STAFF_SPREADSHEET_ID`) |
+| ID xuất hiện ở | `PUBLIC_LOCATION_SPREADSHEET_ID`/`GOOGLE_SHEET_ID` (server env) | **CHỈ** Apps Script Script Properties (`PRIVATE_LOCATION_SPREADSHEET_ID`) |
 | Frontend thấy ID? | Không cần thiết, nhưng không phải bí mật | **Tuyệt đối không** |
 | Ai đọc được | Bất kỳ ai | Chỉ Apps Script/backend trusted |
 
-`Location_Staging` và `Approval_Audit_Log` chứa `submitter_email` và `submitter_phone` → **phải
-nằm ở phía riêng tư**, không phải phía công khai. (Hiện chúng nằm cùng bảng tính công khai — điểm
-này phải được xử lý cùng lúc với `Unit_Allowlist`, nếu không việc tách allowlist chỉ vá một nửa lỗ
-rò PII.)
+Private workbook là nơi chứa **toàn bộ operational data và operator PII**: email/phone người gửi,
+notes nội bộ, audit, trạng thái staging, Form response và định danh file Drive. ID private không tới
+browser và chỉ Apps Script/backend trusted được đọc.
+
+Config bắt buộc:
+
+```text
+PRIVATE_LOCATION_SPREADSHEET_ID  # Apps Script private runtime
+PUBLIC_LOCATION_SPREADSHEET_ID   # Published_Locations/public read
+GOOGLE_SHEET_ID                  # alias server-side, luôn trỏ public workbook
+```
+
+Không dùng public workbook ID để suy ra private workbook.
+
+**Khoảng cách với code hiện tại:** PR #41 runtime Apps Script còn dùng một
+`LOCATION_SPREADSHEET_ID` và `setup/location-intake/Code.gs` đọc/ghi state trong cùng workbook.
+Đây là nền Google Form hiện tại, không phải thiết kế Portal cuối. Implementation/migration phải
+đổi sang hai config ở trên và tách approval write trước khi dùng dữ liệu staff thật.
+
+| Boundary | Cho phép |
+| --- | --- |
+| Private read/write | `Unit_Allowlist`, `Location_Staging`, `Approval_Audit_Log`, `Staff_Verification_Audit`, `Intake_Setup_Info`, Form Responses |
+| Public write | Chỉ `Published_Locations`, chỉ qua admin approval/revoke lifecycle |
+| Public read | `Published_Locations` qua `/api/google-sheet`, `lib/published-locations.js`, GViz, map và chatbot |
+
+Staff Portal không direct-write public workbook. Không đưa email/phone cán bộ, audit, staging, notes
+nội bộ hoặc image file IDs sang public workbook.
 
 ---
 
-## 3. Kế hoạch migration — KHÔNG THỰC HIỆN TRONG TASK NÀY
+## 3. Kế hoạch migration toàn bộ operational data — KHÔNG THỰC HIỆN TRONG TASK NÀY
 
 Chỉ viết kế hoạch. Không chạy trên production. Có thể tạo fixture/test data local.
 
-1. **Inventory** — xuất toàn bộ `Unit_Allowlist` hiện tại: số dòng, số email phân biệt, số dòng
-   `active=TRUE` / `active=FALSE`, dòng active thiếu `allowed_emails`.
-2. **Copy** — tạo bảng tính riêng tư mới, copy nguyên sheet `Unit_Allowlist` sang. Không xoá bản gốc.
-3. **Validate row count** — số dòng bản mới == bản gốc.
-4. **Validate email count** — tập email phân biệt (đã `normalizeEmail`) hai bên bằng nhau.
-5. **Validate active/inactive** — số dòng theo từng trạng thái `active` khớp; đặc biệt kiểm tra ô
-   Sheets lưu boolean `FALSE` (xem chú thích `normalizeLabel`/`normalizeBoolean` trong
-   `setup/apps-script.js` — `value || ''` từng nuốt `false` thành `''` và biến đơn vị đã tắt
-   thành ACTIVE).
-6. **Apps Script switch config** — đặt Script Property `STAFF_SPREADSHEET_ID`; đổi chỗ đọc
-   allowlist từ `configuredSpreadsheet_()` sang bảng tính riêng tư. Giữ property cũ để rollback.
-7. **Smoke auth lookup** — với 2–3 email thật đã biết, gọi `resolveUnitsByEmail` qua gateway và
-   xác nhận trả đúng tập đơn vị; với 1 email không tồn tại, xác nhận trả `[]`.
-8. **Rollback config** — nếu bước 7 sai, gỡ `STAFF_SPREADSHEET_ID` để quay lại đọc bảng cũ. Rollback
-   chỉ là đổi config, không cần migrate ngược dữ liệu.
-9. **Chỉ sau khi verify mới xoá** dữ liệu riêng tư khỏi bảng tính công khai. Xoá là bước cuối cùng
-   và không thể lùi bằng config.
+1. **Inventory** — ghi row count, request IDs, record IDs, normalized email count, trạng thái,
+   audit count, image file IDs, active/inactive units, Form destination và trigger configuration cho
+   `Unit_Allowlist`, `Location_Staging`, `Approval_Audit_Log`, `Intake_Setup_Info` và Form Responses.
+2. **Prepare** — tạo private workbook với toàn bộ sheet trên và thêm `Staff_Verification_Audit`;
+   tạo private Form response destination. Không nhập email thật nếu permission chưa được kiểm tra.
+3. **Copy** — copy dữ liệu private operational nguyên trạng; không xoá source.
+4. **Validate** — đối chiếu row counts, request/record IDs, email/status/audit/image counts và
+   xác nhận `active=false` không bị nuốt thành active.
+5. **Configure dual workbook** — đặt `PRIVATE_LOCATION_SPREADSHEET_ID` và
+   `PUBLIC_LOCATION_SPREADSHEET_ID`; giữ `GOOGLE_SHEET_ID` trỏ public. Switch Apps Script chỉ sau
+   khi validation pass.
+6. **Smoke** — resolveUnits, Form submit, Portal-style submitRequest, staging private, admin
+   approve, public Published write, private audit, GViz read, stop/revoke, image sharing,
+   confirm event và idempotent retry.
+7. **Permission/cleanup** — kiểm tra unauthenticated access: public đúng chủ đích, private không
+   public/anyone-with-link/publish-to-web. Chỉ sau smoke + privacy pass mới cô lập/xoá private sheets
+   khỏi workbook cũ. Rollback trước cleanup là config switch; sau cleanup phải dùng backup/export.
 
 **Không** chạy bước 1–9 trên production trong phiên này.
 
@@ -338,15 +361,26 @@ confirm
 Cán bộ **không** được tự sửa `Published_Locations.verified_at` (đó là cột công khai, ghi bởi
 `buildPublishedRecord` khi duyệt).
 
-**Nơi lưu đề xuất** (chốt ở implementation, chọn một):
+**Đã chốt:** ghi vào sheet riêng `Staff_Verification_Audit` trong private workbook, không ghi
+staff confirmation vào `Approval_Audit_Log`.
 
-- **A — sheet audit riêng** `Location_Verification_Log` với cột
-  `timestamp, record_id, unit_code, actor_email, session_id_hash, note`. Ưu: không đụng schema
-  `Approval_Audit_Log` đang được admin dùng; dễ prune riêng. Nhược: thêm một sheet.
-- **B — mở rộng `Approval_Audit_Log`** với `action = 'STAFF_CONFIRM'`. Ưu: một chỗ audit duy nhất.
-  Nhược: trộn event tần suất cao vào log duyệt, làm khó đọc cho admin.
+Schema tối thiểu:
 
-Khuyến nghị **A**, vì tần suất confirm khác hẳn tần suất duyệt.
+```text
+verification_id, request_id, record_id, unit_code, staff_email, verified_at,
+snapshot_hash, source, note
+```
+
+`source` luôn là `STAFF_PORTAL`. `request_id` do Vercel sinh và là idempotency key cho confirm.
+
+`snapshot_hash` là SHA-256 của canonical JSON với property order cố định trên các public content
+fields: `record_id`, `unit_code`, `name`, `site_type`, `services`, `address`, `phone`,
+`coordinates`, `google_maps_url`, `cccd_service_mode`, `service_schedule`, `served_units`,
+`image_url`, `updated_at`. Không hash object chưa sort hoặc JSON stringify không deterministic.
+
+Browser gửi `recordId + snapshotHash`; server đọc record hiện tại và tính lại hash. Hash lệch →
+reject `STALE_RECORD`, không ghi success, UI báo: **"Thông tin vừa được cập nhật. Vui lòng kiểm
+tra lại trước khi xác nhận."** Authorization cross-unit vẫn chạy trước stale check.
 
 Nếu sau này muốn hiển thị trạng thái "đã xác minh gần đây" ra công khai → **phase khác**, cần quyết
 định riêng vì nó đổi schema công khai.
@@ -476,16 +510,23 @@ access: Anyone" (bắt buộc để Vercel gọi được) — **do đó HMAC l�
 Secret: `LOCATION_GATEWAY_SECRET` — đặt ở cả Vercel env và Apps Script Script Properties. Không bao
 giờ tới browser.
 
+**Transport bắt buộc:** không dùng custom header. Request là:
+
+```text
+POST <APPS_SCRIPT_WEB_APP_URL>?action=submitRequest&timestamp=<unix_seconds>&signature=<hex>
+```
+
+Apps Script đọc `e.parameter.action`, `e.parameter.timestamp`, `e.parameter.signature` và raw
+`e.postData.contents`. `requestId` nằm trong signed JSON body; frontend không tự chọn identity hay
+idempotency key.
+
 **Canonical data:**
 
 ```text
-method \n action \n timestamp \n sha256Hex(body)
+POST\naction\ntimestamp\nsha256Hex(rawBody)
 ```
 
 **Signature:** `HMAC-SHA256(canonical, LOCATION_GATEWAY_SECRET)`, hex.
-
-Gửi qua header (hoặc field trong body nếu Apps Script không đọc được header tuỳ chỉnh — kiểm tra ở
-implementation): `X-Location-Signature`, `X-Location-Timestamp`.
 
 **Apps Script phải:**
 
@@ -498,11 +539,12 @@ implementation): `X-Location-Signature`, `X-Location-Timestamp`.
 - **không log secret**, không log toàn bộ body chứa email vào Stackdriver;
 - **không** nhận secret từ frontend dưới bất kỳ hình thức nào.
 
-**Replay strategy Phase 1 — giới hạn đã biết:** chỉ có timestamp window ±5 phút. Trong cửa sổ đó,
-một request bị chặn bắt (ví dụ qua log proxy) có thể replay được. Chấp nhận ở Phase 1 vì:
-gateway chỉ nhận HTTPS, canonical data ràng buộc cả body nên không sửa được nội dung, và hậu quả
-tối đa là một dòng staging trùng (admin thấy và reject). Nếu cần chặt hơn ở phase sau: thêm nonce
-lưu trong `CacheService` với TTL 5 phút và reject nonce đã dùng — hợp đồng testable, xem M58–M63.
+Timestamp window ±5 phút là freshness check, **không phải replay protection hoàn chỉnh**. Phase 1
+bắt buộc idempotency business: mọi state-changing call có `requestId` do Vercel server sinh, nằm
+trong signed body. Với cùng `action + requestId`, Apps Script trả kết quả hiện tại hoặc
+`ALREADY_PROCESSED`, không upload/ghi staging/ghi verification lần hai. Approval và reconciliation
+dùng cùng `request_id + target_record_id + request_type` để biết operation đã hoàn tất tới bước nào.
+Nonce trong `CacheService` chỉ là defense-in-depth optional, không thay thế business idempotency.
 
 ---
 
@@ -741,7 +783,72 @@ Phải xử lý xong trước khi Portal chạy với dữ liệu thật:
 1. **`Unit_Allowlist` phải được chuyển sang bảng tính riêng tư trước khi điền email cán bộ thật.**
 2. `Location_Staging` và `Approval_Audit_Log` chứa `submitter_email`/`submitter_phone` → cũng phải
    nằm phía riêng tư (§2).
-3. `GOOGLE_CLIENT_ID`, `STAFF_SESSION_SECRET`, `LOCATION_GATEWAY_SECRET`, `STAFF_SPREADSHEET_ID`
+3. `GOOGLE_CLIENT_ID`, `STAFF_SESSION_SECRET`, `LOCATION_GATEWAY_SECRET`,
+   `PRIVATE_LOCATION_SPREADSHEET_ID`, `PUBLIC_LOCATION_SPREADSHEET_ID`
    phải được cấu hình; không secret nào tới browser (`GOOGLE_CLIENT_ID` là public theo thiết kế của
    Google Identity Services — đây là ngoại lệ duy nhất và nó không phải secret).
 4. Gateway Apps Script phải được deploy và verify HMAC trước khi Vercel route trỏ tới nó.
+
+---
+
+## 28. Approval giữa hai workbook — failure model và recovery
+
+Sau khi tách workbook, approval không còn là transaction nguyên tử. Luồng chuẩn là:
+
+```text
+PRIVATE Location_Staging=PENDING
+  → admin approve + revalidate
+  → PUBLIC Published_Locations write
+  → PRIVATE staging=APPROVED + Approval_Audit_Log append
+```
+
+`LockService` vẫn bắt buộc bao quanh critical section của Apps Script để chống concurrency trong
+một runtime, nhưng **không** biến hai workbook thành cross-workbook transaction thật.
+
+Các trạng thái một phần phải được coi là recoverable:
+
+| Tình huống | Recovery |
+| --- | --- |
+| Public write thành công, private status/audit thất bại | retry private finalize theo cùng `request_id`; không publish lại |
+| Private state có nhưng public write thất bại | retry public write đúng một lần rồi finalize private |
+| Cả hai thành công nhưng client timeout | đọc state theo `request_id`, trả kết quả hiện tại |
+
+`request_id + target_record_id + request_type` là khóa reconciliation. Thiết kế recovery path chính
+thức là `reconcileLocationRequest(request_id)`: đọc staging private, public record và private audit,
+xác định bước đã hoàn tất, rồi chỉ hoàn tất phần còn thiếu idempotently. Không thực hiện business
+mutation lần hai.
+
+### 28.1. Idempotency theo business request
+
+- Mỗi state-changing request có `request_id` duy nhất do Vercel server sinh.
+- `submitRequest` retry cùng ID không upload ảnh lần hai và không thêm staging row lần hai.
+- `confirm` retry cùng ID không thêm `Staff_Verification_Audit` event lần hai.
+- Approval/reconciliation retry cùng ID không duplicate `Published_Locations` hoặc tạo record mới.
+- `create` vẫn giữ invariant PR #41: không có `target_record_id`, `record_id` do server sinh.
+
+---
+
+## 29. E2E runner — quyết định vận hành
+
+Root cause đã xác định: `playwright.config.js` dùng `webServer: npm run preview`; trên Windows,
+Playwright phải terminate npm child process sau test, bị treo tại `Terminating the WebServer` dù
+19/19 test đã pass.
+
+Fix nhỏ, không che leak bằng `--forceExit` hay `process.exit(0)`:
+
+- `scripts/preview-server.js` export `startPreviewServer`/`stopPreviewServer`, đóng keep-alive
+  connections và hỗ trợ shutdown tự nhiên.
+- `test/e2e/global-setup.js` start server trong Playwright global setup và teardown cùng process.
+- `playwright.config.js` bỏ nested `webServer` process.
+
+Evidence: một test pass và `npm.cmd run test:e2e` pass **19/19**, exit code 0 sau fix.
+
+---
+
+## 30. Trạng thái kế hoạch sau Gate finalization
+
+Đây vẫn là planning/security prerequisite branch. Chưa có `/can-bo`, Google Sign-In runtime,
+`/api/can-bo/*`, HMAC gateway runtime, workbook migration, real staff email hay production deploy.
+
+Production chỉ được mở sau khi private/public workbook boundary, dual-workbook smoke/reconciliation,
+OAuth/session/gateway implementation và toàn bộ acceptance matrix được review và approve.
