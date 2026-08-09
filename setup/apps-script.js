@@ -304,6 +304,16 @@
         return requestType !== REQUEST_TYPES.create;
     }
 
+    // So khớp chủ sở hữu bản ghi. Bỏ qua hoa thường/khoảng trắng để bản ghi legacy nhập tay không bị
+    // chặn oan, nhưng KHÔNG dùng normalizeLabel: hàm đó gộp `_`/`-` và bỏ dấu, tức là nới lỏng theo
+    // hướng MẤT an toàn (hai unit_code khác nhau có thể bị coi là một). Chuỗi rỗng không khớp với bất
+    // cứ giá trị nào — bản ghi published thiếu unit_code coi như chưa chứng minh được chủ sở hữu.
+    function sameUnitCode(left, right) {
+        const a = String(left == null ? '' : left).trim().toLowerCase();
+        const b = String(right == null ? '' : right).trim().toLowerCase();
+        return a !== '' && a === b;
+    }
+
     function buildStagingRecord(input, allowlistRows, now = new Date(), options = {}) {
         const submission = normalizeSubmission(input, now);
         const publishedRecords = options.publishedRecords || [];
@@ -316,7 +326,16 @@
         if (!submission.services.length && submission.requestType !== REQUEST_TYPES.stop) errors.push('SERVICES_MISSING');
         if (!submission.address && submission.requestType !== REQUEST_TYPES.stop) errors.push('ADDRESS_MISSING');
         if (requiresExistingTarget(submission.requestType) && !submission.targetRecordId) errors.push('TARGET_RECORD_ID_REQUIRED');
-        if (requiresExistingTarget(submission.requestType) && submission.targetRecordId && !publishedRecords.some(record => record.record_id === submission.targetRecordId)) errors.push('TARGET_RECORD_ID_NOT_FOUND');
+        const targetRecord = submission.targetRecordId
+            ? publishedRecords.find(record => record.record_id === submission.targetRecordId)
+            : null;
+        if (requiresExistingTarget(submission.requestType) && submission.targetRecordId && !targetRecord) errors.push('TARGET_RECORD_ID_NOT_FOUND');
+        // `record_id` KHÔNG phải bí mật — nó nằm trong payload công khai của `/api/google-sheet`, nên
+        // biết record_id không được tạo ra quyền sửa. Chủ sở hữu phải khớp đơn vị đã authorize từ
+        // Unit_Allowlist (suy ra ở server), không lấy theo unit_code người gửi tự khai. Kiểm tra này
+        // KHÔNG gác sau requiresExistingTarget: một yêu cầu `create` mang sẵn target_record_id vẫn
+        // được dòng `recordId` bên dưới nhận làm record_id, và khi duyệt sẽ ghi đè đúng bản ghi đó.
+        if (targetRecord && !sameUnitCode(targetRecord.unit_code, authorization.unitCode)) errors.push('TARGET_RECORD_UNIT_MISMATCH');
         if (submission.requestType !== REQUEST_TYPES.stop && ![COORDINATE_STATUSES.extracted, COORDINATE_STATUSES.manuallyConfirmed].includes(submission.coordinateStatus)) errors.push(`COORDINATE_${submission.coordinateStatus}`);
         if (submission.imageMimeType && !validateImageMimeType(submission.imageMimeType)) errors.push('IMAGE_MIME_NOT_ALLOWED');
         if (!submission.imageFileId && submission.requestType !== REQUEST_TYPES.stop) errors.push('IMAGE_REQUIRED');
@@ -419,6 +438,12 @@
         const targetId = previous.target_record_id || previous.record_id;
         const publishedIndex = publishedRecords.findIndex(record => record.record_id === targetId);
         if (requiresExistingTarget(previous.request_type) && publishedIndex < 0) throw new Error(`TARGET_RECORD_ID_NOT_FOUND:${targetId}`);
+        // Chốt chặn thứ hai, ngay trước khi chạm Published_Locations. buildStagingRecord đã chặn ở
+        // khâu nhận, nhưng dòng staging nằm trong Google Sheet và người duyệt có thể xoá tay ô
+        // validation_errors. Ghi đè (dòng publish bên dưới) và xoá (nhánh stop) đều đi qua đây.
+        if (publishedIndex >= 0 && !sameUnitCode(publishedRecords[publishedIndex].unit_code, previous.unit_code)) {
+            throw new Error(`TARGET_RECORD_UNIT_MISMATCH:${targetId}`);
+        }
         const isoNow = asIsoString(reviewedAt);
         if (previous.request_type === REQUEST_TYPES.stop) {
             const removed = publishedRecords.splice(publishedIndex, 1)[0];

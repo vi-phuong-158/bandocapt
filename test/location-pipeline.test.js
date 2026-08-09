@@ -184,3 +184,144 @@ test('legacy migration is dry-run pure and preserves separate records under one 
     assert.equal(result.records[1].services, 'CITIZEN_ID');
     assert.equal(result.report.missingRecordId, 2);
 });
+
+// --- Cross-unit target records -------------------------------------------------------------
+// `record_id` được trả ra trong payload công khai của `/api/google-sheet`, nên nó KHÔNG phải bí mật.
+// Biết record_id của đơn vị khác không được biến thành quyền sửa/xoá bản ghi đó.
+
+function twoUnitAllowlist() {
+    return [
+        { unit_code: 'CA_TIEN_CAT', unit_name: 'Công an phường Tiên Cát', allowed_emails: 'tiencat@example.gov.vn', active: true },
+        { unit_code: 'CA_VAN_PHU', unit_name: 'Công an phường Vân Phú', allowed_emails: 'vanphu@example.gov.vn', active: true },
+    ];
+}
+
+function stageTwoUnit(input, publishedRecords = []) {
+    return pipeline.buildStagingRecord(input, twoUnitAllowlist(), NOW, { publishedRecords });
+}
+
+// Bản ghi đã publish hợp lệ của đơn vị B, dựng qua đúng pipeline thay vì viết tay.
+function publishedVanPhuRecord() {
+    const staged = stageTwoUnit(submission({
+        requestId: 'REQ_VAN_PHU', unitName: 'Công an phường Vân Phú', submitterEmail: 'vanphu@example.gov.vn',
+        locationName: 'Trụ sở Công an phường Vân Phú', address: 'Khu 5, Phường Vân Phú, Phú Thọ',
+        coordinates: '21.3400,105.4100', mapsUrlOriginal: 'https://maps.google.com/?q=21.3400,105.4100',
+        imageFileId: 'file-van-phu',
+    }));
+    const state = pipeline.applyApproval(
+        { stagingRecords: [staged], publishedRecords: [], auditEntries: [] },
+        staged.request_id, 'reviewer@example.gov.vn', '', NOW,
+    );
+    assert.equal(state.publishedRecords[0].unit_code, 'CA_VAN_PHU');
+    return state.publishedRecords[0];
+}
+
+test('cán bộ đơn vị A không update được record đã publish của đơn vị B', () => {
+    const victim = publishedVanPhuRecord();
+    const snapshot = JSON.parse(JSON.stringify([victim]));
+    const record = stageTwoUnit(submission({
+        requestId: 'REQ_CROSS_UPDATE', requestType: pipeline.REQUEST_TYPES.update,
+        targetRecordId: victim.record_id, locationName: 'Trụ sở bị chiếm', address: 'Địa chỉ giả mạo',
+    }), [victim]);
+
+    assert.equal(record.status, pipeline.STATUSES.blocked);
+    assert.match(record.validation_errors, /TARGET_RECORD_UNIT_MISMATCH/);
+    assert.throws(
+        () => pipeline.applyApproval({ stagingRecords: [record], publishedRecords: [victim], auditEntries: [] }, record.request_id, 'reviewer@example.gov.vn', '', NOW),
+        /RECORD_INVALID/,
+    );
+    assert.deepEqual([victim], snapshot, 'Published_Locations không được đổi');
+});
+
+test('yêu cầu create mang sẵn target_record_id của đơn vị khác cũng bị chặn', () => {
+    // requiresExistingTarget(create) = false nên hai rule target cũ đều bỏ qua nhánh này, nhưng
+    // buildStagingRecord vẫn lấy target_record_id làm record_id => khi duyệt sẽ ghi đè bản ghi đó.
+    const victim = publishedVanPhuRecord();
+    const record = stageTwoUnit(submission({
+        requestId: 'REQ_CROSS_CREATE', requestType: pipeline.REQUEST_TYPES.create,
+        targetRecordId: victim.record_id, locationName: 'Điểm mới nhưng cướp record_id',
+    }), [victim]);
+
+    assert.equal(record.record_id, victim.record_id, 'tiền đề: record_id vẫn bị kế thừa từ target');
+    assert.equal(record.status, pipeline.STATUSES.blocked);
+    assert.match(record.validation_errors, /TARGET_RECORD_UNIT_MISMATCH/);
+});
+
+test('yêu cầu stop cross-unit bị chặn ở cả staging lẫn khâu duyệt', () => {
+    const victim = publishedVanPhuRecord();
+    const record = stageTwoUnit(submission({
+        requestId: 'REQ_CROSS_STOP', requestType: pipeline.REQUEST_TYPES.stop, targetRecordId: victim.record_id,
+    }), [victim]);
+    assert.equal(record.status, pipeline.STATUSES.blocked);
+    assert.match(record.validation_errors, /TARGET_RECORD_UNIT_MISMATCH/);
+
+    // Nhánh stop có code path riêng (splice khỏi Published_Locations). Giả lập người duyệt xoá tay ô
+    // validation_errors trong Sheet để chứng minh chốt chặn thứ hai trong applyApproval còn hiệu lực.
+    const tampered = { ...record, validation_errors: '' };
+    const state = { stagingRecords: [tampered], publishedRecords: [victim], auditEntries: [] };
+    assert.throws(
+        () => pipeline.applyApproval(state, tampered.request_id, 'reviewer@example.gov.vn', '', NOW),
+        /TARGET_RECORD_UNIT_MISMATCH/,
+    );
+    assert.equal(state.publishedRecords.length, 1, 'không bị xoá khỏi Published_Locations');
+});
+
+test('applyApproval chặn ghi đè cross-unit kể cả khi validation_errors bị xoá tay', () => {
+    const victim = publishedVanPhuRecord();
+    const record = stageTwoUnit(submission({
+        requestId: 'REQ_TAMPERED', requestType: pipeline.REQUEST_TYPES.update,
+        targetRecordId: victim.record_id, locationName: 'Trụ sở bị chiếm', address: 'Địa chỉ giả mạo',
+    }), [victim]);
+    const tampered = { ...record, validation_errors: '' };
+    assert.throws(
+        () => pipeline.applyApproval({ stagingRecords: [tampered], publishedRecords: [victim], auditEntries: [] }, tampered.request_id, 'reviewer@example.gov.vn', '', NOW),
+        /TARGET_RECORD_UNIT_MISMATCH/,
+    );
+});
+
+test('update đúng đơn vị mình vẫn chạy bình thường, không phát sinh TARGET_RECORD_UNIT_MISMATCH', () => {
+    const created = stageTwoUnit(submission({ requestId: 'REQ_OWN', locationName: 'Trụ sở Tiên Cát' }));
+    let state = pipeline.applyApproval(
+        { stagingRecords: [created], publishedRecords: [], auditEntries: [] },
+        created.request_id, 'reviewer@example.gov.vn', '', NOW,
+    );
+    const own = state.publishedRecords[0];
+
+    const update = stageTwoUnit(submission({
+        requestId: 'REQ_OWN_UPDATE', requestType: pipeline.REQUEST_TYPES.update,
+        targetRecordId: own.record_id, locationName: 'Trụ sở Tiên Cát', address: 'Địa chỉ đã cập nhật',
+    }), state.publishedRecords);
+
+    assert.equal(update.validation_errors, '');
+    assert.equal(update.status, pipeline.STATUSES.pending);
+    state.stagingRecords.push(update);
+    state = pipeline.applyApproval(state, update.request_id, 'reviewer@example.gov.vn', '', NOW);
+    assert.equal(state.publishedRecords.length, 1);
+    assert.equal(state.publishedRecords[0].address, 'Địa chỉ đã cập nhật');
+});
+
+test('so khớp chủ sở hữu bỏ qua hoa thường/khoảng trắng nhưng fail closed khi thiếu unit_code', () => {
+    const created = stageTwoUnit(submission({ requestId: 'REQ_LEGACY', locationName: 'Trụ sở Tiên Cát' }));
+    const state = pipeline.applyApproval(
+        { stagingRecords: [created], publishedRecords: [], auditEntries: [] },
+        created.request_id, 'reviewer@example.gov.vn', '', NOW,
+    );
+    const own = state.publishedRecords[0];
+
+    // Bản ghi legacy nhập tay lệch hoa thường/khoảng trắng: vẫn là đơn vị đó, không được chặn oan.
+    const skewed = { ...own, unit_code: '  ca_tien_cat ' };
+    const okRecord = stageTwoUnit(submission({
+        requestId: 'REQ_SKEW', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: skewed.record_id,
+        locationName: 'Trụ sở Tiên Cát', address: 'Địa chỉ mới',
+    }), [skewed]);
+    assert.doesNotMatch(okRecord.validation_errors, /TARGET_RECORD_UNIT_MISMATCH/);
+
+    // Bản ghi published không có unit_code thì không chứng minh được chủ sở hữu => chặn.
+    const orphan = { ...own, unit_code: '' };
+    const blocked = stageTwoUnit(submission({
+        requestId: 'REQ_ORPHAN', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: orphan.record_id,
+        locationName: 'Trụ sở Tiên Cát', address: 'Địa chỉ mới',
+    }), [orphan]);
+    assert.equal(blocked.status, pipeline.STATUSES.blocked);
+    assert.match(blocked.validation_errors, /TARGET_RECORD_UNIT_MISMATCH/);
+});
