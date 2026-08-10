@@ -1,5 +1,19 @@
 # 06 — AI Working Log
 
+## [2026-08-10] Đồng bộ PR #43 sau P0 Published_Locations source/schema guard
+- **Agent:** Codex
+- **Thay đổi:** Merge `origin/main` có P0 source/schema guard vào branch kế hoạch Staff Portal, giữ
+  merge commit (không rewrite lịch sử). Bổ sung production cutover gate: candidate deployment phải
+  pass `verify:published-locations` với semantic schema và tọa độ hợp lệ trước alias promotion; HTTP
+  200 đơn thuần không đủ để chấp nhận đổi workbook nguồn. Pin Playwright `workers: 1` vì teardown
+  concurrent browser context trên Windows timeout; vẫn dùng global setup/teardown tự nhiên.
+- **File đã sửa:** `docs/location-intake/STAFF_PORTAL_PLAN.md`, `docs/brain/06-ai-working-log.md`;
+  `playwright.config.js`; cùng các file P0 từ merge `origin/main`.
+- **Lý do:** Áp dụng bài học incident 10/08/2026, tránh lặp lại việc source sai schema vẫn trả 200
+  rồi làm map mất toàn bộ tọa độ. Không triển khai Portal runtime, migration, production env hay deploy.
+- **Kiểm tra:** Xác nhận `origin/main` chứa `23d1d8a` P0 guard; review plan/matrix với prerequisite
+  hiện tại; validation đầy đủ chạy trên HEAD sau khi cập nhật.
+
 ## [2026-08-09] Khóa crash recovery Drive ↔ ledger ↔ staging cho PR #43
 - **Agent:** Codex
 - **Thay đổi:** Thay contract `IN_PROGRESS` mơ hồ bằng lifecycle ledger private có resource state:

@@ -906,6 +906,13 @@ Phải xử lý xong trước khi Portal chạy với dữ liệu thật:
    phải được cấu hình; không secret nào tới browser (`GOOGLE_CLIENT_ID` là public theo thiết kế của
    Google Identity Services — đây là ngoại lệ duy nhất và nó không phải secret).
 4. Gateway Apps Script phải được deploy và verify HMAC trước khi Vercel route trỏ tới nó.
+5. **Mọi cutover đổi nguồn `Published_Locations` phải đi qua candidate deployment trước alias
+   promotion.** Candidate phải dùng đúng cấu hình public workbook dự kiến, chạy
+   `npm run verify:published-locations -- --url <candidate-url>` và chỉ được promote alias khi
+   verifier pass HTTP 200, semantic schema `name` + `coordinates`, row count khác 0 và có ít nhất
+   một tọa độ hợp lệ. Không được đổi workbook nguồn chỉ vì endpoint còn trả 200; mismatch phải
+   fail closed (`GOOGLE_SHEET_SCHEMA_MISMATCH`). Gate này áp dụng độc lập với Portal và không cho
+   phép thay production env/deploy trong PR kế hoạch.
 
 ---
 
@@ -960,6 +967,9 @@ Fix nhỏ, không che leak bằng `--forceExit` hay `process.exit(0)`:
   connections và hỗ trợ shutdown tự nhiên.
 - `test/e2e/global-setup.js` start server trong Playwright global setup và teardown cùng process.
 - `playwright.config.js` bỏ nested `webServer` process.
+- `playwright.config.js` pin `workers: 1`: trên Windows, teardown nhiều browser context song song có
+  thể timeout dù assertions đã chạy. Runner phải serial cho tới khi multi-worker teardown được chứng
+  minh ổn định; không dùng `--forceExit` hay `process.exit(0)` để che lifecycle lỗi.
 
 Evidence: một test pass và `npm.cmd run test:e2e` pass **19/19**, exit code 0 sau fix.
 
