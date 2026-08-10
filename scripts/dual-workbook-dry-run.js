@@ -2,7 +2,12 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { normalizePublishedLocations, validatePublishedLocationsSchema } = require('../js/location-data');
+const {
+    normalizePublishedLocations,
+    parseCoordinates,
+    resolveColumnIndexes,
+    validatePublishedLocationsSchema,
+} = require('../js/location-data');
 const {
     PUBLIC_LOCATION_SHEETS,
     PRIVATE_LOCATION_SHEETS,
@@ -138,13 +143,104 @@ function inventoryWorkbook(sheets) {
 }
 
 function recordIds(records = []) {
-    return new Set(records.map(record => String(record?.record_id || '').trim()).filter(Boolean));
+    return new Set(records.map(record => canonicalizePublishedRecord(record).recordId).filter(Boolean));
+}
+
+function valueAtColumn(record, columns, index) {
+    if (index < 0) return '';
+    const value = record?.[columns[index]];
+    return value == null ? '' : String(value).normalize('NFC').trim().replace(/\s+/g, ' ');
+}
+
+function canonicalizePublishedRecord(record = {}) {
+    const columns = Object.keys(record);
+    const { semanticIndexes } = resolveColumnIndexes(columns.map(label => ({ label })));
+    const recordId = valueAtColumn(record, columns, semanticIndexes.recordId);
+    const name = valueAtColumn(record, columns, semanticIndexes.name);
+    const coordinateValue = valueAtColumn(record, columns, semanticIndexes.coordinates);
+    const coordinate = coordinateValue ? parseCoordinates(coordinateValue) : { ok: false, error: 'COORDINATES_MISSING' };
+    const unitCodeIndex = columns.findIndex(column => ['unit_code', 'unit code', 'ma don vi'].includes(normalizeColumnName(column)));
+    return {
+        recordId,
+        name,
+        publicData: {
+            recordId,
+            unitCode: valueAtColumn(record, columns, unitCodeIndex),
+            name,
+            type: valueAtColumn(record, columns, semanticIndexes.type),
+            address: valueAtColumn(record, columns, semanticIndexes.address),
+            phone: valueAtColumn(record, columns, semanticIndexes.phone),
+            imageUrl: valueAtColumn(record, columns, semanticIndexes.imageUrl),
+            searchAliases: valueAtColumn(record, columns, semanticIndexes.searchAliases),
+            updatedAt: valueAtColumn(record, columns, semanticIndexes.updatedAt),
+            siteType: valueAtColumn(record, columns, semanticIndexes.siteType),
+            services: valueAtColumn(record, columns, semanticIndexes.services),
+            googleMapsUrl: valueAtColumn(record, columns, semanticIndexes.googleMapsUrl),
+            cccdServiceMode: valueAtColumn(record, columns, semanticIndexes.cccdServiceMode),
+            serviceSchedule: valueAtColumn(record, columns, semanticIndexes.serviceSchedule),
+            servedUnits: valueAtColumn(record, columns, semanticIndexes.servedUnits),
+            status: valueAtColumn(record, columns, semanticIndexes.status),
+            verifiedAt: valueAtColumn(record, columns, semanticIndexes.verifiedAt),
+        },
+        coordinates: coordinate.ok
+            ? { raw: coordinateValue, ok: true, lat: coordinate.lat, lng: coordinate.lng }
+            : { raw: coordinateValue, ok: false, error: coordinate.error },
+    };
+}
+
+function recordsById(records = []) {
+    const byId = new Map();
+    for (const record of records) {
+        const canonical = canonicalizePublishedRecord(record);
+        if (canonical.recordId && !byId.has(canonical.recordId)) byId.set(canonical.recordId, canonical);
+    }
+    return byId;
+}
+
+function comparePublishedRecordFidelity(sourceRecords = [], targetRecords = []) {
+    const sourceById = recordsById(sourceRecords);
+    const targetById = recordsById(targetRecords);
+    const fidelity = {
+        mismatchedRecordIds: [],
+        coordinateLost: [],
+        coordinateInvalid: [],
+        coordinateChanged: [],
+    };
+    for (const [recordId, source] of sourceById.entries()) {
+        const target = targetById.get(recordId);
+        if (!target) continue;
+
+        let coordinateMismatch = false;
+        if (source.coordinates.ok && !target.coordinates.raw) {
+            fidelity.coordinateLost.push(recordId);
+            coordinateMismatch = true;
+        } else if (source.coordinates.ok && !target.coordinates.ok) {
+            fidelity.coordinateInvalid.push(recordId);
+            coordinateMismatch = true;
+        } else if (source.coordinates.ok && (source.coordinates.lat !== target.coordinates.lat || source.coordinates.lng !== target.coordinates.lng)) {
+            fidelity.coordinateChanged.push(recordId);
+            coordinateMismatch = true;
+        }
+        if (!coordinateMismatch && JSON.stringify(source.publicData) !== JSON.stringify(target.publicData)) {
+            fidelity.mismatchedRecordIds.push(recordId);
+        }
+    }
+    for (const values of Object.values(fidelity)) values.sort();
+    return fidelity;
 }
 
 function comparePublishedLocations(sourceSheets, targetSheets) {
     const sourceRecords = sourceSheets.Published_Locations || [];
     const targetRecords = targetSheets?.Published_Locations || [];
-    if (!targetSheets) return { compared: false, missingInTarget: [], unexpectedInTarget: [], duplicateTargetRecordIds: [] };
+    if (!targetSheets) {
+        return {
+            compared: false,
+            missingInTarget: [],
+            unexpectedInTarget: [],
+            duplicateTargetRecordIds: [],
+            fidelity: comparePublishedRecordFidelity(),
+        };
+    }
     const sourceIds = recordIds(sourceRecords);
     const targetIds = recordIds(targetRecords);
     return {
@@ -152,6 +248,7 @@ function comparePublishedLocations(sourceSheets, targetSheets) {
         missingInTarget: Array.from(sourceIds).filter(id => !targetIds.has(id)).sort(),
         unexpectedInTarget: Array.from(targetIds).filter(id => !sourceIds.has(id)).sort(),
         duplicateTargetRecordIds: duplicateValues(targetRecords, 'record_id'),
+        fidelity: comparePublishedRecordFidelity(sourceRecords, targetRecords),
     };
 }
 
@@ -210,6 +307,10 @@ function analyzeDualWorkbookMigration(sourceSheets, target = null) {
             ...missingPrivateTargetSheets.map(name => `TARGET_PRIVATE_SHEET_MISSING:${name}`),
             ...(comparison.compared ? comparison.missingInTarget.map(value => `TARGET_PUBLIC_RECORD_MISSING:${value}`) : []),
             ...(comparison.compared ? comparison.unexpectedInTarget.map(value => `TARGET_PUBLIC_RECORD_UNEXPECTED:${value}`) : []),
+            ...(comparison.compared ? comparison.fidelity.coordinateLost.map(value => `TARGET_COORDINATE_LOST:${value}`) : []),
+            ...(comparison.compared ? comparison.fidelity.coordinateInvalid.map(value => `TARGET_COORDINATE_INVALID:${value}`) : []),
+            ...(comparison.compared ? comparison.fidelity.coordinateChanged.map(value => `TARGET_COORDINATE_CHANGED:${value}`) : []),
+            ...(comparison.compared ? comparison.fidelity.mismatchedRecordIds.map(value => `TARGET_PUBLIC_RECORD_MISMATCH:${value}`) : []),
         ],
     };
 }
@@ -233,6 +334,8 @@ if (require.main === module) {
 
 module.exports = {
     analyzeDualWorkbookMigration,
+    canonicalizePublishedRecord,
+    comparePublishedRecordFidelity,
     inventoryPublicSheet,
     inventoryWorkbook,
     parseArgs,

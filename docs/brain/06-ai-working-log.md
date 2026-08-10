@@ -2834,3 +2834,18 @@
   `npm.cmd run test:e2e` 19/19 PASS (một ca catalog timeout ở lượt đầu, pass khi chạy riêng và khi
   chạy lại full suite); `npm.cmd audit --omit=dev --audit-level=high` PASS, còn 9 moderate transitive
   `uuid` không có bản vá; `git diff --check` sạch.
+
+## [2026-08-10] P1 Published_Locations data fidelity guard
+- **Agent:** Codex
+- **Thay đổi:** Dry-run so sánh canonical public data cho từng `record_id` tồn tại ở cả source và target.
+  Nó canonical hóa alias Việt/Anh, so parsed latitude/longitude thay vì raw string, và block riêng khi
+  target mất, invalid hoặc thay đổi tọa độ; các thay đổi public khác trả
+  `TARGET_PUBLIC_RECORD_MISMATCH`. Giữ nguyên contract source: dòng source invalid vẫn được inventory,
+  còn dataset source chỉ fail P0 khi không còn tọa độ hợp lệ nào.
+- **File đã sửa:** `scripts/dual-workbook-dry-run.js`, `test/dual-workbook-dry-run.test.js`,
+  `docs/location-intake/MIGRATION.md`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Hai workbook có thể cùng tập `record_id` nhưng target đã mất hoặc đổi dữ liệu công khai;
+  so ID/schema toàn dataset không đủ để xác minh fidelity của cutover.
+- **Kiểm tra:** targeted location-workbooks/dual-workbook-dry-run/google-sheet/published-locations và
+  full test/build/E2E/audit được chạy trước khi commit; không gọi hoặc sửa tài nguyên Google.

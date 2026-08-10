@@ -15,6 +15,12 @@ known private columns in public data, missing or unexpected public records, dupl
 stable IDs, missing source private sheets in the private target, unknown sheets, or a public/private
 boundary leak must not proceed to cutover.
 
+For each `record_id` shared by source and target, the tool compares canonical public fields and parsed
+coordinates. It blocks `TARGET_COORDINATE_LOST`, `TARGET_COORDINATE_INVALID`, or
+`TARGET_COORDINATE_CHANGED` per record; a non-coordinate public difference is
+`TARGET_PUBLIC_RECORD_MISMATCH`. Approved Vietnamese/English column aliases and formatting-only coordinate
+differences resolve to the same semantic value.
+
 Expected target export shape is `{ "public": { "sheets": { ... } }, "private": { "sheets": { ... } } }`.
 Use TEST exports for smoke exercises. No Production workbook or Production environment must be changed by
 this command. Before any later alias promotion, run `npm run verify:published-locations` against the

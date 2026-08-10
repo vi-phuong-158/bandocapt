@@ -15,6 +15,10 @@
   Empty or invalid public targets, public exposure of known private columns, source/target `record_id`
   mismatch, duplicate published/staging IDs, missing private target sheets and boundary violations are
   explicit cutover blockers rather than advisory report fields.
+  For a shared `record_id`, it also compares canonical public fields (including semantic name) and parsed
+  coordinates: loss, invalidity or location drift must block even when other target records remain valid.
+  Existing source behavior is retained: individual invalid source rows are reported, while a non-empty
+  source only fails the P0 dataset guard when it has no valid coordinates at all.
   A future production cutover must validate a candidate with `verify:published-locations` before alias
   promotion; it cannot substitute an unverified source workbook.
 - **Consequence:** This change adds capability only. It does not create or migrate production workbooks,
