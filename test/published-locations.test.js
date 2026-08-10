@@ -144,6 +144,60 @@ test('published locations cache serves fresh then stale fallback up to five minu
     }), /network down/);
 });
 
+test('a catastrophic invalid dataset does not overwrite the last-known-good cache', async () => {
+    const validPayload = buildPayload([{
+        id: '1', name: 'Công an phường Thanh Miếu', address: 'Phú Thọ', coordinates: '21.325,105.365',
+    }]);
+    const invalidPayload = buildPayload([{
+        id: '2', name: 'Công an phường Thanh Miếu', address: 'Phú Thọ', coordinates: '0,0',
+    }]);
+
+    const first = await getPublishedLocations({
+        now: 1,
+        fetchImpl: async () => new Response(`google.visualization.Query.setResponse(${JSON.stringify(validPayload)});`),
+        sheetId: 'sheet-id',
+    });
+    const stale = await getPublishedLocations({
+        now: 2 * 60 * 1000,
+        fetchImpl: async () => new Response(`google.visualization.Query.setResponse(${JSON.stringify(invalidPayload)});`),
+        sheetId: 'sheet-id',
+    });
+
+    assert.equal(first.locations.length, 1);
+    assert.equal(stale.cacheStatus, 'stale');
+    assert.equal(stale.staleReason, 'PUBLISHED_LOCATIONS_DATASET_INVALID');
+    assert.equal(stale.locations.length, 1);
+});
+
+test('a non-empty dataset with no valid coordinates fails closed when no cache exists', async () => {
+    const invalidPayload = buildPayload([{
+        id: '1', name: 'Công an phường Thanh Miếu', address: 'Phú Thọ', coordinates: 'not coordinates',
+    }]);
+
+    await assert.rejects(() => getPublishedLocations({
+        now: 1,
+        fetchImpl: async () => new Response(`google.visualization.Query.setResponse(${JSON.stringify(invalidPayload)});`),
+        sheetId: 'sheet-id',
+    }), /PUBLISHED_LOCATIONS_DATASET_INVALID/);
+});
+
+test('partial coordinate rejection keeps a dataset with valid locations available', async () => {
+    const payload = buildPayload([
+        { id: '1', name: 'Công an A', address: 'Phú Thọ', coordinates: '21.325,105.365' },
+        { id: '2', name: 'Công an B', address: 'Phú Thọ', coordinates: 'not coordinates' },
+    ]);
+
+    const result = await getPublishedLocations({
+        now: 1,
+        fetchImpl: async () => new Response(`google.visualization.Query.setResponse(${JSON.stringify(payload)});`),
+        sheetId: 'sheet-id',
+    });
+
+    assert.equal(result.cacheStatus, 'fresh');
+    assert.equal(result.locations.length, 1);
+    assert.equal(result.rejected.length, 1);
+});
+
 test('verified location matcher resolves Thanh Mieu exactly without fuzzy confusion', () => {
     const dataset = {
         cacheStatus: 'fresh',

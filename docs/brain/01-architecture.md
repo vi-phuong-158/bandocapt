@@ -7,6 +7,21 @@
 - Code Graph: `api/chat.js` và `scripts/shadow-retrieval.js` cùng dùng `buildCurrentProcedureFilter()`/`buildGovernanceFilter()` từ `lib/retrieval-governance.js`; thay policy ở helper này ảnh hưởng cả runtime và thước đo shadow.
 - Production đã thử cutover rồi rollback về `chatbot-tthc-xnc` do cổng generation chưa đạt; namespace ứng viên và backup migration được giữ nguyên.
 
+## Published_Locations source guard update (2026-08-10)
+
+| Module / file | Source guard responsibility |
+|---------------|-----------------------------|
+| `api/google-sheet.js` | Filters public fields, then requires semantic `name` and `coordinates`; source/schema mismatch returns `502 GOOGLE_SHEET_SCHEMA_MISMATCH`. |
+| `js/location-data.js` | Resolves semantic columns; positional legacy fallback is allowed only for a complete 8-column legacy table. |
+| `lib/published-locations.js` | Rejects a non-empty upstream dataset that yields zero valid locations and preserves an eligible stale last-known-good cache. |
+| `scripts/verify-published-locations.js` | Read-only candidate-deployment smoke verifier; checks HTTP, semantic schema, row/valid/rejected counts and valid coordinates without printing Sheet IDs. |
+
+Map data path: `Google GViz -> api/google-sheet schema guard -> js/location-data normalize -> map`.
+Chat location data path: `Google GViz -> lib/published-locations schema/dataset guard -> cache -> api/chat`.
+
+`GET /api/google-sheet` only returns HTTP 200 for a public `Published_Locations` schema containing semantic
+`name` and `coordinates` columns. It returns `502 GOOGLE_SHEET_SCHEMA_MISMATCH` for a source/config mismatch.
+
 ## Stack
 
 | Layer | Cong nghe |

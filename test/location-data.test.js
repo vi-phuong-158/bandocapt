@@ -65,6 +65,43 @@ test('normalizePublishedLocations rejects an invalid Google payload', () => {
     });
 });
 
+test('normalizePublishedLocations rejects a short table instead of applying legacy coordinate indexes', () => {
+    const result = normalizePublishedLocations({
+        table: {
+            cols: [{ label: 'Tên Đơn vị' }, { label: 'Loại địa điểm' }, { label: 'search_aliases' }],
+            rows: [{ c: [{ v: 'Điểm A' }, { v: 'Trụ sở' }, { v: 'A' }] }],
+        },
+    });
+
+    assert.deepEqual(result, {
+        locations: [],
+        rejected: [{ row: 0, error: 'SHEET_SCHEMA_INVALID' }],
+    });
+});
+
+test('normalizePublishedLocations accepts a complete legacy positional layout', () => {
+    const result = normalizePublishedLocations({
+        table: {
+            cols: Array.from({ length: 8 }, () => ({ label: '' })),
+            rows: [{ c: [{ v: 'timestamp' }, { v: 'email' }, { v: 'Điểm legacy' }, { v: 'Trụ sở' }, { v: 'Phú Thọ' }, { v: '0210' }, { v: '21.325,105.365' }, { v: '' }] }],
+        },
+    });
+
+    assert.equal(result.locations.length, 1);
+    assert.equal(result.locations[0].name, 'Điểm legacy');
+});
+
+test('normalizePublishedLocations rejects an incomplete legacy positional layout', () => {
+    const result = normalizePublishedLocations({
+        table: {
+            cols: Array.from({ length: 7 }, () => ({ label: '' })),
+            rows: [{ c: [{ v: 'timestamp' }, { v: 'email' }, { v: 'Điểm legacy' }, { v: 'Trụ sở' }, { v: 'Phú Thọ' }, { v: '0210' }, { v: '21.325,105.365' }] }],
+        },
+    });
+
+    assert.deepEqual(result.rejected, [{ row: 0, error: 'SHEET_SCHEMA_INVALID' }]);
+});
+
 test('normalizes multiple services and keeps legacy type fallback', () => {
     const payload = {
         table: {

@@ -490,6 +490,22 @@
 
 ---
 
+## [2026-08-10] Fail-closed guard for Published_Locations source/schema mismatch
+
+- **Context:** Production was pointed to a workbook with 142 rows but only three columns. Structural GViz
+  validation passed, then every row was misreported as `COORDINATES_MISSING`.
+- **Decision:** The public API requires semantic `name` and `coordinates` columns and returns
+  `502 GOOGLE_SHEET_SCHEMA_MISMATCH` otherwise. Positional fallback is restricted to the complete
+  eight-column legacy layout. A non-empty upstream dataset yielding zero valid locations cannot replace
+  the last-known-good cache; an eligible stale cache is used instead. The read-only verifier checks a
+  candidate deployment before promotion and exits non-zero on HTTP/schema/dataset failure.
+- **Trade-off:** A misconfigured source fails visibly (or serves stale data for at most five minutes),
+  rather than rendering an empty map that disguises a source/config error. Complete legacy datasets remain
+  supported by the internal loader.
+- **Decision maker:** user / Codex.
+
+---
+
 ## [2026-07-13] T2B-1 chỉ phát segment đã validate — trạng thái chờ live gate
 
 - **Quyết định:** Buffer raw stream đến ranh giới câu/bullet; chạy `validateAnswer` trên segment hoàn
