@@ -1,10 +1,11 @@
-// Dev server: serve root directory + proxy /api/google-sheet tới Google Sheets thật.
+// Dev server: serve root directory + route /api/google-sheet through the production guard.
 // Dùng cho local development — không cần build trước, không cần Vercel.
-// Đọc GOOGLE_SHEET_ID từ .env (nếu có).
+// Đọc PUBLIC_LOCATION_SPREADSHEET_ID (hoặc compatibility GOOGLE_SHEET_ID) từ .env (nếu có).
 
 const fs   = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
+const googleSheetHandler = require('../api/google-sheet');
 
 // Đọc .env đơn giản (không cần dotenv package)
 const envPath = path.resolve(__dirname, '..', '.env');
@@ -16,8 +17,6 @@ if (fs.existsSync(envPath)) {
 }
 
 const PORT     = Number(process.env.PORT || 3000);
-const SHEET_ID = process.env.GOOGLE_SHEET_ID;
-const SHEET    = 'Published_Locations';
 const ROOT     = path.resolve(__dirname, '..');
 
 const MIME = {
@@ -31,26 +30,19 @@ const MIME = {
     '.woff2':'font/woff2',
 };
 
-async function proxyGoogleSheet(res) {
-    if (!SHEET_ID) {
-        res.writeHead(503, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'GOOGLE_SHEET_ID not set in .env' }));
-        return;
-    }
-    try {
-        const url = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(SHEET_ID)}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(SHEET)}`;
-        const r = await fetch(url, { signal: AbortSignal.timeout(8000) });
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const text = await r.text();
-        const match = text.match(/google\.visualization\.Query\.setResponse\((.+)\);\s*$/s);
-        if (!match) throw new Error('INVALID_GOOGLE_RESPONSE');
-        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-        res.end(match[1]); // JSON của payload (không có wrapper function)
-    } catch (e) {
-        console.error('[dev-server] Google Sheet error:', e.message);
-        res.writeHead(502, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: e.message }));
-    }
+async function proxyGoogleSheet(req, res) {
+    // Adapt Node's ServerResponse to the small Vercel response surface used by the production handler.
+    // This keeps local public reads on exactly the same resolver, schema guard and field allowlist.
+    res.status = statusCode => {
+        res.statusCode = statusCode;
+        return res;
+    };
+    res.json = payload => {
+        if (!res.headersSent) res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify(payload));
+        return res;
+    };
+    return googleSheetHandler({ method: req.method, query: {} }, res);
 }
 
 const server = http.createServer(async (req, res) => {
@@ -58,7 +50,7 @@ const server = http.createServer(async (req, res) => {
 
     // API proxy
     if (url.pathname === '/api/google-sheet') {
-        return proxyGoogleSheet(res);
+        return proxyGoogleSheet(req, res);
     }
 
     // Static files từ root
@@ -80,5 +72,5 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, '127.0.0.1', () => {
-    console.log(`Dev server: http://127.0.0.1:${PORT}  (SHEET_ID: ${SHEET_ID ? SHEET_ID.slice(0,8) + '…' : 'NOT SET'})`);
+    console.log(`Dev server: http://127.0.0.1:${PORT}  (public location source resolved per request)`);
 });

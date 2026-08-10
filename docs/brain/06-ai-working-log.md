@@ -1,5 +1,16 @@
 # 06 — AI Working Log
 
+## [2026-08-10] Dual-workbook foundation — no production cutover
+- **Agent:** Codex
+- **Thay đổi:** Thêm resolver fail-closed cho public/private workbook, routing public cho map/chat/API,
+  khai báo sheet trust boundary, và tool phân tích JSON-export dry-run chỉ tạo report cục bộ.
+- **File đã sửa:** `lib/location-workbooks.js`, `lib/published-locations.js`, `api/google-sheet.js`,
+  `scripts/dev-server.js`, `setup/apps-script.js`, `scripts/dual-workbook-dry-run.js`, `package.json`, tests và tài liệu liên quan.
+- **Lý do:** Chuẩn bị tách PUBLIC/PRIVATE workbook nhưng không đổi source Production, không di trú dữ
+  liệu và không mở Staff Portal runtime.
+- **Kiểm tra:** Unit/integration tests cover fallback, conflict/boundary fail-closed, public proxy,
+  private-sheet exclusion và dry-run; full `npm test`, build, Playwright, audit chạy trước commit.
+
 ## [2026-08-10] Đồng bộ PR #43 sau P0 Published_Locations source/schema guard
 - **Agent:** Codex
 - **Thay đổi:** Merge `origin/main` có P0 source/schema guard vào branch kế hoạch Staff Portal, giữ

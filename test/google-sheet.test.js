@@ -8,6 +8,8 @@ const { filterPublicGoogleVisualizationPayload } = require('../api/google-sheet'
 
 const ORIGINAL_FETCH = global.fetch;
 const ORIGINAL_SHEET_ID = process.env.GOOGLE_SHEET_ID;
+const ORIGINAL_PUBLIC_SHEET_ID = process.env.PUBLIC_LOCATION_SPREADSHEET_ID;
+const ORIGINAL_PRIVATE_SHEET_ID = process.env.PRIVATE_LOCATION_SPREADSHEET_ID;
 
 function createResponse() {
     return {
@@ -24,6 +26,10 @@ test.afterEach(() => {
     global.fetch = ORIGINAL_FETCH;
     if (ORIGINAL_SHEET_ID === undefined) delete process.env.GOOGLE_SHEET_ID;
     else process.env.GOOGLE_SHEET_ID = ORIGINAL_SHEET_ID;
+    if (ORIGINAL_PUBLIC_SHEET_ID === undefined) delete process.env.PUBLIC_LOCATION_SPREADSHEET_ID;
+    else process.env.PUBLIC_LOCATION_SPREADSHEET_ID = ORIGINAL_PUBLIC_SHEET_ID;
+    if (ORIGINAL_PRIVATE_SHEET_ID === undefined) delete process.env.PRIVATE_LOCATION_SPREADSHEET_ID;
+    else process.env.PRIVATE_LOCATION_SPREADSHEET_ID = ORIGINAL_PRIVATE_SHEET_ID;
 });
 
 test('Google Sheet API rejects non-published sheets without upstream calls', async () => {
@@ -66,6 +72,36 @@ test('Google Sheet API returns a semantically valid published-locations payload 
     assert.equal(res.body.table.cols.length, 2);
     assert.equal(res.body.table.rows.length, 1);
     assert.equal(res.headers['cache-control'], 'public, s-maxage=60, stale-while-revalidate=300');
+});
+
+test('Google Sheet API uses the explicit public workbook and never private workbook data', async () => {
+    process.env.PUBLIC_LOCATION_SPREADSHEET_ID = 'test-public-workbook';
+    process.env.GOOGLE_SHEET_ID = 'test-public-workbook';
+    process.env.PRIVATE_LOCATION_SPREADSHEET_ID = 'test-private-workbook';
+    global.fetch = async url => {
+        assert.match(String(url), /test-public-workbook/);
+        assert.doesNotMatch(String(url), /test-private-workbook/);
+        return new Response('google.visualization.Query.setResponse({"table":{"cols":[{"label":"name"},{"label":"coordinates"}],"rows":[{"c":[{"v":"Điểm A"},{"v":"21.325,105.365"}]}]}});');
+    };
+    const res = createResponse();
+
+    await handler({ method: 'GET', query: {} }, res);
+
+    assert.equal(res.statusCode, 200);
+});
+
+test('Google Sheet API fails closed before fetch when public/legacy workbook config conflicts', async () => {
+    process.env.PUBLIC_LOCATION_SPREADSHEET_ID = 'new-public';
+    process.env.GOOGLE_SHEET_ID = 'legacy-public';
+    let calls = 0;
+    global.fetch = async () => { calls += 1; };
+    const res = createResponse();
+
+    await handler({ method: 'GET', query: {} }, res);
+
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.body.error, 'SERVICE_UNAVAILABLE');
+    assert.equal(calls, 0);
 });
 
 test('Google Sheet API rejects the three-column source/config mismatch without exposing the sheet ID', async () => {
