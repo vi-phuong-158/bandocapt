@@ -31,6 +31,11 @@ test('workbook configuration fails closed for missing, conflicting, or collapsed
     assert.throws(() => resolvePrivateLocationWorkbook({
         GOOGLE_SHEET_ID: 'same', PRIVATE_LOCATION_SPREADSHEET_ID: 'same',
     }), /LOCATION_WORKBOOK_BOUNDARY_VIOLATION/);
+    assert.throws(() => resolvePrivateLocationWorkbook({
+        PUBLIC_LOCATION_SPREADSHEET_ID: 'new-public',
+        GOOGLE_SHEET_ID: 'legacy-public',
+        PRIVATE_LOCATION_SPREADSHEET_ID: 'private',
+    }), /PUBLIC_LOCATION_WORKBOOK_CONFIG_CONFLICT/);
 });
 
 test('sheet classification keeps operational sheets private', () => {

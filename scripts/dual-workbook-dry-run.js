@@ -10,6 +10,28 @@ const {
 } = require('../lib/location-workbooks');
 
 const REQUIRED_PUBLIC_COLUMNS = Object.freeze(['name', 'coordinates']);
+const REQUIRED_PUBLIC_COLUMN_ALIASES = Object.freeze({
+    name: ['name', 'ten don vi', 'ten dia diem', 'ten tru so'],
+    coordinates: ['coordinates', 'toa do', 'vi tri', 'google maps', 'link google maps'],
+});
+const PRIVATE_PUBLICATION_COLUMNS = new Set([
+    'allowed_emails', 'submitter_name', 'submitter_phone', 'submitter_email', 'actor_email',
+    'staff_email', 'request_id', 'request_type', 'target_record_id', 'auth_status',
+    'validation_errors', 'warnings', 'review_action', 'review_note', 'reviewed_by',
+    'image_file_id', 'image_drive_url', 'published_image_file_id', 'snapshot_json',
+    'body_hash', 'image_resource_key', 'staging_ref', 'last_error', 'note', 'notes',
+].map(normalizeColumnName));
+
+function normalizeColumnName(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[đĐ]/g, 'd')
+        .replace(/[_-]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+}
 
 function parseArgs(argv) {
     const args = { source: '', target: '', report: '' };
@@ -18,7 +40,7 @@ function parseArgs(argv) {
         if (value === '--source') args.source = argv[index + 1] || '';
         if (value === '--target') args.target = argv[index + 1] || '';
         if (value === '--report') args.report = argv[index + 1] || '';
-        if (value === '--apply' || value === '--write') throw new Error('DUAL_WORKBOOK_DRY_RUN_ONLY');
+        if (/^--(?:apply|write)(?:=|$)/.test(value)) throw new Error('DUAL_WORKBOOK_DRY_RUN_ONLY');
     }
     return args;
 }
@@ -79,7 +101,10 @@ function inventoryPublicSheet(records = []) {
     const columns = recordKeys(records);
     const schema = validatePublishedLocationsSchema(payload.table, { allowLegacy: false });
     const normalized = schema.ok ? normalizePublishedLocations(payload, { allowLegacy: false }) : { locations: [], rejected: records };
-    const missingRequiredColumns = REQUIRED_PUBLIC_COLUMNS.filter(column => !columns.includes(column));
+    const normalizedColumns = columns.map(normalizeColumnName);
+    const missingRequiredColumns = REQUIRED_PUBLIC_COLUMNS.filter(column => (
+        !REQUIRED_PUBLIC_COLUMN_ALIASES[column].some(alias => normalizedColumns.includes(alias))
+    ));
     return {
         rows: records.length,
         columns: columns.sort(),
@@ -88,6 +113,7 @@ function inventoryPublicSheet(records = []) {
         validCoordinates: normalized.locations.length,
         invalidCoordinates: normalized.rejected.length,
         duplicateRecordIds: duplicateValues(records, 'record_id'),
+        privateColumns: columns.filter(column => PRIVATE_PUBLICATION_COLUMNS.has(normalizeColumnName(column))).sort(),
     };
 }
 
@@ -131,14 +157,27 @@ function comparePublishedLocations(sourceSheets, targetSheets) {
 
 function analyzeDualWorkbookMigration(sourceSheets, target = null) {
     const source = inventoryWorkbook(sourceSheets);
+    const publicTargetInventory = target ? inventoryWorkbook(target.publicSheets) : null;
+    const privateTargetInventory = target ? inventoryWorkbook(target.privateSheets) : null;
     const targetInventory = target ? {
-        public: inventoryWorkbook(target.publicSheets).public,
-        private: inventoryWorkbook(target.privateSheets).private,
-        publicUnknownSheets: inventoryWorkbook(target.publicSheets).unknownSheets,
-        privateUnknownSheets: inventoryWorkbook(target.privateSheets).unknownSheets,
+        public: publicTargetInventory.public,
+        private: privateTargetInventory.private,
+        publicUnknownSheets: publicTargetInventory.unknownSheets,
+        privateUnknownSheets: privateTargetInventory.unknownSheets,
     } : null;
     const targetLeaksPrivateSheet = target
         ? Object.keys(target.publicSheets).filter(name => classifyLocationSheet(name) === 'private')
+        : [];
+    const targetLeaksPublicSheet = target
+        ? Object.keys(target.privateSheets).filter(name => classifyLocationSheet(name) === 'public')
+        : [];
+    const comparison = comparePublishedLocations(sourceSheets, target?.publicSheets || null);
+    const sourcePublic = source.public.Published_Locations;
+    const targetPublic = targetInventory?.public.Published_Locations;
+    const sourceStaging = source.private.Location_Staging;
+    const targetStaging = targetInventory?.private.Location_Staging;
+    const missingPrivateTargetSheets = target
+        ? Object.keys(source.private).filter(name => !Object.hasOwn(target.privateSheets, name))
         : [];
     return {
         dryRun: true,
@@ -146,13 +185,31 @@ function analyzeDualWorkbookMigration(sourceSheets, target = null) {
         boundary: { publicSheets: PUBLIC_LOCATION_SHEETS, privateSheets: PRIVATE_LOCATION_SHEETS },
         source,
         target: targetInventory,
-        comparison: { publishedLocations: comparePublishedLocations(sourceSheets, target?.publicSheets || null) },
+        comparison: { publishedLocations: comparison },
         blockers: [
-            ...source.public.Published_Locations.missingRequiredColumns.map(column => `PUBLIC_REQUIRED_COLUMN_MISSING:${column}`),
-            ...(source.public.Published_Locations.schemaOk ? [] : ['PUBLIC_SCHEMA_INVALID']),
-            ...(source.public.Published_Locations.rows > 0 && source.public.Published_Locations.validCoordinates === 0 ? ['PUBLIC_NO_VALID_COORDINATES'] : []),
+            ...sourcePublic.missingRequiredColumns.map(column => `PUBLIC_REQUIRED_COLUMN_MISSING:${column}`),
+            ...(sourcePublic.schemaOk ? [] : ['PUBLIC_SCHEMA_INVALID']),
+            ...(sourcePublic.rows > 0 && sourcePublic.validCoordinates === 0 ? ['PUBLIC_NO_VALID_COORDINATES'] : []),
+            ...sourcePublic.duplicateRecordIds.map(value => `SOURCE_DUPLICATE_RECORD_ID:Published_Locations:${value}`),
+            ...sourcePublic.privateColumns.map(value => `PRIVATE_COLUMN_IN_PUBLIC_SOURCE:${value}`),
+            ...(sourceStaging ? sourceStaging.duplicateRecordIds.map(value => `SOURCE_DUPLICATE_RECORD_ID:Location_Staging:${value}`) : []),
+            ...(sourceStaging ? sourceStaging.duplicateRequestIds.map(value => `SOURCE_DUPLICATE_REQUEST_ID:Location_Staging:${value}`) : []),
             ...(source.unknownSheets.length ? source.unknownSheets.map(sheet => `UNKNOWN_SHEET:${sheet.name}`) : []),
             ...(targetLeaksPrivateSheet.map(name => `PRIVATE_SHEET_IN_PUBLIC_TARGET:${name}`)),
+            ...(targetLeaksPublicSheet.map(name => `PUBLIC_SHEET_IN_PRIVATE_TARGET:${name}`)),
+            ...(targetInventory ? targetInventory.publicUnknownSheets.map(sheet => `UNKNOWN_PUBLIC_TARGET_SHEET:${sheet.name}`) : []),
+            ...(targetInventory ? targetInventory.privateUnknownSheets.map(sheet => `UNKNOWN_PRIVATE_TARGET_SHEET:${sheet.name}`) : []),
+            ...(targetPublic ? targetPublic.missingRequiredColumns.map(column => `TARGET_PUBLIC_REQUIRED_COLUMN_MISSING:${column}`) : []),
+            ...(targetPublic && !targetPublic.schemaOk ? ['TARGET_PUBLIC_SCHEMA_INVALID'] : []),
+            ...(targetPublic && targetPublic.rows === 0 ? ['TARGET_PUBLIC_EMPTY'] : []),
+            ...(targetPublic && targetPublic.rows > 0 && targetPublic.validCoordinates === 0 ? ['TARGET_PUBLIC_NO_VALID_COORDINATES'] : []),
+            ...(targetPublic ? targetPublic.duplicateRecordIds.map(value => `TARGET_DUPLICATE_RECORD_ID:Published_Locations:${value}`) : []),
+            ...(targetPublic ? targetPublic.privateColumns.map(value => `PRIVATE_COLUMN_IN_PUBLIC_TARGET:${value}`) : []),
+            ...(targetStaging ? targetStaging.duplicateRecordIds.map(value => `TARGET_DUPLICATE_RECORD_ID:Location_Staging:${value}`) : []),
+            ...(targetStaging ? targetStaging.duplicateRequestIds.map(value => `TARGET_DUPLICATE_REQUEST_ID:Location_Staging:${value}`) : []),
+            ...missingPrivateTargetSheets.map(name => `TARGET_PRIVATE_SHEET_MISSING:${name}`),
+            ...(comparison.compared ? comparison.missingInTarget.map(value => `TARGET_PUBLIC_RECORD_MISSING:${value}`) : []),
+            ...(comparison.compared ? comparison.unexpectedInTarget.map(value => `TARGET_PUBLIC_RECORD_UNEXPECTED:${value}`) : []),
         ],
     };
 }

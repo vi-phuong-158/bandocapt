@@ -58,10 +58,71 @@ test('dry-run comparison reports missing, unexpected, and duplicate public recor
     assert.deepEqual(report.comparison.publishedLocations.missingInTarget, ['LOC_B']);
     assert.deepEqual(report.comparison.publishedLocations.unexpectedInTarget, ['LOC_C']);
     assert.deepEqual(report.comparison.publishedLocations.duplicateTargetRecordIds, ['LOC_A']);
+    assert.ok(report.blockers.includes('TARGET_PUBLIC_RECORD_MISSING:LOC_B'));
+    assert.ok(report.blockers.includes('TARGET_PUBLIC_RECORD_UNEXPECTED:LOC_C'));
+    assert.ok(report.blockers.includes('TARGET_DUPLICATE_RECORD_ID:Published_Locations:LOC_A'));
+});
+
+test('dry-run blocks an empty target and accepts a complete matching dual-workbook target', () => {
+    const emptyTargetReport = analyzeDualWorkbookMigration(sourceWorkbook(), {
+        publicSheets: { Published_Locations: [] },
+        privateSheets: {},
+    });
+    assert.ok(emptyTargetReport.blockers.includes('TARGET_PUBLIC_EMPTY'));
+    assert.ok(emptyTargetReport.blockers.includes('TARGET_PUBLIC_SCHEMA_INVALID'));
+    assert.ok(emptyTargetReport.blockers.includes('TARGET_PRIVATE_SHEET_MISSING:Unit_Allowlist'));
+    assert.ok(emptyTargetReport.blockers.includes('TARGET_PRIVATE_SHEET_MISSING:Location_Staging'));
+
+    const source = sourceWorkbook();
+    const matchingTargetReport = analyzeDualWorkbookMigration(source, {
+        publicSheets: { Published_Locations: structuredClone(source.Published_Locations) },
+        privateSheets: {
+            Unit_Allowlist: structuredClone(source.Unit_Allowlist),
+            Location_Staging: structuredClone(source.Location_Staging),
+        },
+    });
+    assert.deepEqual(matchingTargetReport.blockers, []);
+});
+
+test('dry-run blocks duplicate source record and request identifiers', () => {
+    const source = sourceWorkbook();
+    source.Published_Locations.push({
+        record_id: 'LOC_A', name: 'Điểm A duplicate', coordinates: '21.325,105.365',
+    });
+    source.Location_Staging.push({ record_id: 'LOC_B', request_id: 'REQ_A' });
+    const report = analyzeDualWorkbookMigration(source);
+    assert.ok(report.blockers.includes('SOURCE_DUPLICATE_RECORD_ID:Published_Locations:LOC_A'));
+    assert.ok(report.blockers.includes('SOURCE_DUPLICATE_REQUEST_ID:Location_Staging:REQ_A'));
+});
+
+test('dry-run recognizes approved semantic aliases as required public columns', () => {
+    const report = analyzeDualWorkbookMigration({
+        Published_Locations: [{ record_id: 'LOC_A', 'Tên đơn vị': 'Điểm A', 'Tọa độ': '21.325,105.365' }],
+    });
+    assert.deepEqual(report.source.public.Published_Locations.missingRequiredColumns, []);
+    assert.deepEqual(report.blockers, []);
+});
+
+test('dry-run blocks private columns and public sheets crossing workbook boundaries', () => {
+    const source = sourceWorkbook();
+    source.Published_Locations[0].submitter_email = 'private@example.gov.vn';
+    const report = analyzeDualWorkbookMigration(source, {
+        publicSheets: { Published_Locations: structuredClone(source.Published_Locations) },
+        privateSheets: {
+            Published_Locations: [],
+            Unit_Allowlist: structuredClone(source.Unit_Allowlist),
+            Location_Staging: structuredClone(source.Location_Staging),
+        },
+    });
+    assert.ok(report.blockers.includes('PRIVATE_COLUMN_IN_PUBLIC_SOURCE:submitter_email'));
+    assert.ok(report.blockers.includes('PRIVATE_COLUMN_IN_PUBLIC_TARGET:submitter_email'));
+    assert.ok(report.blockers.includes('PUBLIC_SHEET_IN_PRIVATE_TARGET:Published_Locations'));
 });
 
 test('CLI dry-run rejects write flags and only writes an explicit local report', () => {
     assert.throws(() => parseArgs(['--source', 'fixture.json', '--apply']), /DUAL_WORKBOOK_DRY_RUN_ONLY/);
+    assert.throws(() => parseArgs(['--source', 'fixture.json', '--write']), /DUAL_WORKBOOK_DRY_RUN_ONLY/);
+    assert.throws(() => parseArgs(['--source', 'fixture.json', '--apply=true']), /DUAL_WORKBOOK_DRY_RUN_ONLY/);
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'bandocapt-dual-workbook-'));
     const source = path.join(directory, 'source.json');
     const reportPath = path.join(directory, 'report.json');

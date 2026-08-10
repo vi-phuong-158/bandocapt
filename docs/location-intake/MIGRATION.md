@@ -10,6 +10,11 @@ never contacts Google or writes a workbook. It inventories sheets and row counts
 `record_id` values and reports missing, unexpected and duplicate records. Add `--report <file>` only to
 write a local JSON evidence report. `--apply` and `--write` are deliberately rejected.
 
+Treat a non-empty `blockers` list as a failed cutover check. In particular, an empty/invalid public target,
+known private columns in public data, missing or unexpected public records, duplicate published/staging
+stable IDs, missing source private sheets in the private target, unknown sheets, or a public/private
+boundary leak must not proceed to cutover.
+
 Expected target export shape is `{ "public": { "sheets": { ... } }, "private": { "sheets": { ... } } }`.
 Use TEST exports for smoke exercises. No Production workbook or Production environment must be changed by
 this command. Before any later alias promotion, run `npm run verify:published-locations` against the

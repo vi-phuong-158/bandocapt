@@ -12,6 +12,9 @@
   public endpoint.
 - **Decision:** The new dual-workbook migration utility is JSON-export, dry-run only. It rejects write
   flags, reports inventory/schema/coordinate/boundary/record-ID differences, and never contacts Google.
+  Empty or invalid public targets, public exposure of known private columns, source/target `record_id`
+  mismatch, duplicate published/staging IDs, missing private target sheets and boundary violations are
+  explicit cutover blockers rather than advisory report fields.
   A future production cutover must validate a candidate with `verify:published-locations` before alias
   promotion; it cannot substitute an unverified source workbook.
 - **Consequence:** This change adds capability only. It does not create or migrate production workbooks,

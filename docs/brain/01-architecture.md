@@ -33,7 +33,10 @@ Chat location data path: `Google GViz -> lib/published-locations schema/dataset 
   `Staff_Verification_Audit`, `Idempotency_Ledger`, `Intake_Setup_Info` and Form Responses private.
 - `scripts/dual-workbook-dry-run.js` accepts JSON exports only and is read-only. It inventories sheets,
   validates the P0 public schema and coordinates, classifies boundaries, compares record IDs and can write
-  a local JSON cutover report. It rejects `--apply` and `--write`.
+  a local JSON cutover report. A target is not cutover-safe when its public dataset is empty/invalid,
+  source records are missing or unexpected, stable IDs are duplicated, a private column is public, a
+  source private sheet is absent, or a sheet crosses the declared boundary. It rejects `--apply` and
+  `--write`, including assignment forms.
 - This foundation does not create workbooks, change Vercel/Production environment variables, migrate data,
   deploy, or add Staff Portal runtime. A candidate must pass the published-locations smoke verifier before
   alias promotion during any later cutover.

@@ -2816,3 +2816,21 @@
   không còn cảnh báo `data-quality`, hiển thị 2 cluster và 96 marker DOM ở viewport kiểm tra.
   Khi đổi nguồn dữ liệu qua biến môi trường, cần phát hành deployment mới từ source sạch và xác
   minh cấu trúc/cột tọa độ của endpoint trước khi gán alias public.
+
+## [2026-08-10] Final review dual-workbook foundation và triage PR #44
+- **Agent:** Codex
+- **Thay đổi:** Siết resolver private để chặn cấu hình public/legacy lệch nhau trên mọi đường đọc;
+  nâng dry-run cutover từ báo cáo advisory thành fail-closed cho target public rỗng/sai schema,
+  record thiếu/thừa, ID published/staging trùng, private column hoặc sheet vượt trust boundary và
+  private sheet nguồn bị thiếu ở target. Bổ sung nhận diện alias semantic và chặn cả biến thể
+  `--apply=<value>`/`--write=<value>`. PR #44 chỉ được review read-only, không merge/rebase/chỉnh nhánh.
+- **File đã sửa:** `lib/location-workbooks.js`, `scripts/dual-workbook-dry-run.js`,
+  `test/location-workbooks.test.js`, `test/dual-workbook-dry-run.test.js`,
+  `docs/location-intake/MIGRATION.md`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Không cho phép một target thiếu dữ liệu hoặc trust-boundary/config drift được coi là
+  migration-safe trước cutover; giữ PR foundation read-only và không mở rộng sang Staff Portal runtime.
+- **Kiểm tra:** targeted 47/47 PASS; `npm.cmd test` 405/405 PASS; `npm.cmd run build` PASS;
+  `npm.cmd run test:e2e` 19/19 PASS (một ca catalog timeout ở lượt đầu, pass khi chạy riêng và khi
+  chạy lại full suite); `npm.cmd audit --omit=dev --audit-level=high` PASS, còn 9 moderate transitive
+  `uuid` không có bản vá; `git diff --check` sạch.
