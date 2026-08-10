@@ -2,6 +2,10 @@ const { defineConfig } = require('@playwright/test');
 
 module.exports = defineConfig({
     testDir: './test/e2e',
+    globalSetup: './test/e2e/global-setup.js',
+    // Windows can time out while tearing down simultaneous browser contexts. Keep
+    // the lifecycle deterministic; do not hide it with forceExit/process.exit.
+    workers: 1,
     timeout: 30000,
     expect: {
         timeout: 5000,
@@ -16,11 +20,5 @@ module.exports = defineConfig({
         trace: 'retain-on-failure',
         screenshot: 'only-on-failure',
         video: 'retain-on-failure',
-    },
-    webServer: {
-        command: 'npm run preview',
-        url: 'http://127.0.0.1:4173',
-        reuseExistingServer: !process.env.CI,
-        timeout: 30000,
     },
 });

@@ -62,6 +62,42 @@ const server = http.createServer((req, res) => {
     fs.createReadStream(filePath).pipe(res);
 });
 
-server.listen(port, '127.0.0.1', () => {
-    console.log(`Preview server: http://127.0.0.1:${port}`);
-});
+function startPreviewServer() {
+    return new Promise((resolve, reject) => {
+        const onError = error => {
+            server.off('listening', onListening);
+            reject(error);
+        };
+        const onListening = () => {
+            server.off('error', onError);
+            console.log(`Preview server: http://127.0.0.1:${port}`);
+            resolve(server);
+        };
+        server.once('error', onError);
+        server.once('listening', onListening);
+        server.listen(port, '127.0.0.1');
+    });
+}
+
+function stopPreviewServer() {
+    if (!server.listening) return Promise.resolve();
+    if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
+    return new Promise(resolve => server.close(resolve));
+}
+
+if (require.main === module) {
+    let shuttingDown = false;
+    const shutdown = () => {
+        if (shuttingDown) return;
+        shuttingDown = true;
+        stopPreviewServer();
+    };
+    process.once('SIGINT', shutdown);
+    process.once('SIGTERM', shutdown);
+    startPreviewServer().catch(error => {
+        console.error(error);
+        process.exitCode = 1;
+    });
+}
+
+module.exports = { startPreviewServer, stopPreviewServer };

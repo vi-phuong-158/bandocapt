@@ -1,5 +1,134 @@
 # 06 — AI Working Log
 
+## [2026-08-10] Đồng bộ PR #43 sau P0 Published_Locations source/schema guard
+- **Agent:** Codex
+- **Thay đổi:** Merge `origin/main` có P0 source/schema guard vào branch kế hoạch Staff Portal, giữ
+  merge commit (không rewrite lịch sử). Bổ sung production cutover gate: candidate deployment phải
+  pass `verify:published-locations` với semantic schema và tọa độ hợp lệ trước alias promotion; HTTP
+  200 đơn thuần không đủ để chấp nhận đổi workbook nguồn. Pin Playwright `workers: 1` vì teardown
+  concurrent browser context trên Windows timeout; vẫn dùng global setup/teardown tự nhiên.
+- **File đã sửa:** `docs/location-intake/STAFF_PORTAL_PLAN.md`, `docs/brain/06-ai-working-log.md`;
+  `playwright.config.js`; cùng các file P0 từ merge `origin/main`.
+- **Lý do:** Áp dụng bài học incident 10/08/2026, tránh lặp lại việc source sai schema vẫn trả 200
+  rồi làm map mất toàn bộ tọa độ. Không triển khai Portal runtime, migration, production env hay deploy.
+- **Kiểm tra:** Xác nhận `origin/main` chứa `23d1d8a` P0 guard; review plan/matrix với prerequisite
+  hiện tại; validation đầy đủ chạy trên HEAD sau khi cập nhật.
+
+## [2026-08-09] Khóa crash recovery Drive ↔ ledger ↔ staging cho PR #43
+- **Agent:** Codex
+- **Thay đổi:** Thay contract `IN_PROGRESS` mơ hồ bằng lifecycle ledger private có resource state:
+  `CLAIMED → UPLOAD_PERSISTED → STAGING_PERSISTED → DONE`, cùng nhánh `CLEANUP_PENDING`,
+  `RESOURCE_RETAINED`, `FAILED_CLEANED`. Claim ghi deterministic `image_resource_key`; upload
+  persist `image_file_id` trong lock trước staging append; crash trước persist recovery qua key.
+  Cleanup + ledger update bắt buộc xong trước release lock. Thêm M89, matrix 91 → 92; sửa hygiene
+  migration 1–7 và diễn giải đúng 7 ca B + 2 test hỗ trợ.
+- **File đã sửa:** `docs/location-intake/STAFF_PORTAL_PLAN.md`,
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md`, `docs/location-intake/README.md`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Retry phải biết chính xác side-effect Drive đã xảy ra khi process chết giữa upload,
+  ledger và staging; không được race với cleanup của attempt trước.
+- **Kiểm tra:** `npm test` 380/380 pass; `npm run build` pass; `npm run test:e2e` 19/19 pass,
+  exit code 0; `npm audit --omit=dev --audit-level=high` exit code 0 (0 high/critical, 9 moderate);
+  matrix 92 ID không trùng, 17 primary threats, 17 invariants. CI/Vercel phải pass trên HEAD mới
+  trước final review.
+
+## [2026-08-09] Khóa contract atomic-idempotency-claim P1 cho Staff Portal gateway
+- **Agent:** Claude Code (Opus 5)
+- **Thay đổi:** Đóng P1 cuối của vòng review: idempotency theo `requestId` (M83–M86) chỉ chống
+  **replay tuần tự**, chưa chống **race đồng thời** (A check → B check → cả hai upload → mới lock).
+  (1) PLAN §17.1 mới — bắt buộc *check → claim → side-effect → finalize* nằm trong **cùng một
+  `LockService` lock**, ghi ledger `IN_PROGRESS` **trước** upload/append, finalize `DONE` sau; ledger
+  `Idempotency_Ledger` (private workbook). (2) PLAN §21 thứ tự `submitRequest` chèn bước acquire
+  lock + atomic claim trước side-effect, cleanup giữ `IN_PROGRESS` để reconcile. (3) Matrix +M87
+  (hai request đồng thời cùng `requestId` → đúng một side-effect) và +M88 (cùng key khác payload →
+  `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD`); 89 → **91 ca**. Threat +T7b, INV-16/T16 trỏ
+  M83–M88. (4) Session Max-Age chốt **8 giờ** (bỏ khỏi open questions). (5) `Staff_Verification_Audit`
+  giữ nguyên quyết định đã chốt ở PLAN §13 — không mở lại.
+- **File đã sửa:** `docs/location-intake/STAFF_PORTAL_PLAN.md`,
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md`, `docs/location-intake/README.md`,
+  `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Deterministic `requestId` một mình không chặn race vì cả hai request đọc trạng thái
+  "chưa xử lý" trước khi bên nào ghi dấu; phải atomic-claim trước side-effect. Vẫn không code Portal,
+  không migrate workbook, không deploy.
+- **Kiểm tra:** `npm test` 380/380 pass; `npm run build` exit 0; `npm run test:e2e` 19/19 pass;
+  `npm audit --omit=dev --audit-level=high` exit 0. Đếm matrix: 91 ca. Push HEAD lên
+  `plan/staff-location-portal` để CI/Vercel chạy trên đúng HEAD đó.
+
+## [2026-08-09] Chốt request-changes PR #43 trước implementation Staff Portal
+- **Agent:** Codex
+- **Thay đổi:** Sửa ba P1 contract: `operationId` browser ổn định và `requestId` Vercel derive để
+  idempotent qua HTTP retry; payload `confirm` bắt buộc `recordId`, `snapshotHash`, `operationId`;
+  `/auth/google` là ngoại lệ session nhưng vẫn check Origin, Google credential và IP rate limit.
+  Dọn P2: ghi đúng current duplicate allowlist là last-row-wins, thêm health gate chặn duplicate
+  xung đột; matrix minh bạch coverage và bổ sung M86/B14/N67 (89 ca, 17 threat/invariant).
+- **File đã sửa:** `docs/location-intake/STAFF_PORTAL_PLAN.md`,
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md`, `docs/location-intake/README.md`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Áp dụng review `REQUEST_CHANGES_BEFORE_IMPLEMENTATION` cho PR #43 mà không triển khai
+  Portal, migrate workbook hay deploy production.
+- **Kiểm tra:** `git diff --check`, kiểm đếm matrix 89 ca / 17 threat / 17 invariant; CI Draft PR
+  phải chạy lại sau push.
+
+## [2026-08-09] Finalize Staff Portal plan và đóng E2E runner hang
+- **Agent:** Codex
+- **Thay đổi:** Khóa dual-workbook public/private, config hai ID, read/write boundary, failure model
+  cross-workbook, `request_id` idempotency/reconciliation, query-param HMAC raw-body, confirm audit
+  riêng với snapshot hash/stale rejection; mở rộng test matrix từ 76 lên 86 ca, 17 threat/invariant.
+  Điều tra và sửa Playwright runner để preview server được quản lý bằng global setup/teardown cùng
+  process runner; không dùng `--forceExit` hoặc `process.exit(0)` để che leak.
+- **File đã sửa:** `docs/location-intake/STAFF_PORTAL_PLAN.md`,
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md`, `docs/location-intake/README.md`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `playwright.config.js`, `scripts/preview-server.js`, `test/e2e/global-setup.js`.
+- **Lý do:** Hoàn tất các gap về privacy, consistency, replay, stale confirmation và lifecycle test
+  trước khi mở Draft PR planning; vẫn không code Staff Portal hoặc migrate/deploy production.
+- **Kiểm tra:** `npm test` 380/380 pass; `npm run build` pass; `npm run test:e2e` 19/19 pass và
+  thoát tự nhiên (exit code 0); `npm audit --omit=dev --audit-level=high` exit code 0 với 0 high/critical
+  (9 moderate đã biết, không có fix khả dụng).
+
+## [2026-08-09] Staff Location Portal Gate 3–5 — mở scope auth, thiết kế kiến trúc, ma trận kiểm thử
+- **Agent:** Claude Code (Opus 5)
+- **Thay đổi:** Chỉ docs + một pure helper. **Không code Portal.** (1) Xác minh PR #41 đã merge thật
+  trên GitHub (state `MERGED`, merge commit `1f56121`, đầu nhánh `ce50ab1`) trước khi sửa file nào.
+  (2) Gate 3: đảo quyết định "không xây auth" thành auth **có phạm vi** chỉ cho `/can-bo`, ghi rõ
+  danh sách ngoài scope. (3) Gate 4: viết kế hoạch kiến trúc/bảo mật đầy đủ. (4) Gate 5: 89 ca kiểm
+  thử + threat model + 17 invariant. (5) Prerequisite duy nhất có code:
+  `resolveUnitsByEmail(email, allowlistRows)` + 9 test.
+- **File đã sửa:** `setup/apps-script.js`, `test/location-pipeline.test.js`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/01-architecture.md`,
+  `docs/location-intake/STAFF_PORTAL_PLAN.md` (mới),
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md` (mới),
+  `docs/location-intake/README.md`, `docs/location-intake/SECURITY.md`.
+- **Lý do:** Google Form của PR #41 đúng về bảo mật nhưng không dùng được cho 148 đơn vị — nó không
+  biết bản ghi hiện tại đang ghi gì, nên sửa một trường vẫn phải nhập lại toàn bộ (gồm cả chụp lại
+  ảnh, vì `IMAGE_REQUIRED` áp cho mọi request không phải `stop`), hiển thị enum tiếng Anh, và bắt gõ
+  tay `target_record_id`. Portal thay lớp **nhập liệu**, giữ nguyên lớp **duyệt**.
+- **Vì sao helper này là prerequisite chứ không để lại cho phiên implementation:** repo chỉ có chiều
+  `authorizeSubmission(unitName, email)` — kiểm tra một đơn vị mà **người gửi tự khai**. Portal cần
+  chiều ngược vì client không được quyết định `unit_code`, và chiều đó chưa tồn tại ở đâu cả. Nếu để
+  lại, nơi tự nhiên nhất để viết nó là Vercel route — tức là đặt logic phân quyền ra ngoài module đã
+  được unit test, và tách khỏi `buildAllowlistMap`. Dựng trên `buildAllowlistMap` khiến hai chiều
+  **không thể lệch nhau**: có một test khẳng định mọi đơn vị `resolveUnitsByEmail` trả ra đều phải
+  qua được `authorizeSubmission`, và hai đơn vị bị loại (inactive, thiếu email) đều phải bị từ chối.
+  Không caller runtime nào gọi nó → không đổi hành vi production.
+- **Chốt thiết kế đáng ghi (chi tiết trong PLAN):** confirm là audit event, **không** vào hàng đợi
+  duyệt và **không** đổi nội dung công khai (nếu không, 148 đơn vị bấm "thông tin chính xác" sẽ làm
+  ngập hàng đợi admin). Update merge ở **server**: omitted ≠ delete, ba trạng thái tường minh
+  (vắng mặt / xoá tường minh / thay thế). Ảnh: Portal tự điền `imageFileId` hiện tại vào submission
+  nên **không phải sửa rule `IMAGE_REQUIRED`** của pipeline — không nới guard đã có, chỉ cấp đủ dữ
+  liệu cho nó. Bản ghi legacy thiếu ảnh: cho update metadata + `IMAGE_MISSING_WARNING` (cột
+  `warnings`, không phải `validation_errors`), vì bắt upload ảnh sẽ chặn đúng những sửa đổi cần nhất.
+  Khôi phục Drive file ID qua `findPublishedImageFileId` đã có, fallback parse `id=` từ `image_url`.
+- **Kiểm tra:** `npm test` 380/380 PASS (371 trước + 9 ca mới B08–B13 và ca chống lệch hai chiều).
+  `npm run build` sạch. `npm run test:e2e` 19/19 PASS. `npm audit --omit=dev --audit-level=high`
+  exit 0. Không chạm production, không migrate Sheet, không deploy.
+- **Còn chặn:** `Unit_Allowlist` vẫn nằm cùng bảng tính link-readable với `Published_Locations`.
+  Phải tách trước khi điền email cán bộ thật — cùng với `Location_Staging`/`Approval_Audit_Log`
+  (chứa `submitter_email`/`submitter_phone`), vì tách mỗi allowlist chỉ vá được một nửa lỗ rò PII.
+  Kế hoạch migration ở PLAN §3, **chưa chạy**.
+
 ## [2026-08-09] Đóng bất biến CREATE — create không được ghi đè bản ghi đang publish
 - **Agent:** Claude Code
 - **Thay đổi:** Yêu cầu `create` mang `target_record_id` nay bị BLOCK bằng mã lỗi mới

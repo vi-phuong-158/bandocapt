@@ -1,5 +1,104 @@
 # 03 — Technical Decisions
 
+## [2026-08-09] Khóa crash recovery Drive của Idempotency Ledger
+
+- **Không dùng `IN_PROGRESS` mơ hồ:** ledger private có `CLAIMED`, `UPLOAD_PERSISTED`,
+  `STAGING_PERSISTED`, `DONE`, `CLEANUP_PENDING`, `RESOURCE_RETAINED` và `FAILED_CLEANED` cùng
+  resource pointer/state cần recovery. Claim persist deterministic `image_resource_key` trước upload.
+- **Crash window sau upload:** persist `image_file_id` ngay sau upload, trong cùng `LockService` lock
+  và trước staging append. Nếu process chết sớm hơn, retry lookup exact deterministic resource key;
+  không thấy file mới upload, thấy một file reuse, thấy nhiều file fail closed để reconcile.
+- **Cleanup safety:** staging append fail phải cập nhật ledger + cleanup trước release lock. Cleanup fail
+  giữ pointer `RESOURCE_RETAINED` để retry reuse file, không tạo file mới; do đó attempt kế tiếp không
+  race với cleanup của attempt cũ.
+
+## [2026-08-09] Khóa contract retry, confirm và login trước implementation Staff Portal
+
+- **Idempotency qua HTTP retry:** Browser tạo UUID `operationId` ổn định cho đúng một thao tác;
+  Vercel derive opaque `requestId` từ verified `session.email + action + operationId`. Browser không
+  chọn `requestId` hay quyền. Gateway idempotent theo `action + requestId`; cùng key nhưng payload
+  khác bị reject. Điều này bao phủ trường hợp Apps Script thành công nhưng response về browser/Vercel
+  timeout, nên retry không duplicate staging hoặc Drive upload.
+- **Confirm contract:** `POST /api/can-bo/confirm` bắt buộc `{ recordId, snapshotHash, operationId }`.
+  Thiếu hash bị reject; server chỉ ghi `Staff_Verification_Audit` sau khi compare hash của record hiện
+  tại, do đó stale-confirm protection không phụ thuộc vào UI tự giác refresh.
+- **CSRF/session contract:** Mọi POST state-changing kiểm `Origin`. Các endpoint protected cần session;
+  riêng `/api/can-bo/auth/google` không cần session trước đó vì nó tạo session, nhưng phải verify Google
+  credential, kiểm Origin và IP rate-limit.
+- **Duplicate allowlist:** `buildAllowlistMap` hiện last-row-wins, không merge rows. Health gate/migration
+  validator phải block rollout khi duplicate `unit_name` khác nội dung quyền; không được dựa vào thứ tự row.
+
+## [2026-08-09] Finalize dual-workbook Staff Portal plan và idempotent recovery
+
+- **Dual-workbook boundary:** `PUBLIC_LOCATION_SPREADSHEET_ID` chỉ chứa
+  `Published_Locations` và là nguồn `GOOGLE_SHEET_ID` cho public map/chatbot/GViz. Private
+  `PRIVATE_LOCATION_SPREADSHEET_ID` chứa toàn bộ operational sheets: `Unit_Allowlist`,
+  `Location_Staging`, `Approval_Audit_Log`, `Staff_Verification_Audit`, `Idempotency_Ledger`,
+  `Intake_Setup_Info` và Form Responses. Không public/link-share private workbook.
+- **Distributed approval:** public write và private status/audit không phải transaction nguyên tử.
+  `request_id + target_record_id + request_type` là reconciliation key; `reconcileLocationRequest`
+  là recovery path chính thức. `LockService` chỉ chống concurrency trong Apps Script, không bảo đảm
+  atomic cross-workbook transaction.
+- **Gateway HMAC:** dùng query parameters `action`, `timestamp`, `signature`; canonical string cố
+  định `POST\naction\ntimestamp\nsha256Hex(rawBody)`. Timestamp ±5 phút chỉ là freshness; mọi state-changing
+  call phải có `requestId` do Vercel derive trong signed body để chống replay business.
+- **Confirm:** luôn ghi `Staff_Verification_Audit` trong private workbook, với canonical SHA-256
+  snapshot hash và reject `STALE_RECORD` khi record đã đổi. Không ghi confirm vào
+  `Approval_Audit_Log` và không đổi public content.
+- **E2E lifecycle:** Playwright global setup/teardown quản lý `scripts/preview-server.js` trực tiếp;
+  không dùng nested npm `webServer`, không dùng `--forceExit`/`process.exit(0)` để che process leak.
+
+## [2026-08-09] Cho phép authentication có phạm vi cho Staff Location Portal `/can-bo`
+
+- **Quyết định CŨ bị thay đổi một phần:** `04-current-tasks.md` mục "Không làm lúc này" ghi
+  *"Xây hệ thống đăng nhập / auth người dùng — ngoài scope dự án"*. Quyết định đó vẫn đúng cho
+  bản đồ công khai và chatbot, nhưng KHÔNG còn đúng cho khu vực cán bộ.
+- **Quyết định MỚI — Staff Portal Authentication được phép:** Được xây authentication giới hạn
+  phạm vi, chỉ phục vụ `/can-bo` và các API `/api/can-bo/*`, với đúng năm mục đích:
+  1. xác minh danh tính cán bộ bằng Google Sign-In (server verify ID token);
+  2. map email đã xác minh → tập đơn vị được phép (`authorizedUnits[]`, quan hệ 1:N);
+  3. bảo vệ Staff Location Portal API;
+  4. ghi đúng `submitter_email` từ session, không lấy từ request body;
+  5. chặn sửa dữ liệu chéo đơn vị ở tầng Vercel, CỘNG THÊM (không thay thế) các guard pipeline
+     đã có từ PR #41.
+- **KHÔNG phải** auth framework chung cho toàn dự án. Ngoài phạm vi, không được mở rộng thành:
+  tài khoản người dân · đăng nhập chatbot · đăng nhập bản đồ public · database username/password
+  riêng · IAM tổng quát · đưa Supabase vào chỉ để làm auth cho Portal · OTP email (nếu Google
+  Sign-In hoạt động) · role system toàn dự án.
+- **Lý do đổi quyết định:** Luồng Google Form của PR #41 chạy đúng về mặt bảo mật nhưng sai về
+  mặt UX cho đúng nhóm người dùng nó nhắm tới:
+  - bắt cán bộ nhập lại từ đầu những dữ liệu hệ thống đã có (địa chỉ, toạ độ, dịch vụ, ảnh),
+    chỉ để sửa một trường như số điện thoại;
+  - Form hiển thị enum kỹ thuật (`HEADQUARTERS`, `E_IDENTIFICATION`, `TEMPORARILY_PAUSED`…)
+    thay vì tiếng Việt;
+  - không hỗ trợ được workflow thật *"xem dữ liệu cũ → xác nhận đúng, hoặc chỉnh một phần"* —
+    Form không biết bản ghi hiện tại đang ghi gì;
+  - một đơn vị có nhiều địa điểm thì cán bộ phải tự tra và gõ tay `target_record_id`.
+- **Ranh giới giữ nguyên:** Portal chỉ đổi lớp NHẬP LIỆU. Luồng dữ liệu vẫn là
+  `Location_Staging → Admin approval → Published_Locations`. Cán bộ KHÔNG direct-write dữ liệu
+  công khai, KHÔNG approve/reject/publish/revoke. Mọi bất biến của PR #41 (CREATE không mang
+  `target_record_id`, `record_id` do server sinh, cross-unit bị chặn ở cả `buildStagingRecord`
+  lẫn `applyApproval`, formula injection) giữ nguyên, không được regress.
+- **Điều kiện chặn production (chưa xử lý, phải làm trước khi có email cán bộ thật):**
+  `Unit_Allowlist` phải chuyển sang bảng tính riêng KHÔNG chia sẻ công khai. Hiện nó nằm cùng
+  bảng tính với `Published_Locations`, mà bảng tính đó buộc phải link-readable để endpoint GViz
+  không xác thực trong `lib/published-locations.js` đọc được.
+- **Trạng thái:** Mới là KẾ HOẠCH. Chưa code Portal, chưa có `/can-bo`, chưa có Google Sign-In,
+  chưa có gateway HMAC, chưa migrate Sheet. Thiết kế đầy đủ:
+  `docs/location-intake/STAFF_PORTAL_PLAN.md`; ma trận kiểm thử + threat model:
+  `docs/location-intake/STAFF_PORTAL_TEST_MATRIX.md`.
+- **Prerequisite duy nhất đã code trong phiên này:** pure helper
+  `resolveUnitsByEmail(email, allowlistRows)` trong `setup/apps-script.js` — chiều ngược của
+  `authorizeSubmission`, dựng trên `buildAllowlistMap` để hai chiều không thể lệch nhau. Không
+  caller nào gọi nó ở runtime hiện tại nên không đổi hành vi production; nó tồn tại để khoá sớm
+  mô hình 1:N và các luật fail-closed trước khi ai đó cài quyền vào Vercel route hoặc frontend.
+- **Đánh đổi:** Thêm một bề mặt tấn công mới (session cookie, Google token verify, gateway
+  server-to-server) vào một dự án trước đây hoàn toàn không có auth. Chấp nhận vì thay thế nó là
+  giữ Google Form — vốn đã có bề mặt riêng (Drive folder, Form sharing) và UX không dùng được cho
+  148 đơn vị. Bù lại bằng: fail closed ở mọi lớp, reauthorize theo allowlist hiện tại trước mỗi
+  thao tác ghi, và giữ nguyên approval pipeline nên không có đường ghi thẳng ra dữ liệu công khai.
+- **Người quyết định:** user (giao đặc tả Gate 3–5) / Claude Code (Opus 5) thiết kế.
+
 ## [2026-08-06] Heartbeat SSE + phân loại nguyên nhân abort thay vì mã TIMEOUT chung
 
 - **Bối cảnh:** Chatbot thỉnh thoảng hiện "Phản hồi quá lâu. Vui lòng thử lại." dù backend vẫn xử lý

@@ -114,7 +114,8 @@ bandocapt/
 | `data/tthc-phutho-high-review.csv` | Bang ghep an toan theo title + cap cho 39 record HIGH; `review_suggestion` van bat buoc kiem tay | T3.3 reviewer | snapshot nguon + governance draft |
 | `scripts/apply-phutho-tthc-approvals.js` | T3.4 chi merge 17 doi chieu da duyet va KBTT giu nguyen; backup pre/post, verify metadata va bat bien text/vector | Developer duoc uy quyen | Pinecone, snapshot + manifest duyet |
 | `scripts/patch-matt26265-mau-don.js` | Script mot-muc de xoa gia tri `mau_don` loi thoi cua `tthc_matt26265`; mac dinh dry-run, chi backup + upsert khi co `--apply`, giu nguyen vector/text/content_hash | Developer duoc uy quyen | Pinecone, `.env`, `data/pinecone-backups/` |
-| `setup/apps-script.js` | Pipeline allowlist -> staging -> published cho Google Sheets | Google Apps Script | SpreadsheetApp |
+| `setup/apps-script.js` | Pipeline private allowlist/staging/audit -> public published approval. Phan quyen hai chieu: `authorizeSubmission` (unitName+email -> authorized?) va `resolveUnitsByEmail` (email -> units[], chua co caller runtime, prerequisite Staff Portal) | Google Apps Script, `test/location-pipeline.test.js` | SpreadsheetApp; `PRIVATE_LOCATION_SPREADSHEET_ID`, `PUBLIC_LOCATION_SPREADSHEET_ID` |
+| `scripts/preview-server.js` | Preview HTTP server dùng chung bởi Playwright global setup/teardown; tự đóng keep-alive connections | `test/e2e/global-setup.js`, `npm run preview` | Node `http` |
 | `scripts/run-regression.js` | Runner regression API that, loc theo ID (ca ID hoi thoai H16/H17); gui `evalDebug:true`, cham 30 ca va bao cao latency tong cung p50/p95 theo tung stage eval-only, provider/fallback. `--strict-gate` chan hard fail/provider error; `--majority`/`--runs N` tong hop hard fail da so va flaky advisory | CLI / agent | `api/chat.js`, `lib/regression-grader.js`, `lib/regression-metrics.js`, expectations/conversations va `test/results/` |
 | `scripts/repair-pinecone-temp-residence.js` | Script sua Pinecone `tthc_matt26265`: backup, re-embed, upsert UTF-8 sach, verify top-1 | CLI / agent | Pinecone, Gemini Embedding API, `.env`, `data/pinecone-backups/` |
 
@@ -418,6 +419,34 @@ Biến mới (2026-07-13):
 - `Published_Locations` has a public allowlist schema. `api/google-sheet.js` filters the GViz table again before responding, so accidental internal columns cannot leak through the proxy.
 - `scripts/migrate-published-locations.js` migrates exported JSON in dry-run mode by default and writes only an explicit output file on `--apply`; it never changes a production sheet.
 - Deploy/run bằng `clasp` (`npm run clasp:push|clasp:run|clasp:logs`, pin `@google/clasp@3.3.0` qua `npx`, không thêm dependency). Push root là `dist/`, cấu hình môi trường (`.clasp.json`, `.clasprc.json`, `clasp-creds*.json`) không commit. Xem `docs/location-intake/CLASP.md`.
+- **(2026-08-09) Phân quyền có hai chiều, cùng nguồn sự thật.** `authorizeSubmission(unitName, email, rows)`
+  kiểm tra một đơn vị mà **người gửi tự khai** (đường Google Form). `resolveUnitsByEmail(email, rows)`
+  đi chiều ngược: từ email suy ra `[{ unitCode, unitName }]` được phép — cần cho Staff Portal vì
+  client không được quyết định `unit_code`. Cả hai dựng trên `buildAllowlistMap`, nên tập đơn vị hai
+  chiều **không thể lệch nhau**; `buildAllowlistMap` hiện lọc `active`, bỏ dòng thiếu `unit_name` và
+  có semantics duplicate **last-row-wins**. Health gate Portal phải chặn duplicate xung đột trước
+  rollout, không được coi behavior này là merge dữ liệu. `resolveUnitsByEmail` hiện **chưa có caller
+  runtime** — nó là prerequisite của kế hoạch `docs/location-intake/STAFF_PORTAL_PLAN.md` (chưa triển khai).
+- **(2026-08-09) Staff Portal dùng dual-workbook boundary.** Public read tiếp tục đi qua
+  `GOOGLE_SHEET_ID` → `Published_Locations`; private operational sheets (allowlist, staging, audit,
+  verification, idempotency ledger, setup và Form Responses) chỉ Apps Script/backend trusted đọc/ghi qua
+  `PRIVATE_LOCATION_SPREADSHEET_ID`. Admin approval là public write duy nhất qua
+  `PUBLIC_LOCATION_SPREADSHEET_ID`; cross-workbook approval recover theo `request_id`, không coi
+  `LockService` là transaction phân tán.
+- **(2026-08-09) Playwright preview lifecycle.** Không dùng `webServer: npm run preview` vì Windows
+  có thể giữ npm child process sau khi test xong. `globalSetup` start/stop `preview-server` trong
+  cùng runner và server đóng keep-alive connections; đây là test infrastructure, không thay đổi
+  production runtime.
+- **(2026-08-09) Staff Portal retry/auth contracts.** Browser tạo `operationId` UUID ổn định cho
+  một thao tác; Vercel derive `requestId` từ verified session email + action + operationId để HTTP
+  retry không duplicate staging/Drive/audit. `POST /api/can-bo/confirm` luôn cần `recordId` +
+  `snapshotHash` + `operationId`; `/auth/google` là ngoại lệ duy nhất không cần pre-existing session
+  nhưng vẫn bắt buộc Origin, Google credential verification và IP rate limit.
+- **(2026-08-09) Staff Portal Drive crash recovery.** `Idempotency_Ledger` private claim một
+  `image_resource_key` deterministic trước side-effect. Upload persist `image_file_id` trong cùng
+  script lock trước staging append; retry crash lookup theo resource key, reuse/cleanup idempotently.
+  Cleanup và ledger state update hoàn tất trong lock, nên retry không thể reuse file đang bị attempt
+  trước xóa.
 - Apps Script API không có UI và không có bảng đang mở, nên runtime tách đôi: hàm menu (`healthCheckLocationIntake`, `*Selected*`) chạm `getUi()`/`getActiveRange()` và chỉ dùng trong Sheet; hàm `api*` (`apiHealthCheckLocationIntake`, `apiReviewLocationRequest`, `apiLocationIntakeSnapshot`) trả giá trị và gọi được qua `clasp run`. `setupLocationIntakeSystem` rơi về Script Property `LOCATION_SPREADSHEET_ID` khi `getActiveSpreadsheet()` trả null.
 - Provider generation theo `LLM_PRIMARY`/`LLM_FALLBACK` (xem "Bien moi truong 2026-07-13"): mac dinh
   van la Gemini ke ca khi co `DEEPSEEK_API_KEY` — key nay chi tu dong lam **fallback** (khi
