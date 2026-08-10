@@ -52,19 +52,44 @@ test('Google Sheet API fails closed when GOOGLE_SHEET_ID is missing', async () =
     assert.equal(calls, 0);
 });
 
-test('Google Sheet API returns validated payload with endpoint cache policy', async () => {
+test('Google Sheet API returns a semantically valid published-locations payload with endpoint cache policy', async () => {
     process.env.GOOGLE_SHEET_ID = 'sheet-id';
     global.fetch = async url => {
         assert.match(String(url), /sheet=Published_Locations/);
-        return new Response('google.visualization.Query.setResponse({"table":{"cols":[],"rows":[]}});');
+        return new Response('google.visualization.Query.setResponse({"table":{"cols":[{"label":"name"},{"label":"coordinates"}],"rows":[{"c":[{"v":"Điểm A"},{"v":"21.325,105.365"}]}]}});');
     };
     const res = createResponse();
 
     await handler({ method: 'GET', query: {} }, res);
 
     assert.equal(res.statusCode, 200);
-    assert.deepEqual(res.body, { table: { cols: [], rows: [] } });
+    assert.equal(res.body.table.cols.length, 2);
+    assert.equal(res.body.table.rows.length, 1);
     assert.equal(res.headers['cache-control'], 'public, s-maxage=60, stale-while-revalidate=300');
+});
+
+test('Google Sheet API rejects the three-column source/config mismatch without exposing the sheet ID', async () => {
+    process.env.GOOGLE_SHEET_ID = 'private-sheet-id';
+    global.fetch = async () => new Response('google.visualization.Query.setResponse({"table":{"cols":[{"label":"Tên Đơn vị"},{"label":"Loại địa điểm"},{"label":"search_aliases"}],"rows":[{"c":[{"v":"Điểm A"},{"v":"Trụ sở"},{"v":"A"}]}]}});');
+    const res = createResponse();
+
+    await handler({ method: 'GET', query: {} }, res);
+
+    assert.equal(res.statusCode, 502);
+    assert.deepEqual(res.body, { error: 'GOOGLE_SHEET_SCHEMA_MISMATCH' });
+    assert.doesNotMatch(JSON.stringify(res.body), /private-sheet-id/);
+    assert.equal(res.headers['cache-control'], undefined);
+});
+
+test('Google Sheet API rejects a payload without the coordinate semantic column', async () => {
+    process.env.GOOGLE_SHEET_ID = 'sheet-id';
+    global.fetch = async () => new Response('google.visualization.Query.setResponse({"table":{"cols":[{"label":"name"},{"label":"type"}],"rows":[]}});');
+    const res = createResponse();
+
+    await handler({ method: 'GET', query: {} }, res);
+
+    assert.equal(res.statusCode, 502);
+    assert.equal(res.body.error, 'GOOGLE_SHEET_SCHEMA_MISMATCH');
 });
 
 test('Google Sheet API removes internal columns while preserving approved public fields', () => {
@@ -90,6 +115,16 @@ test('Google Sheet API normalizes invalid upstream payloads to 502', async () =>
 
     assert.equal(res.statusCode, 502);
     assert.equal(res.body.error, 'GOOGLE_UPSTREAM_ERROR');
+});
+
+test('Google Sheet API errors never expose a configured sheet ID', async () => {
+    process.env.GOOGLE_SHEET_ID = 'private-sheet-id';
+    global.fetch = async () => new Response('not gviz');
+    const res = createResponse();
+
+    await handler({ method: 'GET', query: {} }, res);
+
+    assert.doesNotMatch(JSON.stringify(res.body), /private-sheet-id/);
 });
 
 test('Vercel no-store policy is scoped to chat only', () => {

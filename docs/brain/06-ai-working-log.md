@@ -2636,6 +2636,22 @@
   lên "Ready!" trong vài giây (trước đó treo vô thời hạn); `curl` xác nhận `/api/chat` đi qua
   handler thật.
 
+## [2026-08-10] P0 - Production Published_Locations source/schema guard
+- **Agent:** Codex
+- **Thay doi:** Them guard schema semantic `name` + `coordinates` cho `/api/google-sheet`; source sai tra
+  `502 GOOGLE_SHEET_SCHEMA_MISMATCH` thay vi HTTP 200. Khoa fallback legacy theo layout du 8 cot, chan
+  dataset co rows nhung 0 toa do hop le ghi de cache, va them smoke verifier read-only
+  `scripts/verify-published-locations.js`.
+- **File da sua:** `api/google-sheet.js`, `js/location-data.js`, `lib/published-locations.js`,
+  `scripts/verify-published-locations.js`, `package.json`, cac test Published_Locations,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Ly do:** Ngan source/config mismatch lap lai su co 10/08/2026, noi workbook ba cot bi dien giai nhu
+  loi tung diem thay vi loi cap dataset.
+- **Kiem tra:** `npm.cmd test` dat 382/382; `npm.cmd run build` dat; audit High dat (9 moderate,
+  transitive `uuid` khong co fix). Playwright da chay xong 19/19 scenario nhung process teardown khong
+  thoat truoc 90-120s o ca normal va `CI=1`, nen `npm.cmd run test:e2e` chua dat exit code 0; khong dung
+  `--forceExit` hay `process.exit(0)` de che process leak.
+
 ## [2026-08-03] Location intake Google Form
 - **Agent:** Codex
 - **Thay đổi:** Chuyển pipeline cập nhật địa điểm sang khóa `record_id` đa địa điểm/đơn vị; thêm validation allowlist, MIME, chống formula injection, Maps/toạ độ, audit và thu hồi ảnh. Bổ sung runtime Apps Script sinh từ nguồn logic chung, API allowlist công khai, UI/map/chatbot theo `services`, migration dry-run và tài liệu vận hành.

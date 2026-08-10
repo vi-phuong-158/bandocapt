@@ -3,7 +3,7 @@ const {
     fetchGoogleVisualizationPayload,
     parseGoogleVisualizationPayload,
 } = require('../lib/published-locations');
-const { normalizeLabel } = require('../js/location-data');
+const { normalizeLabel, validatePublishedLocationsSchema } = require('../js/location-data');
 
 // Defense in depth: Published_Locations is the only allowed sheet, and only these
 // labels may cross the public API even if an administrator later adds internal columns.
@@ -42,6 +42,14 @@ function filterPublicGoogleVisualizationPayload(payload) {
     };
 }
 
+function validatePublicPublishedLocationsPayload(payload) {
+    const schema = validatePublishedLocationsSchema(payload?.table, { allowLegacy: false });
+    if (!schema.ok) {
+        throw new Error('GOOGLE_SHEET_SCHEMA_MISMATCH');
+    }
+    return payload;
+}
+
 async function handler(req, res) {
     if (req.method !== 'GET') {
         res.setHeader('Allow', 'GET');
@@ -60,11 +68,17 @@ async function handler(req, res) {
     }
 
     try {
-        const payload = filterPublicGoogleVisualizationPayload(await fetchGoogleVisualizationPayload({ sheetId }));
+        const payload = validatePublicPublishedLocationsPayload(
+            filterPublicGoogleVisualizationPayload(await fetchGoogleVisualizationPayload({ sheetId }))
+        );
         res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
         return res.status(200).json(payload);
     } catch (error) {
-        const code = error?.name === 'AbortError' ? 'GOOGLE_TIMEOUT' : 'GOOGLE_UPSTREAM_ERROR';
+        const code = error?.name === 'AbortError'
+            ? 'GOOGLE_TIMEOUT'
+            : error?.message === 'GOOGLE_SHEET_SCHEMA_MISMATCH'
+                ? 'GOOGLE_SHEET_SCHEMA_MISMATCH'
+                : 'GOOGLE_UPSTREAM_ERROR';
         console.error(`[api/google-sheet] ${code}:`, error.message);
         return res.status(502).json({ error: code });
     }
@@ -73,3 +87,4 @@ async function handler(req, res) {
 module.exports = handler;
 module.exports.parseGoogleVisualizationPayload = parseGoogleVisualizationPayload;
 module.exports.filterPublicGoogleVisualizationPayload = filterPublicGoogleVisualizationPayload;
+module.exports.validatePublicPublishedLocationsPayload = validatePublicPublishedLocationsPayload;

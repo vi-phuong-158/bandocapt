@@ -102,20 +102,46 @@
         }
 
         // Compatibility for an approved sheet copied from the legacy Form response layout.
+        // A short, unrelated table must never be interpreted as that layout.
+        const semanticIndexes = { ...indexes };
         const legacy = { name: 2, type: 3, address: 4, phone: 5, coordinates: 6, imageUrl: 7 };
-        for (const [field, index] of Object.entries(legacy)) {
-            if (indexes[field] < 0) indexes[field] = index;
+        const legacyCompatible = Array.isArray(columns) && columns.length >= 8;
+        if (legacyCompatible) {
+            for (const [field, index] of Object.entries(legacy)) {
+                if (indexes[field] < 0) indexes[field] = index;
+            }
         }
-        return indexes;
+        return { indexes, semanticIndexes, labels, legacyCompatible };
+    }
+
+    function validatePublishedLocationsSchema(table, options = {}) {
+        if (!table || !Array.isArray(table.cols) || !Array.isArray(table.rows)) {
+            return { ok: false, error: 'SHEET_SCHEMA_INVALID' };
+        }
+
+        const { indexes, semanticIndexes, legacyCompatible } = resolveColumnIndexes(table.cols);
+        const hasSemanticName = semanticIndexes.name >= 0;
+        const hasSemanticCoordinates = semanticIndexes.coordinates >= 0;
+        if (hasSemanticName && hasSemanticCoordinates) {
+            return { ok: true, indexes, source: 'semantic' };
+        }
+
+        const legacyRowsCompatible = table.rows.every(row => Array.isArray(row?.c) && row.c.length >= 7);
+        if (options.allowLegacy !== false && legacyCompatible && legacyRowsCompatible) {
+            return { ok: true, indexes, source: 'legacy' };
+        }
+
+        return { ok: false, error: 'SHEET_SCHEMA_INVALID' };
     }
 
     function normalizePublishedLocations(payload, options = {}) {
         const table = payload?.table;
-        if (!table || !Array.isArray(table.rows)) {
+        const schema = validatePublishedLocationsSchema(table, options);
+        if (!schema.ok) {
             return { locations: [], rejected: [{ row: 0, error: 'SHEET_SCHEMA_INVALID' }] };
         }
 
-        const indexes = resolveColumnIndexes(table.cols);
+        const { indexes } = schema;
         const locations = [];
         const rejected = [];
 
@@ -166,6 +192,8 @@
         normalizeLabel,
         normalizeServices,
         parseCoordinates,
+        resolveColumnIndexes,
+        validatePublishedLocationsSchema,
         normalizePublishedLocations,
     };
 });
