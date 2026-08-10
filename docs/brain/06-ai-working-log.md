@@ -171,6 +171,19 @@
   + `dist/appsscript.json`, `new Function(bundle)` trong build script xác nhận cú pháp;
   `clasp show-file-status` liệt kê đúng 2 file sẽ đẩy; `git check-ignore` xác nhận `.clasp.json`
   bị chặn. Chưa chạy `clasp push`/`run` thật vì cần người dùng đăng nhập OAuth trước.
+## [2026-08-07] Merge PR #42 và dọn nhánh fix/chat-sse-timeout-heartbeat
+- **Agent:** Claude Code
+- **Thay đổi:** Sau khi PR #42 được `vi-phuong-158` merge vào `main` (merge commit `32f14d4`, CI trên
+  `main` PASS), xoá nhánh `fix/chat-sse-timeout-heartbeat` ở cả local lẫn remote `origin`.
+- **File đã sửa:** `docs/brain/06-ai-working-log.md` (chỉ ghi log; thao tác xoá nhánh không đụng file
+  nguồn nào).
+- **Lý do:** Nhánh đã hoàn thành vai trò — gói toàn bộ chuỗi sửa lỗi chatbot rỗng-chữ, SSE
+  heartbeat/abort, nâng CI Node 24, vá lỗ hổng dependency và sửa e2e flaky. Giữ lại chỉ gây nhiễu
+  danh sách nhánh.
+- **Kiểm tra:** Trước khi xoá đã `git checkout main` + `git pull --ff-only` lên `32f14d4`, xác nhận
+  nhánh nằm trong `git branch --merged main` rồi mới xoá bằng `git branch -d` (an toàn, không cưỡng
+  bức `-D`). Sau xoá: `git branch -a | grep chat-sse-timeout-heartbeat` không còn kết quả ở cả local
+  và remote; không commit nào bị mất.
 
 ## [2026-08-06] Sửa flaky test e2e "external procedure deep-link replaces stale list context"
 - **Agent:** Claude Code
@@ -2629,3 +2642,21 @@
 - **File đã sửa:** `setup/apps-script.js`, `setup/location-intake/`, `scripts/build-location-intake-apps-script.js`, `scripts/migrate-published-locations.js`, `api/google-sheet.js`, `api/chat.js`, `js/location-data.js`, `js/chatbot.js`, `app.js`, `index.html`, `package.json`, test location/chat và `docs/location-intake/`.
 - **Lý do:** Một `unit_code` có thể có nhiều địa điểm; chỉ dữ liệu đã duyệt và thuộc schema công khai mới được hiển thị/tra cứu.
 - **Kiểm tra:** `npm.cmd test` đạt 343/343; `npm.cmd run build` đạt; Playwright đạt 19/19; `npm.cmd audit --omit=dev --audit-level=high` báo 12 high dependency vulnerabilities (một số không có bản vá), không tự nâng dependency ngoài phạm vi.
+## [2026-08-10] Khôi phục Production mất toàn bộ tọa độ bản đồ
+- **Agent:** Codex
+- **Thay đổi:** Ghi nhận và khắc phục sự cố Production: API `/api/google-sheet?sheet=Published_Locations`
+  trả 142 bản ghi từ một spreadsheet chỉ có ba cột `Tên Đơn vị`, `Loại địa điểm`,
+  `search_aliases`; không có cột tọa độ nên frontend loại toàn bộ với
+  `COORDINATES_MISSING`. Spreadsheet gốc **Thông tin hiển thị Bản đồ số Công an Phú Thọ
+  (Câu trả lời)** vẫn còn đủ 142 tọa độ tại `Published_Locations` (cột G). Đã cập nhật
+  `GOOGLE_SHEET_ID` của Vercel Production về spreadsheet gốc, tạo deployment Production mới
+  từ checkout Git sạch và gán lại alias `bandocapt.vercel.app` cho deployment này. Một deployment
+  tạm thiếu mã nguồn do lỗi đóng gói tar trên Windows đã được rollback ngay trước khi phát hành
+  deployment cuối.
+- **File đã sửa:** `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Lưu đầy đủ nguyên nhân, cách khôi phục và bài học vận hành; không tự tạo hoặc suy đoán
+  tọa độ cho các trụ sở.
+- **Kiểm tra:** API public trả 142 hàng, 14 cột và 142/142 ô tọa độ không rỗng ở cột G; trình duyệt
+  không còn cảnh báo `data-quality`, hiển thị 2 cluster và 96 marker DOM ở viewport kiểm tra.
+  Khi đổi nguồn dữ liệu qua biến môi trường, cần phát hành deployment mới từ source sạch và xác
+  minh cấu trúc/cột tọa độ của endpoint trước khi gán alias public.
