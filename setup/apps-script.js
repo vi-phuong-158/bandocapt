@@ -13,6 +13,22 @@
         info: 'Intake_Setup_Info',
     });
 
+    // This is a declaration only: the legacy Google Form runtime remains single-workbook until an
+    // approved migration. Future Apps Script gateway code must take private sheets from this list
+    // and may write public data only through the approval/revoke lifecycle.
+    const WORKBOOK_BOUNDARY = Object.freeze({
+        public: Object.freeze([SHEETS.published]),
+        private: Object.freeze([
+            SHEETS.allowlist,
+            SHEETS.staging,
+            SHEETS.audit,
+            'Staff_Verification_Audit',
+            'Idempotency_Ledger',
+            SHEETS.info,
+            'Form Responses 1',
+        ]),
+    });
+
     const STATUSES = Object.freeze({
         pending: 'PENDING',
         blocked: 'BLOCKED',
@@ -554,7 +570,7 @@
     }
 
     return {
-        SHEETS, STATUSES, REQUEST_TYPES, COORDINATE_STATUSES, HEADERS, PUBLIC_FIELDS, PHU_THO_BOUNDS, IMAGE_MIME_TYPES,
+        SHEETS, WORKBOOK_BOUNDARY, STATUSES, REQUEST_TYPES, COORDINATE_STATUSES, HEADERS, PUBLIC_FIELDS, PHU_THO_BOUNDS, IMAGE_MIME_TYPES,
         normalizeLabel, normalizeBoolean, slugify, normalizeEmail, splitEmails, sanitizeSheetCell, sanitizeUserFields, normalizeServices,
         normalizeLocationType, deriveLegacyType, isGoogleMapsUrl, parseCoordinates, classifyCoordinateStatus,
         validateImageMimeType, validateImageSubmission, buildAllowlistMap, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,

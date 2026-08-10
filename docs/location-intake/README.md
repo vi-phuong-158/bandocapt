@@ -8,6 +8,8 @@ Thành phần chính:
 - `setup/location-intake/Code.gs`: runtime Apps Script mỏng được ghép cùng logic qua `npm run build:location-intake`.
 - `api/google-sheet.js`: chỉ trả allowlist trường công khai từ sheet published.
 - `scripts/migrate-published-locations.js`: migration JSON an toàn, mặc định dry-run.
+- `scripts/dual-workbook-dry-run.js`: inventory/comparison read-only cho export TEST hoặc candidate; từ
+  chối mọi write flag và tạo report cutover cục bộ khi dùng `--report`.
 
 Xem [thiết lập](SETUP.md), [vận hành](OPERATIONS.md), [migration](MIGRATION.md) và [bảo mật](SECURITY.md) trước khi dùng dữ liệu thật.
 

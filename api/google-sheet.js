@@ -3,6 +3,7 @@ const {
     fetchGoogleVisualizationPayload,
     parseGoogleVisualizationPayload,
 } = require('../lib/published-locations');
+const { resolvePublicLocationWorkbook } = require('../lib/location-workbooks');
 const { normalizeLabel, validatePublishedLocationsSchema } = require('../js/location-data');
 
 // Defense in depth: Published_Locations is the only allowed sheet, and only these
@@ -61,15 +62,17 @@ async function handler(req, res) {
         return res.status(400).json({ error: 'SHEET_NOT_ALLOWED' });
     }
 
-    const sheetId = process.env.GOOGLE_SHEET_ID;
-    if (!sheetId) {
-        console.error('[api/google-sheet] GOOGLE_SHEET_ID is not configured.');
+    let publicWorkbook;
+    try {
+        publicWorkbook = resolvePublicLocationWorkbook();
+    } catch (error) {
+        console.error(`[api/google-sheet] public workbook configuration failed: ${error.code || error.message}`);
         return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
     }
 
     try {
         const payload = validatePublicPublishedLocationsPayload(
-            filterPublicGoogleVisualizationPayload(await fetchGoogleVisualizationPayload({ sheetId }))
+            filterPublicGoogleVisualizationPayload(await fetchGoogleVisualizationPayload({ sheetId: publicWorkbook.spreadsheetId }))
         );
         res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
         return res.status(200).json(payload);

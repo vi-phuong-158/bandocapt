@@ -1,5 +1,16 @@
 # 06 — AI Working Log
 
+## [2026-08-10] Dual-workbook foundation — no production cutover
+- **Agent:** Codex
+- **Thay đổi:** Thêm resolver fail-closed cho public/private workbook, routing public cho map/chat/API,
+  khai báo sheet trust boundary, và tool phân tích JSON-export dry-run chỉ tạo report cục bộ.
+- **File đã sửa:** `lib/location-workbooks.js`, `lib/published-locations.js`, `api/google-sheet.js`,
+  `scripts/dev-server.js`, `setup/apps-script.js`, `scripts/dual-workbook-dry-run.js`, `package.json`, tests và tài liệu liên quan.
+- **Lý do:** Chuẩn bị tách PUBLIC/PRIVATE workbook nhưng không đổi source Production, không di trú dữ
+  liệu và không mở Staff Portal runtime.
+- **Kiểm tra:** Unit/integration tests cover fallback, conflict/boundary fail-closed, public proxy,
+  private-sheet exclusion và dry-run; full `npm test`, build, Playwright, audit chạy trước commit.
+
 ## [2026-08-10] Đồng bộ PR #43 sau P0 Published_Locations source/schema guard
 - **Agent:** Codex
 - **Thay đổi:** Merge `origin/main` có P0 source/schema guard vào branch kế hoạch Staff Portal, giữ
@@ -2805,3 +2816,36 @@
   không còn cảnh báo `data-quality`, hiển thị 2 cluster và 96 marker DOM ở viewport kiểm tra.
   Khi đổi nguồn dữ liệu qua biến môi trường, cần phát hành deployment mới từ source sạch và xác
   minh cấu trúc/cột tọa độ của endpoint trước khi gán alias public.
+
+## [2026-08-10] Final review dual-workbook foundation và triage PR #44
+- **Agent:** Codex
+- **Thay đổi:** Siết resolver private để chặn cấu hình public/legacy lệch nhau trên mọi đường đọc;
+  nâng dry-run cutover từ báo cáo advisory thành fail-closed cho target public rỗng/sai schema,
+  record thiếu/thừa, ID published/staging trùng, private column hoặc sheet vượt trust boundary và
+  private sheet nguồn bị thiếu ở target. Bổ sung nhận diện alias semantic và chặn cả biến thể
+  `--apply=<value>`/`--write=<value>`. PR #44 chỉ được review read-only, không merge/rebase/chỉnh nhánh.
+- **File đã sửa:** `lib/location-workbooks.js`, `scripts/dual-workbook-dry-run.js`,
+  `test/location-workbooks.test.js`, `test/dual-workbook-dry-run.test.js`,
+  `docs/location-intake/MIGRATION.md`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Không cho phép một target thiếu dữ liệu hoặc trust-boundary/config drift được coi là
+  migration-safe trước cutover; giữ PR foundation read-only và không mở rộng sang Staff Portal runtime.
+- **Kiểm tra:** targeted 47/47 PASS; `npm.cmd test` 405/405 PASS; `npm.cmd run build` PASS;
+  `npm.cmd run test:e2e` 19/19 PASS (một ca catalog timeout ở lượt đầu, pass khi chạy riêng và khi
+  chạy lại full suite); `npm.cmd audit --omit=dev --audit-level=high` PASS, còn 9 moderate transitive
+  `uuid` không có bản vá; `git diff --check` sạch.
+
+## [2026-08-10] P1 Published_Locations data fidelity guard
+- **Agent:** Codex
+- **Thay đổi:** Dry-run so sánh canonical public data cho từng `record_id` tồn tại ở cả source và target.
+  Nó canonical hóa alias Việt/Anh, so parsed latitude/longitude thay vì raw string, và block riêng khi
+  target mất, invalid hoặc thay đổi tọa độ; các thay đổi public khác trả
+  `TARGET_PUBLIC_RECORD_MISMATCH`. Giữ nguyên contract source: dòng source invalid vẫn được inventory,
+  còn dataset source chỉ fail P0 khi không còn tọa độ hợp lệ nào.
+- **File đã sửa:** `scripts/dual-workbook-dry-run.js`, `test/dual-workbook-dry-run.test.js`,
+  `docs/location-intake/MIGRATION.md`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Hai workbook có thể cùng tập `record_id` nhưng target đã mất hoặc đổi dữ liệu công khai;
+  so ID/schema toàn dataset không đủ để xác minh fidelity của cutover.
+- **Kiểm tra:** targeted location-workbooks/dual-workbook-dry-run/google-sheet/published-locations và
+  full test/build/E2E/audit được chạy trước khi commit; không gọi hoặc sửa tài nguyên Google.

@@ -3,6 +3,7 @@ const test = require('node:test');
 
 const {
     LOCATION_CACHE_STALE_MAX_MS,
+    fetchGoogleVisualizationPayload,
     findVerifiedLocationMatches,
     formatVerifiedLocationsPrompt,
     getPublishedLocations,
@@ -46,6 +47,24 @@ function buildPayload(rows) {
 
 test.afterEach(() => {
     resetPublishedLocationsCache();
+});
+
+test('published-location fetch resolves the explicit public workbook, never the private workbook', async () => {
+    let requestedUrl = '';
+    await fetchGoogleVisualizationPayload({
+        env: {
+            PUBLIC_LOCATION_SPREADSHEET_ID: 'public-workbook',
+            PRIVATE_LOCATION_SPREADSHEET_ID: 'private-workbook',
+            GOOGLE_SHEET_ID: 'public-workbook',
+        },
+        fetchImpl: async url => {
+            requestedUrl = String(url);
+            return new Response('google.visualization.Query.setResponse({"table":{"cols":[],"rows":[]}});');
+        },
+    });
+
+    assert.match(requestedUrl, /public-workbook/);
+    assert.doesNotMatch(requestedUrl, /private-workbook/);
 });
 
 test('published locations dedupe identical rows and keep conflicting rows separate', async () => {

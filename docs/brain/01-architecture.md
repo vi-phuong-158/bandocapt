@@ -22,6 +22,27 @@ Chat location data path: `Google GViz -> lib/published-locations schema/dataset 
 `GET /api/google-sheet` only returns HTTP 200 for a public `Published_Locations` schema containing semantic
 `name` and `coordinates` columns. It returns `502 GOOGLE_SHEET_SCHEMA_MISMATCH` for a source/config mismatch.
 
+## Dual-workbook foundation (2026-08-10)
+
+- `lib/location-workbooks.js` is the sole resolver for public location sources. Public map, chatbot,
+  Vercel API and local `scripts/dev-server.js` reads use `PUBLIC_LOCATION_SPREADSHEET_ID`; only when it is absent can the current
+  `GOOGLE_SHEET_ID` act as a compatibility fallback. Setting both to different values, or using the
+  private workbook as the public source, fails closed before the Google GViz request.
+- `PRIVATE_LOCATION_SPREADSHEET_ID` has no public fallback. The boundary declares
+  `Published_Locations` public and `Unit_Allowlist`, `Location_Staging`, `Approval_Audit_Log`,
+  `Staff_Verification_Audit`, `Idempotency_Ledger`, `Intake_Setup_Info` and Form Responses private.
+- `scripts/dual-workbook-dry-run.js` accepts JSON exports only and is read-only. It inventories sheets,
+  validates the P0 public schema and coordinates, classifies boundaries, compares record IDs and can write
+  a local JSON cutover report. A target is not cutover-safe when its public dataset is empty/invalid,
+  source records are missing or unexpected, stable IDs are duplicated, a private column is public, a
+  source private sheet is absent, a shared record loses/invalidates/changes coordinates, its canonical
+  public data changes, or a sheet crosses the declared boundary. Fidelity comparison canonicalizes
+  approved Vietnamese/English labels and parsed coordinates per `record_id`. It rejects `--apply` and
+  `--write`, including assignment forms.
+- This foundation does not create workbooks, change Vercel/Production environment variables, migrate data,
+  deploy, or add Staff Portal runtime. A candidate must pass the published-locations smoke verifier before
+  alias promotion during any later cutover.
+
 ## Stack
 
 | Layer | Cong nghe |
@@ -60,6 +81,7 @@ bandocapt/
 |  `- tthc-catalog.js
 |- lib/
 |  |- output-validator.js
+|  |- location-workbooks.js
 |  |- published-locations.js
 |  |- request-security.js
 |  |- regression-metrics.js
@@ -71,6 +93,7 @@ bandocapt/
 |- setup/
 |- scripts/
 |  |- generate-tthc-catalog.js
+|  |- dual-workbook-dry-run.js
 |  `- read-feedback.js
 |- test/
 |- assets/
@@ -94,6 +117,7 @@ bandocapt/
 | `data/tthc-index.json` | Chi muc nhe `{procedure_id,title,aliases}` de chat doi chieu nhanh | `js/tthc-catalog.js` | `scripts/generate-tthc-catalog.js --index-only` |
 | `data/tthc-catalog.json` | Catalog TTHC tinh de nguoi dung doi chieu cau tra loi AI | `js/tthc-catalog.js` | sinh tu Pinecone live + audit phi, fallback backup khi local khong co key |
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai. T1.9: cau tra loi quoc tich ("Nguoi Viet Nam"...) KHONG phai dia danh — `NATIONALITY_ANSWER_PATTERN` loai khoi heuristic cau ngan; `isNationalityAnswerContext` cho `api/chat.js` ne nhanh tat dinh no_match khi bot vua hoi quoc tich | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
+| `lib/location-workbooks.js` | Resolves public/private workbook IDs with fail-closed conflict and boundary checks; explicitly classifies sheet trust boundary | `api/google-sheet.js`, `lib/published-locations.js`, migration dry-run, test | environment contract only; never Google credentials |
 | `lib/output-validator.js` | Fail-closed output guard: doi chieu va redact SDT/Maps/toa do/URL cong khai/so lieu phap ly khong co trong nguon xac minh; URL chi duoc giu khi xuat hien trong RAG/citation/tru so da duyet | `api/chat.js`, test | - |
 | `lib/request-security.js` | CORS, lay IP, HMAC request, sanitize diagnostic va Telegram alert dung chung | `api/chat.js`, `api/feedback.js` | Node crypto, fetch |
 | `lib/regression-metrics.js` | Dem tu Unicode-safe va giu ngan sach verbosity 120/250 dong bo voi prompt answer-first | `scripts/run-regression.js`, test | `Intl.Segmenter` Node 20 |
@@ -101,6 +125,7 @@ bandocapt/
 | `api/feedback.js` | Serverless nhan bao cao/phan hoi nguoi dung ve cau tra loi chatbot; tai dung CORS/HMAC/sanitize tu helper chung; rate limit best-effort IP/ngay + ghi `chat_feedback/<date_key>` tren RTDB voi TTL | `js/gemini.js` | `lib/request-security.js`, Firebase RTDB |
 | `scripts/read-feedback.js` | Doc `chat_feedback/<date_key>` tu RTDB, in bao cao theo ngay (loc `--down`) de admin ra soat | Developer / cron | Firebase RTDB, `.env` |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
+| `scripts/dual-workbook-dry-run.js` | Read-only JSON-export inventory and cutover comparison; validates P0 schema/coordinates and detects missing, unexpected or duplicate record IDs | Operator / test | `lib/location-workbooks.js`, `js/location-data.js` |
 | `api/chat.js` | Serverless chinh: xac thuc, rate limit atomic chi theo IP/ngay (khong quota tong ngay/thang), RAG Pinecone; Gemini chi mot request embedding/cau hoi RAG, DeepSeek V4 Flash sinh cau tra loi va utility (rewrite/dich/rerank/tom tat/groundedness, utility tat thinking); strict default khong fallback, stable chi DeepSeek 429/5xx -> Gemini; T2C deadline/telemetry; stream model da validator. (2026-08-06) `startSseHeartbeat()` phat `status:generating` moi 5s trong luc cho generation, tranh client tu huy do idle timeout gia | `js/gemini.js` | Pinecone, Gemini/DeepSeek, Firebase, `@vercel/functions`, `data/tthc-catalog.json`, `lib/published-locations.js`, `lib/request-security.js` |
 | `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live, mac dinh gom `tthc_*` + `guide_*` co noi dung (loc guide rong/noi bo), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
 | `scripts/scrape-phutho-tthc.js` | Thu thap tuan tu 18 linh vuc/chi tiet TTHC Cong an Phu Tho; sinh snapshot co hash + CSV doi chieu 39 record HIGH, khong tu dong approved/ghi Pinecone | Developer / nguoi duyet T3.3 | `https://congan.phutho.gov.vn/TTHC.aspx`, `data/corpus-governance-draft.csv` |
@@ -115,6 +140,7 @@ bandocapt/
 | `scripts/apply-phutho-tthc-approvals.js` | T3.4 chi merge 17 doi chieu da duyet va KBTT giu nguyen; backup pre/post, verify metadata va bat bien text/vector | Developer duoc uy quyen | Pinecone, snapshot + manifest duyet |
 | `scripts/patch-matt26265-mau-don.js` | Script mot-muc de xoa gia tri `mau_don` loi thoi cua `tthc_matt26265`; mac dinh dry-run, chi backup + upsert khi co `--apply`, giu nguyen vector/text/content_hash | Developer duoc uy quyen | Pinecone, `.env`, `data/pinecone-backups/` |
 | `setup/apps-script.js` | Pipeline private allowlist/staging/audit -> public published approval. Phan quyen hai chieu: `authorizeSubmission` (unitName+email -> authorized?) va `resolveUnitsByEmail` (email -> units[], chua co caller runtime, prerequisite Staff Portal) | Google Apps Script, `test/location-pipeline.test.js` | SpreadsheetApp; `PRIVATE_LOCATION_SPREADSHEET_ID`, `PUBLIC_LOCATION_SPREADSHEET_ID` |
+| `scripts/dev-server.js` | Local static server delegates `/api/google-sheet` to the production handler; never fetches or returns raw GViz directly | Developer | `api/google-sheet.js`, public workbook resolver/schema guard |
 | `scripts/preview-server.js` | Preview HTTP server dùng chung bởi Playwright global setup/teardown; tự đóng keep-alive connections | `test/e2e/global-setup.js`, `npm run preview` | Node `http` |
 | `scripts/run-regression.js` | Runner regression API that, loc theo ID (ca ID hoi thoai H16/H17); gui `evalDebug:true`, cham 30 ca va bao cao latency tong cung p50/p95 theo tung stage eval-only, provider/fallback. `--strict-gate` chan hard fail/provider error; `--majority`/`--runs N` tong hop hard fail da so va flaky advisory | CLI / agent | `api/chat.js`, `lib/regression-grader.js`, `lib/regression-metrics.js`, expectations/conversations va `test/results/` |
 | `scripts/repair-pinecone-temp-residence.js` | Script sua Pinecone `tthc_matt26265`: backup, re-embed, upsert UTF-8 sach, verify top-1 | CLI / agent | Pinecone, Gemini Embedding API, `.env`, `data/pinecone-backups/` |

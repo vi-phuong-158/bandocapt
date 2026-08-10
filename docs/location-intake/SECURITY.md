@@ -20,6 +20,11 @@
   `buildStagingRecord` và `applyApproval` (phòng ô `validation_errors` bị xoá tay trong Sheet). Nhờ vậy
   một `create` không bao giờ ghi đè được bản ghi đang có trong `Published_Locations`, kể cả bản ghi của
   chính đơn vị mình — ca mà kiểm tra cross-unit không bắt được.
+- **Dual-workbook foundation:** public readers resolve only `PUBLIC_LOCATION_SPREADSHEET_ID`, or the
+  temporary compatibility value `GOOGLE_SHEET_ID` when the explicit public variable is absent. A public/
+  legacy conflict or a public ID equal to `PRIVATE_LOCATION_SPREADSHEET_ID` fails closed. The P0 semantic
+  schema guard remains mandatory. `Unit_Allowlist`, staging, all audits, `Idempotency_Ledger`, setup data
+  and Form Responses are classified private and must never be exposed by `/api/google-sheet`.
 - **Còn mở:** `Unit_Allowlist` (email cán bộ) nằm cùng bảng tính với `Published_Locations`, mà bảng tính
   đó phải cho "ai có liên kết đều xem" để endpoint GViz không xác thực trong `lib/published-locations.js`
   đọc được. `GOOGLE_SHEET_ID` là biến môi trường, không phải kiểm soát truy cập. Phải tách

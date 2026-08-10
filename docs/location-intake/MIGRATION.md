@@ -2,6 +2,30 @@
 
 Script migration làm việc với file JSON export, không ghi trực tiếp vào Google Sheet production.
 
+## Dual-workbook foundation — dry-run only
+
+`npm run migrate:locations:dual:dry-run -- --source <source-export.json> --target <target-export.json>`
+never contacts Google or writes a workbook. It inventories sheets and row counts, checks the semantic
+`Published_Locations` schema plus coordinate validity, classifies public/private sheets, compares public
+`record_id` values and reports missing, unexpected and duplicate records. Add `--report <file>` only to
+write a local JSON evidence report. `--apply` and `--write` are deliberately rejected.
+
+Treat a non-empty `blockers` list as a failed cutover check. In particular, an empty/invalid public target,
+known private columns in public data, missing or unexpected public records, duplicate published/staging
+stable IDs, missing source private sheets in the private target, unknown sheets, or a public/private
+boundary leak must not proceed to cutover.
+
+For each `record_id` shared by source and target, the tool compares canonical public fields and parsed
+coordinates. It blocks `TARGET_COORDINATE_LOST`, `TARGET_COORDINATE_INVALID`, or
+`TARGET_COORDINATE_CHANGED` per record; a non-coordinate public difference is
+`TARGET_PUBLIC_RECORD_MISMATCH`. Approved Vietnamese/English column aliases and formatting-only coordinate
+differences resolve to the same semantic value.
+
+Expected target export shape is `{ "public": { "sheets": { ... } }, "private": { "sheets": { ... } } }`.
+Use TEST exports for smoke exercises. No Production workbook or Production environment must be changed by
+this command. Before any later alias promotion, run `npm run verify:published-locations` against the
+candidate deployment and require valid semantic columns and coordinates.
+
 ```powershell
 # Xem báo cáo, không thay đổi nguồn
 npm run migrate:locations -- --input .\published-export.json

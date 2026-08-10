@@ -1,5 +1,29 @@
 # 03 — Technical Decisions
 
+## [2026-08-10] Dual-workbook foundation without production cutover
+
+- **Decision:** Public location readers resolve `PUBLIC_LOCATION_SPREADSHEET_ID` first and use the
+  existing `GOOGLE_SHEET_ID` only as a temporary, tested compatibility fallback. If both variables are
+  set they must be equal; a configured private ID must never equal the public source. Every mismatch fails
+  closed before a GViz request.
+- **Decision:** `PRIVATE_LOCATION_SPREADSHEET_ID` is an explicit server-side/Apps Script contract with no
+  public fallback. `Published_Locations` is the sole public sheet. Allowlist, staging, verification audit,
+  idempotency ledger, intake setup and Form Responses are private by declaration and must not appear in a
+  public endpoint.
+- **Decision:** The new dual-workbook migration utility is JSON-export, dry-run only. It rejects write
+  flags, reports inventory/schema/coordinate/boundary/record-ID differences, and never contacts Google.
+  Empty or invalid public targets, public exposure of known private columns, source/target `record_id`
+  mismatch, duplicate published/staging IDs, missing private target sheets and boundary violations are
+  explicit cutover blockers rather than advisory report fields.
+  For a shared `record_id`, it also compares canonical public fields (including semantic name) and parsed
+  coordinates: loss, invalidity or location drift must block even when other target records remain valid.
+  Existing source behavior is retained: individual invalid source rows are reported, while a non-empty
+  source only fails the P0 dataset guard when it has no valid coordinates at all.
+  A future production cutover must validate a candidate with `verify:published-locations` before alias
+  promotion; it cannot substitute an unverified source workbook.
+- **Consequence:** This change adds capability only. It does not create or migrate production workbooks,
+  change production environment variables, deploy, or implement Staff Portal authentication/runtime.
+
 ## [2026-08-09] Khóa crash recovery Drive của Idempotency Ledger
 
 - **Không dùng `IN_PROGRESS` mơ hồ:** ledger private có `CLAIMED`, `UPLOAD_PERSISTED`,
