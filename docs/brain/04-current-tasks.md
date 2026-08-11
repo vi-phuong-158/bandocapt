@@ -1,5 +1,13 @@
 # 04 — Current Tasks
 
+## [DONE 2026-08-11] PR #47 — Staff Auth + Vercel Staff API Gate
+
+- PR #46 was verified merged before implementation; this branch is based on its merge commit.
+- Implemented server-only `/api/staff/*` auth/session/CSRF/origin gate, Gateway caller, protected locations,
+  verification and request mutation routes. Added shared snapshot contract and server-side unit filtering.
+- Added focused security/API/gateway tests. No UI, migration, seed, production environment change, or deploy.
+- Validation status is recorded in `docs/brain/06-ai-working-log.md` and the final task handoff.
+
 ## Cập nhật rate limit ngày 2026-07-23
 
 - `/api/chat` chỉ còn giới hạn theo IP/ngày qua Firebase ETag/CAS (`CHAT_DAILY_IP_LIMIT`, mặc định 50).

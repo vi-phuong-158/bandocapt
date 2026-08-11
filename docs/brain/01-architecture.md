@@ -505,3 +505,39 @@ Biến mới (2026-07-13):
   - **[2026-07-17] Cap là ưu tiên MỀM (không phải ràng buộc cứng).** Vai trò nguồn + hiệu lực fail-closed là cứng; cấp thực hiện chỉ thu hẹp kết quả KHI có thủ tục đúng cấp người dùng nêu. `api/chat.js` nới fallback governance theo thứ tự `(lĩnh vực+cap) → (lĩnh vực, bỏ cap) → (bỏ cả hai)` — giữ lĩnh vực lâu hơn cấp; `filterGovernedMatches` trả nhóm governed cấp khác nếu 0 match đúng cấp. Lý do: namespace web có đăng ký xe chỉ ở cấp tỉnh trong khi dân nộp ở cấp xã → cap cứng sẽ khiến bot từ chối oàn. Doc retrieve mang "Cấp thực hiện" để model nêu cấp thật.
   - Context tối đa 4 tài liệu luôn giữ một `current_procedure` nếu có; chỉ nguồn này sinh `[FACTS ĐÃ XÁC MINH]`. Header RAG ghi rõ vai trò để `legal_basis`/`supplemental` không ghi đè facts vận hành.
   - `scripts/backfill-law-guide-governance.js` chỉ gắn nhãn law/guide và đặt record chưa có quyết định thành `pending`; dry-run báo riêng các guide `Toàn văn thủ tục`. `--apply`/`--rollback` bắt buộc xác nhận namespace, lưu full record (vector + metadata), retry verify và rollback bằng upsert.
+
+## Vercel Staff API Gate (PR #47, 2026-08-11)
+
+- **Auth boundary:** `api/staff/auth/{csrf,google,logout}.js` and `api/staff/{session,locations,requests,verification}.js`
+  are thin route adapters over `lib/staff-api.js`. `lib/staff-auth.js` verifies Google ID tokens with
+  `google-auth-library`; `lib/staff-session.js`, `lib/staff-csrf.js`, and `lib/staff-origin.js` own the
+  cookie, double-submit token, and exact Origin policy.
+- **Authorization boundary:** `lib/staff-api.js` calls `lib/staff-gateway-client.js` `resolveUnits` for
+  login and every protected request. Unit ownership is derived from the Gateway response and public
+  records are filtered by normalized `unitCode`/`unit_code`; no private workbook is read by Vercel.
+- **Mutation flow:** browser `operationId` -> server derives `request_id` from verified Google `sub`, action,
+  and operation ID -> server validates current public target/snapshot and explicit allowlisted fields ->
+  `staff-gateway-client` signs the exact UTF-8 JSON envelope -> private Gateway performs final validation and
+  idempotency. Transport retry reuses the exact body/request ID with a fresh timestamp signature.
+- **Snapshot contract:** `lib/staff-location-contract.js` is UMD so the same canonical field allowlist and
+  stable serialization are bundled before the Apps Script Gateway by `scripts/build-location-intake-apps-script.js`.
+  Vercel and Gateway therefore compute the same `snapshot_hash`; stale or cross-unit mutations fail closed.
+- **Operational limits:** Vercel staff responses are no-store and map Gateway failures to safe codes. Vercel
+  rejects decoded images over 3 MiB; the private Gateway retains its independent 10 MiB decoded cap.
+- **Configuration/dependency:** server runtime requires `GOOGLE_CLIENT_ID`, `STAFF_SESSION_SECRET`,
+  `STAFF_GATEWAY_URL`, `LOCATION_GATEWAY_SECRET`, and explicit `PUBLIC_LOCATION_SPREADSHEET_ID` (with the
+  existing public resolver rules). `google-auth-library` is the only new runtime dependency. This PR adds
+  no UI, migration, seed, production env mutation, or deployment.
+
+### PR #47 code graph
+
+```text
+api/staff/auth/* ─┐
+api/staff/{session,locations,requests,verification}.js
+                  └─> lib/staff-api.js
+                      ├─> staff-auth.js -> google-auth-library
+                      ├─> staff-session.js / staff-csrf.js / staff-origin.js
+                      ├─> staff-gateway-client.js -> Apps Script Gateway /exec
+                      ├─> published-locations.js -> public Published_Locations
+                      └─> staff-location-contract.js -> same contract in Gateway bundle
+```

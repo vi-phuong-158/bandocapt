@@ -1,5 +1,19 @@
 # 06 — AI Working Log
 
+## [2026-08-11] PR #47 — Staff Auth + Vercel Staff API Gate
+- **Agent:** Codex
+- **Thay đổi:** Implemented server-only Google AuthN + Gateway Unit AuthZ, signed staff session, exact Origin/CSRF gate, protected locations, verification and request routes, bounded signed Gateway client, shared snapshot hash contract, unit ownership/stale-snapshot checks, safe errors and 3 MiB decoded image preflight.
+- **File đã sửa:** `api/staff/`, `lib/staff-api.js`, `lib/staff-api-errors.js`, `lib/staff-auth.js`, `lib/staff-csrf.js`, `lib/staff-gateway-client.js`, `lib/staff-location-contract.js`, `lib/staff-origin.js`, `lib/staff-session.js`, `js/location-data.js`, `setup/staff-gateway.js`, `scripts/build-location-intake-apps-script.js`, `package.json`, `package-lock.json`, `vercel.json`, staff tests, architecture/security/API docs.
+- **Lý do:** Deliver PR #47 only after PR #46 merge, preserving server-only trust boundaries and avoiding UI, migration, seed, production env changes or deployment.
+- **Kiểm tra:** Focused 51/51 PASS; `npm.cmd test` 440/440 PASS; `npm.cmd run build` PASS; `npm.cmd run test:e2e` 19/19 PASS; `npm.cmd audit --omit=dev --audit-level=high` exit 0 with 9 moderate transitive `uuid` findings and no high findings; `git diff --check` sạch; auth-bypass grep không có kết quả.
+
+## [2026-08-11] PR #47 remediation — authoritative snapshot + error/test hardening
+- **Agent:** Codex
+- **Thay đổi:** Added authoritative `forceRefresh: true, allowStale: false` mutation reads, fail-closed `STAFF_PUBLIC_SOURCE_UNAVAILABLE`, create-path read elimination, corrected local/remote Gateway error mapping, isolated Google claim negatives, and AbortError retry regression coverage.
+- **File đã sửa:** `lib/published-locations.js`, `lib/staff-api.js`, `lib/staff-api-errors.js`, `lib/staff-gateway-client.js`, `test/published-locations.test.js`, staff tests, `docs/location-intake/STAFF_API.md`, `docs/location-intake/SECURITY.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Close independent PR #47 review findings without expanding into `/can-bo`, UI, migration, seed, production configuration, or deployment.
+- **Kiểm tra:** Focused 37/37 PASS; `npm.cmd test` 443/443 PASS; `npm.cmd run build` PASS; `npm.cmd run test:e2e` 19/19 PASS; audit exit 0 with 9 moderate transitive `uuid` findings and no high findings; `git diff --check` sạch.
+
 ## [2026-08-11] Private Apps Script Gateway V2
 - **Agent:** Codex
 - **Thay đổi:** Tách pure Gateway core và Apps Script adapter cho ba action; thêm raw-body HMAC/freshness,

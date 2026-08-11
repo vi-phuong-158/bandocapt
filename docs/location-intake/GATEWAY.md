@@ -1,8 +1,7 @@
 # Private Apps Script Gateway V2
 
-Gateway V2 là lớp cuối private dành cho Staff Portal trong các phase sau. PR này chỉ thêm
-`doPost(e)` và business core; chưa có Staff Portal UI, authentication, Vercel staff API hay Production
-cutover.
+Gateway V2 là lớp cuối private dành cho Staff Portal. PR #46 thêm `doPost(e)` và business core;
+PR #47 thêm Vercel staff API server caller/auth gate. Chưa có Staff Portal UI hay Production cutover.
 
 ## Contract
 
@@ -43,6 +42,22 @@ STAFF_GATEWAY_IMAGE_FOLDER_ID
 ```
 
 `LOCATION_GATEWAY_SECRET` không nằm trong source. `STAFF_GATEWAY_IMAGE_FOLDER_ID` phải là thư mục
+
+## Vercel staff API caller (PR #47)
+
+- Browser chỉ gọi `/api/staff/*`; chỉ server route của Vercel được phép gọi Gateway.
+- Vercel gửi đúng một JSON envelope mỗi attempt: `{"action","request_id","payload"}`. Chuỗi được
+  `JSON.stringify` một lần, ký bằng `HMAC-SHA256(LOCATION_GATEWAY_SECRET, timestamp + "." + raw_body)` và
+  truyền `timestamp`/`signature` trong query string `/exec`.
+- Retry chỉ dành cho lỗi transport/timeout, tối đa một lần; retry giữ nguyên raw body và `request_id` nhưng
+  ký timestamp mới. Gateway là nơi bảo vệ idempotency cuối cùng.
+- `request_id` được server derive từ verified Google `sub`, action và client `operationId`; client không được
+  gửi identity, unit hoặc request ID để thay thế.
+- Các mutation gửi `record_snapshot` và `snapshot_hash` lấy từ public snapshot hiện tại. Snapshot hash dùng
+  contract chung `lib/staff-location-contract.js`; mismatch bị từ chối trước Gateway.
+- Image bị giới hạn 3 MiB decoded ở Vercel trước khi gọi Gateway (Gateway vẫn giữ giới hạn 10 MiB).
+- Response lỗi từ Gateway được map thành mã an toàn; raw body, chữ ký, stack trace, Drive ID và private row
+  không được trả về browser.
 private; `submitRequest` không gọi `ANYONE_WITH_LINK`.
 
 ## Idempotency and recovery

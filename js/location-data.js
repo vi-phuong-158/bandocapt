@@ -29,6 +29,7 @@
         cccdServiceMode: ['cccd_service_mode', 'cccd service mode', 'hinh thuc tiep nhan can cuoc'],
         serviceSchedule: ['service_schedule', 'service schedule', 'lich va thoi gian tiep nhan'],
         servedUnits: ['served_units', 'served units', 'dia ban hoac don vi duoc phuc vu'],
+        unitCode: ['unit_code', 'unit code', 'ma don vi'],
         status: ['status', 'trang thai'],
         verifiedAt: ['verified_at', 'verified at', 'ngay xac minh'],
     });
@@ -163,6 +164,7 @@
             const services = normalizeServices(getCellValue(row, indexes.services), typeRaw);
             locations.push({
                 id: String(getCellValue(row, indexes.recordId) || sourceRow),
+                unitCode: String(getCellValue(row, indexes.unitCode) || '').trim(),
                 name,
                 type: services.includes('POLICE_OFFICE') ? 'police_station' : (/CCCD|can cuoc|id[ _]center/i.test(normalizeLabel(typeRaw)) ? 'id_center' : 'police_station'),
                 address: String(getCellValue(row, indexes.address) || '').trim(),
