@@ -36,6 +36,19 @@
 
 Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, Spreadsheet và thư mục ảnh. Khi nghi lộ ảnh hoặc cấu hình sai, thu hồi quyền Drive trước, sau đó xử lý record published và audit theo quy trình vận hành.
 
+## Staff Portal browser security (PR #48)
+
+- `/can-bo` is a presentation layer only. The browser receives no Gateway URL/secret, private workbook ID,
+  private row, session cookie value or server-derived request ID.
+- The Google callback reference is used only long enough to POST `{ credential }` to Vercel. The client does
+  not decode JWT claims, use email/sub for authorization, log the token, or write it to storage.
+- API/Sheet text is inserted with `textContent`/form values and DOM node creation. Portal forms keep record
+  ID and snapshot hash in application memory; staff are never asked to type either value.
+- The route-specific CSP allowlists only `accounts.google.com/gsi/client` and its GIS iframe/style/connect
+  endpoints. The generic site CSP excludes `/can-bo` so conflicting CSP headers are not combined.
+- Browser image compression targets 2.5 MiB; Vercel's existing 3 MiB decoded preflight and Gateway magic
+  byte checks remain authoritative. No mutation retries a stale snapshot silently.
+
 ## Private Gateway V2
 
 - Browser không được gọi Apps Script gateway trực tiếp; chỉ Vercel server đã xác thực mới được ký HMAC.

@@ -116,6 +116,35 @@ bandocapt/
 `- package.json
 ```
 
+## Staff Portal browser UI (PR #48, 2026-08-11)
+
+- `/can-bo` is a static, mobile-first entry (`can-bo/index.html`). Its browser assets are split into
+  `js/staff-portal.js` (state machine and safe DOM rendering), `js/staff-api-client.js` (same-origin
+  Vercel DTO client), `js/staff-google-signin.js` (official GIS rendered button), `js/staff-image.js`
+  (device-side image compression), and `styles/staff-portal.css` (design-system tokens).
+- The browser boot sequence is `GET /api/staff/auth/csrf` then `GET /api/staff/session`. A valid session
+  loads `GET /api/staff/locations`; a 401 renders login and `STAFF_ACCESS_REVOKED` clears private UI.
+  The browser never reads the HttpOnly session cookie or decodes/stores the Google credential.
+- State-changing calls carry the CSRF token in JS memory. API request DTOs are built explicitly; create
+  omits target/hash, target mutations carry the displayed record/hash, verification carries only its
+  confirmation DTO, and operation IDs are stable for the same retry payload.
+- The static builder keeps `can-bo/index.html` unhashed while hashing every portal CSS/JS asset. Preview
+  routing maps both `/can-bo` and `/can-bo/` to that entry. Vercel excludes both paths from the generic
+  CSP and applies the narrow GIS CSP/COOP/no-store security headers.
+
+### PR #48 code graph
+
+```text
+can-bo/index.html
+  -> js/staff-portal.js
+      -> js/staff-api-client.js -> /api/staff/* -> lib/staff-api.js
+      -> js/staff-google-signin.js -> accounts.google.com/gsi/client
+      -> js/staff-image.js -> browser canvas/FileReader only
+  -> styles/staff-portal.css -> tokens.css
+scripts/build-static.js -> dist/can-bo/index.html + hashed portal assets
+vercel.json -> portal-specific CSP/COOP/no-store headers
+```
+
 ## Code Graph
 
 | Module / file | Vai tro | Duoc goi boi | Phu thuoc vao |

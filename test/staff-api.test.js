@@ -287,3 +287,17 @@ test('staff image preflight rejects malformed and over-cap decoded payloads', ()
     const tiny = Buffer.from('synthetic').toString('base64');
     assert.equal(validateStaffImage({ base64: tiny }).base64, tiny);
 });
+
+test('public staff auth config exposes only the Google client id and fails closed when missing', async () => {
+    const configured = response();
+    await createStaffApi({ env: ENV }).config(request('GET', null), configured);
+    assert.equal(configured.statusCode, 200);
+    assert.deepEqual(configured.body, { ok: true, data: { googleClientId: ENV.GOOGLE_CLIENT_ID } });
+    assert.equal(configured.headers.get('Cache-Control'), 'no-store');
+
+    const missing = response();
+    await createStaffApi({ env: { ...ENV, GOOGLE_CLIENT_ID: '' } }).config(request('GET', null), missing);
+    assert.equal(missing.statusCode, 503);
+    assert.deepEqual(missing.body, { ok: false, error: { code: 'STAFF_AUTH_CONFIG_INVALID' } });
+    assert.equal(JSON.stringify(missing.body).includes('STAFF_SESSION_SECRET'), false);
+});

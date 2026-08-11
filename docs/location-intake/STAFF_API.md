@@ -59,6 +59,18 @@ stable stringify. The same module is included before Gateway V2 in the Apps Scri
 and its 10 MiB decoded image limit remain unchanged. Vercel preflights images at **3 MiB decoded** because
 the Vercel request platform limit is lower. Future PR #48 owns resize/compression UI.
 
+## Browser portal additions (PR #48)
+
+`GET /api/staff/auth/config` is a public, `no-store` endpoint that returns only
+`{ ok: true, data: { googleClientId } }` from `GOOGLE_CLIENT_ID`. It returns HTTP 503 with
+`STAFF_AUTH_CONFIG_INVALID` when the client ID is missing and never returns session, Gateway or private
+configuration.
+
+The browser route is `/can-bo`; it bootstraps CSRF then session, renders the official Google Identity
+Services button without One Tap, and posts the callback credential only to `/api/staff/auth/google`.
+Credential, session cookie and CSRF token are never persisted in browser storage. Portal reads and writes
+remain same-origin Vercel calls; the browser never calls Apps Script directly.
+
 ## Cutover dependency
 
 The public workbook must contain `unit_code` for ownership filtering. A current public record can still be

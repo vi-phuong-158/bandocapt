@@ -1,5 +1,21 @@
 # 06 — AI Working Log
 
+## [2026-08-11] PR #48 — `/can-bo` staff portal UI and Google sign-in browser flow
+- **Agent:** Codex
+- **Thay đổi:** Thêm portal static mobile-first, official GIS rendered button, CSRF/session bootstrap,
+  authorized-unit/location cards, confirm/create/update/wrong-location/stop request flows, explicit DTO
+  builders, stable operation IDs, browser image compression, stale-snapshot UX, auth config endpoint,
+  route-specific CSP/COOP and `/can-bo` build/preview routing.
+- **File đã sửa:** `can-bo/index.html`, `js/staff-portal.js`, `js/staff-api-client.js`,
+  `js/staff-google-signin.js`, `js/staff-image.js`, `styles/staff-portal.css`, `lib/staff-api.js`,
+  `api/staff/auth/config.js`, `scripts/build-static.js`, `scripts/preview-server.js`, `vercel.json`,
+  staff portal tests, `docs/brain/`, `docs/location-intake/`.
+- **Lý do:** PR #47 đã merged; PR #48 cần cung cấp presentation layer mà không làm browser thành authority,
+  không gọi Apps Script trực tiếp và không triển khai P2 workbook cutover.
+- **Kiểm tra:** Focused staff API/client/build tests PASS; `npm.cmd run build` PASS; full `npm.cmd test`
+  còn một test cũ fail do generic Vercel route regex chứa `|`, sau đó đã sửa bằng chained negative lookahead
+  và focused regression PASS. Real Google Sign-In, Vercel Preview và Production chưa chạy.
+
 ## [2026-08-11] PR #47 — Staff Auth + Vercel Staff API Gate
 - **Agent:** Codex
 - **Thay đổi:** Implemented server-only Google AuthN + Gateway Unit AuthZ, signed staff session, exact Origin/CSRF gate, protected locations, verification and request routes, bounded signed Gateway client, shared snapshot hash contract, unit ownership/stale-snapshot checks, safe errors and 3 MiB decoded image preflight.

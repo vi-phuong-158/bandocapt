@@ -287,6 +287,14 @@
 - **Uu tien:** Trung binh
 - **Kiem tra:** `npm run gen:catalog`; `npm test`; xac nhan `missingFromBackups` giam khi bo sung backup va catalog van build duoc o mode backup.
 
+## [IMPLEMENTING 2026-08-11] PR #48 `/can-bo` browser portal
+
+- PR #47 is merged in `main` (`edbd21e`); implementation is allowed on `feat/staff-location-portal-ui`.
+- Scope is limited to the browser UI, Google GIS sign-in flow, static build/routing, route CSP and client
+  tests. It does not migrate workbooks, seed operational baseline data, deploy production, or add admin UI.
+- The operational baseline remains a P2 dependency. `STAFF_OPERATIONAL_BASELINE_NOT_READY` must remain a
+  safe user-facing response and must not be bypassed by the browser.
+
 ### Hoan thanh gan day
 - [2026-07-10] TASK-FEEDBACK-01: Tinh nang Bao cao Chatbot. Them `api/feedback.js` (nhan vote 👍/👎 + form bao cao chi tiet), `js/gemini.js` `sendFeedback`, noi 2 nut co san trong `js/chatbot.js` + form + `turn_id` client, `scripts/read-feedback.js` de admin doc bao cao theo ngay. Luu RTDB `chat_feedback/<date_key>`, sanitize PII, TTL 90 ngay. `npm test` 144/144. Chi tiet: `03-decisions.md` (2026-07-10) va `06-ai-working-log.md`. Ton dong (tuy chon): (1) neu muon dashboard/query manh hon co the chuyen luu sang Firestore collection thay RTDB; (2) neu muon thong bao tuc thoi co the them webhook email/Telegram.
 - [2026-07-10] Fix catalog guide rong + dong bo `npm run gen:catalog`: generator mac dinh sinh catalog day du co guide, nhung bo guide khong co noi dung wiki va khong suy phi tu tieu de. Snapshot con 92 muc (35 tthc + 57 guide co noi dung), van du 17 linh vuc. `npm test` 121/121.

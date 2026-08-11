@@ -1305,6 +1305,20 @@
 - **Tác động:** Không đổi cờ `RAG_GOVERNANCE_FILTER` hay namespace production; áp dụng cho dry-run/apply importer và retrieval ứng viên.
 ## [2026-08-03] Location intake uses canonical record IDs and generated Apps Script
 
+## [2026-08-11] PR #48 browser staff portal boundary
+
+- **Decision:** Keep `/can-bo` as a vanilla static page. The browser uses only the Vercel Staff API;
+  it never calls Apps Script, reads a workbook, receives a Gateway secret, or decides authorization.
+- **Decision:** Load CSRF then session before rendering private location forms. Use the official Google
+  Identity Services rendered button without One Tap, JWT decoding, credential persistence, or OAuth revoke.
+- **Decision:** Add `GET /api/staff/auth/config` as a no-store public config endpoint returning only
+  `GOOGLE_CLIENT_ID`; missing configuration fails closed with `STAFF_AUTH_CONFIG_INVALID`/503.
+- **Decision:** Use explicit client DTO builders and in-memory operation-id reuse for retries. Image input
+  is compressed toward 2.5 MiB before the existing Vercel 3 MiB decoded limit; mutations never update a
+  public card optimistically and stale snapshots are refreshed without silent retry.
+- **Decision:** `/can-bo` and `/can-bo/*` get a separate CSP with the narrow GIS allowlist and
+  `same-origin-allow-popups`; the generic site CSP excludes these routes to avoid duplicate headers.
+
 - **Decision:** A location is identified by `record_id`, not `unit_code`. A unit can have multiple locations; update, report and stop requests require an existing `target_record_id` and cannot silently become creates.
 - **Decision:** `setup/apps-script.js` is the only business-rule source. The Apps Script deployable is generated from it plus a thin integration runtime, keeping Node tests and Google runtime behavior aligned.
 - **Decision:** `Published_Locations` and `api/google-sheet.js` use explicit public field allowlists. Internal submitter/reviewer/validation data stays in staging even if a sheet configuration accidentally exposes extra columns.
