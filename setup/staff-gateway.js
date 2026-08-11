@@ -1,7 +1,9 @@
 (function (root, factory) {
-    if (typeof module === 'object' && module.exports) module.exports = factory();
-    else if (root) root.StaffLocationGateway = factory(root.LocationApprovalPipeline, root.LocationWorkbookConfig);
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (defaultPipeline, defaultWorkbookConfig) {
+    if (typeof module === 'object' && module.exports) module.exports = factory(
+        require('../lib/staff-location-contract'), require('./apps-script'), require('../lib/location-workbooks')
+    );
+    else if (root) root.StaffLocationGateway = factory(root.StaffLocationContract, root.LocationApprovalPipeline, root.LocationWorkbookConfig);
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (staffLocationContract, defaultPipeline, defaultWorkbookConfig) {
     'use strict';
 
     const ACTIONS = Object.freeze(['resolveUnits', 'submitRequest', 'writeVerificationEvent']);
@@ -13,11 +15,8 @@
     const ALLOWED_IMAGE_TYPES = Object.freeze({ jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' });
     const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
     const FRESHNESS_WINDOW_MS = 5 * 60 * 1000;
-    const SNAPSHOT_FIELDS = Object.freeze([
-        'record_id', 'unit_code', 'name', 'type', 'address', 'phone', 'coordinates', 'image_url',
-        'search_aliases', 'updated_at', 'site_type', 'services', 'google_maps_url',
-        'cccd_service_mode', 'service_schedule', 'served_units', 'status', 'verified_at',
-    ]);
+    if (!staffLocationContract) throw gatewayError('GATEWAY_RUNTIME_NOT_CONFIGURED');
+    const { SNAPSHOT_FIELDS, stableStringify } = staffLocationContract;
     const VERIFICATION_EVENTS = Object.freeze(['CONFIRM']);
 
     function gatewayError(code, details = {}) {
@@ -28,19 +27,6 @@
     }
 
     function text(value) { return String(value == null ? '' : value).trim(); }
-
-    function stableValue(value) {
-        if (Array.isArray(value)) return value.map(stableValue);
-        if (value && typeof value === 'object') {
-            return Object.keys(value).sort().reduce((result, key) => {
-                result[key] = stableValue(value[key]);
-                return result;
-            }, {});
-        }
-        return value;
-    }
-
-    function stableStringify(value) { return JSON.stringify(stableValue(value)); }
 
     function bytesToHex(bytes) {
         return Array.from(bytes || [], value => (Number(value) & 0xff).toString(16).padStart(2, '0')).join('');

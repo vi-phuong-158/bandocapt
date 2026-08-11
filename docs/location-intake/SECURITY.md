@@ -45,3 +45,24 @@ Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, S
   `Approval_Audit_Log` và `Idempotency_Ledger` trong private workbook. Không publicize ảnh trong submit.
 - `LOCATION_GATEWAY_SECRET` và `STAFF_GATEWAY_IMAGE_FOLDER_ID` chỉ ở Script Properties. PR này không deploy
   Apps Script hoặc thay Production properties.
+
+## Vercel Staff API (PR #47)
+
+- Google AuthN và Unit_Allowlist AuthZ là hai lớp riêng. Vercel chỉ nhận `{ credential }`, xác minh bằng
+  `google-auth-library`/`GOOGLE_CLIENT_ID`, dùng Google `sub` làm identity session và gọi Gateway
+  `resolveUnits` để biết quyền hiện tại. Không tin email/sub/name từ body và không restrict chỉ bằng domain.
+- Session là stateless HMAC-SHA256 cookie `staff_session` với `STAFF_SESSION_SECRET` riêng, tối thiểu 32
+  ký tự, `HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=28800`. Thiếu/ yếu secret fail closed.
+- Mọi POST Staff API yêu cầu exact `Origin` từ `STAFF_ALLOWED_ORIGINS` (hoặc origin Preview/Production
+  được Vercel derive chính xác) và CSRF cookie/header constant-time. Không có permissive CORS.
+- Mỗi request protected re-resolves allowlist. Session hợp lệ nhưng email bị deactivate trả
+  `STAFF_ACCESS_REVOKED` và có thể xóa cookie ngay.
+- Gateway URL/secret chỉ nằm server-side. Payload được allowlist và server tự inject email, unit và
+  request ID; không spread body client sang Gateway. `operationId` bị giới hạn charset/độ dài, còn
+  `request_id` là SHA-256 deterministic từ verified `sub + action + operationId`.
+- `/api/staff/locations` chỉ đọc `Published_Locations` qua public resolver và lọc `unit_code`; không đọc
+  private workbook. Snapshot hash dùng contract chung với Gateway. Mọi update/correct/stop/confirm phải
+  kiểm ownership + hash hiện tại trước khi gọi Gateway; stale trả HTTP 409 và không có side effect.
+- Vercel giới hạn ảnh ở 3 MiB decoded; Gateway vẫn là authority magic-byte/10 MiB. Các response private
+  đều `Cache-Control: no-store`.
+- PR này không tạo auth bypass, không migrate/seed workbook, không thay Production env và không tạo UI.

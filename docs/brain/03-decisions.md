@@ -1,5 +1,22 @@
 # 03 — Technical Decisions
 
+## [2026-08-11] Vercel Staff Auth/API Gate (PR #47)
+
+- **Decision:** Authenticate with Google ID tokens through the official `google-auth-library`, then resolve
+  authorized units from the private Apps Script Gateway on every login and protected request. The browser
+  cannot assert email, Google subject, unit, or authorization.
+- **Decision:** Use a stateless HMAC-signed `staff_session` cookie with an eight-hour TTL, `HttpOnly`,
+  `Secure`, `SameSite=Strict`, and a fail-closed `STAFF_SESSION_SECRET` of at least 32 characters. Session
+  revocation is enforced by a fresh Gateway `resolveUnits` call rather than a client-visible allowlist cache.
+- **Decision:** State-changing staff requests require an exact configured Origin and double-submit CSRF token.
+  Gateway calls are server-only and use the exact UTF-8 JSON body, HMAC query signature, bounded transport
+  retry, and deterministic request ID derived from verified subject/action/operation ID.
+- **Decision:** Public locations are filtered by authorized `unit_code`; verification and update/correct/stop
+  operations require a fresh shared snapshot hash and target ownership. Vercel rejects decoded images over
+  3 MiB before the Gateway's existing 10 MiB limit.
+- **Consequence:** This is an API/auth layer only. No Staff Portal UI, schema migration, seed, production
+  environment mutation, Apps Script deployment, or alias promotion is included.
+
 ## [2026-08-11] Private Apps Script Gateway V2
 
 - **Decision:** Keep Gateway V2 as a pure core plus Apps Script adapter. `doPost(e)` verifies the exact

@@ -27,6 +27,15 @@
       ]
     },
     {
+      "source": "/api/staff/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
       "source": "/chat-embed.html",
       "headers": [
         {
