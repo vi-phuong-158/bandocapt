@@ -1,5 +1,22 @@
 # 03 — Technical Decisions
 
+## [2026-08-11] Private Apps Script Gateway V2
+
+- **Decision:** Keep Gateway V2 as a pure core plus Apps Script adapter. `doPost(e)` verifies the exact
+  raw body, timestamp and signature before JSON parsing or opening the private workbook. The only allowed
+  actions are `resolveUnits`, `submitRequest`, and `writeVerificationEvent`.
+- **Decision:** Use `LocationWorkbookConfig.resolvePrivateLocationWorkbook()` as the only private ID
+  resolver. Gateway-only sheets are not created by the legacy Form setup. `PRIVATE_LOCATION_SPREADSHEET_ID`
+  and `LOCATION_GATEWAY_SECRET` are Script Properties; no Production values are committed or changed.
+- **Decision:** State-changing actions claim `Idempotency_Ledger` under Script Lock. `CLAIMED`,
+  `UPLOAD_PERSISTED`, `COMPLETED`, and `FAILED` distinguish crash recovery. A body-hash mismatch for a
+  reused request ID is rejected, and deterministic Drive resource keys allow post-create retry recovery.
+- **Decision:** Image acceptance is based on decoded bytes and magic signatures (JPEG/PNG/WebP), not client
+  MIME/name/size; decoded size is capped at 10 MiB. Staging images remain private until a later approval
+  lifecycle outside this PR.
+- **Consequence:** No Google Sign-In, session, `/can-bo`, Vercel staff API, migration, Apps Script deploy,
+  Production env mutation or alias promotion is part of this change.
+
 ## [2026-08-10] Dual-workbook foundation without production cutover
 
 - **Decision:** Public location readers resolve `PUBLIC_LOCATION_SPREADSHEET_ID` first and use the

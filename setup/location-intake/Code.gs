@@ -34,6 +34,183 @@ function configuredSpreadsheet_() {
     return SpreadsheetApp.openById(id);
 }
 
+function gatewayRequiredProperty_(name) {
+    const value = locationProperties_().getProperty(name);
+    if (!value) throw new Error(`GATEWAY_PROPERTY_MISSING:${name}`);
+    return String(value).trim();
+}
+
+function gatewayPrivateSpreadsheet_() {
+    if (!globalThis.LocationWorkbookConfig) throw new Error('LOCATION_WORKBOOK_CONFIG_UNAVAILABLE');
+    const props = locationProperties_();
+    const config = globalThis.LocationWorkbookConfig.resolvePrivateLocationWorkbook({
+        PRIVATE_LOCATION_SPREADSHEET_ID: props.getProperty('PRIVATE_LOCATION_SPREADSHEET_ID'),
+        PUBLIC_LOCATION_SPREADSHEET_ID: props.getProperty('PUBLIC_LOCATION_SPREADSHEET_ID'),
+        GOOGLE_SHEET_ID: props.getProperty('GOOGLE_SHEET_ID'),
+    });
+    return SpreadsheetApp.openById(config.spreadsheetId);
+}
+
+function gatewaySheet_(spreadsheet, sheetName, headers) {
+    const sheet = spreadsheet.getSheetByName(sheetName);
+    if (!sheet) throw new Error(`PRIVATE_SHEET_MISSING:${sheetName}`);
+    const existing = locationHeaders_(sheet);
+    if (headers.some(header => !existing.includes(header))) throw new Error(`PRIVATE_SHEET_SCHEMA_MISMATCH:${sheetName}`);
+    return sheet;
+}
+
+function gatewayRows_(spreadsheet, sheetName, headers) {
+    return readLocationObjects_(gatewaySheet_(spreadsheet, sheetName, headers));
+}
+
+function gatewayAppend_(spreadsheet, sheetName, headers, record) {
+    const sheet = gatewaySheet_(spreadsheet, sheetName, headers);
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length).setValues([headers.map(header => record[header] == null ? '' : record[header])]);
+}
+
+function gatewayLedgerStore_(spreadsheet) {
+    const pipeline = locationPipeline_();
+    const headers = pipeline.HEADERS.ledger;
+    function rows() { return gatewayRows_(spreadsheet, pipeline.SHEETS.ledger, headers); }
+    function find(requestId) { return rows().find(row => String(row.request_id || '') === String(requestId || '')) || null; }
+    function update(requestId, patch) {
+        const sheet = gatewaySheet_(spreadsheet, pipeline.SHEETS.ledger, headers);
+        const values = sheet.getRange(2, 1, Math.max(sheet.getLastRow() - 1, 0), headers.length).getValues();
+        const requestColumn = headers.indexOf('request_id');
+        const rowIndex = values.findIndex(row => String(row[requestColumn] || '') === String(requestId || ''));
+        if (rowIndex < 0) throw new Error('IDEMPOTENCY_LEDGER_ENTRY_MISSING');
+        const row = rowIndex + 2;
+        const current = {};
+        headers.forEach((header, index) => { current[header] = values[rowIndex][index]; });
+        const merged = Object.assign(current, patch, { updated_at: patch.updated_at || new Date().toISOString() });
+        sheet.getRange(row, 1, 1, headers.length).setValues([headers.map(header => merged[header] == null ? '' : merged[header])]);
+        return merged;
+    }
+    function create(record) { gatewayAppend_(spreadsheet, pipeline.SHEETS.ledger, headers, record); }
+    return { find, update, create };
+}
+
+function gatewayBytesToHex_(bytes) {
+    return (bytes || []).map(value => (Number(value) & 255).toString(16).padStart(2, '0')).join('');
+}
+
+function gatewayRuntime_(spreadsheet) {
+    const props = locationProperties_();
+    const ledger = gatewayLedgerStore_(spreadsheet);
+    const pipeline = locationPipeline_();
+    const imageFolderId = props.getProperty('STAFF_GATEWAY_IMAGE_FOLDER_ID');
+    return {
+        env: {
+            PRIVATE_LOCATION_SPREADSHEET_ID: props.getProperty('PRIVATE_LOCATION_SPREADSHEET_ID'),
+            PUBLIC_LOCATION_SPREADSHEET_ID: props.getProperty('PUBLIC_LOCATION_SPREADSHEET_ID'),
+            GOOGLE_SHEET_ID: props.getProperty('GOOGLE_SHEET_ID'),
+        },
+        getSecret: () => props.getProperty('LOCATION_GATEWAY_SECRET') || '',
+        now: () => Date.now(),
+        decodeBase64: value => Utilities.base64Decode(value),
+        sha256Hex: value => gatewayBytesToHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, value)),
+        hmacSha256Hex: (message, secret) => gatewayBytesToHex_(Utilities.computeHmacSha256Signature(message, secret)),
+        withLock: callback => {
+            const lock = LockService.getScriptLock();
+            lock.waitLock(30000);
+            try { return callback(); } finally { lock.releaseLock(); }
+        },
+        store: null,
+        getLedger: ledger,
+        imageFolderId,
+        pipeline,
+    };
+}
+
+function gatewayStore_(spreadsheet, runtime) {
+    const pipeline = locationPipeline_();
+    const ledger = runtime.getLedger;
+    const stagingHeaders = pipeline.HEADERS.staging;
+    const auditHeaders = pipeline.HEADERS.audit;
+    const verificationHeaders = pipeline.HEADERS.verificationAudit;
+    const publishedRecords = () => gatewayRows_(spreadsheet, pipeline.SHEETS.staging, stagingHeaders)
+        .filter(row => String(row.status || '') === pipeline.STATUSES.approved && String(row.record_id || '').trim())
+        .map(row => Object.assign({}, row, { name: row.location_name, coordinates: row.coordinates }));
+    function privateFolder() {
+        if (!runtime.imageFolderId) throw new Error('GATEWAY_PROPERTY_MISSING:STAFF_GATEWAY_IMAGE_FOLDER_ID');
+        return DriveApp.getFolderById(runtime.imageFolderId);
+    }
+    return {
+        getRows: sheet => {
+            const headers = sheet === pipeline.SHEETS.allowlist ? pipeline.HEADERS.allowlist
+                : sheet === pipeline.SHEETS.staging ? stagingHeaders
+                    : sheet === pipeline.SHEETS.audit ? auditHeaders : sheet === pipeline.SHEETS.verificationAudit ? verificationHeaders : pipeline.HEADERS.ledger;
+            return gatewayRows_(spreadsheet, sheet, headers);
+        },
+        findLedger: ledger.find,
+        createLedger: ledger.create,
+        updateLedger: ledger.update,
+        getOperationalRecords: publishedRecords,
+        findStagingByRequestId: requestId => gatewayRows_(spreadsheet, pipeline.SHEETS.staging, stagingHeaders).find(row => String(row.request_id || '') === String(requestId || '')) || null,
+        appendStaging: record => gatewayAppend_(spreadsheet, pipeline.SHEETS.staging, stagingHeaders, record),
+        hasApprovalAudit: requestId => gatewayRows_(spreadsheet, pipeline.SHEETS.audit, auditHeaders).some(row => String(row.request_id || '') === String(requestId || '') && String(row.action || '') === 'FORM_SUBMIT'),
+        appendApprovalAudit: record => gatewayAppend_(spreadsheet, pipeline.SHEETS.audit, auditHeaders, record),
+        findVerificationEvent: operationId => gatewayRows_(spreadsheet, pipeline.SHEETS.verificationAudit, verificationHeaders).find(row => String(row.operation_id || '') === String(operationId || '')) || null,
+        appendVerificationAudit: record => gatewayAppend_(spreadsheet, pipeline.SHEETS.verificationAudit, verificationHeaders, record),
+        findDriveResource: resourceKey => {
+            const files = privateFolder().getFilesByName(String(resourceKey));
+            while (files.hasNext()) {
+                const file = files.next();
+                if (file.getDescription() === String(resourceKey)) return { fileId: file.getId(), driveUrl: file.getUrl(), mimeType: file.getMimeType() };
+            }
+            return null;
+        },
+        createPrivateImage: input => {
+            const file = privateFolder().createFile(Utilities.newBlob(input.bytes, input.mimeType, String(input.resourceKey)));
+            file.setName(String(input.resourceKey));
+            file.setDescription(String(input.resourceKey));
+            file.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE);
+            return { fileId: file.getId(), driveUrl: file.getUrl(), mimeType: file.getMimeType() };
+        },
+    };
+}
+
+function gatewayMetadata_(event) {
+    const headers = event && event.headers || {};
+    const parameters = event && event.parameter || {};
+    function value(names) {
+        for (const name of names) {
+            const found = Object.keys(headers).find(key => String(key).toLowerCase() === name.toLowerCase());
+            if (found && headers[found] != null) return Array.isArray(headers[found]) ? headers[found][0] : headers[found];
+            if (parameters[name] != null) return Array.isArray(parameters[name]) ? parameters[name][0] : parameters[name];
+        }
+        return '';
+    }
+    return { timestamp: value(['X-Location-Timestamp', 'timestamp']), signature: value(['X-Location-Signature', 'signature']) };
+}
+
+function gatewayOutput_(payload) {
+    return ContentService.createTextOutput(JSON.stringify(payload)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(event) {
+    try {
+        const rawBody = event && event.postData ? String(event.postData.contents || '') : '';
+        // Verify raw bytes and freshness before opening the private workbook or parsing JSON.
+        const securityRuntime = gatewayRuntime_(null);
+        const securityGateway = globalThis.StaffLocationGateway({ pipeline: locationPipeline_(), workbookConfig: globalThis.LocationWorkbookConfig, runtime: securityRuntime, store: {} });
+        const verified = securityGateway.verifyRequest(rawBody, gatewayMetadata_(event));
+        let body;
+        try { body = JSON.parse(verified.rawBody); } catch (_) { const error = new Error('REQUEST_JSON_INVALID'); error.code = 'REQUEST_JSON_INVALID'; throw error; }
+        if (!body || typeof body !== 'object' || Array.isArray(body)) { const error = new Error('REQUEST_JSON_INVALID'); error.code = 'REQUEST_JSON_INVALID'; throw error; }
+        securityGateway.assertAction(body);
+        const spreadsheet = gatewayPrivateSpreadsheet_();
+        const runtime = gatewayRuntime_(spreadsheet);
+        runtime.store = gatewayStore_(spreadsheet, runtime);
+        const gateway = globalThis.StaffLocationGateway({ pipeline: locationPipeline_(), workbookConfig: globalThis.LocationWorkbookConfig, runtime, store: runtime.store });
+        const result = gateway.dispatch(body);
+        return gatewayOutput_({ ok: true, data: result });
+    } catch (error) {
+        const code = error && error.code ? error.code : 'GATEWAY_REQUEST_REJECTED';
+        return gatewayOutput_({ ok: false, error: { code } });
+    }
+}
+
 function requiredProperty_(name) {
     const value = locationProperties_().getProperty(name);
     if (!value) throw new Error(`Thiếu Script Property ${name}.`);
@@ -102,7 +279,9 @@ function setupLocationIntakeSystem() {
     if (!spreadsheet) throw new Error('Hãy chạy từ Google Sheet quản trị, hoặc đặt Script Property LOCATION_SPREADSHEET_ID.');
     requiredProperty_('TEMPLATE_FORM_ID');
     requiredProperty_('DESTINATION_FOLDER_ID');
-    Object.entries(pipeline.HEADERS).forEach(([key, headers]) => ensureLocationSheet_(spreadsheet, pipeline.SHEETS[key], headers));
+    // Gateway-only audit/ledger sheets belong to the future PRIVATE workbook. Do not create them in
+    // the legacy Form workbook while Production remains on the compatibility runtime.
+    ['allowlist', 'staging', 'published', 'audit'].forEach(key => ensureLocationSheet_(spreadsheet, pipeline.SHEETS[key], pipeline.HEADERS[key]));
     ensureLocationSheet_(spreadsheet, pipeline.SHEETS.info, ['key', 'value', 'note']);
     const form = buildLocationForm_(spreadsheet);
     // KHÔNG dùng deleteAllOthers=true: cờ đó xoá luôn TEMPLATE_FORM_ID và DESTINATION_FOLDER_ID,

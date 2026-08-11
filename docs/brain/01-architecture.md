@@ -43,6 +43,21 @@ Chat location data path: `Google GViz -> lib/published-locations schema/dataset 
   deploy, or add Staff Portal runtime. A candidate must pass the published-locations smoke verifier before
   alias promotion during any later cutover.
 
+## Private Apps Script Gateway V2 (2026-08-11)
+
+- `setup/staff-gateway.js` is the pure gateway core. It exposes only `resolveUnits`, `submitRequest`, and
+  `writeVerificationEvent`, verifies raw-body HMAC before JSON parsing, enforces ±5 minute freshness,
+  private-workbook config and explicit DTOs.
+- `setup/location-intake/Code.gs` adapts Apps Script `PropertiesService`, `SpreadsheetApp`, `DriveApp`,
+  `LockService` and `ContentService` to that core. `doPost(e)` verifies signature/action before opening
+  the private workbook. The generated bundle includes `lib/location-workbooks.js` as the shared resolver.
+- State-changing actions use private `Idempotency_Ledger` and Script Lock. `submitRequest` writes only
+  private staging, validates image bytes server-side, uses deterministic Drive resource keys and never
+  publishes an image. `writeVerificationEvent` writes only the private verification audit allowlist.
+- The legacy Form setup intentionally does not create gateway-only ledger/verification sheets in the
+  compatibility workbook. No gateway deployment, Staff Portal UI/auth, Vercel staff API or Production
+  migration is included.
+
 ## Stack
 
 | Layer | Cong nghe |
@@ -141,6 +156,7 @@ bandocapt/
 | `scripts/patch-matt26265-mau-don.js` | Script mot-muc de xoa gia tri `mau_don` loi thoi cua `tthc_matt26265`; mac dinh dry-run, chi backup + upsert khi co `--apply`, giu nguyen vector/text/content_hash | Developer duoc uy quyen | Pinecone, `.env`, `data/pinecone-backups/` |
 | `setup/apps-script.js` | Pipeline private allowlist/staging/audit -> public published approval. Phan quyen hai chieu: `authorizeSubmission` (unitName+email -> authorized?) va `resolveUnitsByEmail` (email -> units[], chua co caller runtime, prerequisite Staff Portal) | Google Apps Script, `test/location-pipeline.test.js` | SpreadsheetApp; `PRIVATE_LOCATION_SPREADSHEET_ID`, `PUBLIC_LOCATION_SPREADSHEET_ID` |
 | `scripts/dev-server.js` | Local static server delegates `/api/google-sheet` to the production handler; never fetches or returns raw GViz directly | Developer | `api/google-sheet.js`, public workbook resolver/schema guard |
+| `setup/staff-gateway.js` | Pure HMAC/freshness/action/idempotency/image/DTO gateway core for three private actions | `setup/location-intake/Code.gs`, Node security tests | `setup/apps-script.js`, `lib/location-workbooks.js` |
 | `scripts/preview-server.js` | Preview HTTP server dùng chung bởi Playwright global setup/teardown; tự đóng keep-alive connections | `test/e2e/global-setup.js`, `npm run preview` | Node `http` |
 | `scripts/run-regression.js` | Runner regression API that, loc theo ID (ca ID hoi thoai H16/H17); gui `evalDebug:true`, cham 30 ca va bao cao latency tong cung p50/p95 theo tung stage eval-only, provider/fallback. `--strict-gate` chan hard fail/provider error; `--majority`/`--runs N` tong hop hard fail da so va flaky advisory | CLI / agent | `api/chat.js`, `lib/regression-grader.js`, `lib/regression-metrics.js`, expectations/conversations va `test/results/` |
 | `scripts/repair-pinecone-temp-residence.js` | Script sua Pinecone `tthc_matt26265`: backup, re-embed, upsert UTF-8 sach, verify top-1 | CLI / agent | Pinecone, Gemini Embedding API, `.env`, `data/pinecone-backups/` |

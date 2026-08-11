@@ -1,5 +1,21 @@
 # 06 — AI Working Log
 
+## [2026-08-11] Private Apps Script Gateway V2
+- **Agent:** Codex
+- **Thay đổi:** Tách pure Gateway core và Apps Script adapter cho ba action; thêm raw-body HMAC/freshness,
+  action allowlist, private resolver, ledger/lock idempotency, deterministic Drive recovery, byte-level
+  image validation và verification audit DTO.
+- **File đã sửa:** `setup/staff-gateway.js`, `setup/location-intake/Code.gs`, `setup/apps-script.js`,
+  `lib/location-workbooks.js`, build script, tests và tài liệu gateway/security/architecture.
+- **Lý do:** Xây private gateway trên dual-workbook foundation PR #45, không triển khai Auth/UI/Vercel staff
+  API và không đụng Production.
+- **PR #44 mapping:** raw HMAC → `HMAC is over exact raw body...`; freshness/replay → cùng test + ledger;
+  M87 concurrency → lock/idempotency test; M89 post-Drive-create crash → deterministic recovery test;
+  M84 replay image → submit replay test. Không copy implementation PR #44 và không dùng legacy workbook
+  resolver/migration/health gate/upload policy.
+- **Kiểm tra:** targeted gateway/pipeline tests PASS; full test/build/E2E/audit và Apps Script runtime
+  smoke sẽ ghi kết quả trước commit. Runtime smoke TEST là `NOT_RUN` nếu không có resource permission.
+
 ## [2026-08-10] Dual-workbook foundation — no production cutover
 - **Agent:** Codex
 - **Thay đổi:** Thêm resolver fail-closed cho public/private workbook, routing public cho map/chat/API,

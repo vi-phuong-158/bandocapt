@@ -35,3 +35,13 @@
   cũng phải nằm phía riêng tư — tách mỗi `Unit_Allowlist` chỉ vá được một nửa lỗ rò PII.
 
 Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, Spreadsheet và thư mục ảnh. Khi nghi lộ ảnh hoặc cấu hình sai, thu hồi quyền Drive trước, sau đó xử lý record published và audit theo quy trình vận hành.
+
+## Private Gateway V2
+
+- Browser không được gọi Apps Script gateway trực tiếp; chỉ Vercel server đã xác thực mới được ký HMAC.
+- `doPost(e)` xác thực raw body HMAC-SHA256 và freshness trước khi parse JSON hoặc mở private workbook.
+- Gateway chỉ allowlist `resolveUnits`, `submitRequest`, `writeVerificationEvent`; mọi action khác fail closed.
+- Gateway chỉ đọc/ghi `Unit_Allowlist`, `Location_Staging`, `Staff_Verification_Audit`,
+  `Approval_Audit_Log` và `Idempotency_Ledger` trong private workbook. Không publicize ảnh trong submit.
+- `LOCATION_GATEWAY_SECRET` và `STAFF_GATEWAY_IMAGE_FOLDER_ID` chỉ ở Script Properties. PR này không deploy
+  Apps Script hoặc thay Production properties.
