@@ -6,7 +6,7 @@ const {
 } = require('../lib/staff-session');
 const { verifyCsrfRequest } = require('../lib/staff-csrf');
 const { resolveStaffAllowedOrigins, assertStaffOrigin } = require('../lib/staff-origin');
-const { publicErrorCode } = require('../lib/staff-api-errors');
+const { publicErrorCode, statusForError } = require('../lib/staff-api-errors');
 
 const SECRET = 'synthetic-staff-session-secret-32-bytes';
 
@@ -44,4 +44,10 @@ test('staff API error mapping never exposes arbitrary internal codes', () => {
     assert.equal(publicErrorCode({ code: 'PRIVATE_STACK_TRACE_OR_SECRET' }), 'STAFF_REQUEST_FAILED');
     assert.equal(publicErrorCode({ code: 'IMAGE_ENCODING_INVALID' }), 'IMAGE_ENCODING_INVALID');
     assert.equal(publicErrorCode({ code: 'UNKNOWN_GATEWAY_CODE' }), 'STAFF_REQUEST_FAILED');
+    assert.equal(publicErrorCode({ code: 'STAFF_GATEWAY_UNAVAILABLE' }), 'STAFF_GATEWAY_UNAVAILABLE');
+    assert.equal(publicErrorCode({ code: 'STAFF_GATEWAY_CONFIG_INVALID' }), 'STAFF_GATEWAY_CONFIG_INVALID');
+    assert.equal(publicErrorCode({ code: 'STAFF_GATEWAY_INVALID_RESPONSE' }), 'STAFF_GATEWAY_INVALID_RESPONSE');
+    assert.equal(statusForError('STAFF_GATEWAY_UNAVAILABLE'), 503);
+    assert.equal(statusForError('STAFF_GATEWAY_CONFIG_INVALID'), 503);
+    assert.equal(statusForError('STAFF_GATEWAY_INVALID_RESPONSE'), 502);
 });

@@ -163,6 +163,27 @@ test('published locations cache serves fresh then stale fallback up to five minu
     }), /network down/);
 });
 
+test('forceRefresh bypasses fresh cache and allowStale false fails closed', async () => {
+    const payloadA = buildPayload([{ id: 'A', name: 'CÃ´ng an A', address: 'Äá»‹a chá»‰ A', coordinates: '21.325,105.365' }]);
+    const payloadB = buildPayload([{ id: 'B', name: 'CÃ´ng an B', address: 'Äá»‹a chá»‰ B', coordinates: '21.326,105.366' }]);
+    let calls = 0;
+    const first = await getPublishedLocations({
+        now: 1, fetchImpl: async () => new Response(`google.visualization.Query.setResponse(${JSON.stringify(payloadA)});`), sheetId: 'sheet-id',
+    });
+    const forced = await getPublishedLocations({
+        now: 30 * 1000, forceRefresh: true, allowStale: false,
+        fetchImpl: async () => { calls += 1; return new Response(`google.visualization.Query.setResponse(${JSON.stringify(payloadB)});`); }, sheetId: 'sheet-id',
+    });
+    assert.equal(first.locations[0].id, 'A');
+    assert.equal(forced.locations[0].id, 'B');
+    assert.equal(calls, 1);
+
+    await assert.rejects(() => getPublishedLocations({
+        now: 31 * 1000, forceRefresh: true, allowStale: false,
+        fetchImpl: async () => { throw new Error('authoritative source down'); }, sheetId: 'sheet-id',
+    }), /authoritative source down/);
+});
+
 test('a catastrophic invalid dataset does not overwrite the last-known-good cache', async () => {
     const validPayload = buildPayload([{
         id: '1', name: 'Công an phường Thanh Miếu', address: 'Phú Thọ', coordinates: '21.325,105.365',

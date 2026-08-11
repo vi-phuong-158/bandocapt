@@ -63,6 +63,21 @@ test('Gateway client rejects malformed config and malformed response', async () 
     await assert.rejects(() => callGateway('resolveUnits', {}, { env, fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ html: '<html>' }) }) }), /STAFF_GATEWAY_INVALID_RESPONSE/);
 });
 
+test('Gateway timeout AbortError is sanitized and remains bounded', async () => {
+    const attempts = [];
+    await assert.rejects(() => callGateway('resolveUnits', {}, {
+        env, timeoutMs: 5,
+        fetchImpl: async (url, options) => {
+            attempts.push({ url, body: options.body });
+            await new Promise((resolve, reject) => {
+                options.signal.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')), { once: true });
+            });
+        },
+    }), error => error.code === 'STAFF_GATEWAY_UNAVAILABLE' && !/AbortError|DOMException|stack/i.test(error.message));
+    assert.equal(attempts.length, 2);
+    assert.equal(attempts[0].body, attempts[1].body);
+});
+
 test('signature helper matches Node HMAC UTF-8 bytes', () => {
     const raw = JSON.stringify({ value: 'Tiếng Việt' });
     const expected = crypto.createHmac('sha256', env.LOCATION_GATEWAY_SECRET).update(`123.${raw}`, 'utf8').digest('hex');

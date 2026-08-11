@@ -27,6 +27,16 @@ workbook, deploy Apps Script, or change Production environment variables.
 All responses are `no-store` and use `{ ok, data }` / `{ ok: false, error: { code } }`. Raw Gateway bodies,
 private rows, credentials, cookie tokens, secrets, signatures, body hashes and Drive IDs are not returned.
 
+## Cache and authoritative snapshot policy
+
+Public/read consumers may use the default `getPublishedLocations()` cache (fresh for 60 seconds with the
+existing bounded stale fallback). Security-sensitive mutation decisions do not: verification and
+update/correct/stop request flows call the reader with `forceRefresh: true, allowStale: false`, then compute
+the current snapshot hash from that successful authoritative source. A source, schema or dataset failure
+returns `STAFF_PUBLIC_SOURCE_UNAVAILABLE` (HTTP 503); cached or stale records are never accepted and the
+Gateway mutation is not called. Create requests validate the authorized requested unit and do not fetch a
+current Published_Locations record when no target is present.
+
 ## Signing and idempotency
 
 The Gateway client serializes the final envelope once, signs and sends that exact UTF-8 raw string with

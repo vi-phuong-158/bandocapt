@@ -46,6 +46,15 @@ Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, S
 - `LOCATION_GATEWAY_SECRET` và `STAFF_GATEWAY_IMAGE_FOLDER_ID` chỉ ở Script Properties. PR này không deploy
   Apps Script hoặc thay Production properties.
 
+## Vercel Staff API remediation (PR #47)
+
+- Public/read location lookups may use the bounded 60-second cache and stale-read fallback. Snapshot-sensitive
+  verification and update/correct/stop mutations force an authoritative Published_Locations fetch with
+  `allowStale: false`; source failure returns `STAFF_PUBLIC_SOURCE_UNAVAILABLE` and never reaches Gateway.
+- Gateway infrastructure errors remain distinct from remote business errors: `STAFF_GATEWAY_UNAVAILABLE`
+  (503), `STAFF_GATEWAY_CONFIG_INVALID` (503), and `STAFF_GATEWAY_INVALID_RESPONSE` (502) are not remapped
+  to `STAFF_GATEWAY_REJECTED`.
+
 ## Vercel Staff API (PR #47)
 
 - Google AuthN và Unit_Allowlist AuthZ là hai lớp riêng. Vercel chỉ nhận `{ credential }`, xác minh bằng

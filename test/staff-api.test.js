@@ -5,6 +5,7 @@ const test = require('node:test');
 const { createStaffApi, deriveGatewayRequestId, validateStaffImage } = require('../lib/staff-api');
 const { snapshotHash } = require('../lib/staff-location-contract');
 const { createStaffSession } = require('../lib/staff-session');
+const { getPublishedLocations, resetPublishedLocationsCache } = require('../lib/published-locations');
 
 const SECRET = 'synthetic-staff-session-secret-32-bytes';
 const ENV = {
@@ -44,6 +45,16 @@ function record(overrides = {}) {
 
 function csrfHeaders(token = 'csrf-token') {
     return { origin: 'https://staff.example.test', cookie: `staff_csrf=${token}`, 'x-staff-csrf': token };
+}
+
+function locationPayload(address) {
+    const cols = ['record_id', 'unit_code', 'name', 'type', 'address', 'phone', 'coordinates'].map(label => ({ label }));
+    return {
+        table: {
+            cols,
+            rows: [{ c: [{ v: 'R_A' }, { v: 'UNIT_A' }, { v: 'Äiá»ƒm A' }, { v: 'Trá»¥ sá»Ÿ' }, { v: address }, { v: '0210' }, { v: '21.3225,105.4027' }] }],
+        },
+    };
 }
 
 test('request id is deterministic and excludes payload content', () => {
@@ -127,6 +138,61 @@ test('locations are filtered by current unit and snapshot hashes are determinist
     assert.equal(item.snapshotHash, snapshotHash(item.record));
 });
 
+test('authoritative mutation bypasses fresh cache and never accepts stale fallback', async () => {
+    resetPublishedLocationsCache();
+    let sourceMode = 'A';
+    let sourceCalls = 0;
+    let mutationCalls = 0;
+    const getLocations = options => getPublishedLocations({
+        ...options,
+        now: sourceCalls * 1000 + 1,
+        sheetId: 'staff-authoritative-test',
+        fetchImpl: async () => {
+            sourceCalls += 1;
+            if (sourceMode === 'error') throw new Error('source unavailable');
+            const payload = locationPayload(sourceMode === 'A' ? 'Äá»‹a chá»‰ A' : 'Äá»‹a chá»‰ B');
+            return new Response(`google.visualization.Query.setResponse(${JSON.stringify(payload)});`);
+        },
+    });
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => {
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'ÄÆ¡n vá»‹ A' }] };
+            mutationCalls += 1;
+            return { eventType: 'CONFIRM' };
+        },
+        getLocations,
+    });
+    const sessionHeaders = { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` };
+    const read = response();
+    await api.locations(request('GET', null, { cookie: `staff_session=${encodeURIComponent(session)}` }), read);
+    const hashA = read.body.data.locations[0].snapshotHash;
+    assert.equal(sourceCalls, 1);
+
+    sourceMode = 'B';
+    const stale = response();
+    await api.verification(request('POST', { operationId: 'op_authoritative', recordId: 'R_A', snapshotHash: hashA, eventType: 'CONFIRM' }, sessionHeaders), stale);
+    assert.equal(stale.statusCode, 409);
+    assert.equal(stale.body.error.code, 'STALE_PUBLIC_SNAPSHOT');
+    assert.equal(sourceCalls, 2, 'mutation must bypass the fresh cache');
+    assert.equal(mutationCalls, 0);
+
+    resetPublishedLocationsCache();
+    sourceMode = 'A';
+    sourceCalls = 0;
+    const cacheRead = response();
+    await api.locations(request('GET', null, { cookie: `staff_session=${encodeURIComponent(session)}` }), cacheRead);
+    const cachedHash = cacheRead.body.data.locations[0].snapshotHash;
+    sourceMode = 'error';
+    const unavailable = response();
+    await api.verification(request('POST', { operationId: 'op_unavailable', recordId: 'R_A', snapshotHash: cachedHash, eventType: 'CONFIRM' }, sessionHeaders), unavailable);
+    assert.equal(unavailable.statusCode, 503);
+    assert.equal(unavailable.body.error.code, 'STAFF_PUBLIC_SOURCE_UNAVAILABLE');
+    assert.equal(mutationCalls, 0, 'Gateway mutation must not run when authoritative source fails');
+    resetPublishedLocationsCache();
+});
+
 test('stale verification is rejected before Gateway and fresh verification sends server snapshot', async () => {
     const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
     const location = record();
@@ -160,6 +226,8 @@ test('request endpoint ignores client identity and blocks stale/cross-unit/creat
     const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
     const location = record();
     const calls = [];
+    let locationReads = 0;
+    const locationOptions = [];
     const api = createStaffApi({
         env: ENV,
         gatewayCall: async (action, payload) => {
@@ -167,7 +235,7 @@ test('request endpoint ignores client identity and blocks stale/cross-unit/creat
             if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
             return { status: 'PENDING' };
         },
-        getLocations: async () => ({ locations: [location] }),
+        getLocations: async options => { locationReads += 1; locationOptions.push(options); return { locations: [location] }; },
     });
     const baseHeaders = { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` };
     const create = response();
@@ -180,6 +248,7 @@ test('request endpoint ignores client identity and blocks stale/cross-unit/creat
     assert.equal(submitCall.payload.email, 'staff@example.test');
     assert.equal(submitCall.payload.unit_code, 'UNIT_A');
     assert.equal('actor_email' in submitCall.payload, false);
+    assert.equal(locationReads, 0, 'create must not fetch Published_Locations unnecessarily');
 
     const target = response();
     await api.requests(request('POST', { operationId: 'op_bad', requestType: 'Thêm địa điểm mới', targetRecordId: 'R_A' }, baseHeaders), target);
@@ -189,7 +258,25 @@ test('request endpoint ignores client identity and blocks stale/cross-unit/creat
     const stale = response();
     await api.requests(request('POST', { operationId: 'op_stale', requestType: 'Cập nhật địa điểm đang có', targetRecordId: 'R_A', snapshotHash: '0'.repeat(64) }, baseHeaders), stale);
     assert.equal(stale.statusCode, 409);
-    assert.equal(calls.filter(call => call.action === 'submitRequest').length, 1);
+    assert.equal(locationReads, 1);
+    assert.equal(locationOptions[0].forceRefresh, true);
+    assert.equal(locationOptions[0].allowStale, false);
+
+    const currentHash = snapshotHash(require('../lib/staff-location-contract').toPublicSnapshot(location));
+    for (const [operationId, requestType] of [
+        ['op_correct', 'Báo địa chỉ hoặc vị trí sai'],
+        ['op_stop', 'Báo địa điểm ngừng hoạt động'],
+    ]) {
+        const targetMutation = response();
+        await api.requests(request('POST', { operationId, requestType, targetRecordId: 'R_A', snapshotHash: currentHash }, baseHeaders), targetMutation);
+        assert.equal(targetMutation.statusCode, 200);
+    }
+    assert.equal(locationReads, 3);
+    assert.equal(locationOptions[1].forceRefresh, true);
+    assert.equal(locationOptions[1].allowStale, false);
+    assert.equal(locationOptions[2].forceRefresh, true);
+    assert.equal(locationOptions[2].allowStale, false);
+    assert.equal(calls.filter(call => call.action === 'submitRequest').length, 3);
 });
 
 test('staff image preflight rejects malformed and over-cap decoded payloads', () => {

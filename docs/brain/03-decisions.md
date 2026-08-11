@@ -14,6 +14,11 @@
 - **Decision:** Public locations are filtered by authorized `unit_code`; verification and update/correct/stop
   operations require a fresh shared snapshot hash and target ownership. Vercel rejects decoded images over
   3 MiB before the Gateway's existing 10 MiB limit.
+- **Decision:** Public/read location lookups retain the bounded cache and stale fallback, but security-sensitive
+  mutations use `forceRefresh: true, allowStale: false`. Source failure maps to `STAFF_PUBLIC_SOURCE_UNAVAILABLE`
+  and blocks the Gateway call; create requests do not perform an unnecessary current-record read.
+- **Decision:** Local Gateway infrastructure errors are preserved with their HTTP semantics; only allowlisted
+  remote Gateway business codes are exposed, and unknown remote codes map to `STAFF_GATEWAY_REJECTED`.
 - **Consequence:** This is an API/auth layer only. No Staff Portal UI, schema migration, seed, production
   environment mutation, Apps Script deployment, or alias promotion is included.
 
