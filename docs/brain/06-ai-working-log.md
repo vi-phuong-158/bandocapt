@@ -1,5 +1,21 @@
 # 06 — AI Working Log
 
+## [2026-08-11] Private Apps Script Gateway V2
+- **Agent:** Codex
+- **Thay đổi:** Tách pure Gateway core và Apps Script adapter cho ba action; thêm raw-body HMAC/freshness,
+  action allowlist, private resolver, ledger/lock idempotency, deterministic Drive recovery, byte-level
+  image validation và verification audit DTO.
+- **File đã sửa:** `setup/staff-gateway.js`, `setup/location-intake/Code.gs`, `setup/apps-script.js`,
+  `lib/location-workbooks.js`, build script, tests và tài liệu gateway/security/architecture.
+- **Lý do:** Xây private gateway trên dual-workbook foundation PR #45, không triển khai Auth/UI/Vercel staff
+  API và không đụng Production.
+- **PR #44 mapping:** raw HMAC → `HMAC is over exact raw body...`; freshness/replay → cùng test + ledger;
+  M87 concurrency → lock/idempotency test; M89 post-Drive-create crash → deterministic recovery test;
+  M84 replay image → submit replay test. Không copy implementation PR #44 và không dùng legacy workbook
+  resolver/migration/health gate/upload policy.
+- **Kiểm tra:** targeted gateway/pipeline tests PASS; full test/build/E2E/audit và Apps Script runtime
+  smoke sẽ ghi kết quả trước commit. Runtime smoke TEST là `NOT_RUN` nếu không có resource permission.
+
 ## [2026-08-10] Dual-workbook foundation — no production cutover
 - **Agent:** Codex
 - **Thay đổi:** Thêm resolver fail-closed cho public/private workbook, routing public cho map/chat/API,
@@ -2834,6 +2850,13 @@
   `npm.cmd run test:e2e` 19/19 PASS (một ca catalog timeout ở lượt đầu, pass khi chạy riêng và khi
   chạy lại full suite); `npm.cmd audit --omit=dev --audit-level=high` PASS, còn 9 moderate transitive
   `uuid` không có bản vá; `git diff --check` sạch.
+
+## [2026-08-11] PR #46 TEST runtime acceptance and UTF-8 HMAC fix
+- **Agent:** Codex
+- **Thay đổi:** Redeploy TEST Staff Gateway V2 deployment with explicit UTF-8 byte conversion for SHA-256/HMAC inputs. The fix preserves exact raw-body signing while accepting literal Unicode JSON payloads.
+- **File đã sửa:** `setup/location-intake/Code.gs`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Runtime smoke against the owner-only TEST Web App rejected literal Unicode raw bodies even though ASCII-escaped JSON passed. This was an Apps Script encoding defect, not a secret or allowlist failure.
+- **Kiểm tra:** TEST deployment accepted Unicode `resolveUnits` and `submitRequest`; tampered, stale, future, unknown-action, replay, payload-drift, image-type, malformed-base64, concurrency, verification, private Drive, and idempotency scenarios were exercised. `npm.cmd test` 421/421, build PASS, Playwright 19/19, audit exit 0 with 9 moderate transitive `uuid` findings.
 
 ## [2026-08-10] P1 Published_Locations data fidelity guard
 - **Agent:** Codex

@@ -10,6 +10,8 @@
         staging: 'Location_Staging',
         published: 'Published_Locations',
         audit: 'Approval_Audit_Log',
+        verificationAudit: 'Staff_Verification_Audit',
+        ledger: 'Idempotency_Ledger',
         info: 'Intake_Setup_Info',
     });
 
@@ -22,8 +24,8 @@
             SHEETS.allowlist,
             SHEETS.staging,
             SHEETS.audit,
-            'Staff_Verification_Audit',
-            'Idempotency_Ledger',
+            SHEETS.verificationAudit,
+            SHEETS.ledger,
             SHEETS.info,
             'Form Responses 1',
         ]),
@@ -76,6 +78,14 @@
         audit: [
             'timestamp', 'action', 'record_id', 'request_id', 'unit_code', 'actor_email',
             'submitter_email', 'previous_status', 'next_status', 'note', 'snapshot_json',
+        ],
+        verificationAudit: [
+            'timestamp', 'operation_id', 'record_id', 'unit_code', 'actor_email', 'event_type',
+            'snapshot_hash', 'source', 'note',
+        ],
+        ledger: [
+            'request_id', 'action', 'body_hash', 'state', 'image_resource_key', 'image_file_id',
+            'image_drive_url', 'image_mime_type', 'result_json', 'last_error', 'created_at', 'updated_at',
         ],
     });
 
