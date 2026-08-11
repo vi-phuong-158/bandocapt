@@ -2851,6 +2851,13 @@
   chạy lại full suite); `npm.cmd audit --omit=dev --audit-level=high` PASS, còn 9 moderate transitive
   `uuid` không có bản vá; `git diff --check` sạch.
 
+## [2026-08-11] PR #46 TEST runtime acceptance and UTF-8 HMAC fix
+- **Agent:** Codex
+- **Thay đổi:** Redeploy TEST Staff Gateway V2 deployment with explicit UTF-8 byte conversion for SHA-256/HMAC inputs. The fix preserves exact raw-body signing while accepting literal Unicode JSON payloads.
+- **File đã sửa:** `setup/location-intake/Code.gs`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Runtime smoke against the owner-only TEST Web App rejected literal Unicode raw bodies even though ASCII-escaped JSON passed. This was an Apps Script encoding defect, not a secret or allowlist failure.
+- **Kiểm tra:** TEST deployment accepted Unicode `resolveUnits` and `submitRequest`; tampered, stale, future, unknown-action, replay, payload-drift, image-type, malformed-base64, concurrency, verification, private Drive, and idempotency scenarios were exercised. `npm.cmd test` 421/421, build PASS, Playwright 19/19, audit exit 0 with 9 moderate transitive `uuid` findings.
+
 ## [2026-08-10] P1 Published_Locations data fidelity guard
 - **Agent:** Codex
 - **Thay đổi:** Dry-run so sánh canonical public data cho từng `record_id` tồn tại ở cả source và target.

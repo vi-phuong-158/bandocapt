@@ -94,6 +94,10 @@ function gatewayBytesToHex_(bytes) {
     return (bytes || []).map(value => (Number(value) & 255).toString(16).padStart(2, '0')).join('');
 }
 
+function gatewayUtf8Bytes_(value) {
+    return Utilities.newBlob(String(value == null ? '' : value), 'application/octet-stream').getBytes();
+}
+
 function gatewayRuntime_(spreadsheet) {
     const props = locationProperties_();
     const ledger = gatewayLedgerStore_(spreadsheet);
@@ -108,8 +112,8 @@ function gatewayRuntime_(spreadsheet) {
         getSecret: () => props.getProperty('LOCATION_GATEWAY_SECRET') || '',
         now: () => Date.now(),
         decodeBase64: value => Utilities.base64Decode(value),
-        sha256Hex: value => gatewayBytesToHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, value)),
-        hmacSha256Hex: (message, secret) => gatewayBytesToHex_(Utilities.computeHmacSha256Signature(message, secret)),
+        sha256Hex: value => gatewayBytesToHex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, gatewayUtf8Bytes_(value))),
+        hmacSha256Hex: (message, secret) => gatewayBytesToHex_(Utilities.computeHmacSha256Signature(gatewayUtf8Bytes_(message), gatewayUtf8Bytes_(secret))),
         withLock: callback => {
             const lock = LockService.getScriptLock();
             lock.waitLock(30000);
