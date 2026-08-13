@@ -60,7 +60,8 @@
         const input = Array.from(bytes || [], value => Number(value) & 0xff);
         if (input.length >= 3 && input[0] === 0xff && input[1] === 0xd8 && input[2] === 0xff) return ALLOWED_IMAGE_TYPES.jpeg;
         if (input.length >= 8 && input.slice(0, 8).join(',') === '137,80,78,71,13,10,26,10') return ALLOWED_IMAGE_TYPES.png;
-        if (input.length >= 12 && input.slice(0, 4).join('') === '82827370' && input.slice(8, 12).join('') === '87696680') return ALLOWED_IMAGE_TYPES.webp;
+        if (input.length >= 12 && input.slice(0, 4).every((value, index) => value === [0x52, 0x49, 0x46, 0x46][index]) &&
+            input.slice(8, 12).every((value, index) => value === [0x57, 0x45, 0x42, 0x50][index])) return ALLOWED_IMAGE_TYPES.webp;
         return '';
     }
 

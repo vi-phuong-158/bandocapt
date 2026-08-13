@@ -52,6 +52,19 @@ SHA-256("staff-v1|" + verifiedGoogleSub + "|" + gatewayAction + "|" + operationI
 Payload drift therefore cannot create a new idempotency key. Client identity fields are ignored; Vercel
 injects verified email, current authorized unit and the derived request ID.
 
+## Request validation and business errors
+
+Before building the Gateway DTO, Vercel trims and bounds the recognized text fields and the `services`
+array. Non-string values, oversized values, malformed arrays or invalid array items return HTTP 400 with
+`STAFF_REQUEST_INVALID`; the rejected payload is not sent to Apps Script. Unknown client fields remain
+excluded by the explicit DTO builder.
+
+For `create`, `update` and `correct`, the Gateway may return the safe user-actionable codes
+`IMAGE_REQUIRED`, `SERVICES_MISSING`, `ADDRESS_MISSING`, `LOCATION_NAME_MISSING`,
+`COORDINATE_NEEDS_REVIEW`, `COORDINATE_INVALID_LINK` or `COORDINATE_OUTSIDE_PHU_THO`. The portal maps
+these to Vietnamese guidance. Unknown Gateway codes and infrastructure failures remain generic and do
+not expose raw remote bodies or internal configuration.
+
 ## Snapshot and image boundaries
 
 `lib/staff-location-contract.js` is the shared source of truth for `SNAPSHOT_FIELDS`, canonicalization and

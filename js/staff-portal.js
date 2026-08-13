@@ -81,13 +81,20 @@
             STAFF_GATEWAY_REJECTED: 'Yêu cầu chưa thể xử lý. Vui lòng thử lại sau.',
             STAFF_PUBLIC_SOURCE_UNAVAILABLE: 'Hệ thống tạm thời chưa kết nối được dữ liệu. Vui lòng thử lại.',
             STAFF_OPERATIONAL_BASELINE_NOT_READY: 'Dữ liệu nền của địa điểm này chưa sẵn sàng để cập nhật. Vui lòng liên hệ quản trị hệ thống.',
+            STAFF_REQUEST_INVALID: 'Một hoặc nhiều trường nhập chưa đúng định dạng hoặc quá dài.',
             TARGET_RECORD_UNIT_MISMATCH: 'Bạn không có quyền cập nhật địa điểm này.',
             TARGET_RECORD_ID_NOT_FOUND: 'Không tìm thấy địa điểm cần cập nhật.',
             STALE_PUBLIC_SNAPSHOT: 'Thông tin địa điểm đã thay đổi. Dữ liệu mới đã được tải lại, vui lòng kiểm tra trước khi gửi.',
+            IMAGE_REQUIRED: 'Vui lòng chọn ảnh địa điểm trước khi gửi yêu cầu.',
             STAFF_IMAGE_TOO_LARGE: 'Ảnh vẫn còn quá lớn. Vui lòng chọn ảnh khác.',
             IMAGE_TYPE_NOT_ALLOWED: 'Vui lòng chọn ảnh JPG, PNG hoặc WebP.',
             IMAGE_COMPRESSION_UNAVAILABLE: 'Không thể xử lý ảnh trên thiết bị này.',
             SERVICES_MISSING: 'Vui lòng chọn ít nhất một dịch vụ.',
+            ADDRESS_MISSING: 'Vui lòng nhập địa chỉ địa điểm.',
+            LOCATION_NAME_MISSING: 'Vui lòng nhập tên địa điểm.',
+            COORDINATE_NEEDS_REVIEW: 'Vui lòng nhập tọa độ hợp lệ theo dạng vĩ độ, kinh độ.',
+            COORDINATE_INVALID_LINK: 'Liên kết Google Maps chưa hợp lệ. Vui lòng kiểm tra lại.',
+            COORDINATE_OUTSIDE_PHU_THO: 'Tọa độ nằm ngoài khu vực Phú Thọ được hỗ trợ.',
         };
         return messages[code] || 'Đã có lỗi xảy ra. Vui lòng thử lại.';
     }
@@ -242,11 +249,12 @@
         form.appendChild(wrap);
     }
 
-    function servicesField(form, value) {
+    function servicesField(form, value, required = false) {
         const wrap = el('div', 'staff-field');
         const selected = new Set(Array.isArray(value) ? value : String(value || '').split(',').map(item => item.trim()).filter(Boolean));
-        append(wrap, el('span', '', 'Dịch vụ'), el('small', '', 'Chọn một hoặc nhiều dịch vụ đang được tiếp nhận.'));
+        append(wrap, el('span', '', `Dịch vụ${required ? ' (bắt buộc)' : ''}`), el('small', '', 'Chọn một hoặc nhiều dịch vụ đang được tiếp nhận.'));
         const grid = el('div', 'staff-checkbox-grid');
+        if (required) grid.setAttribute('aria-required', 'true');
         SERVICE_OPTIONS.forEach(([optionValue, optionLabel]) => {
             const label = el('label', 'staff-checkbox');
             const input = document.createElement('input');
@@ -295,15 +303,16 @@
             append(form, el('p', '', 'Bạn muốn báo địa điểm này đã ngừng hoạt động?'));
             field(form, 'reviewNote', 'Lý do hoặc ghi chú (không bắt buộc)', '', 'textarea');
         } else {
+            const requiresLocationFields = ['create', 'update', 'correct'].includes(modal.mode);
             const record = modal.item?.record || {};
             const source = { locationName: recordValue(record, 'name', 'name'), siteType: recordValue(record, 'site_type', 'siteType'), services: recordValue(record, 'services', 'services'), address: recordValue(record, 'address', 'address'), publicPhone: recordValue(record, 'phone', 'phone'), mapsUrl: recordValue(record, 'google_maps_url', 'googleMapsUrl'), coordinates: recordValue(record, 'coordinates', 'coordinates'), cccdServiceMode: recordValue(record, 'cccd_service_mode', 'cccdServiceMode'), serviceSchedule: recordValue(record, 'service_schedule', 'serviceSchedule'), servedUnits: recordValue(record, 'served_units', 'servedUnits'), searchAliases: recordValue(record, 'search_aliases', 'searchAliases') };
             field(form, 'locationName', 'Tên địa điểm', source.locationName, 'text', true);
             field(form, 'address', 'Địa chỉ', source.address, 'text', true);
             field(form, 'publicPhone', 'Số điện thoại', source.publicPhone, 'tel');
-            servicesField(form, source.services);
+            servicesField(form, source.services, requiresLocationFields);
             selectField(form, 'siteType', 'Loại địa điểm', source.siteType, SITE_TYPES, true);
             field(form, 'mapsUrl', 'Maps URL', source.mapsUrl, 'url');
-            field(form, 'coordinates', 'Tọa độ', source.coordinates, 'text', false, 'Ví dụ: 21.3225,105.4027');
+            field(form, 'coordinates', 'Tọa độ (bắt buộc)', source.coordinates, 'text', requiresLocationFields, 'Nhập theo dạng vĩ độ, kinh độ. Ví dụ: 21.3225,105.4027');
             selectField(form, 'cccdServiceMode', 'Hình thức dịch vụ căn cước', source.cccdServiceMode, CCCD_MODES);
             field(form, 'serviceSchedule', 'Lịch phục vụ', source.serviceSchedule, 'textarea');
             field(form, 'servedUnits', 'Đơn vị phục vụ', source.servedUnits);
@@ -315,9 +324,10 @@
             field(form, 'reviewNote', 'Ghi chú gửi duyệt', '', 'textarea');
             const image = document.createElement('div');
             image.className = 'staff-field';
-            const imageLabel = el('label', '', 'Ảnh địa điểm (không bắt buộc)');
+            const imageLabel = el('label', '', `Ảnh địa điểm${requiresLocationFields ? ' (bắt buộc)' : ''}`);
             const imageInput = document.createElement('input');
             imageInput.type = 'file'; imageInput.name = 'image'; imageInput.accept = 'image/jpeg,image/png,image/webp'; imageInput.capture = 'environment'; imageInput.id = 'staff-image';
+            imageInput.required = requiresLocationFields;
             append(image, imageLabel, imageInput, el('small', '', 'Ảnh sẽ được nén trên thiết bị trước khi gửi.'));
             form.appendChild(image);
         }
@@ -337,9 +347,11 @@
         state.status = 'MUTATING';
         const values = formValues(form);
         try {
-            if (state.modal.mode === 'create' && !values.services.length) throw new Error('SERVICES_MISSING');
+            const requiresLocationFields = ['create', 'update', 'correct'].includes(state.modal.mode);
+            if (requiresLocationFields && !values.services.length) throw new Error('SERVICES_MISSING');
             let image = null;
             const file = form.elements.image?.files?.[0];
+            if (requiresLocationFields && !file) throw new Error('IMAGE_REQUIRED');
             if (file) image = await root.StaffImage.prepareImage(file);
             if (state.modal.mode === 'confirm') {
                 await api.verify(root.StaffApiClient.buildVerificationPayload(values.note, { record_id: state.modal.item.record.record_id, snapshotHash: state.modal.item.snapshotHash }));

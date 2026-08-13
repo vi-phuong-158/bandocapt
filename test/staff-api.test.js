@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const test = require('node:test');
 
-const { createStaffApi, deriveGatewayRequestId, validateStaffImage } = require('../lib/staff-api');
+const { createStaffApi, deriveGatewayRequestId, validateStaffImage, normalizeRequestBody } = require('../lib/staff-api');
 const { snapshotHash } = require('../lib/staff-location-contract');
 const { createStaffSession } = require('../lib/staff-session');
 const { getPublishedLocations, resetPublishedLocationsCache } = require('../lib/published-locations');
@@ -286,6 +286,35 @@ test('staff image preflight rejects malformed and over-cap decoded payloads', ()
     assert.throws(() => validateStaffImage({ base64: oversized }), /STAFF_IMAGE_TOO_LARGE|IMAGE_ENCODING_INVALID/);
     const tiny = Buffer.from('synthetic').toString('base64');
     assert.equal(validateStaffImage({ base64: tiny }).base64, tiny);
+});
+
+test('staff request boundary rejects non-text fields, oversized text and non-array services', () => {
+    assert.throws(() => normalizeRequestBody({ locationName: { value: 'A' } }), /STAFF_REQUEST_INVALID/);
+    assert.throws(() => normalizeRequestBody({ reviewNote: 'x'.repeat(2001) }), /STAFF_REQUEST_INVALID/);
+    assert.throws(() => normalizeRequestBody({ services: 'POLICE_OFFICE' }), /STAFF_REQUEST_INVALID/);
+    assert.deepEqual(normalizeRequestBody({ locationName: '  Điểm A  ', services: [' POLICE_OFFICE ', ''] }), {
+        locationName: 'Điểm A', services: ['POLICE_OFFICE'],
+    });
+});
+
+test('malformed staff request returns a safe 400 before Apps Script submission', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    let submitCalls = 0;
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => {
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            submitCalls += 1;
+            return { status: 'PENDING' };
+        },
+    });
+    const res = response();
+    await api.requests(request('POST', { operationId: 'op_invalid', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A', locationName: { value: 'not text' } }, {
+        ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token`,
+    }), res);
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(res.body, { ok: false, error: { code: 'STAFF_REQUEST_INVALID' } });
+    assert.equal(submitCalls, 0);
 });
 
 test('public staff auth config exposes only the Google client id and fails closed when missing', async () => {

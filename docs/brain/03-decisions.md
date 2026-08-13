@@ -1,5 +1,20 @@
 # 03 — Technical Decisions
 
+## [2026-08-13] PR #48 staff request contract remediation
+
+- **Decision:** `create`, `update` and `correct` require services, a valid coordinate input and exactly
+  one image in the portal UI and Gateway contract. `stop` remains exempt because it removes an existing
+  published location and does not create a replacement record.
+- **Decision:** Validate recognized request text fields and arrays at the Vercel API boundary with bounded
+  lengths and HTTP 400 `STAFF_REQUEST_INVALID`; invalid input never reaches Apps Script. Keep the existing
+  explicit DTO allowlist and server-derived identity/unit/request ID.
+- **Decision:** Fix WebP detection using RIFF/WEBP magic bytes and keep JPEG/PNG/WebP byte validation
+  authoritative at the Gateway. Allowlist only actionable business validation codes for the UI; unknown
+  remote errors remain generic.
+- **Consequence:** This closes the PR #48 contract/test gaps without adding rental, CSKV, multi-image,
+  migration, seed, deployment, or Production alias changes. Live Production route and OAuth acceptance
+  remain blocked until deployment configuration is verified by the environment owner.
+
 ## [2026-08-11] Vercel Staff Auth/API Gate (PR #47)
 
 - **Decision:** Authenticate with Google ID tokens through the official `google-auth-library`, then resolve

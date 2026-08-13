@@ -145,6 +145,33 @@ scripts/build-static.js -> dist/can-bo/index.html + hashed portal assets
 vercel.json -> portal-specific CSP/COOP/no-store headers
 ```
 
+## PR #48 staff contract remediation (2026-08-13)
+
+- `js/staff-portal.js` marks image, coordinates and services as required for `create`, `update` and
+  `correct`; `stop` keeps its intentional no-image/no-coordinate/no-services contract. Vietnamese field
+  and Gateway validation messages are mapped without exposing internal diagnostics.
+- `lib/staff-api.js` validates the recognized request text fields and `services` array at the Vercel
+  boundary, returning `STAFF_REQUEST_INVALID` with HTTP 400 before any Gateway call. The existing
+  server-derived email, authorized unit, target ownership and snapshot checks remain authoritative.
+- `lib/staff-gateway-client.js` and `lib/staff-api-errors.js` allowlist the Gateway's user-actionable
+  validation codes (`IMAGE_REQUIRED`, services/address/location/coordinate errors) while preserving
+  generic handling for unknown or infrastructure failures.
+- `setup/staff-gateway.js` classifies WebP with RIFF/WEBP byte signatures; JPEG, PNG and WebP remain
+  validated from decoded bytes rather than browser MIME or filename.
+
+### PR #48 remediation code graph
+
+```text
+js/staff-portal.js -> js/staff-api-client.js -> /api/staff/requests|verification
+  -> lib/staff-api.js (boundary text/array validation, server authority)
+  -> lib/staff-gateway-client.js (safe remote error mapping)
+  -> Apps Script Gateway -> setup/staff-gateway.js (byte validation)
+lib/staff-api-errors.js <- route adapters and browser error presentation
+```
+
+No route, deployment, workbook, migration, or public/private boundary change is included in this
+remediation. Production 404 classification remains an external Vercel deployment/configuration check.
+
 ## Code Graph
 
 | Module / file | Vai tro | Duoc goi boi | Phu thuoc vao |

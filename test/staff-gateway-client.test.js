@@ -51,6 +51,9 @@ test('Gateway response errors are validated and unknown errors are sanitized', a
     }));
     assert.equal(safe, undefined);
     await assert.rejects(() => callGateway('submitRequest', {}, {
+        env, fetchImpl: async () => ({ ok: true, status: 400, json: async () => ({ ok: false, error: { code: 'IMAGE_REQUIRED' } }) }),
+    }), error => error.code === 'IMAGE_REQUIRED');
+    await assert.rejects(() => callGateway('submitRequest', {}, {
         env, fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ ok: false, error: { code: 'PRIVATE_ROW_SECRET' } }) }),
     }), error => error.code === 'STAFF_GATEWAY_REJECTED' && error.gatewayCode === 'PRIVATE_ROW_SECRET');
     await assert.rejects(() => callGateway('submitRequest', {}, {

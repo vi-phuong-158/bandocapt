@@ -1,5 +1,21 @@
 # 06 — AI Working Log
 
+## [2026-08-13] PR #48 staff contract remediation
+- **Agent:** Codex
+- **Thay đổi:** Hoàn thiện contract UI/API cho create/update/correct (ảnh, tọa độ, services), thêm
+  validation text/array tại Vercel boundary, sửa nhận diện WebP theo magic bytes và mở rộng mapping lỗi
+  business an toàn; bổ sung checklist dual-workbook/Vercel/OAuth cutover chỉ ở mức chuẩn bị.
+- **File đã sửa:** `js/staff-portal.js`, `lib/staff-api.js`, `lib/staff-api-errors.js`,
+  `lib/staff-gateway-client.js`, `setup/staff-gateway.js`, staff tests, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/location-intake/STAFF_API.md`, `docs/location-intake/SECURITY.md`,
+  `docs/location-intake/MIGRATION.md`.
+- **Lý do:** Đóng các gap P2/P3/P4 của PR #48 mà không mở rộng sang rental/CSKV/multi-image, không migrate
+  workbook và không thay đổi Production deployment.
+- **Kiểm tra:** Focused staff tests 38/38 PASS; full `npm test` 454/454 PASS; `npm run build` PASS;
+  `npm run test:e2e` 21/21 PASS; `npm audit --omit=dev --audit-level=high` exit 0 với 9 moderate
+  transitive `uuid` findings và không có high/critical; `git diff --check` sạch. OAuth/Production route
+  acceptance chưa chạy do môi trường mạng/Deployment Protection chưa cho phép xác minh live.
+
 ## [2026-08-11] PR #48 — `/can-bo` staff portal UI and Google sign-in browser flow
 - **Agent:** Codex
 - **Thay đổi:** Thêm portal static mobile-first, official GIS rendered button, CSRF/session bootstrap,
