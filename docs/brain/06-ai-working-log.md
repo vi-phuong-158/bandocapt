@@ -2911,6 +2911,13 @@
 - **Reason:** The primary modal action previously did not create a submit event, so the form never called `submitModal()` or reached `/api/staff/requests`.
 - **Checks:** Focused staff client/build tests 8/8 and modal E2E 3/3; `npm.cmd test` 455/455 PASS; `npm.cmd run build` PASS; `npm.cmd run test:e2e` 24/24 PASS; `npm.cmd audit --omit=dev --audit-level=high` exit 0 with 9 moderate transitive `uuid` findings and no high findings; `git diff --check` PASS.
 
+## [2026-08-14] Google Analytics page tracking
+- **Agent:** Codex
+- **Changes:** Added the GA4 Google tag for Measurement ID `G-5YH4MEZ727` to the public map page and allowed its script, image, and telemetry endpoints through the existing CSP. The inline bootstrap is approved with a SHA-256 hash rather than relaxing the policy with `unsafe-inline`.
+- **Files changed:** `index.html`, `vercel.json`, `docs/brain/06-ai-working-log.md`.
+- **Reason:** Enable Google Analytics page-view measurement without breaking the site's restrictive CSP.
+- **Checks:** `npm.cmd run build`; verified the CSP hash matches the exact GA bootstrap script; inspected the generated `dist/index.html` for the configured Measurement ID.
+
 ## [2026-08-10] P1 Published_Locations data fidelity guard
 - **Agent:** Codex
 - **Thay đổi:** Dry-run so sánh canonical public data cho từng `record_id` tồn tại ở cả source và target.
