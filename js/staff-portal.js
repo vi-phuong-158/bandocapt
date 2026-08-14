@@ -332,7 +332,9 @@
             form.appendChild(image);
         }
         const actions = el('div', 'staff-modal-actions');
-        append(actions, button('Hủy', 'staff-button', closeModal), button(modal.mode === 'confirm' ? 'Xác nhận' : 'Gửi yêu cầu', 'staff-button-primary', null));
+        const primaryAction = button(modal.mode === 'confirm' ? 'Xác nhận' : 'Gửi yêu cầu', 'staff-button-primary', null);
+        primaryAction.type = 'submit';
+        append(actions, button('Hủy', 'staff-button', closeModal), primaryAction);
         form.appendChild(actions);
         form.addEventListener('submit', event => { event.preventDefault(); submitModal(form); });
         card.appendChild(form);

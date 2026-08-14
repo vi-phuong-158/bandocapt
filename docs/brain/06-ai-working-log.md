@@ -2904,6 +2904,13 @@
 - **Lý do:** Runtime smoke against the owner-only TEST Web App rejected literal Unicode raw bodies even though ASCII-escaped JSON passed. This was an Apps Script encoding defect, not a secret or allowlist failure.
 - **Kiểm tra:** TEST deployment accepted Unicode `resolveUnits` and `submitRequest`; tampered, stale, future, unknown-action, replay, payload-drift, image-type, malformed-base64, concurrency, verification, private Drive, and idempotency scenarios were exercised. `npm.cmd test` 421/421, build PASS, Playwright 19/19, audit exit 0 with 9 moderate transitive `uuid` findings.
 
+## [2026-08-14] PR #48 modal primary submit regression
+- **Agent:** Codex
+- **Changes:** Set `type="submit"` only on the primary action in `renderModal()`; preserved the `button()` default `type="button"` for Cancel/Close/Logout. Added regression E2E coverage for create, update, correct, stop, and confirm, including API paths, native required validation, services validation, and image contract.
+- **Files changed:** `js/staff-portal.js`, `test/e2e/staff-portal-modal.spec.js`, `test/staff-portal-client.test.js`, `docs/brain/06-ai-working-log.md`.
+- **Reason:** The primary modal action previously did not create a submit event, so the form never called `submitModal()` or reached `/api/staff/requests`.
+- **Checks:** Focused staff client/build tests 8/8 and modal E2E 3/3; `npm.cmd test` 455/455 PASS; `npm.cmd run build` PASS; `npm.cmd run test:e2e` 24/24 PASS; `npm.cmd audit --omit=dev --audit-level=high` exit 0 with 9 moderate transitive `uuid` findings and no high findings; `git diff --check` PASS.
+
 ## [2026-08-10] P1 Published_Locations data fidelity guard
 - **Agent:** Codex
 - **Thay đổi:** Dry-run so sánh canonical public data cho từng `record_id` tồn tại ở cả source và target.

@@ -57,3 +57,9 @@ test('portal UI marks image, coordinates and services required for create/update
     assert.match(portalSource, /if \(requiresLocationFields && !file\) throw new Error\('IMAGE_REQUIRED'\)/);
     assert.doesNotMatch(portalSource, /Ảnh địa điểm \(không bắt buộc\)/);
 });
+
+test('portal keeps service and image validation contracts', () => {
+    assert.match(portalSource, /requiresLocationFields && !values\.services\.length/);
+    assert.match(portalSource, /imageInput\.accept = 'image\/jpeg,image\/png,image\/webp'/);
+    assert.match(portalSource, /StaffImage\.prepareImage\(file\)/);
+});
