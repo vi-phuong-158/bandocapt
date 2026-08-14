@@ -2872,6 +2872,12 @@
 - **Lý do:** Runtime smoke against the owner-only TEST Web App rejected literal Unicode raw bodies even though ASCII-escaped JSON passed. This was an Apps Script encoding defect, not a secret or allowlist failure.
 - **Kiểm tra:** TEST deployment accepted Unicode `resolveUnits` and `submitRequest`; tampered, stale, future, unknown-action, replay, payload-drift, image-type, malformed-base64, concurrency, verification, private Drive, and idempotency scenarios were exercised. `npm.cmd test` 421/421, build PASS, Playwright 19/19, audit exit 0 with 9 moderate transitive `uuid` findings.
 
+## [2026-08-14] Google Analytics page tracking
+- **Agent:** Codex
+- **Changes:** Added the GA4 Google tag for Measurement ID `G-5YH4MEZ727` to the public map page and allowed its script, image, and telemetry endpoints through the existing CSP. The inline bootstrap is approved with a SHA-256 hash rather than relaxing the policy with `unsafe-inline`.
+- **Files changed:** `index.html`, `vercel.json`, `docs/brain/06-ai-working-log.md`.
+- **Reason:** Enable Google Analytics page-view measurement without breaking the site's restrictive CSP.
+- **Checks:** `npm.cmd run build`; verified the CSP hash matches the exact GA bootstrap script; inspected the generated `dist/index.html` for the configured Measurement ID.
 ## [2026-08-10] P1 Published_Locations data fidelity guard
 - **Agent:** Codex
 - **Thay đổi:** Dry-run so sánh canonical public data cho từng `record_id` tồn tại ở cả source và target.
