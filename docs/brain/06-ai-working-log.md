@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-08-14] PR #48 sync with main (Google Analytics)
+- **Agent:** Claude Code
+- **Thay đổi:** Merge `origin/main` (`fb3618a`, GA4 tracking) vào `feat/staff-location-portal-ui`. `vercel.json`/`index.html` tự merge sạch vì branch đã có sẵn một commit local (chưa push) replay đúng nội dung GA; chỉ conflict ở `docs/brain/06-ai-working-log.md` do hai nhánh cùng thêm entry — giữ cả hai entry, xếp theo thời gian merge vào main. Xác minh SHA-256 hash của inline GA bootstrap script khớp chính xác nội dung script, CSP public route vẫn có GA endpoints, và `/can-bo`, `/can-bo/(.*)` vẫn giữ nguyên CSP/COOP/no-store/X-Robots-Tag riêng, được loại trừ khỏi catch-all CSP qua negative lookahead.
+- **File đã sửa:** `vercel.json`, `index.html`, `docs/brain/06-ai-working-log.md` (merge commit `34a6fd4`, on top of pre-existing local commit `6073769`).
+- **Lý do:** Task nghiệm thu PR #48 yêu cầu đồng bộ branch với `main` mới nhất trước khi chạy lại acceptance, không được mất Google Analytics lẫn Staff Portal CSP.
+- **Kiểm tra:** `git diff origin/main...HEAD --check` sạch; `npm test` 455/455 PASS; `npm run build` PASS (xác nhận `dist/index.html` có `G-5YH4MEZ727`); `npm run test:e2e` 24/24 PASS (gồm cả `staff-portal-modal.spec.js` và `staff-portal.spec.js`); `npm audit --omit=dev --audit-level=high` exit 0 (6 moderate transitive `uuid`, không có high trong production deps).
+
 ## [2026-08-13] PR #48 staff contract remediation
 - **Agent:** Codex
 - **Thay đổi:** Hoàn thiện contract UI/API cho create/update/correct (ảnh, tọa độ, services), thêm
