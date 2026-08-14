@@ -129,4 +129,56 @@ test.describe('staff portal modal submit regression', () => {
         await expect(backdrop.locator('.staff-notice-warning')).toBeVisible();
         expect(mutations).toHaveLength(0);
     });
+
+    test('recoverable server error keeps the modal open, preserves entered fields and requires re-selecting the image', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        let requestAttempts = 0;
+        await page.unroute('**/api/staff/requests');
+        await page.route('**/api/staff/requests', async route => {
+            requestAttempts += 1;
+            if (requestAttempts === 1) {
+                await route.fulfill({ status: 503, json: { ok: false, error: { code: 'STAFF_GATEWAY_UNAVAILABLE' } } });
+                return;
+            }
+            mutations.push({ path: '/api/staff/requests', body: route.request().postDataJSON() });
+            await route.fulfill({ json: { ok: true, data: {} } });
+        });
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'create');
+        const form = backdrop.locator('form');
+        await form.locator('[name=locationName]').fill('Địa điểm mới');
+        await form.locator('[name=address]').fill('Địa chỉ mới');
+        await form.locator('[name=siteType]').selectOption('HEADQUARTERS');
+        await form.locator('[name=coordinates]').fill('21.3225,105.4027');
+        await form.locator('[name=submitterName]').fill('Cán bộ kiểm thử');
+        await form.locator('[name=services]').first().check();
+        await form.locator('[name=image]').setInputFiles(imageFile);
+        await form.locator('button.staff-button-primary').click();
+
+        // Modal stays open with the error shown, not silently reset as if the button had done nothing.
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(1);
+        await expect(backdrop.locator('.staff-notice-warning')).toContainText('Hệ thống tạm thời chưa kết nối được dữ liệu');
+        await expect(backdrop.locator('.staff-notice-warning')).toContainText('chọn lại ảnh');
+
+        // Text/select/services values the user typed survive the re-render — nothing to redo.
+        await expect(form.locator('[name=locationName]')).toHaveValue('Địa điểm mới');
+        await expect(form.locator('[name=address]')).toHaveValue('Địa chỉ mới');
+        await expect(form.locator('[name=siteType]')).toHaveValue('HEADQUARTERS');
+        await expect(form.locator('[name=coordinates]')).toHaveValue('21.3225,105.4027');
+        await expect(form.locator('[name=submitterName]')).toHaveValue('Cán bộ kiểm thử');
+        await expect(form.locator('[name=services]').first()).toBeChecked();
+
+        // The file input itself cannot be restored by the browser and must not carry over silently.
+        expect(await form.locator('[name=image]').evaluate(node => node.files.length)).toBe(0);
+
+        // Re-selecting only the image and submitting again succeeds and reaches the Gateway exactly once more.
+        await form.locator('[name=image]').setInputFiles(imageFile);
+        await form.locator('button.staff-button-primary').click();
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0);
+        expect(mutations.map(mutation => mutation.path)).toEqual(['/api/staff/requests']);
+        expect(requestAttempts).toBe(2);
+    });
 });

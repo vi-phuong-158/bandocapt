@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const test = require('node:test');
 
-const { callGateway, signGatewayBody } = require('../lib/staff-gateway-client');
+const { callGateway, signGatewayBody, MUTATION_TIMEOUT_MS, MUTATION_MAX_ATTEMPTS, DEFAULT_TIMEOUT_MS } = require('../lib/staff-gateway-client');
 
 const env = {
     STAFF_GATEWAY_URL: 'https://script.google.com/macros/s/test/exec',
@@ -79,6 +79,54 @@ test('Gateway timeout AbortError is sanitized and remains bounded', async () => 
     }), error => error.code === 'STAFF_GATEWAY_UNAVAILABLE' && !/AbortError|DOMException|stack/i.test(error.message));
     assert.equal(attempts.length, 2);
     assert.equal(attempts[0].body, attempts[1].body);
+});
+
+test('Gateway tolerates a legitimate long mutation: a slow-but-successful response inside the mutation timeout still resolves', async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    let resolveFetch;
+    const fetchPromise = new Promise(resolve => { resolveFetch = resolve; });
+    const callPromise = callGateway('submitRequest', { request_id: 'slow-op' }, {
+        env, requestId: 'slow-op', timeoutMs: MUTATION_TIMEOUT_MS, maxAttempts: 1,
+        fetchImpl: async () => fetchPromise,
+    });
+    // Advance past the legacy 8s default and the observed 26.633s real-world duration, but stay
+    // under the new 40s mutation timeout — proves the abort timer configured at MUTATION_TIMEOUT_MS
+    // does not fire while the (simulated) Apps Script execution is still legitimately running.
+    t.mock.timers.tick(DEFAULT_TIMEOUT_MS);
+    t.mock.timers.tick(26633 - DEFAULT_TIMEOUT_MS);
+    resolveFetch({ ok: true, status: 200, json: async () => ({ ok: true, data: { status: 'PENDING', recordId: 'REC_1' } }) });
+    const result = await callPromise;
+    assert.deepEqual(result, { status: 'PENDING', recordId: 'REC_1' });
+});
+
+test('Gateway with maxAttempts=1 makes exactly one fetch call and does not overlap a retry on transport failure', async () => {
+    let calls = 0;
+    await assert.rejects(() => callGateway('submitRequest', { request_id: 'no-overlap' }, {
+        env, requestId: 'no-overlap', timeoutMs: 10, maxAttempts: MUTATION_MAX_ATTEMPTS,
+        fetchImpl: async () => { calls += 1; throw new Error('network'); },
+    }), error => error.code === 'STAFF_GATEWAY_UNAVAILABLE');
+    assert.equal(calls, 1, 'a single bounded attempt must not fire a second overlapping Apps Script execution');
+});
+
+test('Gateway still fails closed when a mutation genuinely exceeds the configured mutation timeout', async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const callPromise = callGateway('submitRequest', { request_id: 'too-slow' }, {
+        env, requestId: 'too-slow', timeoutMs: 100, maxAttempts: 1,
+        fetchImpl: async (url, options) => new Promise((resolve, reject) => {
+            options.signal.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')), { once: true });
+        }),
+    });
+    t.mock.timers.tick(100);
+    await assert.rejects(() => callPromise, error => error.code === 'STAFF_GATEWAY_UNAVAILABLE');
+});
+
+test('Gateway request id and raw body are identical regardless of the timeout/attempts policy used', async () => {
+    let captured;
+    await callGateway('submitRequest', { request_id: 'policy-neutral', value: 'x' }, {
+        env, requestId: 'policy-neutral', timeoutMs: MUTATION_TIMEOUT_MS, maxAttempts: MUTATION_MAX_ATTEMPTS,
+        fetchImpl: async (url, options) => { captured = options.body; return { ok: true, status: 200, json: async () => ({ ok: true, data: {} }) }; },
+    });
+    assert.equal(captured, JSON.stringify({ action: 'submitRequest', request_id: 'policy-neutral', payload: { request_id: 'policy-neutral', value: 'x' } }));
 });
 
 test('signature helper matches Node HMAC UTF-8 bytes', () => {

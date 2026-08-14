@@ -172,6 +172,43 @@ lib/staff-api-errors.js <- route adapters and browser error presentation
 No route, deployment, workbook, migration, or public/private boundary change is included in this
 remediation. Production 404 classification remains an external Vercel deployment/configuration check.
 
+## PR #48 Gateway timeout policy (2026-08-14)
+
+Real incident evidence (Apps Script Executions log) showed an image-bearing `submitRequest` took
+26.633s end to end — `submitRequest`/`writeVerificationEvent` both hold Apps Script's project-wide
+`LockService.getScriptLock()` for the whole operation (Sheets reads/writes plus, for `submitRequest`,
+Drive image persist), which can legitimately exceed the old flat `DEFAULT_TIMEOUT_MS=8000`/`MAX_ATTEMPTS=2`
+used for every Gateway action. The caller aborted at 8s and returned a false `STAFF_GATEWAY_UNAVAILABLE`
+503 even though the Gateway went on to complete successfully (`Idempotency_Ledger` `COMPLETED`, one
+`Location_Staging` row, one Drive file) — the browser saw a failure for an operation that actually
+succeeded.
+
+- `lib/staff-gateway-client.js` `callGateway()` now accepts a per-call `options.maxAttempts` (alongside
+  the existing `options.timeoutMs`) instead of a single module-wide `MAX_ATTEMPTS`. New exported
+  constants `MUTATION_TIMEOUT_MS=40000`/`MUTATION_MAX_ATTEMPTS=1` are the policy for lock-holding
+  mutations; `DEFAULT_TIMEOUT_MS=8000`/`MAX_ATTEMPTS=2` remain the default for `resolveUnits` (observed
+  1.8-2.6s, unchanged, still retry-capable since it never takes the Script Lock).
+- `lib/staff-api.js` passes `timeoutMs: MUTATION_TIMEOUT_MS, maxAttempts: MUTATION_MAX_ATTEMPTS`
+  explicitly on the `submitRequest` and `writeVerificationEvent` `gatewayCall(...)` sites only; the
+  `resolveUnits` call site is untouched and keeps the client's defaults.
+- `vercel.json` raises `maxDuration` to 45s for `api/staff/requests.js` and `api/staff/verification.js`
+  (5s margin over `MUTATION_TIMEOUT_MS`) so the Vercel function itself isn't killed by the platform
+  before `callGateway`'s own internal timeout can fire; `api/chat.js` already proves 60s is accepted on
+  this account/plan.
+- Automatic retry for `submitRequest`/`writeVerificationEvent` is now `attempts=1` by design: a second
+  automatic attempt would arrive while the first is still holding the Script Lock and just queue behind
+  it, wasting the caller's own timeout budget without doing useful work. Manual user retry stays safe —
+  unchanged — via the Gateway's existing `request_id`/`body_hash` idempotency ledger (`GATEWAY.md`).
+- `js/staff-portal.js` `submitModal()`/`renderModal()`: on a retryable server/network error the modal no
+  longer rebuilds blank. Entered text/select/services values are kept in `state.modal.values` (in-memory
+  only, no `localStorage`/`sessionStorage`, `image` explicitly excluded) and restored on re-render, so a
+  false-503-looking failure doesn't read as "the Submit button did nothing." The image file input can
+  never be programmatically restored by a browser, so the user is always asked to re-select it, with an
+  inline hint when values were preserved.
+
+No change to HMAC signing, freshness window, request-id/body-hash derivation, or any Apps Script code
+(`setup/staff-gateway.js`, `Code.gs`) — this is caller-side timeout/attempts policy and UX only.
+
 ## Code Graph
 
 | Module / file | Vai tro | Duoc goi boi | Phu thuoc vao |

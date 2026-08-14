@@ -11,3 +11,4 @@ data/pinecone-backups/
 .clasp.json
 .clasprc.json
 clasp-creds*.json
+.vercel

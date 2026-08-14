@@ -286,6 +286,9 @@
 
     function renderModal() {
         const modal = state.modal;
+        const requiresLocationFields = ['create', 'update', 'correct'].includes(modal.mode);
+        const saved = modal.values || null;
+        function kept(name, fallback) { return saved && Object.prototype.hasOwnProperty.call(saved, name) ? saved[name] : fallback; }
         const backdrop = el('div', 'staff-modal-backdrop');
         backdrop.addEventListener('click', event => { if (event.target === backdrop) closeModal(); });
         const card = el('section', 'staff-modal-card');
@@ -293,19 +296,36 @@
         const title = { create: 'Thêm địa điểm mới', update: 'Cập nhật thông tin', correct: 'Báo địa chỉ/vị trí sai', stop: 'Báo ngừng hoạt động', confirm: 'Xác nhận thông tin' }[modal.mode];
         append(header, el('h2', '', title), button('Đóng', 'staff-button', closeModal));
         card.appendChild(header);
-        if (modal.error) card.appendChild(el('div', 'staff-notice staff-notice-warning', modal.error));
+        if (modal.error) {
+            const errorNotice = el('div', 'staff-notice staff-notice-warning', modal.error);
+            if (saved && requiresLocationFields) {
+                errorNotice.appendChild(el('small', '', ' Các thông tin đã nhập được giữ lại; vui lòng chọn lại ảnh nếu cần gửi lại.'));
+            }
+            card.appendChild(errorNotice);
+        }
         const form = document.createElement('form');
         form.className = 'staff-form';
         if (modal.mode === 'confirm') {
             append(form, el('p', '', 'Bạn xác nhận thông tin địa điểm này hiện vẫn chính xác?'));
-            field(form, 'note', 'Ghi chú (không bắt buộc)', '', 'textarea');
+            field(form, 'note', 'Ghi chú (không bắt buộc)', kept('note', ''), 'textarea');
         } else if (modal.mode === 'stop') {
             append(form, el('p', '', 'Bạn muốn báo địa điểm này đã ngừng hoạt động?'));
-            field(form, 'reviewNote', 'Lý do hoặc ghi chú (không bắt buộc)', '', 'textarea');
+            field(form, 'reviewNote', 'Lý do hoặc ghi chú (không bắt buộc)', kept('reviewNote', ''), 'textarea');
         } else {
-            const requiresLocationFields = ['create', 'update', 'correct'].includes(modal.mode);
             const record = modal.item?.record || {};
-            const source = { locationName: recordValue(record, 'name', 'name'), siteType: recordValue(record, 'site_type', 'siteType'), services: recordValue(record, 'services', 'services'), address: recordValue(record, 'address', 'address'), publicPhone: recordValue(record, 'phone', 'phone'), mapsUrl: recordValue(record, 'google_maps_url', 'googleMapsUrl'), coordinates: recordValue(record, 'coordinates', 'coordinates'), cccdServiceMode: recordValue(record, 'cccd_service_mode', 'cccdServiceMode'), serviceSchedule: recordValue(record, 'service_schedule', 'serviceSchedule'), servedUnits: recordValue(record, 'served_units', 'servedUnits'), searchAliases: recordValue(record, 'search_aliases', 'searchAliases') };
+            const source = {
+                locationName: kept('locationName', recordValue(record, 'name', 'name')),
+                siteType: kept('siteType', recordValue(record, 'site_type', 'siteType')),
+                services: kept('services', recordValue(record, 'services', 'services')),
+                address: kept('address', recordValue(record, 'address', 'address')),
+                publicPhone: kept('publicPhone', recordValue(record, 'phone', 'phone')),
+                mapsUrl: kept('mapsUrl', recordValue(record, 'google_maps_url', 'googleMapsUrl')),
+                coordinates: kept('coordinates', recordValue(record, 'coordinates', 'coordinates')),
+                cccdServiceMode: kept('cccdServiceMode', recordValue(record, 'cccd_service_mode', 'cccdServiceMode')),
+                serviceSchedule: kept('serviceSchedule', recordValue(record, 'service_schedule', 'serviceSchedule')),
+                servedUnits: kept('servedUnits', recordValue(record, 'served_units', 'servedUnits')),
+                searchAliases: kept('searchAliases', recordValue(record, 'search_aliases', 'searchAliases')),
+            };
             field(form, 'locationName', 'Tên địa điểm', source.locationName, 'text', true);
             field(form, 'address', 'Địa chỉ', source.address, 'text', true);
             field(form, 'publicPhone', 'Số điện thoại', source.publicPhone, 'tel');
@@ -318,10 +338,10 @@
             field(form, 'servedUnits', 'Đơn vị phục vụ', source.servedUnits);
             field(form, 'searchAliases', 'Tên gọi khác', source.searchAliases);
             if (modal.mode === 'create') {
-                field(form, 'submitterName', 'Họ tên cán bộ', '', 'text', true);
-                field(form, 'submitterPhone', 'Số điện thoại liên hệ', '', 'tel');
+                field(form, 'submitterName', 'Họ tên cán bộ', kept('submitterName', ''), 'text', true);
+                field(form, 'submitterPhone', 'Số điện thoại liên hệ', kept('submitterPhone', ''), 'tel');
             }
-            field(form, 'reviewNote', 'Ghi chú gửi duyệt', '', 'textarea');
+            field(form, 'reviewNote', 'Ghi chú gửi duyệt', kept('reviewNote', ''), 'textarea');
             const image = document.createElement('div');
             image.className = 'staff-field';
             const imageLabel = el('label', '', `Ảnh địa điểm${requiresLocationFields ? ' (bắt buộc)' : ''}`);
@@ -382,6 +402,8 @@
             if (error?.code === 'STALE_PUBLIC_SNAPSHOT') {
                 state.modal = null; await loadLocations(); notice(errorMessage(error), 'warning'); renderAuthorized(); return;
             }
+            const { image: _droppedImage, ...preservedValues } = values;
+            state.modal.values = preservedValues;
             state.modal.error = errorMessage(error);
             renderAuthorized();
         }

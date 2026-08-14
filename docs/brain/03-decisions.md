@@ -1,5 +1,46 @@
 # 03 — Technical Decisions
 
+## [2026-08-14] PR #48 Gateway timeout per action, not one global constant
+
+- **Decision:** `lib/staff-gateway-client.js`'s `callGateway()` takes a per-call `maxAttempts` option
+  (in addition to the existing `timeoutMs`) instead of one module-wide `MAX_ATTEMPTS`/`DEFAULT_TIMEOUT_MS`
+  applied to every action. `resolveUnits` keeps the original `DEFAULT_TIMEOUT_MS=8000`/`MAX_ATTEMPTS=2`
+  (never takes the Script Lock, observed 1.8-2.6s — unchanged). `submitRequest`/`writeVerificationEvent`
+  use new `MUTATION_TIMEOUT_MS=40000`/`MUTATION_MAX_ATTEMPTS=1`, wired explicitly from their `lib/staff-api.js`
+  call sites.
+- **Evidence:** Real production incident — Apps Script Executions log showed an image-bearing
+  `submitRequest` (`doPost`) took 26.633s; `Idempotency_Ledger` reached `COMPLETED`, exactly one
+  `Location_Staging` row and one Drive file were created, but the browser had already received a false
+  `STAFF_GATEWAY_UNAVAILABLE` 503 at the old 8s timeout. Margin: 40s gives ~13.4s (~50%) over the single
+  observed duration; not a distribution (P50/P95) yet, so this should be revisited if real traffic shows
+  a wider spread.
+- **Decision:** `submitRequest`/`writeVerificationEvent` get `maxAttempts=1` (no automatic HTTP retry),
+  because both hold Apps Script's project-wide `LockService.getScriptLock()` for the whole operation — an
+  automatic second attempt would arrive while the first is still holding the lock and just queue behind
+  it, burning the caller's timeout budget on a wait that does nothing. `resolveUnits` keeps its 2-attempt
+  retry since it never contends for the lock and is cheap to repeat.
+- **Decision:** Manual user retry is intentionally left exactly as safe as before — `request_id`/`body_hash`
+  Gateway-side idempotency ([GATEWAY.md](../location-intake/GATEWAY.md)) is unchanged, still the single
+  source of truth for "same operation, don't duplicate." No idempotency/HMAC/freshness code touched.
+- **Decision:** `vercel.json` `maxDuration` raised to 45s for `api/staff/requests.js` and
+  `api/staff/verification.js` only (5s margin over `MUTATION_TIMEOUT_MS`) — `resolveUnits`-only routes
+  (`session.js`, `locations.js`, `auth/google.js`) are untouched and keep failing fast. 45s stays well
+  under the 60s already proven safe for `api/chat.js` on this account/plan.
+- **Decision:** UX — `js/staff-portal.js` preserves entered text/select/services values in memory
+  (`state.modal.values`) across a retryable server error, explicitly dropping the `image` field; the
+  image must always be re-selected (browsers cannot programmatically restore a `File` into an
+  `<input type=file>`). No `localStorage`/`sessionStorage` used.
+- **Rejected:** Blanket-raising `DEFAULT_TIMEOUT_MS` to a large value for every action — would have made
+  `resolveUnits` (called on every protected request, including page loads) needlessly slow to fail during
+  a real outage. Rejected making `getOperationalRecords()` conditional/lazy for `create` as a latency
+  optimization in a prior investigation pass — it also feeds `detectDuplicateWarnings()` for `create`,
+  so skipping it would have silently disabled duplicate-location detection; out of scope for this fix
+  (see BƯỚC 14 in the incident task: no Apps Script/Script Lock/Drive redesign in this change).
+- **Consequence:** This closes the specific false-503 failure mode without touching Apps Script code,
+  HMAC, freshness, or idempotency. Actual Apps Script execution latency (Script Lock contention, full
+  Sheets scans, Drive API round trips) is unchanged and still the real cost driver — a follow-up
+  performance task, not this one.
+
 ## [2026-08-13] PR #48 staff request contract remediation
 
 - **Decision:** `create`, `update` and `correct` require services, a valid coordinate input and exactly

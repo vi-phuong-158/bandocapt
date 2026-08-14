@@ -5,6 +5,12 @@
   "functions": {
     "api/chat.js": {
       "maxDuration": 60
+    },
+    "api/staff/requests.js": {
+      "maxDuration": 45
+    },
+    "api/staff/verification.js": {
+      "maxDuration": 45
     }
   },
   "headers": [

@@ -6,6 +6,7 @@ const { createStaffApi, deriveGatewayRequestId, validateStaffImage, normalizeReq
 const { snapshotHash } = require('../lib/staff-location-contract');
 const { createStaffSession } = require('../lib/staff-session');
 const { getPublishedLocations, resetPublishedLocationsCache } = require('../lib/published-locations');
+const { MUTATION_TIMEOUT_MS, MUTATION_MAX_ATTEMPTS } = require('../lib/staff-gateway-client');
 
 const SECRET = 'synthetic-staff-session-secret-32-bytes';
 const ENV = {
@@ -329,4 +330,47 @@ test('public staff auth config exposes only the Google client id and fails close
     assert.equal(missing.statusCode, 503);
     assert.deepEqual(missing.body, { ok: false, error: { code: 'STAFF_AUTH_CONFIG_INVALID' } });
     assert.equal(JSON.stringify(missing.body).includes('STAFF_SESSION_SECRET'), false);
+});
+
+test('resolveUnits keeps default Gateway timeout/attempts; submitRequest and writeVerificationEvent use the long mutation policy', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const location = record();
+    const calls = [];
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async (action, payload, options) => {
+            calls.push({ action, options });
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            if (action === 'submitRequest') return { status: 'PENDING' };
+            return { eventType: 'CONFIRM' };
+        },
+        getLocations: async () => ({ locations: [location] }),
+    });
+    const baseHeaders = { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` };
+
+    const create = response();
+    await api.requests(request('POST', {
+        operationId: 'op_wiring_create', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
+    }, baseHeaders), create);
+    assert.equal(create.statusCode, 200);
+
+    const currentHash = snapshotHash(require('../lib/staff-location-contract').toPublicSnapshot(location));
+    const verify = response();
+    await api.verification(request('POST', { operationId: 'op_wiring_verify', recordId: 'R_A', snapshotHash: currentHash, eventType: 'CONFIRM' }, baseHeaders), verify);
+    assert.equal(verify.statusCode, 200);
+
+    const resolveUnitsCalls = calls.filter(call => call.action === 'resolveUnits');
+    assert.ok(resolveUnitsCalls.length >= 1);
+    resolveUnitsCalls.forEach(call => {
+        assert.equal(call.options.timeoutMs, undefined, 'resolveUnits must not opt into the long mutation timeout');
+        assert.equal(call.options.maxAttempts, undefined, 'resolveUnits must keep the default retry-capable attempt count');
+    });
+
+    const submitCall = calls.find(call => call.action === 'submitRequest');
+    assert.equal(submitCall.options.timeoutMs, MUTATION_TIMEOUT_MS);
+    assert.equal(submitCall.options.maxAttempts, MUTATION_MAX_ATTEMPTS);
+
+    const verifyCall = calls.find(call => call.action === 'writeVerificationEvent');
+    assert.equal(verifyCall.options.timeoutMs, MUTATION_TIMEOUT_MS);
+    assert.equal(verifyCall.options.maxAttempts, MUTATION_MAX_ATTEMPTS);
 });
