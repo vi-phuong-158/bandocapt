@@ -125,6 +125,75 @@ test('a resolved final URL without any parseable coordinates fails gracefully fo
     }), error => error.code === 'COORDINATE_NEEDS_REVIEW');
 });
 
+// ---------------------------------------------------------------------------------------------
+// R2/R3/R4 — regression trên BA short link Google Maps thật.
+//
+// `finalUrl` dưới đây là URL cuối ghi nhận được khi resolve thật ngày 2026-08-15 (xem báo cáo
+// task). Chúng được đóng băng làm fixture nên CI không bao giờ gọi Google live.
+//
+// Bằng chứng root cause: cả ba link tới ba địa điểm KHÁC NHAU nhưng đều mang cùng một
+// `@21.3140333,105.4126319`. Parser cũ ưu tiên `@` nên trả cùng một toạ độ cho cả ba — mọi trụ sở
+// nhập qua Staff Portal sẽ trùng điểm.
+//
+// `placeCoordinate` là giá trị `!8m2!3d!4d` có thật trong URL (toạ độ entity của Google).
+// `acceptanceCoordinate` là toạ độ người dùng đọc tay khi nghiệm thu; nó không xuất hiện trong URL
+// nên không thể — và không được phép — trả về đúng từng chữ số. Kiểm tra bao ngoài dưới đây chỉ để
+// chứng minh ứng viên đã chọn nằm đúng chỗ địa điểm; PHÉP CHỌN vẫn thuần theo ngữ nghĩa nguồn,
+// không dùng khoảng cách.
+const LIVE_FIXTURES = [
+    {
+        id: 'R2',
+        shortUrl: 'https://maps.app.goo.gl/F64vgKJzFPqm1sSN7',
+        finalUrl: 'https://www.google.com/maps/place/Nh%C3%A0+H%C3%A0ng+-+C%C3%A0+Ph%C3%AA+D%C5%A9ng+Ph%C3%BAc/@21.3140333,105.4126319,17z/data=!4m6!3m5!1s0x3134f2b23517d0fb:0x16932be4cc12ebcd!8m2!3d21.3127579!4d105.4112769!16s%2Fg%2F11c59zx1cj?entry=tts',
+        placeCoordinate: { lat: 21.3127579, lng: 105.4112769 },
+        acceptanceCoordinate: { lat: 21.313428060472614, lng: 105.41124894925905 },
+    },
+    {
+        id: 'R3',
+        shortUrl: 'https://maps.app.goo.gl/miWbxLHcq5FRhea49',
+        finalUrl: 'https://www.google.com/maps/place/Xi%C3%AAn+Ngon+MonFood+Vi%E1%BB%87t+Tr%C3%AC/@21.3140333,105.4126319,17z/data=!4m6!3m5!1s0x3134f3004a214f45:0x3861c86d50f26327!8m2!3d21.3157995!4d105.4175208!16s%2Fg%2F11lp7ly8sp?entry=tts',
+        placeCoordinate: { lat: 21.3157995, lng: 105.4175208 },
+        acceptanceCoordinate: { lat: 21.315952309207464, lng: 105.41747593142287 },
+    },
+    {
+        id: 'R4',
+        shortUrl: 'https://maps.app.goo.gl/Y3cXALokxECeYt9B6',
+        finalUrl: 'https://www.google.com/maps/place/Cross+Vibe+Vi%E1%BB%87t+Tr%C3%AC+-+T%E1%BB%91t/@21.3140333,105.4126319,17z/data=!4m9!3m8!1s0x3134f387bd1e76bb:0x553dfd19c07c778e!5m2!4m1!1i2!8m2!3d21.3134213!4d105.4155139!16s%2Fg%2F11f635d0j4?entry=tts',
+        placeCoordinate: { lat: 21.3134213, lng: 105.4155139 },
+        acceptanceCoordinate: { lat: 21.31365346955366, lng: 105.41544818143757 },
+    },
+];
+
+const SHARED_VIEWPORT = { lat: 21.3140333, lng: 105.4126319 };
+
+function metersBetween(a, b) {
+    const toRad = deg => (deg * Math.PI) / 180;
+    const h = Math.sin(toRad(b.lat - a.lat) / 2) ** 2
+        + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(toRad(b.lng - a.lng) / 2) ** 2;
+    return 6371000 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+
+for (const fixture of LIVE_FIXTURES) {
+    test(`${fixture.id}: short link thật trả toạ độ địa điểm, không phải viewport (${fixture.shortUrl})`, async () => {
+        const result = await resolveMapsCoordinates(fixture.shortUrl, {
+            fetchImpl: async (url) => (url === fixture.shortUrl ? redirectResponse(fixture.finalUrl) : finalResponse()),
+        });
+        assert.deepEqual(result, fixture.placeCoordinate);
+        assert.notDeepEqual(result, SHARED_VIEWPORT, 'không được trả toạ độ camera dùng chung');
+        assert.ok(
+            metersBetween(result, fixture.acceptanceCoordinate) < 100,
+            `kết quả phải nằm tại địa điểm nghiệm thu, đo được ${metersBetween(result, fixture.acceptanceCoordinate).toFixed(1)}m`,
+        );
+    });
+}
+
+test('R2-R4: parser cũ trả CÙNG một điểm cho cả ba địa điểm khác nhau — bằng chứng root cause', () => {
+    const viewports = LIVE_FIXTURES.map(fixture => fixture.finalUrl.match(/@(-?[\d.]+),(-?[\d.]+)/).slice(1, 3).join(','));
+    assert.equal(new Set(viewports).size, 1, 'ba URL thật dùng chung một toạ độ viewport');
+    const places = LIVE_FIXTURES.map(fixture => `${fixture.placeCoordinate.lat},${fixture.placeCoordinate.lng}`);
+    assert.equal(new Set(places).size, 3, 'ba địa điểm phải có ba toạ độ entity riêng biệt');
+});
+
 test('a redirect response missing a Location header fails closed', async () => {
     await assert.rejects(() => resolveMapsCoordinates('https://maps.app.goo.gl/broken', {
         fetchImpl: async () => ({ status: 302, headers: { get: () => null } }),

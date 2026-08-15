@@ -250,6 +250,29 @@ Maps coordinates are derived automatically when possible, with manual entry as f
   Maps-URL coordinate-in-URL convention, resolved server-side instead of requiring the user to extract
   it manually.
 
+### Coordinate precedence in a Maps URL (2026-08-15)
+
+A resolved Google Maps URL usually carries **more than one** coordinate pair, and they do not mean the
+same thing. `parseCoordinates` in `setup/apps-script.js` therefore splits
+`extractCoordinateCandidates()` (list every pair with its `source`) from `selectBestCoordinate()`
+(pick by the explicit `COORDINATE_SOURCE_PRIORITY` constant), so the rule is not the accidental order of
+a regex array:
+
+| Priority | Source | URL shape | Meaning |
+|----------|--------|-----------|---------|
+| 1 | `PLACE_ENTITY` | `!8m2!3d<lat>!4d<lng>`, else bare `!3d!4d` | the place the link points at |
+| 2 | `QUERY` | `?q=` `query=` `ll=` `destination=` `center=` | coordinate stated explicitly by the link author |
+| 3 | `VIEWPORT` | `@<lat>,<lng>` | map camera. **Not the place** — Google fills it with a regional default when resolving a short link, so different places can share one `@` value |
+| 4 | `RAW` | `lat,lng` | coordinates typed by staff |
+
+`@` is de-prioritised, never dropped: a `/maps/@lat,lng,15z` URL still resolves. Bounds validation is
+fail-closed on the **selected** candidate — a place entity outside Phú Thọ returns
+`COORDINATES_OUTSIDE_SERVICE_AREA` rather than falling back to a viewport that happens to be in bounds.
+Selection never considers distance between candidates. `parseCoordinates` returns an extra `source`
+field for tests/debug; `resolveMapsCoordinates` still returns exactly `{lat, lng}`, so the Staff API DTO
+is unchanged. `js/location-data.js` keeps a twin parser for the public map and follows the same
+precedence, so the frontend and the authoritative server/Gateway path cannot diverge.
+
 ## Code Graph
 
 | Module / file | Vai tro | Duoc goi boi | Phu thuoc vao |

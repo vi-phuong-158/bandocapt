@@ -186,28 +186,62 @@
             host === 'google.com' || host.endsWith('.google.com.vn') || host === 'google.com.vn';
     }
 
+    // Một URL Google Maps có thể chứa NHIỀU cặp toạ độ với ý nghĩa khác nhau, nên việc chọn cặp
+    // nào phải theo NGỮ NGHĨA của nguồn, không theo thứ tự regex tình cờ được liệt kê:
+    //   PLACE_ENTITY `!3d<lat>!4d<lng>` — toạ độ của chính địa điểm mà link trỏ tới (khối `!8m2`
+    //     trong `data=` là dạng chuẩn của place được chọn).
+    //   QUERY `?q=|query=|ll=|destination=|center=` — toạ độ do người tạo link nêu tường minh.
+    //   VIEWPORT `@lat,lng` — tâm camera/khung nhìn. KHÔNG phải vị trí địa điểm: khi resolve một
+    //     short link, Google điền `@` bằng một khung nhìn mặc định theo khu vực, nên nhiều link
+    //     tới các địa điểm KHÁC NHAU có thể mang cùng một giá trị `@`.
+    //   RAW `lat,lng` — chuỗi toạ độ thuần do cán bộ nhập tay.
+    // `@` không bị loại bỏ: nó vẫn dùng được khi URL không có nguồn nào tốt hơn (vd `/maps/@..,..,15z`).
+    const COORDINATE_SOURCE_PRIORITY = Object.freeze({ PLACE_ENTITY: 1, QUERY: 2, VIEWPORT: 3, RAW: 4 });
+    const COORDINATE_PATTERNS = Object.freeze([
+        // Khối place chuẩn `!8m2!3d!4d` được thử trước để tất định khi URL có nhiều cặp `!3d!4d`
+        // (vd trang kết quả tìm kiếm/chỉ đường mang thêm toạ độ của các điểm khác).
+        { source: 'PLACE_ENTITY', pattern: /!8m2!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i },
+        { source: 'PLACE_ENTITY', pattern: /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i },
+        { source: 'QUERY', pattern: /[?&](?:q|query|ll|destination|center)=(-?\d+(?:\.\d+)?)(?:%2C|,|\s)+(-?\d+(?:\.\d+)?)/i },
+        { source: 'VIEWPORT', pattern: /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/ },
+        { source: 'RAW', pattern: /(?:^|[^\d.-])(-?\d+(?:\.\d+)?)\s*[,;]\s*(-?\d+(?:\.\d+)?)(?:$|[^\d.])/ }
+    ]);
+
+    function extractCoordinateCandidates(input) {
+        const raw = String(input || '').trim();
+        if (!raw) return [];
+        let text = raw;
+        try { text = decodeURIComponent(raw); } catch (_) {}
+        const candidates = [];
+        COORDINATE_PATTERNS.forEach(entry => {
+            const match = text.match(entry.pattern);
+            if (match) candidates.push({ source: entry.source, lat: Number(match[1]), lng: Number(match[2]) });
+        });
+        return candidates;
+    }
+
+    // Chọn theo priority nguồn, KHÔNG theo khoảng cách giữa các ứng viên. Ứng viên đầu tiên của
+    // priority thấp nhất thắng, nên kết quả tất định với cùng một URL.
+    function selectBestCoordinate(candidates = []) {
+        return candidates.reduce((best, candidate) => (
+            !best || COORDINATE_SOURCE_PRIORITY[candidate.source] < COORDINATE_SOURCE_PRIORITY[best.source] ? candidate : best
+        ), null);
+    }
+
     function parseCoordinates(input, bounds = PHU_THO_BOUNDS) {
-        const source = String(input || '').trim();
-        if (!source) return { ok: false, error: 'COORDINATES_MISSING' };
-        let text = source;
-        try { text = decodeURIComponent(source); } catch (_) {}
-        const patterns = [
-            /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
-            /[?&](?:q|query|ll|destination|center)=(-?\d+(?:\.\d+)?)(?:%2C|,|\s)+(-?\d+(?:\.\d+)?)/i,
-            /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i,
-            /(?:^|[^\d.-])(-?\d+(?:\.\d+)?)\s*[,;]\s*(-?\d+(?:\.\d+)?)(?:$|[^\d.])/
-        ];
-        const match = patterns.map(pattern => text.match(pattern)).find(Boolean);
-        if (!match) return { ok: false, error: 'COORDINATES_FORMAT_INVALID' };
-        const lat = Number(match[1]);
-        const lng = Number(match[2]);
+        if (!String(input || '').trim()) return { ok: false, error: 'COORDINATES_MISSING' };
+        // Fail closed: đã chốt ứng viên tốt nhất theo ngữ nghĩa thì validate đúng ứng viên đó.
+        // Không tụt xuống một cặp toạ độ priority thấp hơn (vd camera) chỉ để lọt bounds.
+        const best = selectBestCoordinate(extractCoordinateCandidates(input));
+        if (!best) return { ok: false, error: 'COORDINATES_FORMAT_INVALID' };
+        const { lat, lng, source } = best;
         if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
             return { ok: false, error: 'COORDINATES_OUT_OF_RANGE' };
         }
         if (bounds && (lat < bounds.minLat || lat > bounds.maxLat || lng < bounds.minLng || lng > bounds.maxLng)) {
-            return { ok: false, error: 'COORDINATES_OUTSIDE_SERVICE_AREA', lat, lng };
+            return { ok: false, error: 'COORDINATES_OUTSIDE_SERVICE_AREA', lat, lng, source };
         }
-        return { ok: true, lat, lng };
+        return { ok: true, lat, lng, source };
     }
 
     function classifyCoordinateStatus({ mapsUrl, coordinates, manuallyConfirmed = false } = {}) {
@@ -583,6 +617,7 @@
         SHEETS, WORKBOOK_BOUNDARY, STATUSES, REQUEST_TYPES, COORDINATE_STATUSES, HEADERS, PUBLIC_FIELDS, PHU_THO_BOUNDS, IMAGE_MIME_TYPES,
         normalizeLabel, normalizeBoolean, slugify, normalizeEmail, splitEmails, sanitizeSheetCell, sanitizeUserFields, normalizeServices,
         normalizeLocationType, deriveLegacyType, isGoogleMapsUrl, parseCoordinates, classifyCoordinateStatus,
+        COORDINATE_SOURCE_PRIORITY, extractCoordinateCandidates, selectBestCoordinate,
         validateImageMimeType, validateImageSubmission, buildAllowlistMap, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
         buildRecordId, haversineMeters, detectDuplicateWarnings, buildStagingRecord, buildPublishedRecord,
         buildAuditEntry, applyApproval, applyReviewAction, applyRevocation, migrateLegacyLocations,

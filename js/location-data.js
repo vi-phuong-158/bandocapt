@@ -49,10 +49,14 @@
         const input = String(value || '').trim();
         if (!input) return { ok: false, error: 'COORDINATES_MISSING' };
 
+        // Cùng thứ tự ưu tiên theo ngữ nghĩa với `setup/apps-script.js` (nguồn sự thật của
+        // resolver/Gateway): toạ độ địa điểm thắng toạ độ camera `@`, vì một URL Maps có thể mang
+        // nhiều cặp toạ độ khác nghĩa nhau. Xem chú thích đầy đủ ở `parseCoordinates` trong file đó.
         const patterns = [
-            /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
-            /[?&](?:q|query|ll|destination)=(-?\d+(?:\.\d+)?)(?:%2C|,|\s)+(-?\d+(?:\.\d+)?)/i,
+            /!8m2!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i,
             /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/i,
+            /[?&](?:q|query|ll|destination|center)=(-?\d+(?:\.\d+)?)(?:%2C|,|\s)+(-?\d+(?:\.\d+)?)/i,
+            /@(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)/,
             /(?:^|[^\d.-])(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)(?:$|[^\d.])/,
         ];
 

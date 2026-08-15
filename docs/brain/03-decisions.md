@@ -1,5 +1,39 @@
 # 03 — Technical Decisions
 
+## [2026-08-15] PR #48 Google Maps coordinate precedence: place entity beats viewport
+
+- **Evidence (live resolve 2026-08-15, 3 real short links):** every resolved final URL carried **two**
+  different coordinate pairs, and all three URLs — three *different* places in Việt Trì — shared the
+  identical viewport `@21.3140333,105.4126319`. Google fills `@` with a regional default camera when it
+  resolves a short link, so `@` is not the place at all. The place lives in the `data=` blob as
+  `!8m2!3d<lat>!4d<lng>`. Distance from the place to the operator's own reading: 74.6 m / 17.6 m / 26.7 m;
+  from the shared viewport: 158.3 m / 545.3 m / 294.8 m.
+- **Decision:** coordinate selection is by **semantic source**, with an explicit priority constant:
+  `PLACE_ENTITY (!3d!4d) > QUERY (q|query|ll|destination|center) > VIEWPORT (@) > RAW`. The old parser
+  took the first matching regex from an array whose first entry was `@`, which silently made *array
+  order* the business rule. Extraction (`extractCoordinateCandidates`) is now separate from selection
+  (`selectBestCoordinate`) so the rule is readable and testable.
+- **Decision:** `@` is de-prioritised, never dropped. A `/maps/@lat,lng,15z` URL has no better source and
+  must keep resolving (regression R5).
+- **Decision:** selection never uses distance between candidates. "The two points are close, pick either"
+  is not a rule — a trụ sở marker needs the entity coordinate, and proximity would silently accept the
+  camera whenever the camera happened to be near.
+- **Decision:** bounds validation stays fail-closed *on the selected candidate*. If the place entity falls
+  outside Phú Thọ, the result is `COORDINATES_OUTSIDE_SERVICE_AREA` — it does **not** fall back to a
+  lower-priority viewport just to pass bounds (regression R8).
+- **Decision:** when a URL carries several `!3d!4d` pairs (search/directions blobs), the canonical
+  `!8m2`-anchored block is preferred, then the first pair. Deterministic, no ambiguity fallback.
+- **Trade-off:** `parseCoordinates` now returns an extra `source` field. It is internal/debug only —
+  `resolveMapsCoordinates` still returns exactly `{lat, lng}`, so the Staff API DTO is unchanged and no
+  new field reaches a sheet. Callers read named fields, so the additive field is safe.
+- **Trade-off:** the operator's acceptance coordinates are manual readings that do not appear literally in
+  any URL (17–75 m from Google's own place centroid). Returning them exactly would require a fixture→
+  coordinate mapping, which is forbidden and would not generalise. The parser returns the place entity
+  coordinate; regression tests assert that exact value plus a 100 m acceptance envelope.
+- **Unchanged:** resolver security (HTTPS-only, Google host allowlist on the original URL *and* every hop,
+  `redirect:'manual'` so no body is read, `MAX_REDIRECTS=5`, one shared 6 s deadline), Phú Thọ bounds,
+  session/CSRF/Origin gate, Gateway HMAC and idempotency, and the paste→loading→✅ UX.
+
 ## [2026-08-15] PR #48 staff form simplification: authoritative identity/unit, Maps URL resolver
 
 - **Decision:** Identity and unit are authoritative server/session data — the form never asks staff to
