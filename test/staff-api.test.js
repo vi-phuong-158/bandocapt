@@ -188,6 +188,28 @@ test('locations are filtered by current unit and snapshot hashes are determinist
     assert.equal(item.snapshotHash, snapshotHash(item.record));
 });
 
+test('the location list DTO never leaks private/internal fields even if the source object carries them', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const withPrivateFields = record({
+        submitter_email: 'someone.else@example.test', submitterEmail: 'someone.else@example.test',
+        image_file_id: 'drive-file-id-secret', imageDriveUrl: 'https://drive.google.com/private/secret',
+        review_note: 'ghi chú nội bộ', auth_status: 'AUTHORIZED', request_id: 'REQ_INTERNAL',
+        validation_errors: '', warnings: '',
+    });
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async () => ({ units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] }),
+        getLocations: async () => ({ locations: [withPrivateFields] }),
+    });
+    const res = response();
+    await api.locations(request('GET', null, { cookie: `staff_session=${encodeURIComponent(session)}` }), res);
+    assert.equal(res.statusCode, 200);
+    const fields = Object.keys(res.body.data.locations[0].record);
+    for (const leaked of ['submitter_email', 'submitterEmail', 'image_file_id', 'imageDriveUrl', 'review_note', 'auth_status', 'request_id', 'validation_errors', 'warnings']) {
+        assert.equal(fields.includes(leaked), false, `${leaked} must not reach the Staff API DTO`);
+    }
+});
+
 test('authoritative mutation bypasses fresh cache and never accepts stale fallback', async () => {
     resetPublishedLocationsCache();
     let sourceMode = 'A';
@@ -367,6 +389,43 @@ test('U4: an email with no authorized units cannot reach the mutation flow', asy
     assert.equal(res.statusCode, 403);
     assert.equal(res.body.error.code, 'STAFF_ACCESS_REVOKED');
     assert.equal(submitCalls, 0);
+});
+
+test('U4/C4/S4/F4: update/correct/stop/confirm against a genuinely different unit\'s target fail closed at the Vercel layer, not just on the UI', async () => {
+    // Session is authorized ONLY for UNIT_A. The target record's authoritative unit is UNIT_B — a
+    // real cross-unit attempt, distinct from the existing stale-hash tests (same unit, old hash).
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const foreignRecord = record({ id: 'R_B', unitCode: 'UNIT_B', name: 'Điểm của đơn vị khác' });
+    const foreignHash = snapshotHash(require('../lib/staff-location-contract').toPublicSnapshot(foreignRecord));
+    let mutationCalls = 0;
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => {
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            mutationCalls += 1;
+            return { status: 'PENDING', eventType: 'CONFIRM' };
+        },
+        getLocations: async () => ({ locations: [foreignRecord] }),
+    });
+    const headers = { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` };
+
+    for (const [operationId, requestType] of [
+        ['op_cross_update', 'Cập nhật địa điểm đang có'],
+        ['op_cross_correct', 'Báo địa chỉ hoặc vị trí sai'],
+        ['op_cross_stop', 'Báo địa điểm ngừng hoạt động'],
+    ]) {
+        const res = response();
+        await api.requests(request('POST', { operationId, requestType, targetRecordId: 'R_B', snapshotHash: foreignHash }, headers), res);
+        assert.equal(res.statusCode, 403, `${requestType} must fail closed`);
+        assert.equal(res.body.error.code, 'TARGET_RECORD_UNIT_MISMATCH');
+    }
+
+    const confirmRes = response();
+    await api.verification(request('POST', { operationId: 'op_cross_confirm', recordId: 'R_B', snapshotHash: foreignHash, eventType: 'CONFIRM' }, headers), confirmRes);
+    assert.equal(confirmRes.statusCode, 403);
+    assert.equal(confirmRes.body.error.code, 'TARGET_RECORD_UNIT_MISMATCH');
+
+    assert.equal(mutationCalls, 0, 'the Gateway must never be called for a cross-unit target on any of the four flows');
 });
 
 test('staff image preflight rejects malformed and over-cap decoded payloads', () => {

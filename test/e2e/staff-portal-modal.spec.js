@@ -538,3 +538,87 @@ test.describe('staff portal submit progress UX', () => {
         expect(mutations.map(mutation => mutation.path)).toEqual(['/api/staff/verification']);
     });
 });
+
+test.describe('staff portal four-flow acceptance (update/correct/stop/confirm)', () => {
+    test('S1/S2/S3: stop modal asks only for a note — no image, maps, coordinates, services or address field exist in the DOM', async ({ page }) => {
+        const mutations = [];
+        let resolveCalls = 0;
+        await mockStaffApi(page, mutations, { mapsResolve: async route => { resolveCalls += 1; return route.fulfill({ json: { ok: true, data: { coordinates: { lat: 0, lng: 0 } } } }); } });
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'stop');
+        const form = backdrop.locator('form');
+        await expect(form.locator('[name=image]')).toHaveCount(0);
+        await expect(form.locator('[name=mapsUrl]')).toHaveCount(0);
+        await expect(form.locator('[name=coordinates]')).toHaveCount(0);
+        await expect(form.locator('[name=services]')).toHaveCount(0);
+        await expect(form.locator('[name=address]')).toHaveCount(0);
+        await expect(form.locator('[name=locationName]')).toHaveCount(0);
+        await expect(form.locator('[name=reviewNote]')).toBeVisible();
+
+        await form.locator('button.staff-button-primary').click();
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0);
+        expect(mutations.map(mutation => mutation.path)).toEqual(['/api/staff/requests']);
+        expect(resolveCalls).toBe(0);
+    });
+
+    test('F1/F2/F3: confirm modal asks only for a note — no image, maps, coordinates, services or address field exist in the DOM', async ({ page }) => {
+        const mutations = [];
+        let resolveCalls = 0;
+        await mockStaffApi(page, mutations, { mapsResolve: async route => { resolveCalls += 1; return route.fulfill({ json: { ok: true, data: { coordinates: { lat: 0, lng: 0 } } } }); } });
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'confirm');
+        const form = backdrop.locator('form');
+        await expect(form.locator('[name=image]')).toHaveCount(0);
+        await expect(form.locator('[name=mapsUrl]')).toHaveCount(0);
+        await expect(form.locator('[name=coordinates]')).toHaveCount(0);
+        await expect(form.locator('[name=services]')).toHaveCount(0);
+        await expect(form.locator('[name=address]')).toHaveCount(0);
+        await expect(form.locator('[name=locationName]')).toHaveCount(0);
+        await expect(form.locator('[name=note]')).toBeVisible();
+
+        await form.locator('button.staff-button-primary').click();
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0);
+        expect(mutations.map(mutation => mutation.path)).toEqual(['/api/staff/verification']);
+        expect(resolveCalls, 'confirm must never call the maps resolver').toBe(0);
+    });
+
+    test('C2: correct mode — replacing an already-preloaded Maps URL re-resolves and the NEW place coordinate is what gets submitted', async ({ page }) => {
+        const mutations = [];
+        const NEW_MAPS_URL = 'https://maps.app.goo.gl/a-different-place';
+        await mockStaffApi(page, mutations, {
+            mapsResolve: async (route) => {
+                const body = route.request().postDataJSON();
+                if (body.mapsUrl === NEW_MAPS_URL) return route.fulfill({ json: { ok: true, data: { coordinates: { lat: 21.313428, lng: 105.411249 } } } });
+                return route.fulfill({ json: { ok: true, data: { coordinates: { lat: 21.3225, lng: 105.4027 } } } });
+            },
+        });
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'correct');
+        const form = backdrop.locator('form');
+        // Preloaded from the existing record — matches the "no change" behavior already proven for update.
+        await expect(form.locator('.staff-maps-status-success')).toContainText('21.322500');
+        await expect(form.locator('[name=coordinates]')).toHaveValue('21.3225,105.4027');
+
+        // Staff reports the location is actually elsewhere and pastes a corrected link.
+        await form.locator('[name=mapsUrl]').fill(NEW_MAPS_URL);
+        await expect(form.locator('.staff-maps-status-success')).toContainText('21.313428');
+        await expect(form.locator('[name=coordinates]')).toHaveValue('21.313428,105.411249');
+
+        await form.locator('[name=image]').setInputFiles(imageFile);
+        await form.locator('button.staff-button-primary').click();
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0);
+
+        const submitted = mutations.find(mutation => mutation.path === '/api/staff/requests');
+        expect(submitted.body.coordinates).toBe('21.313428,105.411249');
+        expect(submitted.body.mapsUrl).toBe(NEW_MAPS_URL);
+        expect(submitted.body.requestType).toBe('Báo địa chỉ hoặc vị trí sai');
+        expect(submitted.body.targetRecordId).toBe(locationItem.record.record_id);
+        expect(submitted.body.snapshotHash).toBe(locationItem.snapshotHash);
+    });
+});
