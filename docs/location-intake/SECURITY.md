@@ -79,6 +79,27 @@ Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, S
 - `LOCATION_GATEWAY_SECRET` và `STAFF_GATEWAY_IMAGE_FOLDER_ID` chỉ ở Script Properties. PR này không deploy
   Apps Script hoặc thay Production properties.
 
+## Dual-workbook admin review (stacked on PR #48, TEST-only)
+
+- "Ai mở được Sheet" is not sufficient authorization. `requireLocationApprover_()` reads
+  `Session.getEffectiveUser().getEmail()` and the Script Property `LOCATION_APPROVER_EMAILS`
+  (comma/semicolon-separated, normalized lowercase/trim). An empty/missing property or an email not
+  on the list fails closed (`LOCATION_APPROVER_CONFIG_MISSING`/`LOCATION_APPROVER_NOT_AUTHORIZED`) —
+  no fallback to `'admin'`/`'owner'`/`'reviewer'`. No real approver email is committed to source.
+- Every menu action re-reads authoritative current state at the moment of review (both workbooks,
+  fresh) rather than a Sheet snapshot cached from when the workbook was opened; `update`/`correct`/
+  `stop` revalidate target ownership (`sameUnitCode`) and existence before any public mutation.
+- Public/private boundary reuses `lib/location-workbooks.js` unchanged: a collapsed public/private
+  ID, missing private ID, or missing/mismatched schema on `Location_Staging`/`Approval_Audit_Log`/
+  `Published_Locations` fails closed before any read or write.
+- `Published_Locations` writes go only through `pipeline.buildPublishedRecord`'s existing safe
+  projection — `submitter_email`, `submitter_phone`, `request_id`, `image_file_id`,
+  `image_drive_url`, `review_note`, `validation_errors`, `warnings`, `auth_status` and ledger data
+  never reach the public sheet.
+- The health check menu item (`Kiểm tra cấu hình duyệt`) is read-only and prints only boolean
+  status lines — never a workbook ID, HMAC secret or session secret.
+- See `docs/brain/03-decisions.md` [2026-08-15] for the reconciliation/conflict-detection model.
+
 ## Vercel Staff API remediation (PR #47)
 
 - Public/read location lookups may use the bounded 60-second cache and stale-read fallback. Snapshot-sensitive

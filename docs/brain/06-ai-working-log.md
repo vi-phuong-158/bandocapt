@@ -1,5 +1,41 @@
 # 06 — AI Working Log
 
+## [2026-08-15] Dual-workbook admin review (Google Sheets menu), stacked on PR #48
+- **Agent:** Claude Code
+- **Thay đổi:** Triển khai admin approval tối giản bằng Google Sheets/Apps Script menu để chủ dự án
+  có thể duyệt request `PENDING` từ Staff Portal, thay vì Admin Web UI. `setup/location-admin-review.js`
+  (mới) là engine thuần theo cùng DI pattern với `setup/staff-gateway.js`, expose `reviewRequest`
+  (3 hành động thủ công: Duyệt/Từ chối/Yêu cầu xác minh thêm, yêu cầu `status===PENDING`) và
+  `reconcileRequest` (Đối soát, không có gate, tự suy action từ `status`/`request_type` hiện tại của
+  dòng). Không gọi thẳng `applyApproval`/`applyReviewAction` (chúng giả định một pass atomic
+  single-workbook, sẽ throw `TARGET_RECORD_ID_NOT_FOUND` khi retry STOP mà public đã bị xoá ở lần
+  trước) — thay vào đó tái sử dụng trực tiếp `buildPublishedRecord`/`sameUnitCode`/`buildAuditEntry`
+  và tự làm upsert/remove idempotent + audit dedup theo `request_id+action` + staging status chỉ ghi
+  khi thật sự đổi. Thứ tự ghi: public → (không phải stop) công khai ảnh Drive → audit → staging status
+  — nhờ staging status ghi SAU CÙNG, hành động chính ("Duyệt") tự retry-safe cho các crash window phổ
+  biến mà không cần gọi riêng "Đối soát". `APPROVAL_PUBLIC_CONFLICT` chỉ áp dụng cho CREATE (target
+  chưa từng tồn tại là tiền đề) — KHÔNG áp dụng cho UPDATE/CORRECT (nội dung cũ khác nội dung mới là
+  bản chất của việc cập nhật, không phải xung đột); phát hiện qua test thất bại trước khi sửa. Trạng
+  thái được phép duyệt tối giản là `{PENDING}`; `NEED_VERIFICATION`/`BLOCKED` không được duyệt tiếp
+  trong công cụ này (quyết định tường minh, không đoán — chưa có luồng resubmit đưa chúng về PENDING).
+  `setup/location-intake/Code.gs` thêm `adminPublicSpreadsheet_()`, `requireLocationApprover_()` (Script
+  Property `LOCATION_APPROVER_EMAILS`, fail closed), helper đọc/ghi đúng một dòng (không
+  `clearContents()` cả sheet), và menu thứ hai "Bản đồ CA - Duyệt địa điểm" gắn vào `onOpen()` hiện có
+  (không cài trigger mới); mỗi hành động tự kiểm tra active spreadsheet = private workbook.
+  `onLocationStagingEdit` (trigger legacy) thêm guard bỏ qua nếu vô tình chạy trên private workbook.
+- **File đã sửa:** `setup/location-admin-review.js` (mới), `setup/apps-script.js` (export thêm
+  `sameUnitCode`, không đổi hành vi), `setup/location-intake/Code.gs`,
+  `scripts/build-location-intake-apps-script.js`, `setup/location-intake/dist/Code.gs` (sinh lại),
+  `test/location-admin-review.test.js` (mới, 25 test: A1-A9/F1-F5+/S1-S8+), `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/location-intake/OPERATIONS.md`, `docs/location-intake/SECURITY.md`.
+- **Lý do:** Mở khoá live-test UPDATE/CORRECT/STOP/CONFIRM trên PR #48 — Staff Portal ghi được
+  `Location_Staging` nhưng chưa có cách nào duyệt sang `Published_Locations` trong kiến trúc
+  dual-workbook (legacy single-workbook approval không dùng được).
+- **Kiểm tra:** `npm test` 520/520 PASS (495 cũ + 25 mới); `npm run build:location-intake` PASS
+  (bundle include `LocationAdminReview`). Xem VERDICT cuối phiên cho `npm run build` đầy đủ,
+  `npm run test:e2e`, `npm audit`, `git diff --check`.
+
+
 ## [2026-08-15] PR #48 full acceptance audit of UPDATE/CORRECT/STOP/CONFIRM (test-only, no production fix)
 - **Agent:** Claude Code
 - **Thay đổi:** Audit toàn bộ 4 flow còn lại trước khi coi PR #48 "Ready for review". Đọc kỹ `js/staff-portal.js`, `js/staff-api-client.js`, `lib/staff-api.js`, `lib/staff-location-contract.js`, `lib/staff-gateway-client.js`, `setup/staff-gateway.js`, `setup/apps-script.js`, và toàn bộ test hiện có trước khi chạm code — không tìm thấy bug thật ở cả 3 lớp phòng thủ (Vercel `lib/staff-api.js` → Gateway `setup/staff-gateway.js` → pipeline `setup/apps-script.js`): unit isolation, stale-snapshot rejection, STOP/CONFIRM minimal fields, coordinate-retained-when-unchanged đều đã đúng theo code hiện tại. Chỉ 4 khoảng trống về TEST COVERAGE (không phải bug) được đóng lại bằng test mới, không sửa code sản phẩm nào: (1) chưa có test tại đúng lớp `lib/staff-api.js` (lớp đầu tiên chặn request trước khi chạm Gateway) chứng minh UPDATE/CORRECT/STOP/CONFIRM nhắm vào target thuộc MỘT ĐƠN VỊ KHÁC THẬT SỰ (khác với test stale-hash cùng đơn vị đã có) bị 403 `TARGET_RECORD_UNIT_MISMATCH` — test mới xác nhận và không gọi Gateway lần nào; (2) chưa có test chứng minh DOM của modal STOP/CONFIRM không hề render field image/mapsUrl/coordinates/services/address (trước đó chỉ suy luận gián tiếp từ việc submit thành công mà không cần điền); (3) chưa có test cho tình huống "CORRECT có toạ độ đã preload, cán bộ dán link Maps MỚI để báo đúng vị trí" — trước đó chỉ có test "không đổi thì giữ nguyên" (update) và "gõ từ rỗng" (create), thiếu đúng kịch bản §6 nhấn mạnh nhiều nhất; (4) chưa có test khẳng định STOP/CONFIRM không bao giờ gọi `/api/staff/maps/resolve` bằng bộ đếm request thật (trước đó chỉ đúng về mặt cấu trúc vì `mapsField()` không được gọi trong 2 mode này). Toàn bộ 4 test mới đều PASS ngay lần chạy đầu — xác nhận code hiện tại đã tuân thủ đúng, không phải fix ẩn giấu trong lúc viết test.

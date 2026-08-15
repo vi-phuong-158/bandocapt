@@ -619,7 +619,7 @@
         normalizeLocationType, deriveLegacyType, isGoogleMapsUrl, parseCoordinates, classifyCoordinateStatus,
         COORDINATE_SOURCE_PRIORITY, extractCoordinateCandidates, selectBestCoordinate,
         validateImageMimeType, validateImageSubmission, buildAllowlistMap, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
-        buildRecordId, haversineMeters, detectDuplicateWarnings, buildStagingRecord, buildPublishedRecord,
+        buildRecordId, haversineMeters, detectDuplicateWarnings, sameUnitCode, buildStagingRecord, buildPublishedRecord,
         buildAuditEntry, applyApproval, applyReviewAction, applyRevocation, migrateLegacyLocations,
     };
 });

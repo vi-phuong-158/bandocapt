@@ -1,5 +1,81 @@
 # 03 — Technical Decisions
 
+## [2026-08-15] Dual-workbook admin review — reconciliation model, reviewable states, conflict scope
+
+Stacked on PR #48 (`feat/staff-location-admin-review` from `feat/staff-location-portal-ui`), not
+merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the file map.
+
+- **Decision — do not call `applyApproval`/`applyReviewAction` directly for the admin engine.**
+  Both assume one atomic single-workbook pass: STOP's branch throws `TARGET_RECORD_ID_NOT_FOUND`
+  when the public row is already absent. That is correct for a genuine "target never existed"
+  mistake but wrong for a *retry* after a crash that already deleted the public row — exactly the
+  case dual-workbook reconciliation must recover from. `setup/location-admin-review.js` instead
+  calls the pure leaf functions directly (`buildPublishedRecord`, `sameUnitCode`, `buildAuditEntry`)
+  and does its own idempotent public upsert/remove, `request_id`+`action`-deduped audit append, and
+  status-if-changed staging write. This is reuse of the actual business rules (same field mapping,
+  same audit shape, same ownership check), not a parallel reimplementation of them.
+- **Decision — write order is staging status LAST.** For APPROVE-flavored transitions: public
+  write/skip → (non-stop only) Drive image share → audit append (dedup) → staging status flip.
+  For STOP: public remove/skip → audit append (dedup) → staging status flip → best-effort image
+  revoke. Because staging status is the very last write, a PENDING row that crashed mid-transition
+  is *still PENDING* on the next attempt — so the primary human action ("Duyệt yêu cầu đã chọn")
+  is naturally retry-safe without needing the separate reconcile path for the common crash windows
+  (F1/F3/F4 in the test matrix). A row that reached a terminal status is, by construction, fully
+  finalized — there is no dangling step 4.
+- **Decision — `APPROVAL_PUBLIC_CONFLICT` only applies to CREATE, not UPDATE/CORRECT.** The spec's
+  Case A/B/C framework ("public exists but content differs from expected → fail closed") is only
+  self-consistent for CREATE, where `target_record_id` is fresh/server-generated and nothing should
+  legitimately be there yet. For UPDATE/CORRECT the target *always* pre-exists (it's the approval's
+  own precondition, already checked as `TARGET_RECORD_ID_NOT_FOUND` otherwise) and its old content
+  is *expected* to differ from the new content — that difference is the entire point of approving
+  an update. Comparing old-vs-new content and failing closed on a mismatch would block every
+  legitimate update. UPDATE/CORRECT instead revalidates exactly what item 24 of the task spec scopes
+  for it — ownership (`sameUnitCode`) + target existence — and unconditionally upserts; content
+  equality is checked only to skip a redundant Sheet write on retry, never to fail. Confirmed by a
+  failing test before this fix: `buildStaging` with an unrelated `original` fixture — the ONLY
+  observed diff was the intentionally-changed `address` field, which a naive content-equality
+  conflict check flagged as `APPROVAL_PUBLIC_CONFLICT`.
+- **Decision — reviewable states are `{PENDING}` only; `NEED_VERIFICATION` and `BLOCKED` are not
+  further reviewable in this minimal tool.** The task spec explicitly asked not to guess this and
+  to decide after auditing existing semantics. `applyReviewAction` itself has no state-machine guard
+  (it would happily re-reject an already-rejected row), and there is no Staff Portal resubmission
+  flow that brings a `NEED_VERIFICATION`/`BLOCKED` row back to `PENDING` — reviewing either further
+  would be undefined business behavior. `{APPROVED, REJECTED, REVOKED}` show "Yêu cầu này đã được xử
+  lý."; `NEED_VERIFICATION`/`BLOCKED` fail closed with `REQUEST_NOT_REVIEWABLE`. Revisit when/if a
+  resubmission flow is designed.
+- **Decision — `reconcileRequest` (Đối soát) is a superset of `reviewRequest`, not a separate
+  business path.** For a `PENDING` row it runs the exact same approve-flavored transition as
+  clicking "Duyệt" (request_type alone determines create/update/correct vs stop, and request_type
+  never changes). For `APPROVED`/`REVOKED` rows it re-runs the same transition as a pure repair —
+  every step inside is dedup/idempotent, so it is safe to call on an already-fully-done row (only a
+  still-failing image share, if any, actually retries). For `REJECTED`/`NEED_VERIFICATION` it only
+  ensures the private audit entry exists (no public involvement ever). For `BLOCKED` it is a no-op
+  reporting nothing to reconcile.
+- **Decision — image ordering is asymmetric between APPROVE and STOP, matching the spec's own risk
+  framing.** APPROVE: public content (with a deterministic `drive.google.com/uc?...` URL) is written
+  *before* `DriveApp.setSharing`; a sharing failure aborts before any private mutation, so the row
+  stays exactly `PENDING` and a retry only needs to retry the sharing call — the primary risk being
+  guarded is an unapproved image becoming world-readable. STOP: the business transition (public
+  removal + `REVOKED` status) commits first; image-revoke is best-effort afterward and a failure does
+  not block or roll back the transition — the primary risk (stale/wrong public *data* staying live)
+  is worse than a still-shared image for a few more minutes, and revoke is separately retryable via
+  Đối soát.
+- **Decision — `sameUnitCode` added to `setup/apps-script.js`'s exports.** It already existed
+  internally and is used by `applyStagingRecord`/`applyApproval`'s own guards; the task spec names it
+  as one of the four functions to reuse. Purely additive (one new key in the returned object), no
+  behavior change to any existing caller.
+- **Decision — no new trigger.** `onOpen()` in the shared `setup/location-intake/Code.gs` gained a
+  second menu (`Bản đồ CA - Duyệt địa điểm`) rather than installing a new installable trigger — the
+  task spec explicitly forbids adding one. Each menu action asserts `SpreadsheetApp.getActiveSpreadsheet()`
+  equals the resolved private workbook before doing anything, so the menu is a safe no-op/clear-error
+  if this Apps Script project's container binding isn't the private workbook. `onLocationStagingEdit`
+  (legacy) also gained a defensive early-return if it ever fires on the private workbook's ID, since
+  its `writeLocationState_` unconditionally `clearContents()`s three sheets — a real corruption risk
+  if that trigger were ever accidentally re-installed there.
+- **Consequence:** No Admin Web UI, no new npm dependency, no Production workbook touched, no change
+  to Staff Portal (`/can-bo`) behavior, and `LOCATION_APPROVER_EMAILS` is a Script Property (never a
+  literal email in source).
+
 ## [2026-08-15] PR #48 Google Maps coordinate precedence: place entity beats viewport
 
 - **Evidence (live resolve 2026-08-15, 3 real short links):** every resolved final URL carried **two**
