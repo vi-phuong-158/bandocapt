@@ -182,6 +182,17 @@
 .staff-checkbox input { width: var(--space-4); height: var(--space-4); accent-color: var(--color-primary); }
 .staff-modal-actions { justify-content: flex-end; padding-top: var(--space-2); }
 
+.staff-processing-panel { display: grid; gap: var(--space-2); margin-top: var(--space-3); padding: var(--space-4); border: 1px solid var(--blue-100); border-radius: var(--radius-lg); background: var(--blue-50); }
+.staff-processing-row { display: flex; align-items: center; gap: var(--space-3); }
+.staff-processing-message { margin: 0; color: var(--text-strong); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+.staff-processing-hint { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+.staff-processing-elapsed { margin: 0; color: var(--text-muted); font-size: var(--text-xs); }
+.staff-spinner { width: 20px; height: 20px; flex: none; border-radius: var(--radius-pill); border: 3px solid var(--blue-100); border-top-color: var(--color-primary); animation: staff-spin var(--dur-slow) linear infinite; }
+@keyframes staff-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    .staff-spinner { animation: none; }
+}
+
 @media (min-width: 700px) {
     .staff-portal-shell { padding: var(--space-6); }
     .staff-location-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }

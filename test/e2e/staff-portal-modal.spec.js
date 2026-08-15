@@ -60,6 +60,25 @@ async function assertModalButtonTypes(backdrop) {
     await expect(backdrop.locator('.staff-modal-header button')).toHaveAttribute('type', 'button');
 }
 
+async function mockDelayedRequestsRoute(page, mutations, delayMs) {
+    await page.unroute('**/api/staff/requests').catch(() => {});
+    await page.route('**/api/staff/requests', async route => {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        mutations.push({ path: '/api/staff/requests', body: route.request().postDataJSON() });
+        await route.fulfill({ json: { ok: true, data: {} } });
+    });
+}
+
+async function fillValidCreateForm(form) {
+    await form.locator('[name=locationName]').fill('Địa điểm mới');
+    await form.locator('[name=address]').fill('Địa chỉ mới');
+    await form.locator('[name=siteType]').selectOption('HEADQUARTERS');
+    await form.locator('[name=coordinates]').fill('21.3225,105.4027');
+    await form.locator('[name=submitterName]').fill('Cán bộ kiểm thử');
+    await form.locator('[name=services]').first().check();
+    await form.locator('[name=image]').setInputFiles(imageFile);
+}
+
 test.describe('staff portal modal submit regression', () => {
     test('all modal modes use native submit and preserve cancel/close buttons', async ({ page }) => {
         const mutations = [];
@@ -180,5 +199,151 @@ test.describe('staff portal modal submit regression', () => {
         await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0);
         expect(mutations.map(mutation => mutation.path)).toEqual(['/api/staff/requests']);
         expect(requestAttempts).toBe(2);
+    });
+});
+
+test.describe('staff portal submit progress UX', () => {
+    test('submit gives immediate busy feedback: button text, disabled state and a visible processing panel', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        await mockDelayedRequestsRoute(page, mutations, 800);
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'create');
+        const form = backdrop.locator('form');
+        await fillValidCreateForm(form);
+        const primaryButton = form.locator('button.staff-button-primary');
+        await primaryButton.click();
+
+        await expect(primaryButton).toHaveText('Đang gửi...');
+        await expect(primaryButton).toBeDisabled();
+        await expect(backdrop.locator('.staff-processing-panel')).toBeVisible();
+        await expect(backdrop.locator('.staff-processing-panel')).toContainText('Đã chờ:');
+        await expect(backdrop.locator('.staff-processing-panel')).not.toContainText('%');
+
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+    });
+
+    test('elapsed seconds counter increments while the request is still in flight', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        await mockDelayedRequestsRoute(page, mutations, 2500);
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'create');
+        const form = backdrop.locator('form');
+        await fillValidCreateForm(form);
+        await form.locator('button.staff-button-primary').click();
+
+        const elapsed = backdrop.locator('.staff-processing-elapsed');
+        await expect(elapsed).toHaveText('Đã chờ: 0 giây');
+        await expect(elapsed).toHaveText(/Đã chờ: [1-9]\d* giây/, { timeout: 3000 });
+
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+    });
+
+    test('rapid double form-submit fires exactly one Gateway request', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        await mockDelayedRequestsRoute(page, mutations, 500);
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'create');
+        const form = backdrop.locator('form');
+        await fillValidCreateForm(form);
+        await form.evaluate(node => { node.requestSubmit(); node.requestSubmit(); });
+
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+        expect(mutations.filter(mutation => mutation.path === '/api/staff/requests')).toHaveLength(1);
+    });
+
+    test('every interactive control is disabled while a request is in flight', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        await mockDelayedRequestsRoute(page, mutations, 800);
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'create');
+        const form = backdrop.locator('form');
+        await fillValidCreateForm(form);
+        const primaryButton = form.locator('button.staff-button-primary');
+        await primaryButton.click();
+
+        await expect(form.locator('[name=locationName]')).toBeDisabled();
+        await expect(form.locator('[name=services]').first()).toBeDisabled();
+        await expect(form.locator('[name=image]')).toBeDisabled();
+        await expect(primaryButton).toBeDisabled();
+        await expect(form.locator('button.staff-button').filter({ hasText: 'Hủy' })).toBeDisabled();
+        await expect(backdrop.locator('.staff-modal-header button')).toBeDisabled();
+
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+    });
+
+    test('success clears the processing panel, closes the modal and shows the success notice', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        await mockDelayedRequestsRoute(page, mutations, 800);
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'create');
+        const form = backdrop.locator('form');
+        await fillValidCreateForm(form);
+        await form.locator('button.staff-button-primary').click();
+        await expect(backdrop.locator('.staff-processing-panel')).toBeVisible();
+
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+        await expect(page.locator('.staff-notice-success')).toContainText('Yêu cầu đã được gửi và đang chờ duyệt.');
+    });
+
+    test('server error stops the spinner, clears the processing panel and restores the normal button/field state', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        await page.unroute('**/api/staff/requests');
+        await page.route('**/api/staff/requests', route => route.fulfill({ status: 503, json: { ok: false, error: { code: 'STAFF_GATEWAY_UNAVAILABLE' } } }));
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'create');
+        const form = backdrop.locator('form');
+        await fillValidCreateForm(form);
+        const primaryButton = form.locator('button.staff-button-primary');
+        await primaryButton.click();
+
+        await expect(backdrop.locator('.staff-notice-warning')).toBeVisible();
+        await expect(backdrop.locator('.staff-processing-panel')).toHaveCount(0);
+        await expect(primaryButton).toHaveText('Gửi yêu cầu');
+        await expect(primaryButton).toBeEnabled();
+        await expect(form.locator('[name=locationName]')).toBeEnabled();
+        await expect(form.locator('[name=locationName]')).toHaveValue('Địa điểm mới');
+        expect(mutations).toHaveLength(0);
+    });
+
+    test('confirm mode shows "Đang xác nhận..." while busy and posts to /api/staff/verification exactly once', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        await page.unroute('**/api/staff/verification');
+        await page.route('**/api/staff/verification', async route => {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            mutations.push({ path: '/api/staff/verification', body: route.request().postDataJSON() });
+            await route.fulfill({ json: { ok: true, data: {} } });
+        });
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'confirm');
+        const form = backdrop.locator('form');
+        const primaryButton = form.locator('button.staff-button-primary');
+        await primaryButton.click();
+
+        await expect(primaryButton).toHaveText('Đang xác nhận...');
+        await expect(primaryButton).toBeDisabled();
+
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+        expect(mutations.map(mutation => mutation.path)).toEqual(['/api/staff/verification']);
     });
 });

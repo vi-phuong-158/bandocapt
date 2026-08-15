@@ -63,3 +63,38 @@ test('portal keeps service and image validation contracts', () => {
     assert.match(portalSource, /imageInput\.accept = 'image\/jpeg,image\/png,image\/webp'/);
     assert.match(portalSource, /StaffImage\.prepareImage\(file\)/);
 });
+
+test('submit progress UX gives immediate feedback without fake percentages or persisted state', () => {
+    assert.match(portalSource, /processing:\s*null/);
+    assert.match(portalSource, /function busyButtonLabel\(mode\)/);
+    assert.match(portalSource, /'Đang xác nhận\.\.\.'/);
+    assert.match(portalSource, /'Đang gửi\.\.\.'/);
+    assert.match(portalSource, /primaryButton\.textContent = busyButtonLabel\(state\.modal\.mode\)/);
+    assert.match(portalSource, /setFormControlsDisabled\(form, closeButton, true\)/);
+    assert.match(portalSource, /function processingMessageForElapsed\(seconds\)/);
+    assert.match(portalSource, /Đang chuẩn bị và gửi dữ liệu\.\.\./);
+    assert.match(portalSource, /Hệ thống đang xử lý yêu cầu\.\.\./);
+    assert.match(portalSource, /Yêu cầu vẫn đang được xử lý, vui lòng tiếp tục chờ\.\.\./);
+    // No fake/simulated progress percentage anywhere in the portal source.
+    assert.doesNotMatch(portalSource, /\d+\s*%/);
+    // No persisted loading state — only in-memory state, per the same rule already enforced for form values.
+    assert.doesNotMatch(portalSource, /localStorage|sessionStorage|IndexedDB/);
+});
+
+test('processing timer starts on submit and is stopped on every exit path (no orphan interval)', () => {
+    assert.match(portalSource, /function startProcessingTimer\(onTick\)/);
+    assert.match(portalSource, /function stopProcessingTimer\(\)/);
+    assert.match(portalSource, /clearInterval\(state\.processing\.intervalId\)/);
+    assert.match(portalSource, /startProcessingTimer\(seconds => \{/);
+    // Stopped on the success path, before the modal closes.
+    assert.match(portalSource, /stopProcessingTimer\(\);\s*\n\s*state\.modal = null;\s*\n\s*state\.busy = false;\s*\n\s*renderAuthorized\(\);\s*\n\s*\} catch/);
+    // Stopped as the very first statement of the catch block, covering every error exit (revoked, stale snapshot, generic).
+    assert.match(portalSource, /\} catch \(error\) \{\s*\n\s*stopProcessingTimer\(\);\s*\n\s*state\.busy = false;/);
+});
+
+test('processing panel is an accessible live region with a decorative, non-spammy spinner and timer', () => {
+    assert.match(portalSource, /panel\.setAttribute\('role', 'status'\)/);
+    assert.match(portalSource, /panel\.setAttribute\('aria-live', 'polite'\)/);
+    assert.match(portalSource, /spinner\.setAttribute\('aria-hidden', 'true'\)/);
+    assert.match(portalSource, /elapsed\.setAttribute\('aria-hidden', 'true'\)/);
+});

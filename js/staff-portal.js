@@ -13,7 +13,10 @@
         modal: null,
         config: null,
         busy: false,
+        processing: null,
     };
+
+    const PROCESSING_HINT = 'Hệ thống đang ghi nhận thông tin. Quá trình này có thể mất khoảng 30–50 giây. Vui lòng không đóng trang hoặc gửi lại yêu cầu.';
 
     const STATUS_TEXT = {
         APPROVED: 'Đang hiển thị',
@@ -284,6 +287,49 @@
     function openModal(mode, item = null) { state.modal = { mode, item, error: null }; renderAuthorized(); }
     function closeModal() { if (!state.busy) { state.modal = null; renderAuthorized(); } }
 
+    function busyButtonLabel(mode) { return mode === 'confirm' ? 'Đang xác nhận...' : 'Đang gửi...'; }
+
+    function processingMessageForElapsed(seconds) {
+        if (seconds < 5) return 'Đang chuẩn bị và gửi dữ liệu...';
+        if (seconds < 20) return 'Hệ thống đang xử lý yêu cầu...';
+        return 'Yêu cầu vẫn đang được xử lý, vui lòng tiếp tục chờ...';
+    }
+
+    function setFormControlsDisabled(form, closeButton, disabled) {
+        Array.from(form.elements).forEach(control => { control.disabled = disabled; });
+        if (closeButton) closeButton.disabled = disabled;
+    }
+
+    function stopProcessingTimer() {
+        if (state.processing?.intervalId != null) clearInterval(state.processing.intervalId);
+        state.processing = null;
+    }
+
+    function startProcessingTimer(onTick) {
+        stopProcessingTimer();
+        const startedAt = Date.now();
+        state.processing = { startedAt, intervalId: null };
+        const tick = () => onTick(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+        tick();
+        state.processing.intervalId = setInterval(tick, 1000);
+    }
+
+    function buildProcessingPanel() {
+        const panel = el('div', 'staff-processing-panel');
+        panel.setAttribute('role', 'status');
+        panel.setAttribute('aria-live', 'polite');
+        const row = el('div', 'staff-processing-row');
+        const spinner = el('span', 'staff-spinner');
+        spinner.setAttribute('aria-hidden', 'true');
+        const message = el('p', 'staff-processing-message', processingMessageForElapsed(0));
+        append(row, spinner, message);
+        const hint = el('p', 'staff-processing-hint', PROCESSING_HINT);
+        const elapsed = el('p', 'staff-processing-elapsed', 'Đã chờ: 0 giây');
+        elapsed.setAttribute('aria-hidden', 'true');
+        append(panel, row, hint, elapsed);
+        return { panel, message, elapsed };
+    }
+
     function renderModal() {
         const modal = state.modal;
         const requiresLocationFields = ['create', 'update', 'correct'].includes(modal.mode);
@@ -368,6 +414,16 @@
         state.busy = true;
         state.status = 'MUTATING';
         const values = formValues(form);
+        const closeButton = form.closest('.staff-modal-card')?.querySelector('.staff-modal-header button');
+        const primaryButton = form.querySelector('button.staff-button-primary');
+        setFormControlsDisabled(form, closeButton, true);
+        if (primaryButton) primaryButton.textContent = busyButtonLabel(state.modal.mode);
+        const { panel, message, elapsed } = buildProcessingPanel();
+        form.appendChild(panel);
+        startProcessingTimer(seconds => {
+            message.textContent = processingMessageForElapsed(seconds);
+            elapsed.textContent = `Đã chờ: ${seconds} giây`;
+        });
         try {
             const requiresLocationFields = ['create', 'update', 'correct'].includes(state.modal.mode);
             if (requiresLocationFields && !values.services.length) throw new Error('SERVICES_MISSING');
@@ -391,10 +447,12 @@
                 await api.submitRequest(root.StaffApiClient.buildTargetPayload(values, type, { record_id: state.modal.item.record.record_id, snapshotHash: state.modal.item.snapshotHash }));
                 notice('Yêu cầu đã được gửi và đang chờ duyệt.', 'success');
             }
+            stopProcessingTimer();
             state.modal = null;
             state.busy = false;
             renderAuthorized();
         } catch (error) {
+            stopProcessingTimer();
             state.busy = false;
             if (isRevoked(error)) {
                 state.locations = []; state.modal = null; state.status = 'NOT_AUTHORIZED'; renderDenied(); return;
