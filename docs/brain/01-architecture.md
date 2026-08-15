@@ -209,6 +209,17 @@ succeeded.
 No change to HMAC signing, freshness window, request-id/body-hash derivation, or any Apps Script code
 (`setup/staff-gateway.js`, `Code.gs`) — this is caller-side timeout/attempts policy and UX only.
 
+### Follow-up: mutation timeout margin widened again (2026-08-15)
+
+A second live rehearsal produced a genuine `doPost` execution of 39.402s — the 40s value above left
+almost no margin and still false-503'd on the browser's first submit (user then retried on the
+UX-preserved form; the retry hit the now-`COMPLETED` idempotency ledger and returned in ~8.1s). Raised
+`MUTATION_TIMEOUT_MS` to `50000` (~10.6s margin over the observed 39.402s) and `vercel.json`
+`maxDuration` for `api/staff/requests.js`/`api/staff/verification.js` to `60` (matching `api/chat.js`'s
+already-proven-safe ceiling on this account). `MUTATION_MAX_ATTEMPTS` stays `1`; `resolveUnits` untouched.
+Same caveat as before: this is still evidence from individual observed durations, not a P50/P95
+distribution — revisit if real traffic shows a wider spread than ~40s.
+
 ## Code Graph
 
 | Module / file | Vai tro | Duoc goi boi | Phu thuoc vao |

@@ -1,5 +1,29 @@
 # 03 — Technical Decisions
 
+## [2026-08-15] PR #48 Gateway mutation timeout widened again: 40s margin was still too tight
+
+- **Decision:** `MUTATION_TIMEOUT_MS` raised from `40000` to `50000`; `vercel.json` `maxDuration` for
+  `api/staff/requests.js`/`api/staff/verification.js` raised from `45` to `60`. `MUTATION_MAX_ATTEMPTS`
+  stays `1`; `resolveUnits` (`DEFAULT_TIMEOUT_MS=8000`/`MAX_ATTEMPTS=2`) is untouched.
+- **Evidence:** A second live rehearsal recorded a genuine `doPost` execution of 39.402s (`Idempotency_Ledger`
+  `COMPLETED`, exactly one `Location_Staging` row, one Drive file, no duplicates) — the browser's first
+  submit still received a false `STAFF_GATEWAY_UNAVAILABLE` 503 under the prior 40s timeout, since the
+  margin (40s vs 39.402s) was effectively zero. The user's manual retry landed on the already-`COMPLETED`
+  ledger entry and returned in ~8.1s, confirming the 2026-08-14 UX preservation fix and idempotency both
+  worked exactly as designed even while the timeout itself was still miscalibrated.
+- **Margin:** 50s gives ~10.6s over the observed 39.402s; 60s Vercel `maxDuration` gives ~10s of platform
+  ceiling above that internal timeout, matching `api/chat.js`'s already-proven-safe value on this
+  account/plan. Still evidence from individual observed durations (26.633s, then 39.402s), not a
+  P50/P95 distribution — if a third false-503 surfaces, the right fix is investigating and reducing the
+  actual Apps Script critical-path latency (Script Lock scope, Sheets/Drive call count), not raising the
+  timeout a third time.
+- **Rejected:** Raising `MUTATION_TIMEOUT_MS` all the way to match the 60s Vercel `maxDuration` — kept a
+  deliberate gap so the caller's own abort fires and returns a clean, classified `STAFF_GATEWAY_UNAVAILABLE`
+  before the Vercel platform would otherwise kill the function outright.
+- **Consequence:** Same scope boundary as the prior entry — no Apps Script, HMAC, freshness, or
+  idempotency change. This is the second timeout-margin correction; if actual execution duration keeps
+  growing, that points at real Apps Script performance work as the next task, not a third timeout bump.
+
 ## [2026-08-14] PR #48 Gateway timeout per action, not one global constant
 
 - **Decision:** `lib/staff-gateway-client.js`'s `callGateway()` takes a per-call `maxAttempts` option

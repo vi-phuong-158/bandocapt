@@ -3,6 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
+const { MUTATION_TIMEOUT_MS } = require('../lib/staff-gateway-client');
+
 const root = path.join(__dirname, '..');
 
 test('static build emits the unhashed /can-bo entry and hashed portal assets', () => {
@@ -29,4 +31,13 @@ test('portal CSP is route-specific and the generic CSP excludes /can-bo', () => 
     assert.equal(portalHeaders.find(header => header.key === 'Cross-Origin-Opener-Policy').value, 'same-origin-allow-popups');
     const generic = config.headers.find(rule => rule.source.startsWith('/((?!'));
     assert.match(generic.source, /can-bo/);
+});
+
+test('Vercel function maxDuration for staff mutation routes stays above the Gateway mutation timeout', () => {
+    const config = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
+    for (const route of ['api/staff/requests.js', 'api/staff/verification.js']) {
+        const maxDuration = config.functions[route]?.maxDuration;
+        assert.equal(typeof maxDuration, 'number', `${route} must declare an explicit maxDuration`);
+        assert.ok(maxDuration * 1000 > MUTATION_TIMEOUT_MS, `${route} maxDuration must leave margin over MUTATION_TIMEOUT_MS`);
+    }
 });

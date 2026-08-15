@@ -89,11 +89,12 @@ test('Gateway tolerates a legitimate long mutation: a slow-but-successful respon
         env, requestId: 'slow-op', timeoutMs: MUTATION_TIMEOUT_MS, maxAttempts: 1,
         fetchImpl: async () => fetchPromise,
     });
-    // Advance past the legacy 8s default and the observed 26.633s real-world duration, but stay
-    // under the new 40s mutation timeout — proves the abort timer configured at MUTATION_TIMEOUT_MS
-    // does not fire while the (simulated) Apps Script execution is still legitimately running.
+    // Advance past the legacy 8s default and the second real-incident duration (39.402s, which a
+    // prior 40s mutation timeout still false-503'd on), but stay under the current 50s mutation
+    // timeout — proves the abort timer configured at MUTATION_TIMEOUT_MS does not fire while the
+    // (simulated) Apps Script execution is still legitimately running.
     t.mock.timers.tick(DEFAULT_TIMEOUT_MS);
-    t.mock.timers.tick(26633 - DEFAULT_TIMEOUT_MS);
+    t.mock.timers.tick(39402 - DEFAULT_TIMEOUT_MS);
     resolveFetch({ ok: true, status: 200, json: async () => ({ ok: true, data: { status: 'PENDING', recordId: 'REC_1' } }) });
     const result = await callPromise;
     assert.deepEqual(result, { status: 'PENDING', recordId: 'REC_1' });
@@ -118,6 +119,23 @@ test('Gateway still fails closed when a mutation genuinely exceeds the configure
     });
     t.mock.timers.tick(100);
     await assert.rejects(() => callPromise, error => error.code === 'STAFF_GATEWAY_UNAVAILABLE');
+});
+
+test('Gateway fails closed at the real MUTATION_TIMEOUT_MS boundary with exactly one attempt', async (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    let attempts = 0;
+    const callPromise = callGateway('submitRequest', { request_id: 'exceeds-mutation-timeout' }, {
+        env, requestId: 'exceeds-mutation-timeout', timeoutMs: MUTATION_TIMEOUT_MS, maxAttempts: MUTATION_MAX_ATTEMPTS,
+        fetchImpl: async (url, options) => {
+            attempts += 1;
+            return new Promise((resolve, reject) => {
+                options.signal.addEventListener('abort', () => reject(new DOMException('The operation was aborted.', 'AbortError')), { once: true });
+            });
+        },
+    });
+    t.mock.timers.tick(MUTATION_TIMEOUT_MS);
+    await assert.rejects(() => callPromise, error => error.code === 'STAFF_GATEWAY_UNAVAILABLE');
+    assert.equal(attempts, 1);
 });
 
 test('Gateway request id and raw body are identical regardless of the timeout/attempts policy used', async () => {
