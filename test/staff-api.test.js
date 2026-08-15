@@ -74,7 +74,7 @@ test('Google login verifies server claims, resolves allowlist and issues protect
         verifyToken: async (credential, audience) => {
             assert.equal(credential, 'synthetic-google-token');
             assert.equal(audience, ENV.GOOGLE_CLIENT_ID);
-            return { sub: 'google-sub-a', email: 'staff@example.test' };
+            return { sub: 'google-sub-a', email: 'staff@example.test', name: 'Cán Bộ A' };
         },
         gatewayCall: async (action, payload) => {
             calls.push({ action, payload });
@@ -89,10 +89,59 @@ test('Google login verifies server claims, resolves allowlist and issues protect
     await api.google(request('POST', { credential: 'synthetic-google-token' }, csrfHeaders('login-csrf')), loginResponse);
     assert.equal(loginResponse.statusCode, 200);
     assert.equal(loginResponse.body.ok, true);
-    assert.deepEqual(loginResponse.body.data.user, { email: 'staff@example.test' });
+    assert.deepEqual(loginResponse.body.data.user, { email: 'staff@example.test', name: 'Cán Bộ A' });
     assert.match(loginResponse.getHeader('Set-Cookie').join('\n'), /staff_session=.*HttpOnly/);
     assert.equal(calls[0].action, 'resolveUnits');
     assert.deepEqual(calls[0].payload, { email: 'staff@example.test' });
+});
+
+test('verified display name flows into the signed session and /api/staff/session, and overrides a client-submitted submitter name', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', name: 'Cán Bộ Xác Thực', now: Date.now() }, SECRET);
+    const calls = [];
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async (action, payload) => {
+            calls.push({ action, payload });
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            return { status: 'PENDING' };
+        },
+    });
+    const sessionRes = response();
+    await api.session(request('GET', null, { cookie: `staff_session=${encodeURIComponent(session)}` }), sessionRes);
+    assert.equal(sessionRes.statusCode, 200);
+    assert.deepEqual(sessionRes.body.data.user, { email: 'staff@example.test', name: 'Cán Bộ Xác Thực' });
+
+    const baseHeaders = { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` };
+    const create = response();
+    await api.requests(request('POST', {
+        operationId: 'op_identity', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
+        submitterName: 'Tên giả mạo do client tự gửi',
+    }, baseHeaders), create);
+    assert.equal(create.statusCode, 200);
+    const submitCall = calls.find(call => call.action === 'submitRequest');
+    assert.equal(submitCall.payload.submitter_name, 'Cán Bộ Xác Thực');
+});
+
+test('missing verified display name falls back to the client-submitted submitter name', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const calls = [];
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async (action, payload) => {
+            calls.push({ action, payload });
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            return { status: 'PENDING' };
+        },
+    });
+    const baseHeaders = { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` };
+    const create = response();
+    await api.requests(request('POST', {
+        operationId: 'op_fallback_name', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
+        submitterName: 'Nhập tay vì không có tên xác thực',
+    }, baseHeaders), create);
+    assert.equal(create.statusCode, 200);
+    const submitCall = calls.find(call => call.action === 'submitRequest');
+    assert.equal(submitCall.payload.submitter_name, 'Nhập tay vì không có tên xác thực');
 });
 
 test('login rejects client identity fields and exact Origin suffix tricks', async () => {
@@ -278,6 +327,46 @@ test('request endpoint ignores client identity and blocks stale/cross-unit/creat
     assert.equal(locationOptions[2].forceRefresh, true);
     assert.equal(locationOptions[2].allowStale, false);
     assert.equal(calls.filter(call => call.action === 'submitRequest').length, 3);
+});
+
+test('U3: a client-submitted unit_code outside the session\'s authorized units is rejected, not trusted', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    let submitCalls = 0;
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => {
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            submitCalls += 1;
+            return { status: 'PENDING' };
+        },
+    });
+    const res = response();
+    await api.requests(request('POST', {
+        operationId: 'op_wrong_unit', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_B_NOT_AUTHORIZED',
+    }, { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` }), res);
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.error.code, 'EMAIL_NOT_AUTHORIZED_FOR_UNIT');
+    assert.equal(submitCalls, 0, 'the Gateway must never be called with an unauthorized unit');
+});
+
+test('U4: an email with no authorized units cannot reach the mutation flow', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'nobody@example.test', now: Date.now() }, SECRET);
+    let submitCalls = 0;
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => {
+            if (action === 'resolveUnits') return { units: [] };
+            submitCalls += 1;
+            return { status: 'PENDING' };
+        },
+    });
+    const res = response();
+    await api.requests(request('POST', {
+        operationId: 'op_no_units', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
+    }, { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` }), res);
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.error.code, 'STAFF_ACCESS_REVOKED');
+    assert.equal(submitCalls, 0);
 });
 
 test('staff image preflight rejects malformed and over-cap decoded payloads', () => {

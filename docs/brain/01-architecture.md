@@ -220,6 +220,36 @@ already-proven-safe ceiling on this account). `MUTATION_MAX_ATTEMPTS` stays `1`;
 Same caveat as before: this is still evidence from individual observed durations, not a P50/P95
 distribution — revisit if real traffic shows a wider spread than ~40s.
 
+### PR #48 staff form simplification + Google Maps resolver (2026-08-15)
+
+Principle: identity and unit are authoritative server/session data (never re-typed by staff); Google
+Maps coordinates are derived automatically when possible, with manual entry as fallback only.
+
+- `lib/staff-auth.js`/`lib/staff-session.js`: verified Google `name` claim (already present under the
+  GIS button's default scope) is bounded and carried into the signed session alongside `sub`/`email`.
+  `lib/staff-api.js` returns it as `user.name` from both `google`/`session`, and overrides
+  `submitter_name` on `create`/`update`/`correct` from it — a client-submitted value is fallback-only.
+- `js/staff-portal.js` `renderModal()`: `create` mode shows the unit read-only (single authorized unit)
+  or as a `<select>` scoped to `state.units` (multiple) — never a free-text field; `update`/`correct`
+  never show a unit control at all, since the target record's own unit is already authoritative
+  (`findAuthorizedUnit(units, currentTarget.unitCode)`, unchanged). A `HEADQUARTERS` site type
+  auto-fills the location name from the unit's own `unitName` when the field is still empty.
+- New `lib/staff-maps-resolver.js` + `POST /api/staff/maps/resolve` (session + Origin + CSRF
+  protected): resolves a pasted Google Maps URL, including `maps.app.goo.gl` short links, to
+  `{ lat, lng }` server-side (browser has no CORS/direct path to Google's redirect chain). Reuses
+  `isGoogleMapsUrl`/`parseCoordinates` from `setup/apps-script.js` — both the initial URL and every
+  redirect hop are checked against that same host allowlist, `redirect: 'manual'` means the response
+  body is never read, and one shared `AbortController` bounds total wall time across the whole chain
+  regardless of hop count. See `docs/location-intake/STAFF_API.md` for the full contract.
+- `js/staff-portal.js`'s `mapsField()` replaces the old free-text `coordinates` input with this
+  resolver-driven UI (loading/success/error states + a hidden `coordinates` field the resolver
+  populates); manual coordinate entry remains available as an explicit fallback. This is UX only — the
+  Gateway's existing `classifyCoordinateStatus`/`parseCoordinates` (`setup/apps-script.js`, untouched)
+  remain the sole authoritative check at actual submit time, regardless of how `coordinates` got filled.
+- No Google Maps Platform API key, billing, geocoding or Places API was added — only the existing
+  Maps-URL coordinate-in-URL convention, resolved server-side instead of requiring the user to extract
+  it manually.
+
 ## Code Graph
 
 | Module / file | Vai tro | Duoc goi boi | Phu thuoc vao |

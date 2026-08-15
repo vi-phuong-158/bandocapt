@@ -5,7 +5,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
-    const mutationPaths = new Set(['/api/staff/auth/google', '/api/staff/auth/logout', '/api/staff/requests', '/api/staff/verification']);
+    const mutationPaths = new Set(['/api/staff/auth/google', '/api/staff/auth/logout', '/api/staff/requests', '/api/staff/verification', '/api/staff/maps/resolve']);
     const operationIds = new Map();
 
     class StaffApiError extends Error {
@@ -144,6 +144,7 @@
             async signIn(credential) { return call('/api/staff/auth/google', { method: 'POST', csrfToken, body: { credential } }); },
             async logout() { const result = await call('/api/staff/auth/logout', { method: 'POST', csrfToken, body: {} }); csrfToken = ''; return result; },
             async getLocations() { return call('/api/staff/locations'); },
+            async resolveMaps(mapsUrl) { return call('/api/staff/maps/resolve', { method: 'POST', csrfToken, body: { mapsUrl } }); },
             async submitRequest(payload) { return call('/api/staff/requests', { method: 'POST', csrfToken, body: payload }); },
             async verify(payload) { return call('/api/staff/verification', { method: 'POST', csrfToken, body: payload }); },
             async refreshCsrf() { return this.getCsrf(); },

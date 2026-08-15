@@ -171,6 +171,7 @@
 .staff-modal-header h2 { margin: 0; color: var(--text-strong); font-size: var(--text-lg); }
 .staff-form { display: grid; gap: var(--space-3); }
 .staff-field { display: grid; gap: var(--space-1); }
+.staff-field[hidden] { display: none; }
 .staff-field label { color: var(--text-body); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
 .staff-field input,
 .staff-field textarea,
@@ -192,6 +193,13 @@
 @media (prefers-reduced-motion: reduce) {
     .staff-spinner { animation: none; }
 }
+
+.staff-readonly-value { margin: 0; min-height: var(--control-h); box-sizing: border-box; display: flex; align-items: center; padding: var(--space-3); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); background: var(--surface-sunken); color: var(--text-body); }
+.staff-maps-status:empty { display: none; }
+.staff-maps-status-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) 0; font-size: var(--text-sm); }
+.staff-maps-status-success { color: var(--emerald-700); font-weight: var(--weight-semibold); }
+.staff-maps-status-error { color: var(--warn-fg); }
+.staff-maps-manual-toggle { align-self: flex-start; display: inline-flex; align-items: center; padding: 0; border: none; background: none; color: var(--color-primary); font-size: var(--text-sm); font-weight: var(--weight-semibold); text-decoration: underline; cursor: pointer; }
 
 @media (min-width: 700px) {
     .staff-portal-shell { padding: var(--space-6); }

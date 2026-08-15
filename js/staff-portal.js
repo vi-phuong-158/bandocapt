@@ -72,6 +72,7 @@
     function clearPortal() { while (portal.firstChild) portal.removeChild(portal.firstChild); }
 
     function notice(message, tone = 'warning') { state.notice = { message, tone }; }
+    function clientError(code) { const error = new Error(code); error.code = code; return error; }
     function errorMessage(error) {
         const code = error?.code || '';
         const messages = {
@@ -234,6 +235,12 @@
         form.appendChild(wrap);
     }
 
+    function readOnlyField(form, label, value) {
+        const wrap = el('div', 'staff-field');
+        append(wrap, el('span', '', label), el('p', 'staff-readonly-value', value));
+        form.appendChild(wrap);
+    }
+
     function selectField(form, name, label, value, options, required = false) {
         const wrap = el('div', 'staff-field');
         const labelNode = el('label', '', label);
@@ -267,6 +274,139 @@
         });
         wrap.appendChild(grid);
         form.appendChild(wrap);
+    }
+
+    // A HEADQUARTERS location's display name is, in the overwhelming majority of cases, exactly the
+    // unit's own name — no phường/xã name mapping is hard-coded here, only the authoritative
+    // `unitName` already returned by `resolveUnits`. Only auto-fills while the field is still empty,
+    // so it never clobbers a name the user already typed.
+    function wireLocationNameAutofill(form, modal) {
+        const siteTypeSelect = form.querySelector('#staff-siteType');
+        const locationNameInput = form.querySelector('#staff-locationName');
+        const unitSelect = form.querySelector('#staff-unitCode');
+        if (!siteTypeSelect || !locationNameInput) return;
+        function currentUnitName() {
+            const code = unitSelect ? unitSelect.value : (modal.item ? recordValue(modal.item.record, 'unit_code', 'unitCode') : state.units[0]?.unitCode);
+            const match = state.units.find(unit => unit.unitCode === code);
+            return match ? match.unitName : '';
+        }
+        function autofill() {
+            if (siteTypeSelect.value === 'HEADQUARTERS' && !locationNameInput.value.trim()) {
+                locationNameInput.value = currentUnitName();
+            }
+        }
+        siteTypeSelect.addEventListener('change', autofill);
+        if (unitSelect) unitSelect.addEventListener('change', autofill);
+        autofill();
+    }
+
+    const COORDINATES_LOOKS_VALID = /^-?\d{1,3}(?:\.\d+)?\s*,\s*-?\d{1,3}(?:\.\d+)?$/;
+
+    // Staff paste a Google Maps link and the coordinates are derived automatically via the
+    // authenticated resolver; manual entry is a fallback only, reached on failure or by choice.
+    // The Gateway independently re-parses/re-validates whatever ends up in the hidden `coordinates`
+    // field when the request is actually submitted — this UI is UX only, not the authoritative check.
+    function mapsField(form, modal, required) {
+        const saved = modal.values || null;
+        function kept(name, fallback) { return saved && Object.prototype.hasOwnProperty.call(saved, name) ? saved[name] : fallback; }
+        const record = modal.item?.record || {};
+        const initialMapsUrl = kept('mapsUrl', recordValue(record, 'google_maps_url', 'googleMapsUrl'));
+        const initialCoordinates = kept('coordinates', recordValue(record, 'coordinates', 'coordinates'));
+
+        const wrap = el('div', 'staff-field');
+        const label = el('label', '', `Link Google Maps${required ? ' (bắt buộc)' : ''}`);
+        label.htmlFor = 'staff-mapsUrl';
+        const input = document.createElement('input');
+        input.type = 'url'; input.id = 'staff-mapsUrl'; input.name = 'mapsUrl';
+        // Not HTML5 `required`: the actual requirement is coordinates (checked explicitly in
+        // submitModal), which can already be satisfied by a preloaded record even when its stored
+        // mapsUrl text happens to be empty. Blocking native submit on this exact input would force a
+        // pointless re-paste for update/correct on such records.
+        input.placeholder = 'Dán link Google Maps tại đây';
+        input.value = initialMapsUrl;
+        const status = el('div', 'staff-maps-status');
+        status.setAttribute('role', 'status');
+        status.setAttribute('aria-live', 'polite');
+        const manualToggle = el('button', 'staff-maps-manual-toggle', 'Nhập tọa độ thủ công');
+        manualToggle.type = 'button';
+        append(wrap, label, input, status, manualToggle);
+        form.appendChild(wrap);
+
+        const hiddenCoordinates = document.createElement('input');
+        hiddenCoordinates.type = 'hidden';
+        hiddenCoordinates.name = 'coordinates';
+        form.appendChild(hiddenCoordinates);
+
+        const manualWrap = el('div', 'staff-field staff-maps-manual');
+        manualWrap.hidden = true;
+        const manualLabel = el('label', '', 'Tọa độ (vĩ độ, kinh độ)');
+        manualLabel.htmlFor = 'staff-coordinates-manual';
+        const manualInput = document.createElement('input');
+        manualInput.type = 'text'; manualInput.id = 'staff-coordinates-manual';
+        manualInput.placeholder = '21.3225,105.4027';
+        append(manualWrap, manualLabel, manualInput);
+        form.appendChild(manualWrap);
+
+        let resolveToken = 0;
+
+        function renderIdle() { status.replaceChildren(); }
+        function renderLoading() {
+            const row = el('div', 'staff-maps-status-row');
+            const spinner = el('span', 'staff-spinner');
+            spinner.setAttribute('aria-hidden', 'true');
+            append(row, spinner, el('span', '', 'Đang xác định vị trí...'));
+            status.replaceChildren(row);
+        }
+        function renderSuccess(lat, lng) {
+            hiddenCoordinates.value = `${lat},${lng}`;
+            manualWrap.hidden = true;
+            const row = el('div', 'staff-maps-status-row staff-maps-status-success');
+            append(row, el('span', '', `✅ Đã xác định vị trí: ${Number(lat).toFixed(6)}, ${Number(lng).toFixed(6)}`));
+            status.replaceChildren(row);
+        }
+        function renderError() {
+            hiddenCoordinates.value = '';
+            const row = el('div', 'staff-maps-status-row staff-maps-status-error');
+            row.appendChild(el('span', '', '⚠️ Chưa lấy được tọa độ từ link này.'));
+            status.replaceChildren(row);
+            showManual();
+        }
+        function showManual() { manualWrap.hidden = false; }
+
+        manualToggle.addEventListener('click', () => { showManual(); manualInput.focus(); });
+        manualInput.addEventListener('input', () => { hiddenCoordinates.value = manualInput.value.trim(); });
+
+        async function resolve(url) {
+            const token = ++resolveToken;
+            if (!url) { renderIdle(); hiddenCoordinates.value = ''; return; }
+            renderLoading();
+            try {
+                const result = await api.resolveMaps(url);
+                if (token !== resolveToken) return;
+                renderSuccess(result.coordinates.lat, result.coordinates.lng);
+            } catch (_) {
+                if (token !== resolveToken) return;
+                renderError();
+            }
+        }
+
+        // Debounced on 'input' (not just 'change'/blur) so a paste resolves promptly and character-by-
+        // character typing doesn't spam the resolver with a request per keystroke.
+        let debounceTimer = null;
+        input.addEventListener('input', () => {
+            if (debounceTimer != null) clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => resolve(input.value.trim()), 400);
+        });
+
+        if (initialCoordinates && COORDINATES_LOOKS_VALID.test(initialCoordinates.trim())) {
+            const [lat, lng] = initialCoordinates.trim().split(',').map(part => Number(part.trim()));
+            hiddenCoordinates.value = initialCoordinates.trim();
+            renderSuccess(lat, lng);
+        } else if (initialMapsUrl) {
+            resolve(initialMapsUrl);
+        } else {
+            renderIdle();
+        }
     }
 
     function formValues(form) {
@@ -365,26 +505,41 @@
                 services: kept('services', recordValue(record, 'services', 'services')),
                 address: kept('address', recordValue(record, 'address', 'address')),
                 publicPhone: kept('publicPhone', recordValue(record, 'phone', 'phone')),
-                mapsUrl: kept('mapsUrl', recordValue(record, 'google_maps_url', 'googleMapsUrl')),
-                coordinates: kept('coordinates', recordValue(record, 'coordinates', 'coordinates')),
                 cccdServiceMode: kept('cccdServiceMode', recordValue(record, 'cccd_service_mode', 'cccdServiceMode')),
                 serviceSchedule: kept('serviceSchedule', recordValue(record, 'service_schedule', 'serviceSchedule')),
                 servedUnits: kept('servedUnits', recordValue(record, 'served_units', 'servedUnits')),
                 searchAliases: kept('searchAliases', recordValue(record, 'search_aliases', 'searchAliases')),
             };
+            // Unit is authoritative server/session data (`resolveUnits` -> `Unit_Allowlist`), never a
+            // free-text field. update/correct/stop always target an existing record whose unit is
+            // already fixed, so only `create` ever needs to show/choose it.
+            if (modal.mode === 'create') {
+                if (state.units.length > 1) {
+                    selectField(form, 'unitCode', 'Đơn vị thực hiện', kept('unitCode', state.selectedUnitCode), state.units.map(unit => [unit.unitCode, unit.unitName]), true);
+                } else {
+                    readOnlyField(form, 'Đơn vị', state.units[0]?.unitName || '');
+                    const hiddenUnit = document.createElement('input');
+                    hiddenUnit.type = 'hidden'; hiddenUnit.name = 'unitCode'; hiddenUnit.value = state.units[0]?.unitCode || '';
+                    form.appendChild(hiddenUnit);
+                }
+            }
+            selectField(form, 'siteType', 'Loại địa điểm', source.siteType, SITE_TYPES, true);
             field(form, 'locationName', 'Tên địa điểm', source.locationName, 'text', true);
             field(form, 'address', 'Địa chỉ', source.address, 'text', true);
-            field(form, 'publicPhone', 'Số điện thoại', source.publicPhone, 'tel');
             servicesField(form, source.services, requiresLocationFields);
-            selectField(form, 'siteType', 'Loại địa điểm', source.siteType, SITE_TYPES, true);
-            field(form, 'mapsUrl', 'Maps URL', source.mapsUrl, 'url');
-            field(form, 'coordinates', 'Tọa độ (bắt buộc)', source.coordinates, 'text', requiresLocationFields, 'Nhập theo dạng vĩ độ, kinh độ. Ví dụ: 21.3225,105.4027');
+            wireLocationNameAutofill(form, modal);
+            mapsField(form, modal, requiresLocationFields);
+            field(form, 'publicPhone', 'Số điện thoại', source.publicPhone, 'tel');
             selectField(form, 'cccdServiceMode', 'Hình thức dịch vụ căn cước', source.cccdServiceMode, CCCD_MODES);
             field(form, 'serviceSchedule', 'Lịch phục vụ', source.serviceSchedule, 'textarea');
             field(form, 'servedUnits', 'Đơn vị phục vụ', source.servedUnits);
             field(form, 'searchAliases', 'Tên gọi khác', source.searchAliases);
             if (modal.mode === 'create') {
-                field(form, 'submitterName', 'Họ tên cán bộ', kept('submitterName', ''), 'text', true);
+                if (state.user?.name) {
+                    readOnlyField(form, 'Họ tên cán bộ', state.user.name);
+                } else {
+                    field(form, 'submitterName', 'Họ tên cán bộ', kept('submitterName', ''), 'text', true);
+                }
                 field(form, 'submitterPhone', 'Số điện thoại liên hệ', kept('submitterPhone', ''), 'tel');
             }
             field(form, 'reviewNote', 'Ghi chú gửi duyệt', kept('reviewNote', ''), 'textarea');
@@ -426,10 +581,11 @@
         });
         try {
             const requiresLocationFields = ['create', 'update', 'correct'].includes(state.modal.mode);
-            if (requiresLocationFields && !values.services.length) throw new Error('SERVICES_MISSING');
+            if (requiresLocationFields && !values.services.length) throw clientError('SERVICES_MISSING');
+            if (requiresLocationFields && !values.coordinates) throw clientError('COORDINATE_NEEDS_REVIEW');
             let image = null;
             const file = form.elements.image?.files?.[0];
-            if (requiresLocationFields && !file) throw new Error('IMAGE_REQUIRED');
+            if (requiresLocationFields && !file) throw clientError('IMAGE_REQUIRED');
             if (file) image = await root.StaffImage.prepareImage(file);
             if (state.modal.mode === 'confirm') {
                 await api.verify(root.StaffApiClient.buildVerificationPayload(values.note, { record_id: state.modal.item.record.record_id, snapshotHash: state.modal.item.snapshotHash }));
@@ -439,7 +595,7 @@
                 notice('Yêu cầu đã được gửi và đang chờ duyệt.', 'success');
             } else if (state.modal.mode === 'create') {
                 values.image = image;
-                await api.submitRequest(root.StaffApiClient.buildCreatePayload(values, state.selectedUnitCode));
+                await api.submitRequest(root.StaffApiClient.buildCreatePayload(values, values.unitCode));
                 notice('Yêu cầu đã được gửi và đang chờ duyệt.', 'success');
             } else {
                 values.image = image;

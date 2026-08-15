@@ -14,17 +14,35 @@ function verifierFor(payload, expectedAudience) {
 function validPayload(audience = 'synthetic-client-id.apps.googleusercontent.com') {
     return {
     sub: 'google-sub-1', email: 'Staff@Example.Test', email_verified: true, iss: 'https://accounts.google.com',
-        aud: audience, exp: Math.floor(Date.now() / 1000) + 3600,
+        aud: audience, exp: Math.floor(Date.now() / 1000) + 3600, name: '  Cán Bộ A  ',
     };
 }
 
-test('Google ID token verification returns only verified identity claims', async () => {
+test('Google ID token verification returns only verified identity claims, including a trimmed display name', async () => {
     const identity = await verifyGoogleIdToken({
         credential: 'synthetic-google-token',
         clientId: 'synthetic-client-id.apps.googleusercontent.com',
         verifier: verifierFor(validPayload(), 'synthetic-client-id.apps.googleusercontent.com'),
     });
-    assert.deepEqual(identity, { sub: 'google-sub-1', email: 'staff@example.test' });
+    assert.deepEqual(identity, { sub: 'google-sub-1', email: 'staff@example.test', name: 'Cán Bộ A' });
+});
+
+test('Google ID token verification tolerates a missing display name claim', async () => {
+    const identity = await verifyGoogleIdToken({
+        credential: 'synthetic-google-token',
+        clientId: 'client',
+        verifier: verifierFor({ ...validPayload('client'), name: undefined }),
+    });
+    assert.equal(identity.name, '');
+});
+
+test('Google ID token verification bounds an oversized display name claim', async () => {
+    const identity = await verifyGoogleIdToken({
+        credential: 'synthetic-google-token',
+        clientId: 'client',
+        verifier: verifierFor({ ...validPayload('client'), name: 'A'.repeat(500) }),
+    });
+    assert.equal(identity.name.length, 200);
 });
 
 test('Google ID token verification rejects invalid audience/config, issuer and email verification', async () => {

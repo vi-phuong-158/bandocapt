@@ -8,8 +8,12 @@ workbook, deploy Apps Script, or change Production environment variables.
 1. `POST /api/staff/auth/google` requires an exact configured `Origin` and a matching `staff_csrf` cookie/header.
 2. `google-auth-library` verifies the Google ID token against `GOOGLE_CLIENT_ID`. The verified `sub` is
    the immutable session identity; verified email is used for allowlist authorization and operational display.
+   The verified `name` claim (already present under the GIS button's default scope) is bounded, signed into
+   the same session, and returned to the client alongside `email` for read-only display.
 3. Vercel calls Gateway V2 `resolveUnits` for every login and every protected request. Empty current units
-   reject the request, even when the signed session has not expired.
+   reject the request, even when the signed session has not expired. Authorized units are also the sole
+   source of the `unitCode`/`unitName` a `create` request may use — the client cannot submit an unauthorized
+   unit and have it accepted.
 4. State-changing routes require exact `Origin` and CSRF. The browser never receives either Gateway secret.
 
 ## Routes
@@ -21,8 +25,9 @@ workbook, deploy Apps Script, or change Production environment variables.
 | `POST /api/staff/auth/logout` | Requires Origin + CSRF and clears the session/CSRF cookies. |
 | `GET /api/staff/session` | Revalidates the session against current Gateway units and returns safe DTO only. |
 | `GET /api/staff/locations` | Reads only public `Published_Locations`, filters by current authorized `unit_code`, and returns a canonical snapshot plus SHA-256 hash. |
-| `POST /api/staff/requests` | Allows only the explicit intake DTO. Create rejects target/hash; update/correct/stop require an authorized fresh target. |
+| `POST /api/staff/requests` | Allows only the explicit intake DTO. Create rejects target/hash; update/correct/stop require an authorized fresh target. `submitter_name` is overridden server-side from the verified session `name` whenever one is present — a client-submitted value is only used as a fallback while no verified name exists. |
 | `POST /api/staff/verification` | Builds the current snapshot server-side, rejects stale hashes with HTTP 409, and only then calls `writeVerificationEvent`. |
+| `POST /api/staff/maps/resolve` | Requires Origin + CSRF + valid session. Resolves a Google Maps URL (including `maps.app.goo.gl` short links) to `{ coordinates: { lat, lng } }` for UX only — see "Maps URL resolver" below for the authoritative contract. |
 
 All responses are `no-store` and use `{ ok, data }` / `{ ok: false, error: { code } }`. Raw Gateway bodies,
 private rows, credentials, cookie tokens, secrets, signatures, body hashes and Drive IDs are not returned.
@@ -83,6 +88,29 @@ The browser route is `/can-bo`; it bootstraps CSRF then session, renders the off
 Services button without One Tap, and posts the callback credential only to `/api/staff/auth/google`.
 Credential, session cookie and CSRF token are never persisted in browser storage. Portal reads and writes
 remain same-origin Vercel calls; the browser never calls Apps Script directly.
+
+## Maps URL resolver (PR #48 form simplification)
+
+`lib/staff-maps-resolver.js` reuses the existing `isGoogleMapsUrl`/`parseCoordinates` from
+`setup/apps-script.js` — no separate URL/coordinate parsing implementation. It is a plain redirect
+chaser, not a generic URL fetch proxy:
+
+- Both the initial URL and every redirect hop must pass `isGoogleMapsUrl` (HTTPS + Google Maps host
+  allowlist only); a redirect to any other host is rejected before it is ever followed.
+- `redirect: 'manual'` — only the `Location` header is read; the response body is never fetched, so
+  there is no body-size concern.
+- One `AbortController` bounds total wall time (`DEFAULT_TIMEOUT_MS`, currently 6s) across however
+  many hops occur; a fixed `MAX_REDIRECTS` (5) bounds hop count independently of the timeout.
+- If the URL already encodes coordinates directly (e.g. `@lat,lng`), no network call happens at all.
+- All failure modes (non-Google redirect, too many redirects, timeout, no coordinates in the final
+  URL) collapse to a small, already-existing vocabulary of safe codes
+  (`COORDINATE_INVALID_LINK`/`COORDINATE_NEEDS_REVIEW`/`COORDINATE_OUTSIDE_PHU_THO`/`MAPS_RESOLVE_UNAVAILABLE`)
+  — the client shows one generic "couldn't determine the location" state and offers manual entry.
+
+This is UX only. The Gateway's `classifyCoordinateStatus`/`parseCoordinates` (`setup/apps-script.js`,
+unchanged) remain the sole authoritative check when `/api/staff/requests` actually submits — whatever
+ends up in the `coordinates` field (resolved, preloaded, or manually typed) is re-parsed and
+re-validated against the Phú Thọ bounds server-side regardless of what the client claims.
 
 ## Cutover dependency
 

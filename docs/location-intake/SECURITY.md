@@ -49,6 +49,26 @@ Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, S
 - Browser image compression targets 2.5 MiB; Vercel's existing 3 MiB decoded preflight and Gateway magic
   byte checks remain authoritative. No mutation retries a stale snapshot silently.
 
+## PR #48 form simplification & Maps resolver SSRF hardening (2026-08-15)
+
+- Identity and unit are authoritative server/session data, never free-text: `submitter_name` is
+  overridden server-side from the verified Google `name` claim whenever present (client-submitted
+  value is fallback-only, never authoritative when a verified name exists); `unit_code` on `create` is
+  always checked against the session's `resolveUnits` result, same as before — the UI now also stops
+  offering an editable unit field for single-unit accounts and restricts the dropdown to authorized
+  units only for multi-unit accounts, but the server-side check this relies on already existed.
+- `POST /api/staff/maps/resolve` is a new authenticated (session + Origin + CSRF), same-origin
+  endpoint that follows Google Maps short-link redirects server-side so the browser never needs
+  CORS/direct access to `maps.app.goo.gl`. It is not a generic URL fetch proxy: both the initial URL
+  and every redirect hop are checked against the existing `isGoogleMapsUrl` allowlist (HTTPS + Google
+  Maps hosts only), the response body is never read (only the `Location` header on 3xx hops), redirect
+  count and total wall time are both bounded, and no Google Maps Platform API key/billing was added —
+  coordinates already embedded in the URL text are extracted directly, nothing more.
+- Google Maps coordinates are derived automatically when possible; manual coordinate entry is a
+  fallback only, shown on resolver failure or by explicit choice. Either way, the resolver's output is
+  UX convenience only — the Gateway's existing `classifyCoordinateStatus`/`parseCoordinates`
+  (unchanged) remain the sole authoritative validation when a mutation actually submits.
+
 ## Private Gateway V2
 
 - Browser không được gọi Apps Script gateway trực tiếp; chỉ Vercel server đã xác thực mới được ký HMAC.

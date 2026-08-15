@@ -52,9 +52,9 @@ test('portal UI marks image, coordinates and services required for create/update
     assert.match(portalSource, /Dịch vụ\$\{required \? ' \(bắt buộc\)' : ''\}/);
     assert.match(portalSource, /grid\.setAttribute\('aria-required', 'true'\)/);
     assert.doesNotMatch(portalSource, /input\.required = required &&/);
-    assert.match(portalSource, /Tọa độ \(bắt buộc\)/);
+    assert.match(portalSource, /if \(requiresLocationFields && !values\.coordinates\) throw clientError\('COORDINATE_NEEDS_REVIEW'\)/);
     assert.match(portalSource, /imageInput\.required = requiresLocationFields/);
-    assert.match(portalSource, /if \(requiresLocationFields && !file\) throw new Error\('IMAGE_REQUIRED'\)/);
+    assert.match(portalSource, /if \(requiresLocationFields && !file\) throw clientError\('IMAGE_REQUIRED'\)/);
     assert.doesNotMatch(portalSource, /Ảnh địa điểm \(không bắt buộc\)/);
 });
 

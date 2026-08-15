@@ -1,5 +1,39 @@
 # 03 — Technical Decisions
 
+## [2026-08-15] PR #48 staff form simplification: authoritative identity/unit, Maps URL resolver
+
+- **Decision:** Identity and unit are authoritative server/session data — the form never asks staff to
+  re-type their unit or name when the system already knows it. `create` shows unit read-only (one
+  authorized unit) or as a `<select>` scoped to `state.units` (multiple); `update`/`correct` never show
+  a unit control since the target record's own unit is already authoritative server-side (unchanged).
+  `submitter_name` is overridden server-side from the verified Google `name` claim when present.
+- **Decision:** Google Maps coordinates are derived automatically when possible. New
+  `lib/staff-maps-resolver.js` + `POST /api/staff/maps/resolve` follows Google Maps short-link
+  redirects (`maps.app.goo.gl` etc.) server-side and returns `{ lat, lng }`. Manual coordinate entry is
+  a fallback only, reached on resolver failure or by explicit user choice — never the default UI.
+- **Decision:** No new coordinate-parsing implementation. The resolver reuses the existing
+  `isGoogleMapsUrl`/`parseCoordinates` from `setup/apps-script.js` via `require()` rather than
+  duplicating regex patterns; the Gateway's `classifyCoordinateStatus` (unchanged) stays the sole
+  authoritative validator at actual submit time — the resolver is UX only.
+- **Decision (SSRF):** The resolver is not a generic URL fetch proxy. Both the initial URL and every
+  redirect hop must pass `isGoogleMapsUrl` (HTTPS + Google-owned host allowlist) before being followed;
+  a redirect to any other host is rejected before the fetch happens. `redirect: 'manual'` means the
+  response body is never read (only the `Location` header on 3xx). One shared `AbortController` bounds
+  total wall time (6s default) across however many hops occur; `MAX_REDIRECTS=5` bounds hop count
+  independently. All failure modes collapse to a small, already-existing error vocabulary
+  (`COORDINATE_INVALID_LINK`/`COORDINATE_NEEDS_REVIEW`/`COORDINATE_OUTSIDE_PHU_THO`, plus one new
+  `MAPS_RESOLVE_UNAVAILABLE` for transport-level failures) rather than inventing a parallel taxonomy.
+- **Decision:** No `Staff_Allowlist` or other new identity store — verified Google identity plus the
+  existing `Unit_Allowlist`-backed `resolveUnits` was already sufficient; adding a database would have
+  been unjustified scope for what a session field addition already solves.
+- **Rejected:** Making the visible `mapsUrl` input HTML5 `required` — an existing record can have valid
+  preloaded `coordinates` with an empty stored `google_maps_url` (e.g. legacy data), and blocking native
+  submission in that case would force a pointless re-paste. The actual requirement (coordinates present)
+  is checked explicitly in `submitModal()` instead, uniformly regardless of how they were obtained.
+- **Consequence:** No auth model change, no new Google Maps Platform API key/billing, no reverse
+  geocoding, no Apps Script/Gateway code touched. `docs/location-intake/STAFF_API.md` and `SECURITY.md`
+  document the new route and its SSRF posture.
+
 ## [2026-08-15] PR #48 Gateway mutation timeout widened again: 40s margin was still too tight
 
 - **Decision:** `MUTATION_TIMEOUT_MS` raised from `40000` to `50000`; `vercel.json` `maxDuration` for
