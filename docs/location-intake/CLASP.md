@@ -74,6 +74,35 @@ npm run clasp:push
 Build lại `setup/location-intake/dist/` (gồm `Code.gs` và `appsscript.json`) rồi đẩy lên. `dist/`
 là push root, nên chỉ đúng hai file đó lên Google — không đẩy nhầm mã nguồn khác.
 
+### Cảnh báo: push ghi đè manifest trên Google
+
+`clasp push` **thay thế** `appsscript.json` của script từ xa bằng bản trong `dist/`, không merge.
+Script Staff Gateway được deploy dạng **Web App** (`doPost` tại `/exec`, xem GATEWAY.md) nên manifest
+của nó có khối `webapp`. Nếu manifest đẩy lên thiếu khối này, cấu hình Web App bị xoá và
+`STAFF_GATEWAY_URL` mà `/api/staff/*` trên Vercel đang gọi sẽ hỏng.
+
+Vì vậy `setup/location-intake/appsscript.json` khai sẵn:
+
+```json
+"webapp": { "executeAs": "USER_DEPLOYING", "access": "ANYONE_ANONYMOUS" }
+```
+
+Khối này chỉ **mô tả cấu hình deployment**, bản thân nó không tạo hay công khai Web App nào —
+Web App chỉ tồn tại sau khi người vận hành tạo deployment. `ANYONE_ANONYMOUS` là cần thiết vì
+Vercel gọi server-to-server không mang danh tính Google; lớp bảo vệ là chữ ký HMAC + freshness
+window trong gateway, không phải quyền truy cập của Apps Script.
+
+`scripts/build-location-intake-apps-script.js` kiểm tra khối `webapp` trước khi ghi `dist/`, nên
+build (và do đó `clasp:push`) sẽ dừng lại nếu ai đó gỡ nó ra. Khi thêm trường manifest mới ở phía
+Google (ví dụ `oauthScopes` phát sinh sau khi cấp quyền), **pull về đối chiếu trước khi push**:
+
+```bash
+npm run clasp -- pull
+```
+
+rồi hợp nhất phần chênh vào `setup/location-intake/appsscript.json` — đừng để bản từ xa và bản
+nguồn trôi khỏi nhau.
+
 ```bash
 npm run clasp:run -- apiHealthCheckLocationIntake
 npm run clasp:run -- apiLocationIntakeSnapshot
