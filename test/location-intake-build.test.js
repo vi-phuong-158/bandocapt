@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const { buildLocationIntakeAppsScript, outputPath, manifestOutputPath } = require('../scripts/build-location-intake-apps-script');
@@ -23,6 +24,21 @@ test('generated manifest keeps the Web App config so clasp push does not drop th
     const manifest = JSON.parse(fs.readFileSync(manifestOutputPath, 'utf8'));
     assert.deepEqual(manifest.webapp, { executeAs: 'USER_DEPLOYING', access: 'ANYONE_ANONYMOUS' });
     assert.deepEqual(manifest.executionApi, { access: 'MYSELF' });
+});
+
+test('Apps Script intake bundle preserves the request-type-aware image requirement', () => {
+    const sourceRoot = path.join(__dirname, '..');
+    const pipelineSource = fs.readFileSync(path.join(sourceRoot, 'setup', 'apps-script.js'), 'utf8');
+    const gatewaySource = fs.readFileSync(path.join(sourceRoot, 'setup', 'staff-gateway.js'), 'utf8');
+    buildLocationIntakeAppsScript();
+    const bundle = fs.readFileSync(outputPath, 'utf8');
+
+    assert.match(pipelineSource, /function requiresNewImage\(requestType\)\s*\{\s*return requestType === REQUEST_TYPES\.create;/);
+    assert.match(pipelineSource, /!submission\.imageFileId && requiresNewImage\(submission\.requestType\)/);
+    assert.match(gatewaySource, /pipeline\.requiresNewImage\(requestType\) && !payload\.image/);
+    assert.match(bundle, /function requiresNewImage\(requestType\)\s*\{\s*return requestType === REQUEST_TYPES\.create;/);
+    assert.match(bundle, /!submission\.imageFileId && requiresNewImage\(submission\.requestType\)/);
+    assert.match(bundle, /pipeline\.requiresNewImage\(requestType\) && !payload\.image/);
 });
 
 // Live rehearsal 2026-08-16: "0210000049" ghi bằng setValues bị Sheets ép về number

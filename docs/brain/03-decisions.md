@@ -1613,3 +1613,9 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - **Phạm vi:** chỉ áp dụng public GViz reads; không đổi trust boundary, schema, cache hoặc
   Production environment.
 
+## [2026-08-16] TEST Gateway phải đồng bộ bundle theo commit trước khi rehearsal
+
+- **Quyết định:** `setup/location-intake/dist/Code.gs` chỉ được build từ exact checked-out commit rồi mới cập nhật version của cùng TEST Web App deployment. Không tạo URL mới hoặc thay Vercel env cho một source sync.
+- **Lý do:** Source Node đã cho phép UPDATE không có ảnh nhưng Apps Script TEST version cũ vẫn áp dụng rule ảnh cho mọi request, tạo lỗi runtime `IMAGE_REQUIRED`. Parity test giữ helper CREATE-only trong source và bundle.
+- **Phạm vi:** chỉ TEST Gateway; giữ nguyên HMAC, allowlist, snapshot, image preservation và Production.
+

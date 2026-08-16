@@ -441,22 +441,25 @@
 
     function stopProcessingTimer() {
         if (state.processing?.intervalId != null) clearInterval(state.processing.intervalId);
+        state.processing?.overlay?.remove();
         state.processing = null;
     }
 
-    function startProcessingTimer(onTick) {
+    function startProcessingTimer(onTick, overlay) {
         stopProcessingTimer();
         const startedAt = Date.now();
-        state.processing = { startedAt, intervalId: null };
+        state.processing = { startedAt, intervalId: null, overlay };
         const tick = () => onTick(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
         tick();
         state.processing.intervalId = setInterval(tick, 1000);
     }
 
     function buildProcessingPanel() {
+        const overlay = el('div', 'staff-processing-overlay');
+        overlay.setAttribute('role', 'status');
+        overlay.setAttribute('aria-live', 'polite');
+        overlay.setAttribute('aria-busy', 'true');
         const panel = el('div', 'staff-processing-panel');
-        panel.setAttribute('role', 'status');
-        panel.setAttribute('aria-live', 'polite');
         const row = el('div', 'staff-processing-row');
         const spinner = el('span', 'staff-spinner');
         spinner.setAttribute('aria-hidden', 'true');
@@ -466,7 +469,8 @@
         const elapsed = el('p', 'staff-processing-elapsed', 'Đã chờ: 0 giây');
         elapsed.setAttribute('aria-hidden', 'true');
         append(panel, row, hint, elapsed);
-        return { panel, message, elapsed };
+        overlay.appendChild(panel);
+        return { overlay, message, elapsed };
     }
 
     function renderModal() {
@@ -585,12 +589,12 @@
         const primaryButton = form.querySelector('button.staff-button-primary');
         setFormControlsDisabled(form, closeButton, true);
         if (primaryButton) primaryButton.textContent = busyButtonLabel(state.modal.mode);
-        const { panel, message, elapsed } = buildProcessingPanel();
-        form.appendChild(panel);
+        const { overlay, message, elapsed } = buildProcessingPanel();
         startProcessingTimer(seconds => {
             message.textContent = processingMessageForElapsed(seconds);
             elapsed.textContent = `Đã chờ: ${seconds} giây`;
-        });
+        }, overlay);
+        document.body.appendChild(overlay);
         try {
             const requiresLocationFields = ['create', 'update'].includes(state.modal.mode);
             if (requiresLocationFields && !values.services.length) throw clientError('SERVICES_MISSING');

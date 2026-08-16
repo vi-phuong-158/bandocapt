@@ -89,6 +89,11 @@ test('submit progress UX gives immediate feedback without fake percentages or pe
     assert.match(portalSource, /Đang chuẩn bị và gửi dữ liệu\.\.\./);
     assert.match(portalSource, /Hệ thống đang xử lý yêu cầu\.\.\./);
     assert.match(portalSource, /Yêu cầu vẫn đang được xử lý, vui lòng tiếp tục chờ\.\.\./);
+    assert.match(portalSource, /const overlay = el\('div', 'staff-processing-overlay'\)/);
+    assert.match(portalSource, /overlay\.setAttribute\('role', 'status'\)/);
+    assert.match(portalSource, /overlay\.setAttribute\('aria-live', 'polite'\)/);
+    assert.match(portalSource, /overlay\.setAttribute\('aria-busy', 'true'\)/);
+    assert.match(portalSource, /document\.body\.appendChild\(overlay\)/);
     // No fake/simulated progress percentage anywhere in the portal source.
     assert.doesNotMatch(portalSource, /\d+\s*%/);
     // No persisted loading state — only in-memory state, per the same rule already enforced for form values.
@@ -96,7 +101,7 @@ test('submit progress UX gives immediate feedback without fake percentages or pe
 });
 
 test('processing timer starts on submit and is stopped on every exit path (no orphan interval)', () => {
-    assert.match(portalSource, /function startProcessingTimer\(onTick\)/);
+    assert.match(portalSource, /function startProcessingTimer\(onTick, overlay\)/);
     assert.match(portalSource, /function stopProcessingTimer\(\)/);
     assert.match(portalSource, /clearInterval\(state\.processing\.intervalId\)/);
     assert.match(portalSource, /startProcessingTimer\(seconds => \{/);
@@ -106,9 +111,10 @@ test('processing timer starts on submit and is stopped on every exit path (no or
     assert.match(portalSource, /\} catch \(error\) \{\s*\n\s*stopProcessingTimer\(\);\s*\n\s*state\.busy = false;/);
 });
 
-test('processing panel is an accessible live region with a decorative, non-spammy spinner and timer', () => {
-    assert.match(portalSource, /panel\.setAttribute\('role', 'status'\)/);
-    assert.match(portalSource, /panel\.setAttribute\('aria-live', 'polite'\)/);
+test('processing overlay is an accessible live region with a decorative, non-spammy spinner and timer', () => {
+    assert.match(portalSource, /overlay\.setAttribute\('role', 'status'\)/);
+    assert.match(portalSource, /overlay\.setAttribute\('aria-live', 'polite'\)/);
+    assert.match(portalSource, /state\.processing\?\.overlay\?\.remove\(\)/);
     assert.match(portalSource, /spinner\.setAttribute\('aria-hidden', 'true'\)/);
     assert.match(portalSource, /elapsed\.setAttribute\('aria-hidden', 'true'\)/);
 });

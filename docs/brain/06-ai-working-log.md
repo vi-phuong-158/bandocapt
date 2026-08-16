@@ -3099,3 +3099,10 @@
   `npm run build` PASS; Playwright E2E 47/47 PASS; `npm audit --omit=dev --audit-level=high` PASS
   (9 moderate dependency advisories, không có high+). Preview được smoke-test sau khi push. Ảnh cũ sau
   replacement chưa bị revoke trong task này; follow-up cần reconciliation-safe failure model.
+
+## [2026-08-16] PR #49 — TEST Gateway source parity và processing overlay
+- **Agent:** Codex
+- **Thay đổi:** Chuyển trạng thái mutation của `/can-bo` thành overlay fixed, nằm ngoài form và giữa viewport; overlay có live-region/busy semantics, chặn click xuyên, tự remove cùng timer ở mọi success/error path và tôn trọng reduced-motion. Bổ sung E2E cho CREATE/UPDATE, success/error cleanup, double submit, timer, mobile và reduced-motion; thêm build parity guard cho rule ảnh CREATE-only trong source Gateway/pipeline/bundle.
+- **File đã sửa:** `js/staff-portal.js`, `styles/staff-portal.css`, `test/staff-portal-client.test.js`, `test/e2e/staff-portal-modal.spec.js`, `test/location-intake-build.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Điều tra live xác nhận browser và Vercel source đã optional image cho UPDATE, còn source của TEST Apps Script v7 không có helper request-type-aware; overlay cũ ở cuối form không nhìn thấy khi form dài.
+- **Kiểm tra:** focused client/build tests 13/13 PASS; `npm test` 530/530 PASS; `npm run build` PASS; `npm run test:e2e` 49/49 PASS; `npm audit --omit=dev --audit-level=high` PASS (9 moderate transitive `uuid`, không có high); `git diff --check` PASS. TEST deployment sync và live rehearsal được ghi riêng sau khi hoàn tất; không thay logic preservation, quyền Drive, HMAC, Vercel environment hoặc Production.

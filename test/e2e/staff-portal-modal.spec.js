@@ -405,7 +405,7 @@ test.describe('staff portal form simplification', () => {
 });
 
 test.describe('staff portal submit progress UX', () => {
-    test('submit gives immediate busy feedback: button text, disabled state and a visible processing panel', async ({ page }) => {
+    test('CREATE submit gives immediate busy feedback in a centered viewport overlay', async ({ page }) => {
         const mutations = [];
         await mockStaffApi(page, mutations);
         await mockDelayedRequestsRoute(page, mutations, 800);
@@ -420,9 +420,19 @@ test.describe('staff portal submit progress UX', () => {
 
         await expect(primaryButton).toHaveText('Đang gửi...');
         await expect(primaryButton).toBeDisabled();
-        await expect(backdrop.locator('.staff-processing-panel')).toBeVisible();
-        await expect(backdrop.locator('.staff-processing-panel')).toContainText('Đã chờ:');
-        await expect(backdrop.locator('.staff-processing-panel')).not.toContainText('%');
+        const overlay = page.locator('.staff-processing-overlay');
+        const panel = overlay.locator('.staff-processing-panel');
+        await expect(overlay).toBeVisible();
+        await expect(overlay).toHaveAttribute('role', 'status');
+        await expect(overlay).toHaveAttribute('aria-busy', 'true');
+        await expect(panel).toContainText('Đã chờ:');
+        await expect(panel).not.toContainText('%');
+        const box = await panel.boundingBox();
+        const viewport = page.viewportSize();
+        expect(box).not.toBeNull();
+        expect(box.y).toBeGreaterThan(0);
+        expect(box.y + box.height).toBeLessThan(viewport.height);
+        expect(await panel.evaluate(node => node.closest('form'))).toBeNull();
 
         await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
     });
@@ -439,7 +449,7 @@ test.describe('staff portal submit progress UX', () => {
         await fillValidCreateForm(form);
         await form.locator('button.staff-button-primary').click();
 
-        const elapsed = backdrop.locator('.staff-processing-elapsed');
+        const elapsed = page.locator('.staff-processing-elapsed');
         await expect(elapsed).toHaveText('Đã chờ: 0 giây');
         await expect(elapsed).toHaveText(/Đã chờ: [1-9]\d* giây/, { timeout: 3000 });
 
@@ -460,6 +470,24 @@ test.describe('staff portal submit progress UX', () => {
 
         await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
         expect(mutations.filter(mutation => mutation.path === '/api/staff/requests')).toHaveLength(1);
+    });
+
+    test('UPDATE submit without a replacement image shows the centered overlay', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        await mockDelayedRequestsRoute(page, mutations, 800);
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'update');
+        const form = backdrop.locator('form');
+        await form.locator('[name=locationName]').fill('Công an phường Tiên Cát đã cập nhật');
+        await form.locator('button.staff-button-primary').click();
+        await expect(page.locator('.staff-processing-overlay')).toBeVisible();
+        await expect(page.locator('.staff-processing-panel')).toBeVisible();
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+        expect(mutations).toHaveLength(1);
+        expect('image' in mutations[0].body).toBe(false);
     });
 
     test('every interactive control is disabled while a request is in flight', async ({ page }) => {
@@ -496,7 +524,7 @@ test.describe('staff portal submit progress UX', () => {
         const form = backdrop.locator('form');
         await fillValidCreateForm(form);
         await form.locator('button.staff-button-primary').click();
-        await expect(backdrop.locator('.staff-processing-panel')).toBeVisible();
+        await expect(page.locator('.staff-processing-overlay')).toBeVisible();
 
         await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
         await expect(page.locator('.staff-notice-success')).toContainText('Yêu cầu đã được gửi và đang chờ duyệt.');
@@ -517,7 +545,7 @@ test.describe('staff portal submit progress UX', () => {
         await primaryButton.click();
 
         await expect(backdrop.locator('.staff-notice-warning')).toBeVisible();
-        await expect(backdrop.locator('.staff-processing-panel')).toHaveCount(0);
+        await expect(page.locator('.staff-processing-overlay')).toHaveCount(0);
         await expect(primaryButton).toHaveText('Gửi yêu cầu');
         await expect(primaryButton).toBeEnabled();
         await expect(form.locator('[name=locationName]')).toBeEnabled();
@@ -547,6 +575,31 @@ test.describe('staff portal submit progress UX', () => {
 
         await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
         expect(mutations.map(mutation => mutation.path)).toEqual(['/api/staff/verification']);
+    });
+
+    test('reduced-motion and a mobile viewport keep processing visible without scrolling', async ({ page }) => {
+        const mutations = [];
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        await page.setViewportSize({ width: 390, height: 640 });
+        await mockStaffApi(page, mutations);
+        await mockDelayedRequestsRoute(page, mutations, 800);
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'create');
+        const form = backdrop.locator('form');
+        await fillValidCreateForm(form);
+        await form.locator('button.staff-button-primary').click();
+        const panel = page.locator('.staff-processing-panel');
+        await expect(panel).toBeVisible();
+        await expect(page.locator('.staff-spinner')).toHaveCSS('animation-name', 'none');
+        const box = await panel.boundingBox();
+        expect(box).not.toBeNull();
+        expect(box.y).toBeGreaterThan(0);
+        expect(box.y + box.height).toBeLessThan(640);
+        expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
     });
 });
 
