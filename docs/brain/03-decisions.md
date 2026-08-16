@@ -1,5 +1,20 @@
 # 03 — Technical Decisions
 
+## [2026-08-16] Staff Portal gộp UX chỉnh sửa và giữ ảnh cũ ở server
+
+- **Quyết định:** `/can-bo` chỉ gửi `Cập nhật địa điểm đang có` cho mọi chỉnh sửa location hiện hữu;
+  nút/mode CORRECT bị bỏ khỏi UI nhưng Gateway, staging và Admin Review vẫn hiểu request type CORRECT
+  lịch sử. CREATE vẫn bắt buộc một ảnh mới; UPDATE/CORRECT không bắt buộc ảnh.
+- **Giữ ảnh:** khi duyệt UPDATE/CORRECT không có `image_file_id`, Admin Review lấy `image_url` từ
+  current target trong `Published_Locations`, không tin browser. `published_image_file_id` được lấy
+  từ dòng staging đã APPROVED gần nhất cùng `record_id` nếu có; legacy record chỉ có URL public vẫn
+  được duyệt và giữ URL, nhưng STOP không thể revoke Drive file khi private history không có ID.
+- **Thay ảnh:** khi có ảnh mới, pipeline vẫn upload private, chỉ công khai trong APPROVE và ghi file ID
+  mới. Sharing của ảnh cũ sau replacement hiện **STILL_PUBLIC**; thu hồi ảnh cũ cần một failure model
+  reconciliation riêng nên được ghi follow-up, không mở rộng task này.
+- **Không đổi:** snapshot hash/authoritative refresh, unit ownership, CSRF/Origin, HMAC Gateway,
+  dual-workbook boundary, STOP và confirm semantics.
+
 ## [2026-08-16] Ghi dòng dữ liệu vào Google Sheet luôn ở định dạng plain text
 
 - **Quyết định:** mọi ghi **dòng dữ liệu** vào các sheet location (`Location_Staging`,

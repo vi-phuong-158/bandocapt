@@ -240,6 +240,17 @@
             if (text(target.unit_code).toLowerCase() !== text(unit.unitCode).toLowerCase()) throw gatewayError('TARGET_RECORD_UNIT_MISMATCH');
         }
 
+        // File IDs are private operational metadata. For an edit without a replacement upload,
+        // recover the latest approved pointer server-side so a later STOP can revoke sharing.
+        // Legacy public rows may have no private pointer; that must not block a valid edit.
+        function findPriorPublishedImageFileId(targetId) {
+            const approved = rows(PRIVATE_SHEETS.staging)
+                .filter(row => text(row.status) === pipeline.STATUSES.approved &&
+                    (text(row.record_id) === targetId || text(row.target_record_id) === targetId))
+                .sort((left, right) => String(right.reviewed_at || right.updated_at).localeCompare(String(left.reviewed_at || left.updated_at)))[0];
+            return approved ? text(approved.published_image_file_id) || text(approved.image_file_id) : '';
+        }
+
         function submitRequest(payload) {
             const requestId = requireRequestId(payload, 'submitRequest');
             const bodyHash = sha256Hex(stableStringify({ action: 'submitRequest', payload }), runtime);
@@ -257,6 +268,8 @@
                     const authorization = authorize(payload, allowlistRows);
                     const operationalRecords = store.getOperationalRecords ? store.getOperationalRecords() : [];
                     preflightTarget(payload, authorization.unit, operationalRecords);
+                    const requestType = payload.request_type || payload.requestType;
+                    if (pipeline.requiresNewImage(requestType) && !payload.image) throw gatewayError('IMAGE_REQUIRED');
                     const image = persistImage(payload, requestId, previous);
                     const input = {
                         requestId,
@@ -280,6 +293,7 @@
                         reviewNote: payload.review_note || payload.reviewNote,
                         unitCode: authorization.unit.unitCode,
                         unitName: authorization.unit.unitName,
+                        publishedImageFileId: image.pointer ? '' : findPriorPublishedImageFileId(text(payload.target_record_id || payload.targetRecordId)),
                         imageFileId: image.pointer ? image.pointer.fileId : '',
                         imageDriveUrl: image.pointer ? image.pointer.driveUrl : '',
                         imageMimeType: image.pointer ? image.pointer.mimeType : '',

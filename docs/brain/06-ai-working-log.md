@@ -3083,3 +3083,19 @@
   không phải do hạ schema validation hay đổi public/private boundary.
 - **Kiểm tra:** targeted tests 27/27 PASS; live GViz với `headers=1` trả `parsedNumHeaders=1`,
   18 semantic headers và 3 public rows; Production chưa đụng.
+
+## [2026-08-16] PR #49 — gộp chỉnh sửa Staff Portal và giữ ảnh cũ
+- **Agent:** Codex
+- **Thay đổi:** Bỏ UX CORRECT khỏi `/can-bo`, đổi action/modal thành `Chỉnh sửa thông tin` và chỉ gửi
+  UPDATE. CREATE tiếp tục bắt buộc ảnh ở UI, Vercel, Gateway và staging; UPDATE/CORRECT legacy nhận
+  request không có ảnh. Admin Review giữ `currentTarget.image_url` và private file ID đã APPROVED gần
+  nhất khi không có replacement, không gọi công khai ảnh trong case này; ảnh mới vẫn private tới APPROVE.
+- **File đã sửa:** `js/staff-portal.js`, `styles/staff-portal.css`,
+  `lib/staff-api.js`, `setup/staff-gateway.js`, `setup/apps-script.js`,
+  `setup/location-admin-review.js`, `setup/location-intake/Code.gs`, bundle generated và test/docs liên quan.
+- **Lý do:** Cán bộ không phải tải lại ảnh khi chỉ sửa metadata, đồng thời tránh UPDATE không ảnh ghi
+  đè `Published_Locations.image_url` thành rỗng hoặc làm mất khả năng STOP thu hồi ảnh khi history có ID.
+- **Kiểm tra:** targeted client/API/Gateway/pipeline/Admin Review 114/114 PASS; `npm test` 529/529 PASS;
+  `npm run build` PASS; Playwright E2E 47/47 PASS; `npm audit --omit=dev --audit-level=high` PASS
+  (9 moderate dependency advisories, không có high+). Preview được smoke-test sau khi push. Ảnh cũ sau
+  replacement chưa bị revoke trong task này; follow-up cần reconciliation-safe failure model.

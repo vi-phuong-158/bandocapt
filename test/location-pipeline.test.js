@@ -67,6 +67,36 @@ test('update uses target record_id and does not overwrite another record in the 
     assert.equal(state.publishedRecords.find(record => record.record_id === second.record_id).name, 'Điểm B');
 });
 
+test('update and legacy correct accept no replacement image, while create still requires one', () => {
+    const created = stage(submission({ requestId: 'REQ_IMAGE_ORIGINAL' }));
+    let state = pipeline.applyApproval({ stagingRecords: [created], publishedRecords: [], auditEntries: [] }, created.request_id, 'reviewer@example.gov.vn', '', NOW);
+    const original = state.publishedRecords[0];
+
+    for (const [requestId, requestType] of [
+        ['REQ_IMAGE_UPDATE', pipeline.REQUEST_TYPES.update],
+        ['REQ_IMAGE_CORRECT', pipeline.REQUEST_TYPES.correct],
+    ]) {
+        const edit = stage(submission({
+            requestId, requestType, targetRecordId: original.record_id, address: `${requestId} address`,
+            imageFileId: '', imageDriveUrl: '', imagePublicUrl: '', imageMimeType: '', publishedImageFileId: 'file-01',
+        }), state.publishedRecords);
+        assert.equal(edit.validation_errors, '');
+        state.stagingRecords.push(edit);
+        state = pipeline.applyApproval(state, edit.request_id, 'reviewer@example.gov.vn', '', NOW);
+        assert.equal(state.publishedRecords.find(record => record.record_id === original.record_id).image_url, original.image_url);
+        assert.equal(state.stagingRecords.find(record => record.request_id === requestId).published_image_file_id, 'file-01');
+    }
+
+    const missingCreateImage = stage(submission({
+        requestId: 'REQ_IMAGE_CREATE_MISSING', imageFileId: '', imageDriveUrl: '', imagePublicUrl: '', imageMimeType: '',
+    }));
+    assert.match(missingCreateImage.validation_errors, /IMAGE_REQUIRED/);
+    assert.throws(() => pipeline.applyApproval({
+        stagingRecords: [{ ...missingCreateImage, validation_errors: '', status: pipeline.STATUSES.pending }],
+        publishedRecords: [], auditEntries: [],
+    }, missingCreateImage.request_id, 'reviewer@example.gov.vn', '', NOW), /IMAGE_REQUIRED/);
+});
+
 test('missing target record blocks update instead of converting it into a new location', () => {
     const record = stage(submission({
         requestType: pipeline.REQUEST_TYPES.update, targetRecordId: 'MISSING_RECORD', requestId: 'REQ_BAD_UPDATE',

@@ -90,6 +90,14 @@
             return true;
         }
 
+        function findPriorPublishedImageFileId(targetId) {
+            const approved = (privateStore.getStagingRows() || [])
+                .filter(candidate => candidate.status === pipeline.STATUSES.approved &&
+                    (text(candidate.record_id) === targetId || text(candidate.target_record_id) === targetId))
+                .sort((left, right) => String(right.reviewed_at || right.updated_at).localeCompare(String(left.reviewed_at || left.updated_at)))[0];
+            return approved ? text(approved.published_image_file_id) || text(approved.image_file_id) : '';
+        }
+
         // Only PENDING is reviewable through the three human actions. NEED_VERIFICATION and
         // BLOCKED are deliberately NOT reviewable here: there is no Staff Portal resubmission
         // flow yet to bring either back to PENDING, so re-reviewing them would be undefined
@@ -117,6 +125,7 @@
 
         function finalizeCreateUpdateCorrectApproval(row, actorEmail, note, at) {
             if (row.validation_errors) throw coreError('RECORD_INVALID');
+            if (pipeline.requiresNewImage(row.request_type) && !text(row.image_file_id)) throw coreError('IMAGE_REQUIRED');
             const targetId = text(row.target_record_id) || text(row.record_id);
             if (!targetId) throw coreError('TARGET_RECORD_ID_MISSING');
             const isCreate = row.request_type === pipeline.REQUEST_TYPES.create;
@@ -126,7 +135,14 @@
             if (currentTarget && !pipeline.sameUnitCode(currentTarget.unit_code, row.unit_code)) throw coreError('TARGET_RECORD_UNIT_MISMATCH');
 
             const isoNow = asIso(runtime, at);
-            const imageUrl = row.image_file_id ? deterministicImageUrl(row.image_file_id) : text(row.image_public_url);
+            const hasNewImage = Boolean(text(row.image_file_id));
+            // The public target, not the browser, is authoritative for a retained image URL.
+            const imageUrl = hasNewImage
+                ? deterministicImageUrl(row.image_file_id)
+                : text(currentTarget?.image_url) || text(row.image_public_url);
+            const publishedImageFileId = hasNewImage
+                ? text(row.image_file_id)
+                : text(row.published_image_file_id) || findPriorPublishedImageFileId(targetId);
             const expected = pipeline.buildPublishedRecord({ ...row, record_id: targetId, image_public_url: imageUrl }, isoNow);
 
             // CREATE: target_record_id is fresh/server-generated, so nothing should legitimately
@@ -147,7 +163,7 @@
             // sharing failure never leaves an unapproved image world-readable. A sharing failure
             // here aborts before any private mutation — the row stays exactly as it was so a
             // retry (same menu action, or "Đối soát") only needs to retry the sharing call.
-            if (row.image_file_id) {
+            if (hasNewImage) {
                 if (!runtime.setImagePublic) throw coreError('IMAGE_SHARING_RUNTIME_UNAVAILABLE');
                 try { runtime.setImagePublic(row.image_file_id); }
                 catch (error) { throw coreError('IMAGE_SHARING_FAILED', { recoverable: true }); }
@@ -160,7 +176,7 @@
             });
             const wroteStaging = ensureStagingStatus(row, pipeline.STATUSES.approved, {
                 record_id: targetId, review_action: '', review_note: note, reviewed_by: actorEmail, reviewed_at: isoNow,
-                updated_at: isoNow, published_image_file_id: row.image_file_id || row.published_image_file_id || '',
+                updated_at: isoNow, published_image_file_id: publishedImageFileId,
                 image_public_url: imageUrl,
             });
             return { ok: true, requestId: row.request_id, recordId: targetId, status: pipeline.STATUSES.approved, publicTouched: publicChanged, wroteAudit, wroteStaging };

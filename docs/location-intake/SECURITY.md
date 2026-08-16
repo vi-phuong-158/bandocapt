@@ -113,8 +113,9 @@ Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, S
 
 - Vercel validates recognized text fields and the `services` array before constructing the Gateway DTO;
   malformed or oversized values return safe HTTP 400 `STAFF_REQUEST_INVALID` and never reach Apps Script.
-- `create`, `update` and `correct` require an image, services and valid coordinates in the portal/Gateway
-  contract. `stop` remains the only mutation mode exempt from replacement-image/location-field checks.
+- `create` requires an image, services and valid coordinates in the portal/Gateway contract. `update` and
+  legacy `correct` still require valid location fields but may omit a replacement image; `stop` remains
+  exempt from location-field checks.
 - Remote image/business validation codes are explicitly allowlisted for user guidance. Unknown codes,
   raw Gateway bodies, secrets, private IDs and diagnostic details remain hidden.
 

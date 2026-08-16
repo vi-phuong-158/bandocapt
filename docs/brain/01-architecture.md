@@ -717,6 +717,10 @@ Biến mới (2026-07-13):
   Vercel and Gateway therefore compute the same `snapshot_hash`; stale or cross-unit mutations fail closed.
 - **Operational limits:** Vercel staff responses are no-store and map Gateway failures to safe codes. Vercel
   rejects decoded images over 3 MiB; the private Gateway retains its independent 10 MiB decoded cap.
+- **Image semantics (2026-08-16):** CREATE requires a new image at the browser, Vercel, Gateway and
+  staging boundaries. UPDATE and legacy CORRECT accept no replacement image; Admin Review uses the
+  authoritative current public `image_url` and latest approved private file pointer instead of any
+  browser-supplied retained-image value. A replacement image remains private until APPROVE.
 - **Configuration/dependency:** server runtime requires `GOOGLE_CLIENT_ID`, `STAFF_SESSION_SECRET`,
   `STAFF_GATEWAY_URL`, `LOCATION_GATEWAY_SECRET`, and explicit `PUBLIC_LOCATION_SPREADSHEET_ID` (with the
   existing public resolver rules). `google-auth-library` is the only new runtime dependency. This PR adds

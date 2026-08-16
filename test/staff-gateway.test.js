@@ -43,14 +43,14 @@ function basePayload(overrides = {}) {
 
 function makeStore(options = {}) {
     const ledgers = new Map();
-    const staging = [];
+    const staging = (options.stagingRows || []).map(row => ({ ...row }));
     const approvalAudit = [];
     const verificationAudit = [];
     const files = new Map();
     let imageCreates = 0;
     let failUploadPersist = false;
     return {
-        getRows: sheet => sheet === 'Unit_Allowlist' ? allowlist() : [],
+        getRows: sheet => sheet === 'Unit_Allowlist' ? allowlist() : (sheet === 'Location_Staging' ? staging.map(row => ({ ...row })) : []),
         getOperationalRecords: () => options.operationalRecords || [],
         findLedger: requestId => ledgers.get(requestId) || null,
         createLedger: row => ledgers.set(row.request_id, { ...row }),
@@ -161,6 +161,36 @@ test('submitRequest authorizes unit, writes private staging once, and replay is 
     assert.deepEqual(store.counts(), { ledgers: 1, staging: 1, approvalAudit: 1, verificationAudit: 0, imageCreates: 1 });
     assert.equal(store.rows().staging[0].record_id, first.recordId);
     assert.equal(store.rows().staging[0].status, 'PENDING');
+});
+
+test('update and legacy correct accept no replacement image and preserve the latest private file pointer', () => {
+    const target = { record_id: 'CA_A_OLD', unit_code: 'CA_A', name: 'Điểm cũ', address: 'Địa chỉ cũ', coordinates: '21.3225,105.4027', image_url: 'https://drive.google.com/uc?export=view&id=file-old' };
+    const prior = { record_id: target.record_id, status: pipeline.STATUSES.approved, published_image_file_id: 'file-old', reviewed_at: '2026-08-15T00:00:00.000Z' };
+    for (const [requestId, requestType] of [
+        ['REQ_UPDATE_NO_IMAGE', pipeline.REQUEST_TYPES.update],
+        ['REQ_CORRECT_NO_IMAGE', pipeline.REQUEST_TYPES.correct],
+    ]) {
+        const store = makeStore({ operationalRecords: [target], stagingRows: [prior] });
+        const gateway = makeGateway(store);
+        const payload = basePayload({ request_type: requestType, target_record_id: target.record_id });
+        delete payload.image;
+        const request = rawRequest('submitRequest', requestId, payload);
+        const result = gateway.handleRawRequest(request.raw, request.metadata);
+        assert.equal(result.status, 'PENDING');
+        assert.equal(store.counts().imageCreates, 0);
+        assert.equal(store.rows().staging.find(row => row.request_id === requestId).published_image_file_id, 'file-old');
+    }
+});
+
+test('gateway rejects create without an image before staging or Drive side effects', () => {
+    const store = makeStore();
+    const gateway = makeGateway(store);
+    const payload = basePayload();
+    delete payload.image;
+    const request = rawRequest('submitRequest', 'REQ_CREATE_NO_IMAGE', payload);
+    assert.throws(() => gateway.handleRawRequest(request.raw, request.metadata), /IMAGE_REQUIRED/);
+    assert.equal(store.counts().staging, 0);
+    assert.equal(store.counts().imageCreates, 0);
 });
 
 test('concurrent duplicate submitRequest has one effective side effect', async () => {

@@ -176,6 +176,53 @@ test('A5 CORRECT replaces exact target, row count unchanged, record_id unchanged
     assert.equal(stores.state.published[0].coordinates, '21.4,105.5');
 });
 
+test('UPDATE without a replacement image preserves the authoritative public URL and private file pointer', () => {
+    const originalStaging = buildStaging({ requestId: 'REQ_IMAGE_ORIGINAL' });
+    const original = pipeline.buildPublishedRecord({ ...originalStaging, image_public_url: deterministicImageUrl('file-1') }, NOW);
+    const approvedOriginal = { ...originalStaging, status: pipeline.STATUSES.approved, published_image_file_id: 'file-1', reviewed_at: '2026-08-15T00:30:00.000Z' };
+    const edit = buildStaging({
+        requestId: 'REQ_IMAGE_KEEP', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: original.record_id,
+        address: 'Địa chỉ chỉ đổi chữ', imageFileId: '', imageDriveUrl: '', imagePublicUrl: '', imageMimeType: '',
+    }, [original]);
+    assert.equal(edit.validation_errors, '');
+    const stores = makeStores({ staging: [approvedOriginal, edit], published: [original] });
+    const runtimeWrap = makeRuntime();
+    const engine = makeEngine(stores, runtimeWrap);
+    engine.reviewRequest({ requestId: edit.request_id, action: 'APPROVE', actorEmail: APPROVER });
+    assert.equal(stores.state.published.length, 1);
+    assert.equal(stores.state.published[0].image_url, original.image_url);
+    assert.equal(stores.state.staging.find(row => row.request_id === edit.request_id).published_image_file_id, 'file-1');
+    assert.deepEqual(runtimeWrap.calls.setImagePublic, []);
+});
+
+test('UPDATE without a replacement image keeps a legacy public URL even when private history has no file ID', () => {
+    const original = { ...buildApprovedPublished({ requestId: 'REQ_LEGACY_ORIGINAL' }), image_url: 'https://legacy.example.test/old-image.jpg' };
+    const edit = buildStaging({
+        requestId: 'REQ_LEGACY_KEEP', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: original.record_id,
+        imageFileId: '', imageDriveUrl: '', imagePublicUrl: '', imageMimeType: '',
+    }, [original]);
+    const stores = makeStores({ staging: [edit], published: [original] });
+    const runtimeWrap = makeRuntime();
+    makeEngine(stores, runtimeWrap).reviewRequest({ requestId: edit.request_id, action: 'APPROVE', actorEmail: APPROVER });
+    assert.equal(stores.state.published[0].image_url, original.image_url);
+    assert.equal(stores.state.staging[0].published_image_file_id, '');
+    assert.deepEqual(runtimeWrap.calls.setImagePublic, []);
+});
+
+test('UPDATE with a replacement image publishes and shares only the new image', () => {
+    const original = buildApprovedPublished({ requestId: 'REQ_REPLACE_ORIGINAL' });
+    const edit = buildStaging({
+        requestId: 'REQ_REPLACE_NEW', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: original.record_id,
+        imageFileId: 'file-new', imageMimeType: 'image/png', imagePublicUrl: '',
+    }, [original]);
+    const stores = makeStores({ staging: [edit], published: [original] });
+    const runtimeWrap = makeRuntime();
+    makeEngine(stores, runtimeWrap).reviewRequest({ requestId: edit.request_id, action: 'APPROVE', actorEmail: APPROVER });
+    assert.equal(stores.state.published[0].image_url, deterministicImageUrl('file-new'));
+    assert.equal(stores.state.staging[0].published_image_file_id, 'file-new');
+    assert.deepEqual(runtimeWrap.calls.setImagePublic, ['file-new']);
+});
+
 test('A6 STOP approval removes public target, staging REVOKED, exactly one REVOKE audit', () => {
     const original = pipeline.buildPublishedRecord(buildStaging({ requestId: 'REQ_ORIG6' }), new Date('2026-01-01'));
     const staging = buildStaging({ requestId: 'REQ_A6', requestType: pipeline.REQUEST_TYPES.stop, targetRecordId: original.record_id }, [original]);

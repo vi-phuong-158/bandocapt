@@ -213,8 +213,7 @@
         const actions = el('div', 'staff-card-actions');
         append(actions,
             button('Xác nhận thông tin đúng', 'staff-button-soft', () => openModal('confirm', item)),
-            button('Cập nhật thông tin', 'staff-button', () => openModal('update', item)),
-            button('Báo địa chỉ/vị trí sai', 'staff-button', () => openModal('correct', item)),
+            button('Chỉnh sửa thông tin', 'staff-button', () => openModal('update', item)),
             button('Báo ngừng hoạt động', 'staff-button-danger', () => openModal('stop', item)));
         append(card, title, dl, status, actions);
         return card;
@@ -472,14 +471,15 @@
 
     function renderModal() {
         const modal = state.modal;
-        const requiresLocationFields = ['create', 'update', 'correct'].includes(modal.mode);
+        const requiresLocationFields = ['create', 'update'].includes(modal.mode);
+        const requiresNewImage = modal.mode === 'create';
         const saved = modal.values || null;
         function kept(name, fallback) { return saved && Object.prototype.hasOwnProperty.call(saved, name) ? saved[name] : fallback; }
         const backdrop = el('div', 'staff-modal-backdrop');
         backdrop.addEventListener('click', event => { if (event.target === backdrop) closeModal(); });
         const card = el('section', 'staff-modal-card');
         const header = el('div', 'staff-modal-header');
-        const title = { create: 'Thêm địa điểm mới', update: 'Cập nhật thông tin', correct: 'Báo địa chỉ/vị trí sai', stop: 'Báo ngừng hoạt động', confirm: 'Xác nhận thông tin' }[modal.mode];
+        const title = { create: 'Thêm địa điểm mới', update: 'Chỉnh sửa thông tin', stop: 'Báo ngừng hoạt động', confirm: 'Xác nhận thông tin' }[modal.mode];
         append(header, el('h2', '', title), button('Đóng', 'staff-button', closeModal));
         card.appendChild(header);
         if (modal.error) {
@@ -511,7 +511,7 @@
                 searchAliases: kept('searchAliases', recordValue(record, 'search_aliases', 'searchAliases')),
             };
             // Unit is authoritative server/session data (`resolveUnits` -> `Unit_Allowlist`), never a
-            // free-text field. update/correct/stop always target an existing record whose unit is
+            // free-text field. update/stop always target an existing record whose unit is
             // already fixed, so only `create` ever needs to show/choose it.
             if (modal.mode === 'create') {
                 if (state.units.length > 1) {
@@ -545,10 +545,22 @@
             field(form, 'reviewNote', 'Ghi chú gửi duyệt', kept('reviewNote', ''), 'textarea');
             const image = document.createElement('div');
             image.className = 'staff-field';
-            const imageLabel = el('label', '', `Ảnh địa điểm${requiresLocationFields ? ' (bắt buộc)' : ''}`);
+            const currentImageUrl = recordValue(record, 'image_url', 'imageUrl');
+            if (modal.mode === 'update') {
+                if (currentImageUrl) {
+                    const preview = document.createElement('img');
+                    preview.className = 'staff-current-image';
+                    preview.src = currentImageUrl;
+                    preview.alt = `Ảnh hiện tại của ${source.locationName || 'địa điểm'}`;
+                    append(image, el('p', 'staff-image-note', 'Ảnh hiện tại sẽ được giữ nguyên. Chỉ chọn ảnh mới nếu muốn thay đổi ảnh.'), preview);
+                } else {
+                    image.appendChild(el('p', 'staff-image-note', 'Địa điểm hiện chưa có ảnh. Bạn có thể bổ sung ảnh mới.'));
+                }
+            }
+            const imageLabel = el('label', '', modal.mode === 'update' ? 'Thay ảnh địa điểm (không bắt buộc)' : 'Ảnh địa điểm (bắt buộc)');
             const imageInput = document.createElement('input');
             imageInput.type = 'file'; imageInput.name = 'image'; imageInput.accept = 'image/jpeg,image/png,image/webp'; imageInput.capture = 'environment'; imageInput.id = 'staff-image';
-            imageInput.required = requiresLocationFields;
+            imageInput.required = requiresNewImage;
             append(image, imageLabel, imageInput, el('small', '', 'Ảnh sẽ được nén trên thiết bị trước khi gửi.'));
             form.appendChild(image);
         }
@@ -580,12 +592,12 @@
             elapsed.textContent = `Đã chờ: ${seconds} giây`;
         });
         try {
-            const requiresLocationFields = ['create', 'update', 'correct'].includes(state.modal.mode);
+            const requiresLocationFields = ['create', 'update'].includes(state.modal.mode);
             if (requiresLocationFields && !values.services.length) throw clientError('SERVICES_MISSING');
             if (requiresLocationFields && !values.coordinates) throw clientError('COORDINATE_NEEDS_REVIEW');
             let image = null;
             const file = form.elements.image?.files?.[0];
-            if (requiresLocationFields && !file) throw clientError('IMAGE_REQUIRED');
+            if (state.modal.mode === 'create' && !file) throw clientError('IMAGE_REQUIRED');
             if (file) image = await root.StaffImage.prepareImage(file);
             if (state.modal.mode === 'confirm') {
                 await api.verify(root.StaffApiClient.buildVerificationPayload(values.note, { record_id: state.modal.item.record.record_id, snapshotHash: state.modal.item.snapshotHash }));
@@ -599,8 +611,7 @@
                 notice('Yêu cầu đã được gửi và đang chờ duyệt.', 'success');
             } else {
                 values.image = image;
-                const type = state.modal.mode === 'correct' ? 'Báo địa chỉ hoặc vị trí sai' : 'Cập nhật địa điểm đang có';
-                await api.submitRequest(root.StaffApiClient.buildTargetPayload(values, type, { record_id: state.modal.item.record.record_id, snapshotHash: state.modal.item.snapshotHash }));
+                await api.submitRequest(root.StaffApiClient.buildTargetPayload(values, 'Cập nhật địa điểm đang có', { record_id: state.modal.item.record.record_id, snapshotHash: state.modal.item.snapshotHash }));
                 notice('Yêu cầu đã được gửi và đang chờ duyệt.', 'success');
             }
             stopProcessingTimer();

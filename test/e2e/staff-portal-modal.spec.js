@@ -23,6 +23,7 @@ const locationItem = {
         service_schedule: '',
         served_units: '',
         search_aliases: '',
+        image_url: 'https://images.example.test/current-location.jpg',
     },
     snapshotHash: 'a'.repeat(64),
 };
@@ -53,8 +54,7 @@ async function mockStaffApi(page, mutations, { units = DEFAULT_UNITS, userName =
 async function openMode(page, mode) {
     const buttons = {
         create: '+ Thêm địa điểm mới',
-        update: 'Cập nhật thông tin',
-        correct: 'Báo địa chỉ/vị trí sai',
+        update: 'Chỉnh sửa thông tin',
         stop: 'Báo ngừng hoạt động',
         confirm: 'Xác nhận thông tin đúng',
     };
@@ -89,13 +89,22 @@ async function fillValidCreateForm(form) {
 }
 
 test.describe('staff portal modal submit regression', () => {
+    test('location card exposes only confirm, edit and stop actions', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        await page.goto('/can-bo');
+        const actions = page.locator('.staff-card-actions button');
+        await expect(actions).toHaveText(['Xác nhận thông tin đúng', 'Chỉnh sửa thông tin', 'Báo ngừng hoạt động']);
+        await expect(page.getByRole('button', { name: 'Báo địa chỉ/vị trí sai' })).toHaveCount(0);
+    });
+
     test('all modal modes use native submit and preserve cancel/close buttons', async ({ page }) => {
         const mutations = [];
         await mockStaffApi(page, mutations);
         await page.goto('/can-bo');
         await expect(page.locator('.staff-location-list')).toBeVisible();
 
-        for (const mode of ['create', 'update', 'correct', 'stop', 'confirm']) {
+        for (const mode of ['create', 'update', 'stop', 'confirm']) {
             const backdrop = await openMode(page, mode);
             await assertModalButtonTypes(backdrop);
             await backdrop.locator('button.staff-button').filter({ hasText: 'Hủy' }).click();
@@ -109,14 +118,15 @@ test.describe('staff portal modal submit regression', () => {
         await page.goto('/can-bo');
         await expect(page.locator('.staff-location-list')).toBeVisible();
 
-        for (const mode of ['create', 'update', 'correct', 'stop', 'confirm']) {
+        for (const mode of ['create', 'update', 'stop', 'confirm']) {
             const backdrop = await openMode(page, mode);
             const form = backdrop.locator('form');
             if (mode === 'create') {
                 await fillValidCreateForm(form);
-            } else if (['update', 'correct'].includes(mode)) {
+            } else if (mode === 'update') {
                 await expect(form.locator('.staff-maps-status-success')).toBeVisible();
-                await form.locator('[name=image]').setInputFiles(imageFile);
+                await expect(form.locator('[name=image]')).not.toHaveAttribute('required', '');
+                await expect(form.locator('.staff-current-image')).toHaveAttribute('src', locationItem.record.image_url);
             }
             await form.locator('button.staff-button-primary').click();
             await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0);
@@ -126,9 +136,10 @@ test.describe('staff portal modal submit regression', () => {
             '/api/staff/requests',
             '/api/staff/requests',
             '/api/staff/requests',
-            '/api/staff/requests',
             '/api/staff/verification',
         ]);
+        expect(mutations[1].body.requestType).toBe('Cập nhật địa điểm đang có');
+        expect('image' in mutations[1].body).toBe(false);
     });
 
     test('native required fields and service validation still prevent invalid requests', async ({ page }) => {
@@ -539,7 +550,7 @@ test.describe('staff portal submit progress UX', () => {
     });
 });
 
-test.describe('staff portal four-flow acceptance (update/correct/stop/confirm)', () => {
+test.describe('staff portal retained flows (update/stop/confirm)', () => {
     test('S1/S2/S3: stop modal asks only for a note — no image, maps, coordinates, services or address field exist in the DOM', async ({ page }) => {
         const mutations = [];
         let resolveCalls = 0;
@@ -586,7 +597,7 @@ test.describe('staff portal four-flow acceptance (update/correct/stop/confirm)',
         expect(resolveCalls, 'confirm must never call the maps resolver').toBe(0);
     });
 
-    test('C2: correct mode — replacing an already-preloaded Maps URL re-resolves and the NEW place coordinate is what gets submitted', async ({ page }) => {
+    test('U2: edit mode re-resolves a replacement Maps URL and submits the updated coordinate without requiring an image', async ({ page }) => {
         const mutations = [];
         const NEW_MAPS_URL = 'https://maps.app.goo.gl/a-different-place';
         await mockStaffApi(page, mutations, {
@@ -599,25 +610,25 @@ test.describe('staff portal four-flow acceptance (update/correct/stop/confirm)',
         await page.goto('/can-bo');
         await expect(page.locator('.staff-location-list')).toBeVisible();
 
-        const backdrop = await openMode(page, 'correct');
+        const backdrop = await openMode(page, 'update');
         const form = backdrop.locator('form');
         // Preloaded from the existing record — matches the "no change" behavior already proven for update.
         await expect(form.locator('.staff-maps-status-success')).toContainText('21.322500');
         await expect(form.locator('[name=coordinates]')).toHaveValue('21.3225,105.4027');
 
-        // Staff reports the location is actually elsewhere and pastes a corrected link.
+        // Staff edits the location and pastes a replacement Maps link.
         await form.locator('[name=mapsUrl]').fill(NEW_MAPS_URL);
         await expect(form.locator('.staff-maps-status-success')).toContainText('21.313428');
         await expect(form.locator('[name=coordinates]')).toHaveValue('21.313428,105.411249');
 
-        await form.locator('[name=image]').setInputFiles(imageFile);
         await form.locator('button.staff-button-primary').click();
         await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0);
 
         const submitted = mutations.find(mutation => mutation.path === '/api/staff/requests');
         expect(submitted.body.coordinates).toBe('21.313428,105.411249');
         expect(submitted.body.mapsUrl).toBe(NEW_MAPS_URL);
-        expect(submitted.body.requestType).toBe('Báo địa chỉ hoặc vị trí sai');
+        expect(submitted.body.requestType).toBe('Cập nhật địa điểm đang có');
+        expect('image' in submitted.body).toBe(false);
         expect(submitted.body.targetRecordId).toBe(locationItem.record.record_id);
         expect(submitted.body.snapshotHash).toBe(locationItem.snapshotHash);
     });

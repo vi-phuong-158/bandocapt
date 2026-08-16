@@ -570,7 +570,7 @@ function reviewLocationRequest_(requestId, action, reviewerEmail) {
         let state = readLocationState_(spreadsheet);
         const row = state.stagingRecords.find(record => record.request_id === requestId);
         if (!row) throw new Error('Không tìm thấy yêu cầu cần duyệt.');
-        if (action === 'APPROVE' && row.request_type !== locationPipeline_().REQUEST_TYPES.stop) {
+        if (action === 'APPROVE' && row.image_file_id) {
             const imageUrl = setImagePublic_(row.image_file_id);
             row.image_public_url = imageUrl;
         }
@@ -662,6 +662,7 @@ function adminErrorMessage_(error) {
         REQUEST_ID_MISSING: 'Không đọc được request_id của dòng đã chọn.',
         REQUEST_NOT_FOUND: 'Không tìm thấy yêu cầu này trong Location_Staging.',
         RECORD_INVALID: 'Yêu cầu còn lỗi dữ liệu (validation_errors), không thể duyệt.',
+        IMAGE_REQUIRED: 'Yêu cầu thêm địa điểm mới phải có ảnh trước khi duyệt.',
         TARGET_RECORD_ID_MISSING: 'Yêu cầu thiếu mã bản ghi đích.',
         TARGET_RECORD_ID_NOT_FOUND: 'Không tìm thấy bản ghi công khai đang có để cập nhật/xoá.',
         TARGET_RECORD_UNIT_MISMATCH: 'Bản ghi công khai thuộc đơn vị khác — từ chối để tránh ghi đè chéo đơn vị.',

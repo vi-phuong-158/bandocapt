@@ -178,6 +178,8 @@
 .staff-field select { width: 100%; min-height: var(--control-h); box-sizing: border-box; padding: var(--space-3); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); background: var(--surface-muted); color: var(--text-body); font: inherit; }
 .staff-field textarea { min-height: 92px; resize: vertical; }
 .staff-field small { color: var(--text-muted); font-size: var(--text-xs); }
+.staff-image-note { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+.staff-current-image { width: min(100%, calc(var(--space-8) * 8)); height: calc(var(--space-8) * 5); object-fit: cover; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); background: var(--surface-sunken); }
 .staff-checkbox-grid { display: grid; gap: var(--space-2); padding: var(--space-2) 0; }
 .staff-checkbox { display: flex; align-items: center; gap: var(--space-2); min-height: var(--hit-min); }
 .staff-checkbox input { width: var(--space-4); height: var(--space-4); accent-color: var(--color-primary); }
