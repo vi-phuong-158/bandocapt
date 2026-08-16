@@ -1588,3 +1588,13 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - **Giới hạn vận hành (không sửa được bằng code):** Form sao chép từ mẫu có câu hỏi tải tệp bị mất liên kết thư mục upload → Google tự tắt nhận phản hồi, chủ Form phải mở editor bấm **Phục hồi**. `isAcceptingResponses()` vẫn trả `true` nên không tự phát hiện được. Buộc copy mẫu vì `FormApp` không tạo được câu hỏi tải tệp bằng code. Ghi ở `SETUP.md` bước 8 / `OPERATIONS.md`.
 - **Trạng thái:** Toàn bộ luồng đã smoke test end-to-end trên tài nguyên test (không production), **8/8 kịch bản đạt** (gồm một-đơn-vị-nhiều-địa-điểm và đơn-vị-active-false), đối chiếu quyền ảnh public/private bằng Drive API. Xem `06-ai-working-log.md` [2026-08-08].
 
+## [2026-08-16] GViz Published_Locations phải khai báo đúng một hàng tiêu đề
+
+- **Quyết định:** `lib/published-locations.js` luôn gửi `headers=1` trong truy vấn Google GViz.
+- **Lý do:** TEST `Published_Locations` có đúng 18 cột semantic, nhưng GViz tự suy đoán
+  `parsedNumHeaders=2` khi dòng dữ liệu đầu tiên chủ yếu là chuỗi. Khi đó nhãn trở thành dạng
+  `record_id TEST_RECORD_A`, làm guard public từ chối đúng cách với `GOOGLE_SHEET_SCHEMA_MISMATCH`.
+  Khai báo một hàng tiêu đề giữ nguyên schema và không nới validation.
+- **Phạm vi:** chỉ áp dụng public GViz reads; không đổi trust boundary, schema, cache hoặc
+  Production environment.
+

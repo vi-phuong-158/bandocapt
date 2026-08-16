@@ -19,6 +19,11 @@
 Map data path: `Google GViz -> api/google-sheet schema guard -> js/location-data normalize -> map`.
 Chat location data path: `Google GViz -> lib/published-locations schema/dataset guard -> cache -> api/chat`.
 
+The GViz request must include `headers=1`. Without this explicit parameter, Google can infer a
+second header row when the first public record is mostly text, folding that record's values into
+the semantic column labels and causing the fail-closed schema guard to return
+`GOOGLE_SHEET_SCHEMA_MISMATCH`.
+
 `GET /api/google-sheet` only returns HTTP 200 for a public `Published_Locations` schema containing semantic
 `name` and `coordinates` columns. It returns `502 GOOGLE_SHEET_SCHEMA_MISMATCH` for a source/config mismatch.
 

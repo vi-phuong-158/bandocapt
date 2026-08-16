@@ -3068,3 +3068,18 @@
   so ID/schema toàn dataset không đủ để xác minh fidelity của cutover.
 - **Kiểm tra:** targeted location-workbooks/dual-workbook-dry-run/google-sheet/published-locations và
   full test/build/E2E/audit được chạy trước khi commit; không gọi hoặc sửa tài nguyên Google.
+
+## [2026-08-16] PR #49 Preview public source wiring và GViz header detection
+- **Agent:** Codex
+- **Thay đổi:** Xác minh Apps Script TEST đang ghi `TEST - Staff Gateway Public Workbook`; sửa
+  Preview-only `PUBLIC_LOCATION_SPREADSHEET_ID` và `GOOGLE_SHEET_ID` để cùng trỏ logical TEST
+  public source, redeploy Preview từ commit `78c02fe`, và xác minh workbook được anonymous GViz
+  đọc sau khi quyền chia sẻ được cập nhật. Raw GViz sau đó cho thấy `parsedNumHeaders=2`; thêm
+  `headers=1` vào public GViz request để giữ đúng một hàng semantic header.
+- **File đã sửa:** `lib/published-locations.js`, `test/published-locations.test.js`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Lý do:** `/api/google-sheet` fail closed vì GViz ghép dòng dữ liệu đầu tiên vào column labels,
+  không phải do hạ schema validation hay đổi public/private boundary.
+- **Kiểm tra:** targeted tests 27/27 PASS; live GViz với `headers=1` trả `parsedNumHeaders=1`,
+  18 semantic headers và 3 public rows; Production chưa đụng.
