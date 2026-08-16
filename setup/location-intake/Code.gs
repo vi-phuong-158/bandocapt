@@ -85,9 +85,17 @@ function gatewayRows_(spreadsheet, sheetName, headers) {
     return readLocationObjects_(gatewaySheet_(spreadsheet, sheetName, headers));
 }
 
+// Sheets tự ép chuỗi toàn chữ số về number khi setValues, làm MẤT số 0 đứng đầu
+// ("0210000049" -> 210000049). Mọi cột của các sheet này đều là dữ liệu văn bản
+// (record_id, số điện thoại, mốc ISO, toạ độ, JSON) nên luôn ghi ở định dạng plain text.
+function writeLocationValues_(range, values) {
+    range.setNumberFormat('@');
+    range.setValues(values);
+}
+
 function gatewayAppend_(spreadsheet, sheetName, headers, record) {
     const sheet = gatewaySheet_(spreadsheet, sheetName, headers);
-    sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length).setValues([headers.map(header => record[header] == null ? '' : record[header])]);
+    writeLocationValues_(sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length), [headers.map(header => record[header] == null ? '' : record[header])]);
 }
 
 // Đọc/ghi đúng MỘT dòng theo cột khoá — admin review không được clearContents() cả sheet
@@ -104,7 +112,7 @@ function adminUpdateRow_(sheet, headers, rowNumber, patch) {
     const current = {};
     sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0].forEach((value, index) => { current[headers[index]] = value; });
     const merged = Object.assign(current, patch);
-    sheet.getRange(rowNumber, 1, 1, headers.length).setValues([headers.map(header => (merged[header] == null ? '' : merged[header]))]);
+    writeLocationValues_(sheet.getRange(rowNumber, 1, 1, headers.length), [headers.map(header => (merged[header] == null ? '' : merged[header]))]);
 }
 
 function adminPrivateStore_(spreadsheet) {
@@ -186,7 +194,7 @@ function gatewayLedgerStore_(spreadsheet) {
         const current = {};
         headers.forEach((header, index) => { current[header] = values[rowIndex][index]; });
         const merged = Object.assign(current, patch, { updated_at: patch.updated_at || new Date().toISOString() });
-        sheet.getRange(row, 1, 1, headers.length).setValues([headers.map(header => merged[header] == null ? '' : merged[header])]);
+        writeLocationValues_(sheet.getRange(row, 1, 1, headers.length), [headers.map(header => merged[header] == null ? '' : merged[header])]);
         return merged;
     }
     function create(record) { gatewayAppend_(spreadsheet, pipeline.SHEETS.ledger, headers, record); }
@@ -354,12 +362,12 @@ function replaceLocationSheet_(sheet, headers, records) {
     sheet.clearContents();
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#0f766e').setFontColor('#ffffff');
-    if (records.length) sheet.getRange(2, 1, records.length, headers.length).setValues(records.map(record => headers.map(header => record[header] || '')));
+    if (records.length) writeLocationValues_(sheet.getRange(2, 1, records.length, headers.length), records.map(record => headers.map(header => record[header] || '')));
 }
 
 function appendLocationObject_(sheet, record) {
     const headers = locationHeaders_(sheet);
-    sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length).setValues([headers.map(header => record[header] || '')]);
+    writeLocationValues_(sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length), [headers.map(header => record[header] || '')]);
 }
 
 function writeLocationState_(spreadsheet, state) {

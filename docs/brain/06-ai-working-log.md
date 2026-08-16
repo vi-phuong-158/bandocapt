@@ -1,5 +1,38 @@
 # 06 — AI Working Log
 
+## [2026-08-16] PR #49 live rehearsal: mất số 0 đứng đầu của số điện thoại khi ghi Sheet
+- **Agent:** Claude Code
+- **Thay đổi:** Live rehearsal CREATE→APPROVE đầu tiên trên bộ TEST dual-workbook phát hiện một
+  lỗi dữ liệu thật mà toàn bộ 520 test cũ không bắt được (vì chúng dùng fake store, không đi qua
+  `SpreadsheetApp`). Gateway ghi `public_phone` là chuỗi `"0210000049"` (đúng, xác nhận trong
+  `snapshot_json` của dòng `FORM_SUBMIT`), nhưng `Range.setValues()` khiến Sheets **tự ép chuỗi
+  toàn chữ số về number** → ô `Location_Staging.public_phone` thành `210000049`. Admin review đọc
+  lại bằng `getValues()` nhận number và truyền tiếp sang `Published_Locations.phone`. Kết quả:
+  **mọi số điện thoại Việt Nam đều mất số 0 đứng đầu trên bản đồ công khai.** Đã đối chiếu 5 bản
+  ghi TEST, lỗi nhất quán 100% (`"04564563456"`→`4564563456`, `"0989089"`→`989089`,
+  `"098089967"`→`98089967`, kể cả `submitter_phone`). Vá tối thiểu: thêm helper
+  `writeLocationValues_(range, values)` gọi `range.setNumberFormat('@')` trước `setValues`, và
+  chuyển **cả 5 điểm ghi dòng dữ liệu** sang dùng nó (`gatewayAppend_`, `adminUpdateRow_`, ledger
+  update trong `gatewayLedgerStore_`, `replaceLocationSheet_`, `appendLocationObject_`). Ba điểm
+  ghi hàng tiêu đề giữ nguyên `setValues` trực tiếp. Không đổi engine
+  `setup/location-admin-review.js`, không đổi contract, không đổi schema, không đổi HMAC/idempotency.
+- **Bất biến mới (đừng phá):** mọi ghi **dòng dữ liệu** vào các sheet location phải đi qua
+  `writeLocationValues_`. Các cột này đều là văn bản (record_id, số điện thoại, mốc ISO, toạ độ,
+  JSON); để Sheets tự suy kiểu là làm hỏng dữ liệu.
+- **File đã sửa:** `setup/location-intake/Code.gs`, `test/location-intake-build.test.js`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+  (`setup/location-intake/dist/Code.gs` được sinh lại bằng `npm run build:location-intake`; file
+  này bị `.gitignore` chặn nên không nằm trong commit.)
+- **Lý do:** Lỗi đúng loại mà live rehearsal sinh ra để tìm — không tầng test nào có fake store
+  mô phỏng được hành vi ép kiểu của Google Sheets. Ảnh hưởng trực tiếp tới người dân tra cứu số
+  điện thoại trụ sở trên bản đồ công khai.
+- **Kiểm tra:** `npm test` **521/521 PASS** (520 cũ + 1 test mới trong `location-intake-build.test.js`
+  khẳng định `writeLocationValues_` tồn tại, đúng 5 điểm ghi dữ liệu dùng nó, và mọi `setValues`
+  trực tiếp còn lại chỉ ghi `[headers]`/`[missing]`); `npm run build` PASS; `npm audit --omit=dev
+  --audit-level=high` exit 0; `git diff --check` sạch. **CÒN LẠI:** cần một submit mới qua `/can-bo`
+  rồi Duyệt để chứng minh live rằng số 0 đứng đầu được giữ — bản ghi TEST cũ đã hỏng sẵn ở ô
+  staging nên duyệt lại nó không chứng minh được gì.
+
 ## [2026-08-15] Dual-workbook admin review (Google Sheets menu), stacked on PR #48
 - **Agent:** Claude Code
 - **Thay đổi:** Triển khai admin approval tối giản bằng Google Sheets/Apps Script menu để chủ dự án

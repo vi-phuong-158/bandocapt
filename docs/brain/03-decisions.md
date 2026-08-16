@@ -1,5 +1,26 @@
 # 03 — Technical Decisions
 
+## [2026-08-16] Ghi dòng dữ liệu vào Google Sheet luôn ở định dạng plain text
+
+- **Quyết định:** mọi ghi **dòng dữ liệu** vào các sheet location (`Location_Staging`,
+  `Published_Locations`, `Approval_Audit_Log`, `Idempotency_Ledger`) phải đi qua
+  `writeLocationValues_(range, values)` trong `setup/location-intake/Code.gs`, hàm này gọi
+  `range.setNumberFormat('@')` trước `range.setValues(values)`. Chỉ hàng **tiêu đề** được phép gọi
+  `setValues` trực tiếp.
+- **Lý do:** `Range.setValues()` để Google Sheets tự suy kiểu. Chuỗi toàn chữ số bị ép thành
+  number và **mất số 0 đứng đầu** — `"0210000049"` trở thành `210000049`. Live rehearsal ngày
+  2026-08-16 xác nhận lỗi này làm hỏng `public_phone` ở staging rồi lan sang
+  `Published_Locations.phone`, tức mọi số điện thoại Việt Nam hiển thị sai trên bản đồ công khai.
+  Mọi cột của các sheet này về bản chất đều là văn bản (record_id, số điện thoại, mốc thời gian
+  ISO, chuỗi toạ độ, JSON), nên plain text là kiểu đúng chứ không phải giải pháp chữa cháy.
+- **Đánh đổi:** không thể sắp xếp/tính toán các cột này như số ngay trong Sheet. Chấp nhận được —
+  đây là bảng lưu trữ vận hành, không phải bảng phân tích, và tính toàn vẹn dữ liệu quan trọng hơn.
+- **Ràng buộc bằng test:** `test/location-intake-build.test.js` khẳng định đúng 5 điểm ghi dữ liệu
+  dùng helper và mọi `setValues` trực tiếp còn lại chỉ ghi `[headers]`/`[missing]`. Test này sẽ đỏ
+  nếu ai đó thêm một đường ghi mới bỏ qua helper.
+- **Lưu ý dữ liệu cũ:** các ô đã bị ép kiểu từ trước **không** tự khỏi. Bản ghi cũ cần sửa lại thủ
+  công hoặc nộp lại; bản vá chỉ chặn hỏng mới.
+
 ## [2026-08-15] Dual-workbook admin review — reconciliation model, reviewable states, conflict scope
 
 Stacked on PR #48 (`feat/staff-location-admin-review` from `feat/staff-location-portal-ui`), not
