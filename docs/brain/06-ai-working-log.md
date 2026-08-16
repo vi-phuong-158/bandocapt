@@ -1,5 +1,24 @@
 # 06 — AI Working Log
 
+## [2026-08-16] Manifest clasp push không được xoá Web App của Staff Gateway
+- **Agent:** Claude Code
+- **Thay đổi:** `setup/location-intake/appsscript.json` khai thêm `webapp` (`executeAs: USER_DEPLOYING`,
+  `access: ANYONE_ANONYMOUS`) và `dependencies: {}` cho khớp manifest đang chạy thật của script gateway.
+  Build script kiểm tra khối `webapp` và ném lỗi trước khi ghi `dist/appsscript.json`; thêm test khoá
+  manifest sinh ra; ghi cảnh báo vào `CLASP.md` kèm cách pull đối chiếu trước khi push.
+- **File đã sửa:** `setup/location-intake/appsscript.json`,
+  `scripts/build-location-intake-apps-script.js`, `test/location-intake-build.test.js`,
+  `docs/location-intake/CLASP.md`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Lý do:** `clasp push` **thay thế** manifest từ xa chứ không merge. Manifest sinh ra trước đây chỉ có
+  `timeZone`/`runtimeVersion`/`exceptionLogging`/`oauthScopes`/`executionApi`, nên chạy đúng lệnh
+  `npm run clasp:push` như tài liệu hướng dẫn sẽ xoá khối `webapp` của script gateway TEST — làm hỏng
+  Web App `/exec` mà `STAFF_GATEWAY_URL` trên Vercel gọi cho `/api/staff/*`. Đối chiếu bằng cách pull
+  script đã deploy và diff manifest (2026-08-16).
+- **Kiểm tra:** `npm test` 444/444 PASS (2 test trong `location-intake-build.test.js`, một test mới khoá
+  `webapp`); `npm run build` PASS và `dist/appsscript.json` sinh ra có đủ `webapp`; gỡ thử khối `webapp`
+  khỏi manifest nguồn → build dừng với lỗi tiếng Việt trỏ về `CLASP.md`, khôi phục thì build lại PASS;
+  `git diff --check` sạch. **Không** push lên bất kỳ Apps Script project nào.
+
 ## [2026-08-11] PR #47 — Staff Auth + Vercel Staff API Gate
 - **Agent:** Codex
 - **Thay đổi:** Implemented server-only Google AuthN + Gateway Unit AuthZ, signed staff session, exact Origin/CSRF gate, protected locations, verification and request routes, bounded signed Gateway client, shared snapshot hash contract, unit ownership/stale-snapshot checks, safe errors and 3 MiB decoded image preflight.
