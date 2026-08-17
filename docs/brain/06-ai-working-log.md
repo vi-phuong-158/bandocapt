@@ -3120,3 +3120,44 @@
 - **File đã sửa:** `docs/brain/06-ai-working-log.md`; PR #49 body.
 - **Lý do:** Ghi evidence trung thực cho ba hành vi review còn thiếu, giữ Production gate về lifecycle/revocation ảnh.
 - **Kiểm tra:** REJECT request `V_P_PR49_REHEARSAL_REJECT_20260817_20260817102337`, request ID `9ad4215abeb3ce833bc10f24057812aef7a66d81a69d6a25629952ecd572181f`, audit `REJECT` lúc `2026-08-17T10:30:25.493Z`, actor `anmphongandn@gmail.com`. CONFIRM record `V_P_PR49_REHEARSAL_CREATE_20260816_20260816001941`, verification audit lúc `2026-08-17T10:38:19.452Z`, action `CONFIRM`, actor `anmphongandn@gmail.com`; reload vẫn không publish. NEED_VERIFICATION không có request ID/staging row sau lỗi submit; case FAIL/BLOCKED. Không đổi code, không Production.
+
+## [2026-08-17] PR #49 — chẩn đoán lỗi submit fixture NEED_VERIFICATION
+- **Agent:** Claude Code (Opus 5)
+- **Thay đổi:** KHÔNG đổi code. Chỉ điều tra read-only nguyên nhân lần submit fixture NEED_VERIFICATION
+  thất bại lúc ~10:39–10:41 UTC ngày 2026-08-17, và ghi lại bằng chứng.
+- **File đã sửa:** `docs/brain/06-ai-working-log.md`; PR #49 body.
+- **Kết luận ngữ nghĩa (đã xác minh từ source):** NEED_VERIFICATION **không phải** một loại yêu cầu
+  gửi từ `/can-bo`. `lib/staff-api.js` chỉ nhận 4 `REQUEST_TYPES` tiếng Việt; chuỗi
+  `NEED_VERIFICATION` không xuất hiện trong bất kỳ file client/API nào. Nó là một **hành động review**
+  (`REVIEW_ACTIONS` trong `setup/location-admin-review.js`) chỉ áp dụng cho row đang `PENDING`
+  (`classifyForReview`), chuyển private-only sang `STATUSES.needVerification`, ghi audit
+  `NEED_VERIFICATION`, `publicTouched: false`. Vì vậy logic NEED_VERIFICATION **chưa từng được chạy**
+  trong lần rehearsal đó — hỏng xảy ra trước khi có fixture PENDING.
+- **Nguyên nhân hàng đầu — lớp Preview/Vercel, không phải defect ứng dụng:** project bật
+  `ssoProtection: all_except_custom_domains`, nên mọi Preview URL (kể cả branch alias) nằm sau Vercel
+  Authentication. Khi cookie `_vercel_jwt` của trình duyệt hết hạn/không có, edge của Vercel trả
+  **HTTP 401** kèm body JSON `{"error":{"code":"401","message":"Protected deployment"}}` **trước khi**
+  function chạy. `StaffApiClient.request` đọc `body.error.code` → ném `StaffApiError('401', 401)`;
+  `submitModal` chỉ kiểm tra `isRevoked` (không gọi `isSessionError`) và `errorMessage()` không có key
+  `'401'` → hiển thị đúng chuỗi đã quan sát **"Đã có lỗi xảy ra. Vui lòng thử lại."**. Vì function
+  không hề được gọi nên không có gateway call, không `Idempotency_Ledger`, không `Location_Staging`,
+  không audit, không public mutation — khớp 100% mọi quan sát.
+- **Bằng chứng:** `curl` trực tiếp branch alias không cookie trả đúng body 401 nói trên
+  (`/api/staff/requests` → 401 `Protected deployment`, `vercel_auth_enabled: true`); probe Node dựng
+  lại đúng body đó qua `js/staff-api-client.js` cho `error.code === "401"`, không có trong map của
+  `errorMessage()` → chuỗi generic. Runtime log Vercel của thời điểm hỏng đã hết hạn
+  (`/v3/events` chỉ còn build log, `vercel logs` chỉ stream log mới) nên không phục hồi được request gốc.
+- **Cách phân định dứt điểm (chưa chạy, cần quyền Google):** mở TEST private workbook →
+  `Idempotency_Ledger`. `submitRequest` gọi `ledgerClaim` **trước** mọi validation
+  (`setup/staff-gateway.js:264`), nên nếu request từng chạm Apps Script thì chắc chắn có row với
+  `state=FAILED`/`CLAIMED` và `last_error` là mã lỗi chính xác. **Không có row** trong khoảng
+  10:35–10:42 UTC 2026-08-17 ⇒ xác nhận hỏng ở lớp Vercel/edge, không phải Gateway/Apps Script.
+- **Rehearsal live NEED_VERIFICATION: CHƯA chạy trong phiên này.** Không có Chrome nào kết nối
+  (`list_connected_browsers` rỗng), browser in-app không có phiên Google, và tác nhân không được nhập
+  thông tin đăng nhập. Hành động review cũng nằm ở menu Apps Script trong workbook private, cần phiên
+  Google của người duyệt. Verdict giữ nguyên trạng thái BLOCKED, không nâng lên PASS.
+- **Kiểm tra:** GitHub CI trên đúng HEAD `23e9a6f` PASS (`test-build-audit: success`). `npm test` cục bộ
+  529/530; ca duy nhất fail là `chat-embed-config.test.js` với `EPERM` khi xóa thư mục `dist` — hạn chế
+  quyền của môi trường sandbox cục bộ, không tái hiện trên CI và không liên quan Staff Portal.
+  Không đụng Production, không đổi auth/CSRF/origin/HMAC/DTO/workbook boundary,
+  không rebase hay merge PR #48, `OLD_IMAGE_REPLACEMENT_REVOCATION_FOLLOWUP` giữ nguyên.
