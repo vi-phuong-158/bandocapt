@@ -17,7 +17,10 @@ async function stubDriveImages(page) {
 async function openLocationByAddress(page, addressFragment) {
     await page.fill('#search-input', addressFragment);
     const item = page.locator('#results-list .result-item').first();
-    await expect(item).toBeVisible();
+    // `filterAndRender` chạy sau debounce 250ms. Đợi đúng nội dung đã lọc thay vì chỉ đợi
+    // phần tử "visible" — danh sách CHƯA lọc vẫn hiển thị item đầu tiên trong lúc chờ debounce,
+    // nên `toBeVisible()` một mình sẽ pass sớm và bấm nhầm địa điểm khác.
+    await expect(item.locator('.result-address')).toContainText(addressFragment.replace(/,$/, ''));
     await item.click();
     return item;
 }
@@ -146,8 +149,7 @@ test('mobile: public location image and lightbox stay inside the viewport', asyn
     await page.goto('/');
 
     await page.click('#mobile-search-btn');
-    await page.fill('#search-input', 'thử nghiệm 2,');
-    await page.locator('#results-list .result-item').first().click();
+    await openLocationByAddress(page, 'thử nghiệm 2,');
     await expect.poll(async () => page.locator('#detail-panel').getAttribute('data-sheet-state')).toBe('collapsed');
 
     await page.locator('#preview-expand-btn').click();
