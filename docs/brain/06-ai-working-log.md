@@ -3113,3 +3113,10 @@
 - **File đã sửa:** `docs/brain/06-ai-working-log.md`; PR #49 body.
 - **Lý do:** Chuẩn bị final review bằng acceptance matrix trung thực, không gộp automated và live evidence.
 - **Kiểm tra:** HEAD `4d502e6` có GitHub CI và Vercel Preview xanh; baseline source hiện có `npm test` 530/530, build PASS, E2E 49/49, audit không có high/critical. REJECT, NEED_VERIFICATION, CONFIRM, UPDATE thay ảnh, và reconciliation partial-failure vẫn chưa có live evidence; reconciliation được giữ automated-only vì không inject failure nguy hiểm. `OLD_IMAGE_REPLACEMENT_REVOCATION_FOLLOWUP` còn mở: code chỉ best-effort revoke ảnh khi STOP, không thu hồi public sharing của ảnh cũ sau UPDATE có ảnh mới.
+
+## [2026-08-17] PR #49 — TEST rehearsal REJECT / NEED_VERIFICATION / CONFIRM
+- **Agent:** Codex
+- **Thay đổi:** Chạy live TEST trên exact HEAD `70a8a0b` bằng Preview và private workbook. REJECT đạt `PENDING → REJECTED`; CONFIRM tạo verification audit trên published record hiện hữu, không đi qua approval/public mutation. NEED_VERIFICATION submit trả lỗi chung và không tạo row trong `Location_Staging`; không retry để tránh duplicate.
+- **File đã sửa:** `docs/brain/06-ai-working-log.md`; PR #49 body.
+- **Lý do:** Ghi evidence trung thực cho ba hành vi review còn thiếu, giữ Production gate về lifecycle/revocation ảnh.
+- **Kiểm tra:** REJECT request `V_P_PR49_REHEARSAL_REJECT_20260817_20260817102337`, request ID `9ad4215abeb3ce833bc10f24057812aef7a66d81a69d6a25629952ecd572181f`, audit `REJECT` lúc `2026-08-17T10:30:25.493Z`, actor `anmphongandn@gmail.com`. CONFIRM record `V_P_PR49_REHEARSAL_CREATE_20260816_20260816001941`, verification audit lúc `2026-08-17T10:38:19.452Z`, action `CONFIRM`, actor `anmphongandn@gmail.com`; reload vẫn không publish. NEED_VERIFICATION không có request ID/staging row sau lỗi submit; case FAIL/BLOCKED. Không đổi code, không Production.
