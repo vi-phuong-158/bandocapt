@@ -68,6 +68,7 @@
   --glass-fill-strong: rgba(255, 255, 255, 0.90);
   --glass-stroke: rgba(255, 255, 255, 0.40);
   --scrim: rgba(15, 23, 42, 0.40);
+  --scrim-strong: rgba(15, 23, 42, 0.88);
 
   /* ---- Typography ---- */
   --font-display: 'Be Vietnam Pro', system-ui, sans-serif;
@@ -127,6 +128,9 @@
   --z-overlay: 200;
   --z-panel: 300;
   --z-navigation: 400;
+  /* Trên cùng: phải phủ cả nhóm launcher/cửa sổ chat + catalog vốn dùng z-index cũ 1999-2001
+     nằm ngoài thang token này. Hạ xuống 500 sẽ để nút chat nổi đè lên ảnh đang xem. */
+  --z-lightbox: 2100;
 
   /* ---- Effects ---- */
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);

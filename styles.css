@@ -2204,3 +2204,103 @@ body.tthc-catalog-modal-open { overflow: hidden; }
         transition: none !important;
     }
 }
+
+/* ---- Ảnh địa điểm công khai: hero bấm được + lightbox xem ảnh lớn ---- */
+
+.detail-image-button {
+    position: absolute;
+    inset: 0;
+    display: block;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: zoom-in;
+}
+
+/* Không có ảnh công khai (hoặc ảnh lỗi) thì hero chỉ còn là ảnh nền logo, không bấm được. */
+.detail-image-button:disabled {
+    cursor: default;
+}
+
+.detail-image-zoom {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    width: var(--hit-min);
+    height: var(--hit-min);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--glass-stroke);
+    background: var(--scrim);
+    backdrop-filter: var(--blur-sm);
+    color: var(--text-on-brand);
+}
+
+.detail-image-button:disabled .detail-image-zoom {
+    display: none;
+}
+
+.detail-image-button:focus-visible {
+    outline: none;
+    box-shadow: inset var(--ring-focus);
+}
+
+.detail-image-button:focus-visible .detail-image-zoom {
+    box-shadow: var(--ring-focus);
+}
+
+.image-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-lightbox);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    background: var(--scrim-strong);
+    backdrop-filter: var(--blur-sm);
+}
+
+.image-lightbox[hidden] {
+    display: none;
+}
+
+.image-lightbox-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-pop);
+}
+
+.image-lightbox-close {
+    position: absolute;
+    top: max(var(--space-4), env(safe-area-inset-top, 0px));
+    right: var(--space-4);
+    width: var(--hit-min);
+    height: var(--hit-min);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--glass-stroke);
+    background: var(--glass-fill);
+    backdrop-filter: var(--blur-sm);
+    color: var(--text-strong);
+    cursor: pointer;
+}
+
+.image-lightbox-close:hover {
+    background: var(--glass-fill-strong);
+}
+
+.image-lightbox-close:focus-visible {
+    outline: none;
+    box-shadow: var(--ring-focus);
+}
+
+body.lightbox-open {
+    overflow: hidden;
+}

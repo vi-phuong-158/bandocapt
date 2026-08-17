@@ -93,6 +93,41 @@ because it needs PR #48's staging/Gateway contract; not merged into `main` yet.
 - `scripts/build-location-intake-apps-script.js` bundles `setup/location-admin-review.js` into
   `setup/location-intake/dist/Code.gs` alongside the existing pipeline/workbook-config/gateway files.
 
+## Public location image display (2026-08-17)
+
+Hiển thị ảnh địa điểm đã duyệt ngay trong phần thông tin chi tiết trên bản đồ công khai. **Không
+thêm field, endpoint hay schema** — toàn bộ đường đọc đã có sẵn từ trước:
+
+```text
+Location_Staging.image_file_id (private, một ảnh)
+  -> APPROVE: setup/location-admin-review.js deterministicImageUrl() + DriveApp.setSharing
+  -> Published_Locations.image_url            <-- trường ảnh CÔNG KHAI duy nhất
+  -> api/google-sheet.js PUBLIC_COLUMN_LABELS (cắt image_file_id/image_drive_url/
+     image_public_url/published_image_file_id/image_mime_type)
+  -> js/location-data.js FIELD_ALIASES.imageUrl -> loc.imageUrl
+  -> app.js convertGoogleDriveUrl() -> drive.google.com/thumbnail?id=...&sz=w1000
+  -> #detail-image trong #detail-hero  --bấm-->  #image-lightbox (dùng lại đúng src)
+```
+
+- **Một ảnh, không phải gallery.** Một `record_id` chỉ mang một `image_url`; không có cột danh sách
+  ảnh nào trong hợp đồng công khai — xem `03-decisions.md`.
+- **Fail-closed ở client:** `isAllowedLocationImage()` trong `app.js` là cổng duy nhất quyết định
+  có render ảnh hay không (chỉ `drive.google.com` / `*.google.com` / `*.googleusercontent.com`;
+  URL rỗng/sai dạng/host lạ đều bị loại). Ảnh tải lỗi (404, mất quyền Drive, lỗi mạng) rơi về logo
+  qua listener `error` — phần thông tin địa điểm không bao giờ vỡ vì ảnh.
+- **Trạng thái không public thì không có ảnh:** PENDING/REJECTED/NEED_VERIFICATION chỉ tồn tại ở
+  `Location_Staging` (workbook riêng tư) và `api/google-sheet.js` chỉ cho phép sheet
+  `Published_Locations`; STOP xoá hẳn dòng khỏi `Published_Locations` nên không còn marker để mở.
+- **Giữ ảnh khi UPDATE không kèm ảnh mới** vẫn do server quyết định
+  (`setup/location-admin-review.js` lấy `currentTarget.image_url`, không tin browser); UI công khai
+  chỉ đọc kết quả đã publish, nên không có đường nào để client giữ ảnh cũ khi ảnh đã bị thay.
+- **Hiệu năng:** vòng lặp dựng marker không chạm tới ảnh; `src` chỉ được gán khi mở đúng một địa
+  điểm (`loading="lazy"`), và lightbox dùng lại đúng URL của hero nên không phát sinh request thứ hai.
+- **CSP không đổi:** `img-src` của trang công khai đã có sẵn `https://drive.google.com` và
+  `https://*.googleusercontent.com`.
+- **Layer:** `--z-lightbox: 2100` phải nằm trên nhóm launcher/cửa sổ chat + catalog (z-index cũ
+  1999–2001, ngoài thang token) — hạ xuống sẽ để nút chat nổi đè lên ảnh đang xem.
+
 ## Stack
 
 | Layer | Cong nghe |
@@ -314,7 +349,7 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 |---------------|---------|--------------|---------------|
 | `index.html` | Shell UI, tai JS nen va lazy loader; asset runtime duoc doi sang URL content-hash trong `dist/` | Browser | `output.css`, `styles.css`, `app.js`, `js/lazy-features.js` |
 | `js/app-navigation.js` | Dieu phoi 3 tab mobile Ban do/Thu tuc/Hoi dap AI, dong bo `aria-current` va ghi nhan lan dau mo AI | `index.html` | public surface callbacks tu `app.js`, `js/chatbot.js`, `js/tthc-catalog.js` |
-| `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker/cluster, preview vi tri mobile | `index.html`, `js/app-navigation.js` | `js/location-data.js`, `api/google-sheet.js`, `data.js`, Leaflet.markercluster |
+| `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker/cluster, preview vi tri mobile. (2026-08-17) Anh dia diem cong khai: `isAllowedLocationImage` (host allowlist) -> `applyDetailImage`/`showDetailImageFallback` (anh loi roi ve logo) -> lightbox xem anh lon (`openImageLightbox`/`closeImageLightbox`, dong bang nut/nen/`Esc`); co `detailImageIsPublic` la nguon su that cho `syncPanelsToViewport` | `index.html`, `js/app-navigation.js` | `js/location-data.js`, `api/google-sheet.js`, `data.js`, Leaflet.markercluster |
 | `data.js` | Fallback tinh cho map khi Google Sheets loi | `app.js` | - |
 | `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check, doc them `search_aliases` neu co | `app.js`, `lib/published-locations.js`, test | - |
 | `js/gemini.js` | Goi `POST /api/chat` (parse SSE stream) va `POST /api/feedback` (`sendFeedback`); ky HMAC dung chung qua `signRequestToken`. (2026-08-06) Phan loai abort qua `abortReason`: `USER_CANCELLED`/`IDLE_TIMEOUT` (25s)/`REQUEST_TIMEOUT` (65s), uu tien `STREAM_ERROR`+`partialText` neu da co noi dung | `js/chatbot.js` | `api/chat.js`, `api/feedback.js` |
