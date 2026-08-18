@@ -137,6 +137,7 @@ function adminPublicStore_(spreadsheet) {
     const pipeline = locationPipeline_();
     const headers = pipeline.HEADERS.published;
     return {
+        getAll: () => gatewayRows_(spreadsheet, pipeline.SHEETS.published, headers),
         findById: recordId => gatewayRows_(spreadsheet, pipeline.SHEETS.published, headers)
             .find(row => String(row.record_id || '') === String(recordId || '')) || null,
         upsert: record => {
