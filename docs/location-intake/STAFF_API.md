@@ -77,6 +77,11 @@ stable stringify. The same module is included before Gateway V2 in the Apps Scri
 and its 10 MiB decoded image limit remain unchanged. Vercel preflights images at **3 MiB decoded** because
 the Vercel request platform limit is lower. Future PR #48 owns resize/compression UI.
 
+CREATE must include a replacement image at both Vercel and Gateway. UPDATE and legacy CORRECT may omit
+`image`; their browser DTO omits the field rather than sending `null`. On approval without a new file,
+the server preserves the current public `image_url` and recovers the latest approved private file ID when
+available. No browser value is authoritative for either retained value.
+
 ## Browser portal additions (PR #48)
 
 `GET /api/staff/auth/config` is a public, `no-store` endpoint that returns only

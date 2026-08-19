@@ -51,6 +51,28 @@ function gatewayPrivateSpreadsheet_() {
     return SpreadsheetApp.openById(config.spreadsheetId);
 }
 
+function adminPublicSpreadsheet_() {
+    if (!globalThis.LocationWorkbookConfig) throw new Error('LOCATION_WORKBOOK_CONFIG_UNAVAILABLE');
+    const props = locationProperties_();
+    const config = globalThis.LocationWorkbookConfig.resolvePublicLocationWorkbook({
+        PUBLIC_LOCATION_SPREADSHEET_ID: props.getProperty('PUBLIC_LOCATION_SPREADSHEET_ID'),
+        GOOGLE_SHEET_ID: props.getProperty('GOOGLE_SHEET_ID'),
+        PRIVATE_LOCATION_SPREADSHEET_ID: props.getProperty('PRIVATE_LOCATION_SPREADSHEET_ID'),
+    });
+    return SpreadsheetApp.openById(config.spreadsheetId);
+}
+
+// Admin review chỉ đọc email hiệu lực của người đang mở Sheet + Script Property allowlist —
+// KHÔNG coi "mở được Sheet" là đủ quyền. Fail closed khi property rỗng hoặc email không khớp.
+function requireLocationApprover_() {
+    if (!globalThis.LocationAdminReview) throw new Error('Thiếu LocationAdminReview. Hãy dùng setup/location-intake/dist/Code.gs.');
+    const csv = locationProperties_().getProperty('LOCATION_APPROVER_EMAILS');
+    if (!csv) throw new Error('LOCATION_APPROVER_CONFIG_MISSING');
+    const email = String(Session.getEffectiveUser().getEmail() || '').trim().toLowerCase();
+    if (!email || !globalThis.LocationAdminReview.isApprover(email, csv)) throw new Error('LOCATION_APPROVER_NOT_AUTHORIZED');
+    return email;
+}
+
 function gatewaySheet_(spreadsheet, sheetName, headers) {
     const sheet = spreadsheet.getSheetByName(sheetName);
     if (!sheet) throw new Error(`PRIVATE_SHEET_MISSING:${sheetName}`);
@@ -63,9 +85,98 @@ function gatewayRows_(spreadsheet, sheetName, headers) {
     return readLocationObjects_(gatewaySheet_(spreadsheet, sheetName, headers));
 }
 
+// Sheets tự ép chuỗi toàn chữ số về number khi setValues, làm MẤT số 0 đứng đầu
+// ("0210000049" -> 210000049). Mọi cột của các sheet này đều là dữ liệu văn bản
+// (record_id, số điện thoại, mốc ISO, toạ độ, JSON) nên luôn ghi ở định dạng plain text.
+function writeLocationValues_(range, values) {
+    range.setNumberFormat('@');
+    range.setValues(values);
+}
+
 function gatewayAppend_(spreadsheet, sheetName, headers, record) {
     const sheet = gatewaySheet_(spreadsheet, sheetName, headers);
-    sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length).setValues([headers.map(header => record[header] == null ? '' : record[header])]);
+    writeLocationValues_(sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length), [headers.map(header => record[header] == null ? '' : record[header])]);
+}
+
+// Đọc/ghi đúng MỘT dòng theo cột khoá — admin review không được clearContents() cả sheet
+// (xem replaceLocationSheet_) vì thao tác chọn một dòng để duyệt chỉ nên đổi đúng dòng đó.
+function adminFindRowNumber_(sheet, headers, columnName, value) {
+    const columnIndex = headers.indexOf(columnName);
+    if (columnIndex < 0 || sheet.getLastRow() < 2) return -1;
+    const values = sheet.getRange(2, columnIndex + 1, sheet.getLastRow() - 1, 1).getValues();
+    const offset = values.findIndex(row => String(row[0] || '').trim() === String(value || '').trim());
+    return offset < 0 ? -1 : offset + 2;
+}
+
+function adminUpdateRow_(sheet, headers, rowNumber, patch) {
+    const current = {};
+    sheet.getRange(rowNumber, 1, 1, headers.length).getValues()[0].forEach((value, index) => { current[headers[index]] = value; });
+    const merged = Object.assign(current, patch);
+    writeLocationValues_(sheet.getRange(rowNumber, 1, 1, headers.length), [headers.map(header => (merged[header] == null ? '' : merged[header]))]);
+}
+
+function adminPrivateStore_(spreadsheet) {
+    const pipeline = locationPipeline_();
+    const stagingHeaders = pipeline.HEADERS.staging;
+    const auditHeaders = pipeline.HEADERS.audit;
+    return {
+        getStagingRows: () => gatewayRows_(spreadsheet, pipeline.SHEETS.staging, stagingHeaders),
+        getAuditRows: () => gatewayRows_(spreadsheet, pipeline.SHEETS.audit, auditHeaders),
+        updateStagingRow: (requestId, patch) => {
+            const sheet = gatewaySheet_(spreadsheet, pipeline.SHEETS.staging, stagingHeaders);
+            const headers = locationHeaders_(sheet);
+            const rowNumber = adminFindRowNumber_(sheet, headers, 'request_id', requestId);
+            if (rowNumber < 0) throw new Error('REQUEST_NOT_FOUND');
+            adminUpdateRow_(sheet, headers, rowNumber, patch);
+        },
+        appendAuditRow: record => gatewayAppend_(spreadsheet, pipeline.SHEETS.audit, auditHeaders, record),
+    };
+}
+
+function adminPublicStore_(spreadsheet) {
+    const pipeline = locationPipeline_();
+    const headers = pipeline.HEADERS.published;
+    return {
+        findById: recordId => gatewayRows_(spreadsheet, pipeline.SHEETS.published, headers)
+            .find(row => String(row.record_id || '') === String(recordId || '')) || null,
+        upsert: record => {
+            const sheet = gatewaySheet_(spreadsheet, pipeline.SHEETS.published, headers);
+            const rowHeaders = locationHeaders_(sheet);
+            const rowNumber = adminFindRowNumber_(sheet, rowHeaders, 'record_id', record.record_id);
+            if (rowNumber < 0) gatewayAppend_(spreadsheet, pipeline.SHEETS.published, headers, record);
+            else adminUpdateRow_(sheet, rowHeaders, rowNumber, record);
+        },
+        remove: recordId => {
+            const sheet = gatewaySheet_(spreadsheet, pipeline.SHEETS.published, headers);
+            const rowHeaders = locationHeaders_(sheet);
+            const rowNumber = adminFindRowNumber_(sheet, rowHeaders, 'record_id', recordId);
+            if (rowNumber >= 0) sheet.deleteRow(rowNumber);
+        },
+    };
+}
+
+function adminSpreadsheets_() {
+    return { private: gatewayPrivateSpreadsheet_(), public: adminPublicSpreadsheet_() };
+}
+
+function adminReviewEngine_(spreadsheets) {
+    if (!globalThis.LocationAdminReview) throw new Error('Thiếu LocationAdminReview. Hãy dùng setup/location-intake/dist/Code.gs.');
+    return globalThis.LocationAdminReview.createLocationAdminReview({
+        pipeline: locationPipeline_(),
+        workbookConfig: globalThis.LocationWorkbookConfig,
+        runtime: {
+            now: () => Date.now(),
+            withLock: callback => {
+                const lock = LockService.getScriptLock();
+                lock.waitLock(30000);
+                try { return callback(); } finally { lock.releaseLock(); }
+            },
+            setImagePublic: fileId => setImagePublic_(fileId),
+            revokeImagePublic: fileId => revokeImagePublic_(fileId),
+        },
+        privateStore: adminPrivateStore_(spreadsheets.private),
+        publicStore: adminPublicStore_(spreadsheets.public),
+    });
 }
 
 function gatewayLedgerStore_(spreadsheet) {
@@ -83,7 +194,7 @@ function gatewayLedgerStore_(spreadsheet) {
         const current = {};
         headers.forEach((header, index) => { current[header] = values[rowIndex][index]; });
         const merged = Object.assign(current, patch, { updated_at: patch.updated_at || new Date().toISOString() });
-        sheet.getRange(row, 1, 1, headers.length).setValues([headers.map(header => merged[header] == null ? '' : merged[header])]);
+        writeLocationValues_(sheet.getRange(row, 1, 1, headers.length), [headers.map(header => merged[header] == null ? '' : merged[header])]);
         return merged;
     }
     function create(record) { gatewayAppend_(spreadsheet, pipeline.SHEETS.ledger, headers, record); }
@@ -251,12 +362,12 @@ function replaceLocationSheet_(sheet, headers, records) {
     sheet.clearContents();
     sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#0f766e').setFontColor('#ffffff');
-    if (records.length) sheet.getRange(2, 1, records.length, headers.length).setValues(records.map(record => headers.map(header => record[header] || '')));
+    if (records.length) writeLocationValues_(sheet.getRange(2, 1, records.length, headers.length), records.map(record => headers.map(header => record[header] || '')));
 }
 
 function appendLocationObject_(sheet, record) {
     const headers = locationHeaders_(sheet);
-    sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length).setValues([headers.map(header => record[header] || '')]);
+    writeLocationValues_(sheet.getRange(sheet.getLastRow() + 1, 1, 1, headers.length), [headers.map(header => record[header] || '')]);
 }
 
 function writeLocationState_(spreadsheet, state) {
@@ -459,7 +570,7 @@ function reviewLocationRequest_(requestId, action, reviewerEmail) {
         let state = readLocationState_(spreadsheet);
         const row = state.stagingRecords.find(record => record.request_id === requestId);
         if (!row) throw new Error('Không tìm thấy yêu cầu cần duyệt.');
-        if (action === 'APPROVE' && row.request_type !== locationPipeline_().REQUEST_TYPES.stop) {
+        if (action === 'APPROVE' && row.image_file_id) {
             const imageUrl = setImagePublic_(row.image_file_id);
             row.image_public_url = imageUrl;
         }
@@ -473,6 +584,13 @@ function onLocationStagingEdit(event) {
     if (!event || !event.range) return;
     const pipeline = locationPipeline_();
     const sheet = event.range.getSheet();
+    // An toàn dual-workbook: trigger single-workbook cũ này không được chạy trên PRIVATE workbook
+    // (writeLocationState_ giả định Published_Locations/Approval_Audit_Log nằm chung một bảng tính
+    // và sẽ clearContents() nhầm sheet của kiến trúc mới). Bỏ qua im lặng nếu trùng private ID.
+    try {
+        const privateId = locationProperties_().getProperty('PRIVATE_LOCATION_SPREADSHEET_ID');
+        if (privateId && sheet.getParent().getId() === privateId) return;
+    } catch (_) { /* misconfigured private ID không được chặn runtime legacy hợp lệ */ }
     if (sheet.getName() !== pipeline.SHEETS.staging || event.range.getRow() < 2) return;
     const actionColumn = locationHeaders_(sheet).indexOf('review_action') + 1;
     if (event.range.getColumn() !== actionColumn) return;
@@ -506,6 +624,130 @@ function revokeSelectedPublishedLocation() {
     } finally { lock.releaseLock(); }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Dual-workbook admin review (PRIVATE Location_Staging -> PUBLIC Published_Locations).
+// Đây là lớp mỏng trên setup/location-admin-review.js: chỉ đọc dòng đang chọn, xác thực người
+// duyệt, rồi giao toàn bộ transition/reconciliation cho engine đó. Xem docs/brain/03-decisions.md.
+// ---------------------------------------------------------------------------------------------
+
+function adminSelectedStagingRequestId_() {
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    const privateSpreadsheet = gatewayPrivateSpreadsheet_();
+    if (!spreadsheet || spreadsheet.getId() !== privateSpreadsheet.getId()) {
+        throw new Error('Hãy mở workbook riêng tư (private) chứa Location_Staging trước khi dùng menu này.');
+    }
+    const sheet = spreadsheet.getActiveSheet();
+    if (sheet.getName() !== locationPipeline_().SHEETS.staging) throw new Error('Hãy chọn một dòng trong Location_Staging.');
+    const row = sheet.getActiveRange().getRow();
+    if (row < 2) throw new Error('Hãy chọn một dòng dữ liệu (không phải dòng tiêu đề).');
+    const headers = locationHeaders_(sheet);
+    const requestId = String(sheet.getRange(row, headers.indexOf('request_id') + 1).getValue() || '').trim();
+    if (!requestId) throw new Error('REQUEST_ID_MISSING');
+    return requestId;
+}
+
+function adminPromptNote_(ui, title) {
+    const response = ui.prompt(title, 'Ghi chú (có thể để trống):', ui.ButtonSet.OK_CANCEL);
+    if (response.getSelectedButton() !== ui.Button.OK) return null; // Cancel -> không mutate.
+    return String(response.getResponseText() || '').trim();
+}
+
+function adminErrorMessage_(error) {
+    const code = error && error.code;
+    if (code === 'REQUEST_NOT_REVIEWABLE') return error.message;
+    const messages = {
+        ADMIN_REVIEW_RUNTIME_NOT_CONFIGURED: 'Thiếu cấu hình engine duyệt.',
+        LOCATION_APPROVER_CONFIG_MISSING: 'Chưa cấu hình Script Property LOCATION_APPROVER_EMAILS.',
+        LOCATION_APPROVER_NOT_AUTHORIZED: 'Tài khoản của bạn không có trong danh sách được phép duyệt.',
+        REQUEST_ID_MISSING: 'Không đọc được request_id của dòng đã chọn.',
+        REQUEST_NOT_FOUND: 'Không tìm thấy yêu cầu này trong Location_Staging.',
+        RECORD_INVALID: 'Yêu cầu còn lỗi dữ liệu (validation_errors), không thể duyệt.',
+        IMAGE_REQUIRED: 'Yêu cầu thêm địa điểm mới phải có ảnh trước khi duyệt.',
+        TARGET_RECORD_ID_MISSING: 'Yêu cầu thiếu mã bản ghi đích.',
+        TARGET_RECORD_ID_NOT_FOUND: 'Không tìm thấy bản ghi công khai đang có để cập nhật/xoá.',
+        TARGET_RECORD_UNIT_MISMATCH: 'Bản ghi công khai thuộc đơn vị khác — từ chối để tránh ghi đè chéo đơn vị.',
+        CREATE_TARGET_RECORD_ID_NOT_ALLOWED: 'Yêu cầu "Thêm địa điểm mới" không được có mã bản ghi đích.',
+        APPROVAL_PUBLIC_CONFLICT: 'Bản ghi công khai hiện có nội dung khác dữ liệu đang chờ duyệt — cần rà soát thủ công, không tự ghi đè.',
+        IMAGE_SHARING_FAILED: 'Duyệt chưa hoàn tất: chưa công khai được ảnh. Hãy thử lại bằng "Đối soát / hoàn tất yêu cầu đã chọn".',
+        IMAGE_SHARING_RUNTIME_UNAVAILABLE: 'Thiếu cấu hình để công khai ảnh.',
+    };
+    return (code && messages[code]) || (error && error.message) || String(error);
+}
+
+function adminReviewSelectedAction_(action) {
+    const ui = SpreadsheetApp.getUi();
+    try {
+        const requestId = adminSelectedStagingRequestId_();
+        const actorEmail = requireLocationApprover_();
+        let note = '';
+        if (action !== 'APPROVE') {
+            const titles = { REJECT: 'Từ chối yêu cầu', NEED_VERIFICATION: 'Yêu cầu xác minh thêm' };
+            const entered = adminPromptNote_(ui, titles[action] || action);
+            if (entered === null) return; // Cancel -> không mutate.
+            note = entered;
+        }
+        const engine = adminReviewEngine_(adminSpreadsheets_());
+        const result = engine.reviewRequest({ requestId, action, actorEmail, note });
+        const labels = { APPROVE: 'Đã duyệt', REJECT: 'Đã từ chối', NEED_VERIFICATION: 'Đã chuyển sang yêu cầu xác minh thêm' };
+        const imageNote = result.imageRevokeError ? ' (Lưu ý: thu hồi chia sẻ ảnh chưa thành công, thử lại bằng "Đối soát".)' : '';
+        ui.alert(`${labels[action] || action} yêu cầu ${requestId}.${imageNote}`);
+    } catch (error) {
+        ui.alert(adminErrorMessage_(error));
+    }
+}
+
+function approveSelectedAdminRequest() { adminReviewSelectedAction_('APPROVE'); }
+function rejectSelectedAdminRequest() { adminReviewSelectedAction_('REJECT'); }
+function needVerificationSelectedAdminRequest() { adminReviewSelectedAction_('NEED_VERIFICATION'); }
+
+function reconcileSelectedAdminRequest() {
+    const ui = SpreadsheetApp.getUi();
+    try {
+        const requestId = adminSelectedStagingRequestId_();
+        const actorEmail = requireLocationApprover_();
+        const engine = adminReviewEngine_(adminSpreadsheets_());
+        const result = engine.reconcileRequest({ requestId, actorEmail, note: 'Đối soát' });
+        if (result.nothingToReconcile) { ui.alert(`Yêu cầu ${requestId} đang BLOCKED do lỗi dữ liệu — không có gì để đối soát.`); return; }
+        const imageNote = result.imageRevokeError ? ' (Lưu ý: thu hồi chia sẻ ảnh chưa thành công, thử lại sau.)' : '';
+        ui.alert(`Đã đối soát yêu cầu ${requestId} (trạng thái hiện tại: ${result.status}).${imageNote}`);
+    } catch (error) {
+        ui.alert(adminErrorMessage_(error));
+    }
+}
+
+function adminSheetStatusLine_(spreadsheet, sheetName, headers) {
+    try { gatewaySheet_(spreadsheet, sheetName, headers); return `✓ ${sheetName} exists/schema valid`; }
+    catch (error) { return `✗ ${sheetName} exists/schema valid (${error.message})`; }
+}
+
+// Read-only. KHÔNG hiển thị workbook ID, HMAC secret hay session secret — chỉ trạng thái boolean.
+function adminReviewStatus_() {
+    const lines = [];
+    try { requireLocationApprover_(); lines.push('✓ Admin authorized'); }
+    catch (error) { lines.push(`✗ Admin authorized (${error.message})`); }
+
+    let privateSpreadsheet = null;
+    try { privateSpreadsheet = gatewayPrivateSpreadsheet_(); lines.push('✓ Private workbook configured'); }
+    catch (error) { lines.push(`✗ Private workbook configured (${error.message})`); }
+
+    let publicSpreadsheet = null;
+    try { publicSpreadsheet = adminPublicSpreadsheet_(); lines.push('✓ Public workbook configured'); }
+    catch (error) { lines.push(`✗ Public workbook configured (${error.message})`); }
+
+    lines.push(privateSpreadsheet && publicSpreadsheet && privateSpreadsheet.getId() !== publicSpreadsheet.getId()
+        ? '✓ Workbook IDs distinct' : '✗ Workbook IDs distinct');
+
+    const pipeline = locationPipeline_();
+    lines.push(privateSpreadsheet ? adminSheetStatusLine_(privateSpreadsheet, pipeline.SHEETS.staging, pipeline.HEADERS.staging) : '✗ Location_Staging exists/schema valid');
+    lines.push(privateSpreadsheet ? adminSheetStatusLine_(privateSpreadsheet, pipeline.SHEETS.audit, pipeline.HEADERS.audit) : '✗ Approval_Audit_Log exists/schema valid');
+    lines.push(publicSpreadsheet ? adminSheetStatusLine_(publicSpreadsheet, pipeline.SHEETS.published, pipeline.HEADERS.published) : '✗ Published_Locations exists/schema valid');
+    return lines;
+}
+
+function healthCheckAdminReview() {
+    SpreadsheetApp.getUi().alert(adminReviewStatus_().join('\n'));
+}
+
 function writeLocationSetupInfo_(spreadsheet, form) {
     const sheet = spreadsheet.getSheetByName(locationPipeline_().SHEETS.info);
     replaceLocationSheet_(sheet, ['key', 'value', 'note'], [
@@ -535,6 +777,14 @@ function onOpen() {
         .addItem('Yêu cầu xác minh', 'verifySelectedLocationRequest')
         .addItem('Thu hồi địa điểm công khai', 'revokeSelectedPublishedLocation')
         .addSeparator().addItem('Kiểm tra hệ thống', 'healthCheckLocationIntake').addToUi();
+    // Dual-workbook admin review — dành cho PRIVATE workbook (Location_Staging). Mỗi hành động tự
+    // kiểm tra active spreadsheet trước khi chạy (xem adminSelectedStagingRequestId_).
+    SpreadsheetApp.getUi().createMenu('Bản đồ CA - Duyệt địa điểm')
+        .addItem('Duyệt yêu cầu đã chọn', 'approveSelectedAdminRequest')
+        .addItem('Từ chối yêu cầu đã chọn', 'rejectSelectedAdminRequest')
+        .addItem('Yêu cầu xác minh thêm', 'needVerificationSelectedAdminRequest')
+        .addItem('Đối soát / hoàn tất yêu cầu đã chọn', 'reconcileSelectedAdminRequest')
+        .addSeparator().addItem('Kiểm tra cấu hình duyệt', 'healthCheckAdminReview').addToUi();
 }
 
 // Entry point cho Apps Script API (`clasp run`): không chạm UI, trả giá trị để kiểm chứng

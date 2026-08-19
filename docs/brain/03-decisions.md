@@ -1,5 +1,117 @@
 # 03 — Technical Decisions
 
+## [2026-08-16] Staff Portal gộp UX chỉnh sửa và giữ ảnh cũ ở server
+
+- **Quyết định:** `/can-bo` chỉ gửi `Cập nhật địa điểm đang có` cho mọi chỉnh sửa location hiện hữu;
+  nút/mode CORRECT bị bỏ khỏi UI nhưng Gateway, staging và Admin Review vẫn hiểu request type CORRECT
+  lịch sử. CREATE vẫn bắt buộc một ảnh mới; UPDATE/CORRECT không bắt buộc ảnh.
+- **Giữ ảnh:** khi duyệt UPDATE/CORRECT không có `image_file_id`, Admin Review lấy `image_url` từ
+  current target trong `Published_Locations`, không tin browser. `published_image_file_id` được lấy
+  từ dòng staging đã APPROVED gần nhất cùng `record_id` nếu có; legacy record chỉ có URL public vẫn
+  được duyệt và giữ URL, nhưng STOP không thể revoke Drive file khi private history không có ID.
+- **Thay ảnh:** khi có ảnh mới, pipeline vẫn upload private, chỉ công khai trong APPROVE và ghi file ID
+  mới. Sharing của ảnh cũ sau replacement hiện **STILL_PUBLIC**; thu hồi ảnh cũ cần một failure model
+  reconciliation riêng nên được ghi follow-up, không mở rộng task này.
+- **Không đổi:** snapshot hash/authoritative refresh, unit ownership, CSRF/Origin, HMAC Gateway,
+  dual-workbook boundary, STOP và confirm semantics.
+
+## [2026-08-16] Ghi dòng dữ liệu vào Google Sheet luôn ở định dạng plain text
+
+- **Quyết định:** mọi ghi **dòng dữ liệu** vào các sheet location (`Location_Staging`,
+  `Published_Locations`, `Approval_Audit_Log`, `Idempotency_Ledger`) phải đi qua
+  `writeLocationValues_(range, values)` trong `setup/location-intake/Code.gs`, hàm này gọi
+  `range.setNumberFormat('@')` trước `range.setValues(values)`. Chỉ hàng **tiêu đề** được phép gọi
+  `setValues` trực tiếp.
+- **Lý do:** `Range.setValues()` để Google Sheets tự suy kiểu. Chuỗi toàn chữ số bị ép thành
+  number và **mất số 0 đứng đầu** — `"0210000049"` trở thành `210000049`. Live rehearsal ngày
+  2026-08-16 xác nhận lỗi này làm hỏng `public_phone` ở staging rồi lan sang
+  `Published_Locations.phone`, tức mọi số điện thoại Việt Nam hiển thị sai trên bản đồ công khai.
+  Mọi cột của các sheet này về bản chất đều là văn bản (record_id, số điện thoại, mốc thời gian
+  ISO, chuỗi toạ độ, JSON), nên plain text là kiểu đúng chứ không phải giải pháp chữa cháy.
+- **Đánh đổi:** không thể sắp xếp/tính toán các cột này như số ngay trong Sheet. Chấp nhận được —
+  đây là bảng lưu trữ vận hành, không phải bảng phân tích, và tính toàn vẹn dữ liệu quan trọng hơn.
+- **Ràng buộc bằng test:** `test/location-intake-build.test.js` khẳng định đúng 5 điểm ghi dữ liệu
+  dùng helper và mọi `setValues` trực tiếp còn lại chỉ ghi `[headers]`/`[missing]`. Test này sẽ đỏ
+  nếu ai đó thêm một đường ghi mới bỏ qua helper.
+- **Lưu ý dữ liệu cũ:** các ô đã bị ép kiểu từ trước **không** tự khỏi. Bản ghi cũ cần sửa lại thủ
+  công hoặc nộp lại; bản vá chỉ chặn hỏng mới.
+
+## [2026-08-15] Dual-workbook admin review — reconciliation model, reviewable states, conflict scope
+
+Stacked on PR #48 (`feat/staff-location-admin-review` from `feat/staff-location-portal-ui`), not
+merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the file map.
+
+- **Decision — do not call `applyApproval`/`applyReviewAction` directly for the admin engine.**
+  Both assume one atomic single-workbook pass: STOP's branch throws `TARGET_RECORD_ID_NOT_FOUND`
+  when the public row is already absent. That is correct for a genuine "target never existed"
+  mistake but wrong for a *retry* after a crash that already deleted the public row — exactly the
+  case dual-workbook reconciliation must recover from. `setup/location-admin-review.js` instead
+  calls the pure leaf functions directly (`buildPublishedRecord`, `sameUnitCode`, `buildAuditEntry`)
+  and does its own idempotent public upsert/remove, `request_id`+`action`-deduped audit append, and
+  status-if-changed staging write. This is reuse of the actual business rules (same field mapping,
+  same audit shape, same ownership check), not a parallel reimplementation of them.
+- **Decision — write order is staging status LAST.** For APPROVE-flavored transitions: public
+  write/skip → (non-stop only) Drive image share → audit append (dedup) → staging status flip.
+  For STOP: public remove/skip → audit append (dedup) → staging status flip → best-effort image
+  revoke. Because staging status is the very last write, a PENDING row that crashed mid-transition
+  is *still PENDING* on the next attempt — so the primary human action ("Duyệt yêu cầu đã chọn")
+  is naturally retry-safe without needing the separate reconcile path for the common crash windows
+  (F1/F3/F4 in the test matrix). A row that reached a terminal status is, by construction, fully
+  finalized — there is no dangling step 4.
+- **Decision — `APPROVAL_PUBLIC_CONFLICT` only applies to CREATE, not UPDATE/CORRECT.** The spec's
+  Case A/B/C framework ("public exists but content differs from expected → fail closed") is only
+  self-consistent for CREATE, where `target_record_id` is fresh/server-generated and nothing should
+  legitimately be there yet. For UPDATE/CORRECT the target *always* pre-exists (it's the approval's
+  own precondition, already checked as `TARGET_RECORD_ID_NOT_FOUND` otherwise) and its old content
+  is *expected* to differ from the new content — that difference is the entire point of approving
+  an update. Comparing old-vs-new content and failing closed on a mismatch would block every
+  legitimate update. UPDATE/CORRECT instead revalidates exactly what item 24 of the task spec scopes
+  for it — ownership (`sameUnitCode`) + target existence — and unconditionally upserts; content
+  equality is checked only to skip a redundant Sheet write on retry, never to fail. Confirmed by a
+  failing test before this fix: `buildStaging` with an unrelated `original` fixture — the ONLY
+  observed diff was the intentionally-changed `address` field, which a naive content-equality
+  conflict check flagged as `APPROVAL_PUBLIC_CONFLICT`.
+- **Decision — reviewable states are `{PENDING}` only; `NEED_VERIFICATION` and `BLOCKED` are not
+  further reviewable in this minimal tool.** The task spec explicitly asked not to guess this and
+  to decide after auditing existing semantics. `applyReviewAction` itself has no state-machine guard
+  (it would happily re-reject an already-rejected row), and there is no Staff Portal resubmission
+  flow that brings a `NEED_VERIFICATION`/`BLOCKED` row back to `PENDING` — reviewing either further
+  would be undefined business behavior. `{APPROVED, REJECTED, REVOKED}` show "Yêu cầu này đã được xử
+  lý."; `NEED_VERIFICATION`/`BLOCKED` fail closed with `REQUEST_NOT_REVIEWABLE`. Revisit when/if a
+  resubmission flow is designed.
+- **Decision — `reconcileRequest` (Đối soát) is a superset of `reviewRequest`, not a separate
+  business path.** For a `PENDING` row it runs the exact same approve-flavored transition as
+  clicking "Duyệt" (request_type alone determines create/update/correct vs stop, and request_type
+  never changes). For `APPROVED`/`REVOKED` rows it re-runs the same transition as a pure repair —
+  every step inside is dedup/idempotent, so it is safe to call on an already-fully-done row (only a
+  still-failing image share, if any, actually retries). For `REJECTED`/`NEED_VERIFICATION` it only
+  ensures the private audit entry exists (no public involvement ever). For `BLOCKED` it is a no-op
+  reporting nothing to reconcile.
+- **Decision — image ordering is asymmetric between APPROVE and STOP, matching the spec's own risk
+  framing.** APPROVE: public content (with a deterministic `drive.google.com/uc?...` URL) is written
+  *before* `DriveApp.setSharing`; a sharing failure aborts before any private mutation, so the row
+  stays exactly `PENDING` and a retry only needs to retry the sharing call — the primary risk being
+  guarded is an unapproved image becoming world-readable. STOP: the business transition (public
+  removal + `REVOKED` status) commits first; image-revoke is best-effort afterward and a failure does
+  not block or roll back the transition — the primary risk (stale/wrong public *data* staying live)
+  is worse than a still-shared image for a few more minutes, and revoke is separately retryable via
+  Đối soát.
+- **Decision — `sameUnitCode` added to `setup/apps-script.js`'s exports.** It already existed
+  internally and is used by `applyStagingRecord`/`applyApproval`'s own guards; the task spec names it
+  as one of the four functions to reuse. Purely additive (one new key in the returned object), no
+  behavior change to any existing caller.
+- **Decision — no new trigger.** `onOpen()` in the shared `setup/location-intake/Code.gs` gained a
+  second menu (`Bản đồ CA - Duyệt địa điểm`) rather than installing a new installable trigger — the
+  task spec explicitly forbids adding one. Each menu action asserts `SpreadsheetApp.getActiveSpreadsheet()`
+  equals the resolved private workbook before doing anything, so the menu is a safe no-op/clear-error
+  if this Apps Script project's container binding isn't the private workbook. `onLocationStagingEdit`
+  (legacy) also gained a defensive early-return if it ever fires on the private workbook's ID, since
+  its `writeLocationState_` unconditionally `clearContents()`s three sheets — a real corruption risk
+  if that trigger were ever accidentally re-installed there.
+- **Consequence:** No Admin Web UI, no new npm dependency, no Production workbook touched, no change
+  to Staff Portal (`/can-bo`) behavior, and `LOCATION_APPROVER_EMAILS` is a Script Property (never a
+  literal email in source).
+
 ## [2026-08-15] PR #48 Google Maps coordinate precedence: place entity beats viewport
 
 - **Evidence (live resolve 2026-08-15, 3 real short links):** every resolved final URL carried **two**
@@ -1490,4 +1602,20 @@
 - **Decision:** `normalizeLabel` không được dùng `value || ''` — boolean `false`/số `0` (Google Sheets lưu ô FALSE thành boolean false) bị nuốt thành '' làm `normalizeBoolean(false)` trả nhầm ACTIVE, đơn vị đã tắt vẫn hiện trong Form và vẫn qua `authorizeSubmission`. Form filter và authorization dùng chung `normalizeBoolean` để không lệch logic. Có regression test.
 - **Giới hạn vận hành (không sửa được bằng code):** Form sao chép từ mẫu có câu hỏi tải tệp bị mất liên kết thư mục upload → Google tự tắt nhận phản hồi, chủ Form phải mở editor bấm **Phục hồi**. `isAcceptingResponses()` vẫn trả `true` nên không tự phát hiện được. Buộc copy mẫu vì `FormApp` không tạo được câu hỏi tải tệp bằng code. Ghi ở `SETUP.md` bước 8 / `OPERATIONS.md`.
 - **Trạng thái:** Toàn bộ luồng đã smoke test end-to-end trên tài nguyên test (không production), **8/8 kịch bản đạt** (gồm một-đơn-vị-nhiều-địa-điểm và đơn-vị-active-false), đối chiếu quyền ảnh public/private bằng Drive API. Xem `06-ai-working-log.md` [2026-08-08].
+
+## [2026-08-16] GViz Published_Locations phải khai báo đúng một hàng tiêu đề
+
+- **Quyết định:** `lib/published-locations.js` luôn gửi `headers=1` trong truy vấn Google GViz.
+- **Lý do:** TEST `Published_Locations` có đúng 18 cột semantic, nhưng GViz tự suy đoán
+  `parsedNumHeaders=2` khi dòng dữ liệu đầu tiên chủ yếu là chuỗi. Khi đó nhãn trở thành dạng
+  `record_id TEST_RECORD_A`, làm guard public từ chối đúng cách với `GOOGLE_SHEET_SCHEMA_MISMATCH`.
+  Khai báo một hàng tiêu đề giữ nguyên schema và không nới validation.
+- **Phạm vi:** chỉ áp dụng public GViz reads; không đổi trust boundary, schema, cache hoặc
+  Production environment.
+
+## [2026-08-16] TEST Gateway phải đồng bộ bundle theo commit trước khi rehearsal
+
+- **Quyết định:** `setup/location-intake/dist/Code.gs` chỉ được build từ exact checked-out commit rồi mới cập nhật version của cùng TEST Web App deployment. Không tạo URL mới hoặc thay Vercel env cho một source sync.
+- **Lý do:** Source Node đã cho phép UPDATE không có ảnh nhưng Apps Script TEST version cũ vẫn áp dụng rule ảnh cho mọi request, tạo lỗi runtime `IMAGE_REQUIRED`. Parity test giữ helper CREATE-only trong source và bundle.
+- **Phạm vi:** chỉ TEST Gateway; giữ nguyên HMAC, allowlist, snapshot, image preservation và Production.
 

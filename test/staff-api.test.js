@@ -9,6 +9,7 @@ const { getPublishedLocations, resetPublishedLocationsCache } = require('../lib/
 const { MUTATION_TIMEOUT_MS, MUTATION_MAX_ATTEMPTS } = require('../lib/staff-gateway-client');
 
 const SECRET = 'synthetic-staff-session-secret-32-bytes';
+const VALID_IMAGE = { base64: Buffer.from('synthetic-image').toString('base64') };
 const ENV = {
     GOOGLE_CLIENT_ID: 'google-client-id.apps.googleusercontent.com',
     STAFF_SESSION_SECRET: SECRET,
@@ -115,7 +116,7 @@ test('verified display name flows into the signed session and /api/staff/session
     const create = response();
     await api.requests(request('POST', {
         operationId: 'op_identity', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
-        submitterName: 'Tên giả mạo do client tự gửi',
+        submitterName: 'Tên giả mạo do client tự gửi', image: VALID_IMAGE,
     }, baseHeaders), create);
     assert.equal(create.statusCode, 200);
     const submitCall = calls.find(call => call.action === 'submitRequest');
@@ -137,7 +138,7 @@ test('missing verified display name falls back to the client-submitted submitter
     const create = response();
     await api.requests(request('POST', {
         operationId: 'op_fallback_name', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
-        submitterName: 'Nhập tay vì không có tên xác thực',
+        submitterName: 'Nhập tay vì không có tên xác thực', image: VALID_IMAGE,
     }, baseHeaders), create);
     assert.equal(create.statusCode, 200);
     const submitCall = calls.find(call => call.action === 'submitRequest');
@@ -313,7 +314,7 @@ test('request endpoint ignores client identity and blocks stale/cross-unit/creat
     const create = response();
     await api.requests(request('POST', {
         operationId: 'op_create', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
-        email: 'victim@example.test', actor_email: 'victim@example.test', publicPhone: '0210',
+        email: 'victim@example.test', actor_email: 'victim@example.test', publicPhone: '0210', image: VALID_IMAGE,
     }, baseHeaders), create);
     assert.equal(create.statusCode, 200);
     const submitCall = calls.find(call => call.action === 'submitRequest');
@@ -437,6 +438,40 @@ test('staff image preflight rejects malformed and over-cap decoded payloads', ()
     assert.equal(validateStaffImage({ base64: tiny }).base64, tiny);
 });
 
+test('staff API requires an image only for create and omits an absent update/correct image', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const location = record();
+    const currentHash = snapshotHash(require('../lib/staff-location-contract').toPublicSnapshot(location));
+    const calls = [];
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async (action, payload) => {
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            calls.push(payload);
+            return { status: 'PENDING' };
+        },
+        getLocations: async () => ({ locations: [location] }),
+    });
+    const headers = { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` };
+
+    const create = response();
+    await api.requests(request('POST', { operationId: 'op_create_no_image', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A' }, headers), create);
+    assert.equal(create.statusCode, 400);
+    assert.equal(create.body.error.code, 'IMAGE_REQUIRED');
+
+    for (const [operationId, requestType] of [
+        ['op_update_no_image', 'Cập nhật địa điểm đang có'],
+        ['op_correct_no_image', 'Báo địa chỉ hoặc vị trí sai'],
+    ]) {
+        const res = response();
+        await api.requests(request('POST', { operationId, requestType, targetRecordId: 'R_A', snapshotHash: currentHash }, headers), res);
+        assert.equal(res.statusCode, 200);
+    }
+    assert.equal(calls.length, 2);
+    assert.equal('image' in calls[0], false);
+    assert.equal('image' in calls[1], false);
+});
+
 test('staff request boundary rejects non-text fields, oversized text and non-array services', () => {
     assert.throws(() => normalizeRequestBody({ locationName: { value: 'A' } }), /STAFF_REQUEST_INVALID/);
     assert.throws(() => normalizeRequestBody({ reviewNote: 'x'.repeat(2001) }), /STAFF_REQUEST_INVALID/);
@@ -499,6 +534,7 @@ test('resolveUnits keeps default Gateway timeout/attempts; submitRequest and wri
     const create = response();
     await api.requests(request('POST', {
         operationId: 'op_wiring_create', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
+        image: VALID_IMAGE,
     }, baseHeaders), create);
     assert.equal(create.statusCode, 200);
 

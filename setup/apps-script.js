@@ -350,6 +350,7 @@
             imageFileId: String(input.imageFileId || '').trim(),
             imageDriveUrl: String(input.imageDriveUrl || '').trim(),
             imagePublicUrl: String(input.imagePublicUrl || input.imageUrl || '').trim(),
+            publishedImageFileId: String(input.publishedImageFileId || '').trim(),
             imageMimeType: String(input.imageMimeType || '').toLowerCase(),
             cccdServiceMode: String(input.cccdServiceMode || 'UNKNOWN').trim().toUpperCase(),
             serviceSchedule: String(input.serviceSchedule || '').trim(),
@@ -394,6 +395,10 @@
         return requestType !== REQUEST_TYPES.create;
     }
 
+    function requiresNewImage(requestType) {
+        return requestType === REQUEST_TYPES.create;
+    }
+
     // So khớp chủ sở hữu bản ghi. Bỏ qua hoa thường/khoảng trắng để bản ghi legacy nhập tay không bị
     // chặn oan, nhưng KHÔNG dùng normalizeLabel: hàm đó gộp `_`/`-` và bỏ dấu, tức là nới lỏng theo
     // hướng MẤT an toàn (hai unit_code khác nhau có thể bị coi là một). Chuỗi rỗng không khớp với bất
@@ -433,7 +438,7 @@
         if (targetRecord && !sameUnitCode(targetRecord.unit_code, authorization.unitCode)) errors.push('TARGET_RECORD_UNIT_MISMATCH');
         if (submission.requestType !== REQUEST_TYPES.stop && ![COORDINATE_STATUSES.extracted, COORDINATE_STATUSES.manuallyConfirmed].includes(submission.coordinateStatus)) errors.push(`COORDINATE_${submission.coordinateStatus}`);
         if (submission.imageMimeType && !validateImageMimeType(submission.imageMimeType)) errors.push('IMAGE_MIME_NOT_ALLOWED');
-        if (!submission.imageFileId && submission.requestType !== REQUEST_TYPES.stop) errors.push('IMAGE_REQUIRED');
+        if (!submission.imageFileId && requiresNewImage(submission.requestType)) errors.push('IMAGE_REQUIRED');
         // CREATE luôn nhận id do pipeline sinh. `submission.recordId` hiện không có caller nào truyền
         // (Form dựng submission theo danh sách trường cố định và không có câu hỏi nào map sang recordId;
         // migration đi qua migrateLegacyLocations chứ không qua đây), nên giữ nó ở nhánh không-create
@@ -476,7 +481,7 @@
             warnings: warnings.join('|'),
             status: errors.length ? STATUSES.blocked : STATUSES.pending,
             review_action: '', review_note: submission.reviewNote, reviewed_by: '', reviewed_at: '',
-            submitted_at: submission.submittedAt, updated_at: isoNow, published_image_file_id: '',
+            submitted_at: submission.submittedAt, updated_at: isoNow, published_image_file_id: submission.publishedImageFileId,
         });
     }
 
@@ -536,6 +541,7 @@
         if (stageIndex < 0) throw new Error(`RECORD_NOT_FOUND:${requestOrRecordId}`);
         const previous = { ...stagingRecords[stageIndex] };
         if (previous.validation_errors) throw new Error(`RECORD_INVALID:${previous.request_id || previous.record_id}`);
+        if (requiresNewImage(previous.request_type) && !previous.image_file_id) throw new Error(`IMAGE_REQUIRED:${previous.request_id || previous.record_id}`);
         const targetId = previous.target_record_id || previous.record_id;
         const publishedIndex = publishedRecords.findIndex(record => record.record_id === targetId);
         if (requiresExistingTarget(previous.request_type) && publishedIndex < 0) throw new Error(`TARGET_RECORD_ID_NOT_FOUND:${targetId}`);
@@ -559,10 +565,22 @@
             auditEntries.push(buildAuditEntry('REVOKE', { timestamp: isoNow, recordId: targetId, requestId: staged.request_id, unitCode: staged.unit_code, actorEmail: reviewerEmail, submitterEmail: staged.submitter_email, previousStatus: previous.status, nextStatus: STATUSES.revoked, note, snapshot: { staging: staged, removed } }));
             return { stagingRecords, publishedRecords, auditEntries, revokedImageFileId: findPublishedImageFileId(stagingRecords, targetId), removedPublishedRecord: removed };
         }
-        const published = buildPublishedRecord(previous, isoNow);
+        const currentTarget = publishedRecords[publishedIndex] || null;
+        const hasNewImage = Boolean(previous.image_file_id);
+        const imagePublicUrl = hasNewImage
+            ? previous.image_public_url
+            : (currentTarget?.image_url || previous.image_public_url || '');
+        const publishedImageFileId = hasNewImage
+            ? previous.image_file_id
+            : (previous.published_image_file_id || findPublishedImageFileId(stagingRecords, targetId));
+        const published = buildPublishedRecord({ ...previous, image_public_url: imagePublicUrl }, isoNow);
         if (publishedIndex >= 0) publishedRecords[publishedIndex] = published;
         else publishedRecords.push(published);
-        const staged = { ...previous, record_id: targetId, status: STATUSES.approved, review_action: '', review_note: note, reviewed_by: reviewerEmail, reviewed_at: isoNow, updated_at: isoNow, published_image_file_id: previous.image_file_id };
+        const staged = {
+            ...previous, record_id: targetId, image_public_url: imagePublicUrl,
+            status: STATUSES.approved, review_action: '', review_note: note, reviewed_by: reviewerEmail,
+            reviewed_at: isoNow, updated_at: isoNow, published_image_file_id: publishedImageFileId,
+        };
         stagingRecords[stageIndex] = staged;
         auditEntries.push(buildAuditEntry('APPROVE', { timestamp: isoNow, recordId: targetId, requestId: staged.request_id, unitCode: staged.unit_code, actorEmail: reviewerEmail, submitterEmail: staged.submitter_email, previousStatus: previous.status, nextStatus: STATUSES.approved, note, snapshot: { staging: staged, published } }));
         return { stagingRecords, publishedRecords, auditEntries, revokedImageFileId: '' };
@@ -619,7 +637,7 @@
         normalizeLocationType, deriveLegacyType, isGoogleMapsUrl, parseCoordinates, classifyCoordinateStatus,
         COORDINATE_SOURCE_PRIORITY, extractCoordinateCandidates, selectBestCoordinate,
         validateImageMimeType, validateImageSubmission, buildAllowlistMap, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
-        buildRecordId, haversineMeters, detectDuplicateWarnings, buildStagingRecord, buildPublishedRecord,
+        buildRecordId, haversineMeters, detectDuplicateWarnings, sameUnitCode, requiresNewImage, buildStagingRecord, buildPublishedRecord,
         buildAuditEntry, applyApproval, applyReviewAction, applyRevocation, migrateLegacyLocations,
     };
 });

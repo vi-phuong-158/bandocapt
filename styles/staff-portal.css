@@ -178,12 +178,15 @@
 .staff-field select { width: 100%; min-height: var(--control-h); box-sizing: border-box; padding: var(--space-3); border: 1px solid var(--border-hairline); border-radius: var(--radius-md); background: var(--surface-muted); color: var(--text-body); font: inherit; }
 .staff-field textarea { min-height: 92px; resize: vertical; }
 .staff-field small { color: var(--text-muted); font-size: var(--text-xs); }
+.staff-image-note { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
+.staff-current-image { width: min(100%, calc(var(--space-8) * 8)); height: calc(var(--space-8) * 5); object-fit: cover; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); background: var(--surface-sunken); }
 .staff-checkbox-grid { display: grid; gap: var(--space-2); padding: var(--space-2) 0; }
 .staff-checkbox { display: flex; align-items: center; gap: var(--space-2); min-height: var(--hit-min); }
 .staff-checkbox input { width: var(--space-4); height: var(--space-4); accent-color: var(--color-primary); }
 .staff-modal-actions { justify-content: flex-end; padding-top: var(--space-2); }
 
-.staff-processing-panel { display: grid; gap: var(--space-2); margin-top: var(--space-3); padding: var(--space-4); border: 1px solid var(--blue-100); border-radius: var(--radius-lg); background: var(--blue-50); }
+.staff-processing-overlay { position: fixed; inset: 0; z-index: calc(var(--z-panel) + 1); display: grid; place-items: center; padding: var(--space-4); background: var(--scrim); }
+.staff-processing-panel { display: grid; width: min(100%, 480px); gap: var(--space-2); padding: var(--space-4); border: 1px solid var(--blue-100); border-radius: var(--radius-lg); background: var(--blue-50); box-shadow: var(--shadow-sheet); }
 .staff-processing-row { display: flex; align-items: center; gap: var(--space-3); }
 .staff-processing-message { margin: 0; color: var(--text-strong); font-size: var(--text-sm); font-weight: var(--weight-semibold); }
 .staff-processing-hint { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }

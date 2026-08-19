@@ -144,6 +144,11 @@
 
 ## Đã hoàn thành gần đây (bổ sung)
 
+- [2026-08-17] PR #49 follow-up — xác minh source/deployment skew ở TEST Gateway: source portal/Vercel và generated bundle đều chỉ bắt ảnh cho CREATE; TEST Apps Script source cũ không có helper request-type-aware. Đã sync exact bundle sang cùng TEST Web App deployment, version v7 → v8, URL giữ nguyên; thêm overlay fixed giữa viewport cho mutation và parity guard bundle. Còn lại user rehearsal UPDATE không ảnh. Production không thuộc phạm vi.
+- [2026-08-16] PR #49 — `/can-bo` gộp UPDATE/CORRECT thành Chỉnh sửa thông tin; ảnh chỉ bắt buộc
+  cho CREATE, còn UPDATE/CORRECT giữ ảnh cũ server-side và private file pointer khi có.
+- [2026-08-16] PR #49 Preview — đã nối Preview tới đúng TEST public workbook, xác nhận quyền anonymous
+  và sửa request GViz với `headers=1` để hàng dữ liệu đầu tiên không bị nhận nhầm là header; Production không đổi.
 - [2026-07-13] Khôi phục deeplink chatbot: nút đối chiếu thủ tục chờ lazy catalog/index sẵn sàng;
   `/api/chat` gửi `verifiedLocations` để client dựng link chỉ đường trụ sở tất định. Đã harden thêm resolve
   `procedure_id -> title/alias`, trạng thái thiếu catalog/toạ độ và test index bao phủ toàn bộ catalog.

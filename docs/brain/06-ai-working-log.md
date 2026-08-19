@@ -1,5 +1,74 @@
 # 06 — AI Working Log
 
+## [2026-08-16] PR #49 live rehearsal: mất số 0 đứng đầu của số điện thoại khi ghi Sheet
+- **Agent:** Claude Code
+- **Thay đổi:** Live rehearsal CREATE→APPROVE đầu tiên trên bộ TEST dual-workbook phát hiện một
+  lỗi dữ liệu thật mà toàn bộ 520 test cũ không bắt được (vì chúng dùng fake store, không đi qua
+  `SpreadsheetApp`). Gateway ghi `public_phone` là chuỗi `"0210000049"` (đúng, xác nhận trong
+  `snapshot_json` của dòng `FORM_SUBMIT`), nhưng `Range.setValues()` khiến Sheets **tự ép chuỗi
+  toàn chữ số về number** → ô `Location_Staging.public_phone` thành `210000049`. Admin review đọc
+  lại bằng `getValues()` nhận number và truyền tiếp sang `Published_Locations.phone`. Kết quả:
+  **mọi số điện thoại Việt Nam đều mất số 0 đứng đầu trên bản đồ công khai.** Đã đối chiếu 5 bản
+  ghi TEST, lỗi nhất quán 100% (`"04564563456"`→`4564563456`, `"0989089"`→`989089`,
+  `"098089967"`→`98089967`, kể cả `submitter_phone`). Vá tối thiểu: thêm helper
+  `writeLocationValues_(range, values)` gọi `range.setNumberFormat('@')` trước `setValues`, và
+  chuyển **cả 5 điểm ghi dòng dữ liệu** sang dùng nó (`gatewayAppend_`, `adminUpdateRow_`, ledger
+  update trong `gatewayLedgerStore_`, `replaceLocationSheet_`, `appendLocationObject_`). Ba điểm
+  ghi hàng tiêu đề giữ nguyên `setValues` trực tiếp. Không đổi engine
+  `setup/location-admin-review.js`, không đổi contract, không đổi schema, không đổi HMAC/idempotency.
+- **Bất biến mới (đừng phá):** mọi ghi **dòng dữ liệu** vào các sheet location phải đi qua
+  `writeLocationValues_`. Các cột này đều là văn bản (record_id, số điện thoại, mốc ISO, toạ độ,
+  JSON); để Sheets tự suy kiểu là làm hỏng dữ liệu.
+- **File đã sửa:** `setup/location-intake/Code.gs`, `test/location-intake-build.test.js`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+  (`setup/location-intake/dist/Code.gs` được sinh lại bằng `npm run build:location-intake`; file
+  này bị `.gitignore` chặn nên không nằm trong commit.)
+- **Lý do:** Lỗi đúng loại mà live rehearsal sinh ra để tìm — không tầng test nào có fake store
+  mô phỏng được hành vi ép kiểu của Google Sheets. Ảnh hưởng trực tiếp tới người dân tra cứu số
+  điện thoại trụ sở trên bản đồ công khai.
+- **Kiểm tra:** `npm test` **521/521 PASS** (520 cũ + 1 test mới trong `location-intake-build.test.js`
+  khẳng định `writeLocationValues_` tồn tại, đúng 5 điểm ghi dữ liệu dùng nó, và mọi `setValues`
+  trực tiếp còn lại chỉ ghi `[headers]`/`[missing]`); `npm run build` PASS; `npm audit --omit=dev
+  --audit-level=high` exit 0; `git diff --check` sạch. **CÒN LẠI:** cần một submit mới qua `/can-bo`
+  rồi Duyệt để chứng minh live rằng số 0 đứng đầu được giữ — bản ghi TEST cũ đã hỏng sẵn ở ô
+  staging nên duyệt lại nó không chứng minh được gì.
+
+## [2026-08-15] Dual-workbook admin review (Google Sheets menu), stacked on PR #48
+- **Agent:** Claude Code
+- **Thay đổi:** Triển khai admin approval tối giản bằng Google Sheets/Apps Script menu để chủ dự án
+  có thể duyệt request `PENDING` từ Staff Portal, thay vì Admin Web UI. `setup/location-admin-review.js`
+  (mới) là engine thuần theo cùng DI pattern với `setup/staff-gateway.js`, expose `reviewRequest`
+  (3 hành động thủ công: Duyệt/Từ chối/Yêu cầu xác minh thêm, yêu cầu `status===PENDING`) và
+  `reconcileRequest` (Đối soát, không có gate, tự suy action từ `status`/`request_type` hiện tại của
+  dòng). Không gọi thẳng `applyApproval`/`applyReviewAction` (chúng giả định một pass atomic
+  single-workbook, sẽ throw `TARGET_RECORD_ID_NOT_FOUND` khi retry STOP mà public đã bị xoá ở lần
+  trước) — thay vào đó tái sử dụng trực tiếp `buildPublishedRecord`/`sameUnitCode`/`buildAuditEntry`
+  và tự làm upsert/remove idempotent + audit dedup theo `request_id+action` + staging status chỉ ghi
+  khi thật sự đổi. Thứ tự ghi: public → (không phải stop) công khai ảnh Drive → audit → staging status
+  — nhờ staging status ghi SAU CÙNG, hành động chính ("Duyệt") tự retry-safe cho các crash window phổ
+  biến mà không cần gọi riêng "Đối soát". `APPROVAL_PUBLIC_CONFLICT` chỉ áp dụng cho CREATE (target
+  chưa từng tồn tại là tiền đề) — KHÔNG áp dụng cho UPDATE/CORRECT (nội dung cũ khác nội dung mới là
+  bản chất của việc cập nhật, không phải xung đột); phát hiện qua test thất bại trước khi sửa. Trạng
+  thái được phép duyệt tối giản là `{PENDING}`; `NEED_VERIFICATION`/`BLOCKED` không được duyệt tiếp
+  trong công cụ này (quyết định tường minh, không đoán — chưa có luồng resubmit đưa chúng về PENDING).
+  `setup/location-intake/Code.gs` thêm `adminPublicSpreadsheet_()`, `requireLocationApprover_()` (Script
+  Property `LOCATION_APPROVER_EMAILS`, fail closed), helper đọc/ghi đúng một dòng (không
+  `clearContents()` cả sheet), và menu thứ hai "Bản đồ CA - Duyệt địa điểm" gắn vào `onOpen()` hiện có
+  (không cài trigger mới); mỗi hành động tự kiểm tra active spreadsheet = private workbook.
+  `onLocationStagingEdit` (trigger legacy) thêm guard bỏ qua nếu vô tình chạy trên private workbook.
+- **File đã sửa:** `setup/location-admin-review.js` (mới), `setup/apps-script.js` (export thêm
+  `sameUnitCode`, không đổi hành vi), `setup/location-intake/Code.gs`,
+  `scripts/build-location-intake-apps-script.js`, `setup/location-intake/dist/Code.gs` (sinh lại),
+  `test/location-admin-review.test.js` (mới, 25 test: A1-A9/F1-F5+/S1-S8+), `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/location-intake/OPERATIONS.md`, `docs/location-intake/SECURITY.md`.
+- **Lý do:** Mở khoá live-test UPDATE/CORRECT/STOP/CONFIRM trên PR #48 — Staff Portal ghi được
+  `Location_Staging` nhưng chưa có cách nào duyệt sang `Published_Locations` trong kiến trúc
+  dual-workbook (legacy single-workbook approval không dùng được).
+- **Kiểm tra:** `npm test` 520/520 PASS (495 cũ + 25 mới); `npm run build:location-intake` PASS
+  (bundle include `LocationAdminReview`). Xem VERDICT cuối phiên cho `npm run build` đầy đủ,
+  `npm run test:e2e`, `npm audit`, `git diff --check`.
+
+
 ## [2026-08-15] PR #48 full acceptance audit of UPDATE/CORRECT/STOP/CONFIRM (test-only, no production fix)
 - **Agent:** Claude Code
 - **Thay đổi:** Audit toàn bộ 4 flow còn lại trước khi coi PR #48 "Ready for review". Đọc kỹ `js/staff-portal.js`, `js/staff-api-client.js`, `lib/staff-api.js`, `lib/staff-location-contract.js`, `lib/staff-gateway-client.js`, `setup/staff-gateway.js`, `setup/apps-script.js`, và toàn bộ test hiện có trước khi chạm code — không tìm thấy bug thật ở cả 3 lớp phòng thủ (Vercel `lib/staff-api.js` → Gateway `setup/staff-gateway.js` → pipeline `setup/apps-script.js`): unit isolation, stale-snapshot rejection, STOP/CONFIRM minimal fields, coordinate-retained-when-unchanged đều đã đúng theo code hiện tại. Chỉ 4 khoảng trống về TEST COVERAGE (không phải bug) được đóng lại bằng test mới, không sửa code sản phẩm nào: (1) chưa có test tại đúng lớp `lib/staff-api.js` (lớp đầu tiên chặn request trước khi chạm Gateway) chứng minh UPDATE/CORRECT/STOP/CONFIRM nhắm vào target thuộc MỘT ĐƠN VỊ KHÁC THẬT SỰ (khác với test stale-hash cùng đơn vị đã có) bị 403 `TARGET_RECORD_UNIT_MISMATCH` — test mới xác nhận và không gọi Gateway lần nào; (2) chưa có test chứng minh DOM của modal STOP/CONFIRM không hề render field image/mapsUrl/coordinates/services/address (trước đó chỉ suy luận gián tiếp từ việc submit thành công mà không cần điền); (3) chưa có test cho tình huống "CORRECT có toạ độ đã preload, cán bộ dán link Maps MỚI để báo đúng vị trí" — trước đó chỉ có test "không đổi thì giữ nguyên" (update) và "gõ từ rỗng" (create), thiếu đúng kịch bản §6 nhấn mạnh nhiều nhất; (4) chưa có test khẳng định STOP/CONFIRM không bao giờ gọi `/api/staff/maps/resolve` bằng bộ đếm request thật (trước đó chỉ đúng về mặt cấu trúc vì `mapsField()` không được gọi trong 2 mode này). Toàn bộ 4 test mới đều PASS ngay lần chạy đầu — xác nhận code hiện tại đã tuân thủ đúng, không phải fix ẩn giấu trong lúc viết test.
@@ -2999,3 +3068,96 @@
   so ID/schema toàn dataset không đủ để xác minh fidelity của cutover.
 - **Kiểm tra:** targeted location-workbooks/dual-workbook-dry-run/google-sheet/published-locations và
   full test/build/E2E/audit được chạy trước khi commit; không gọi hoặc sửa tài nguyên Google.
+
+## [2026-08-16] PR #49 Preview public source wiring và GViz header detection
+- **Agent:** Codex
+- **Thay đổi:** Xác minh Apps Script TEST đang ghi `TEST - Staff Gateway Public Workbook`; sửa
+  Preview-only `PUBLIC_LOCATION_SPREADSHEET_ID` và `GOOGLE_SHEET_ID` để cùng trỏ logical TEST
+  public source, redeploy Preview từ commit `78c02fe`, và xác minh workbook được anonymous GViz
+  đọc sau khi quyền chia sẻ được cập nhật. Raw GViz sau đó cho thấy `parsedNumHeaders=2`; thêm
+  `headers=1` vào public GViz request để giữ đúng một hàng semantic header.
+- **File đã sửa:** `lib/published-locations.js`, `test/published-locations.test.js`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`,
+  `docs/brain/06-ai-working-log.md`.
+- **Lý do:** `/api/google-sheet` fail closed vì GViz ghép dòng dữ liệu đầu tiên vào column labels,
+  không phải do hạ schema validation hay đổi public/private boundary.
+- **Kiểm tra:** targeted tests 27/27 PASS; live GViz với `headers=1` trả `parsedNumHeaders=1`,
+  18 semantic headers và 3 public rows; Production chưa đụng.
+
+## [2026-08-16] PR #49 — gộp chỉnh sửa Staff Portal và giữ ảnh cũ
+- **Agent:** Codex
+- **Thay đổi:** Bỏ UX CORRECT khỏi `/can-bo`, đổi action/modal thành `Chỉnh sửa thông tin` và chỉ gửi
+  UPDATE. CREATE tiếp tục bắt buộc ảnh ở UI, Vercel, Gateway và staging; UPDATE/CORRECT legacy nhận
+  request không có ảnh. Admin Review giữ `currentTarget.image_url` và private file ID đã APPROVED gần
+  nhất khi không có replacement, không gọi công khai ảnh trong case này; ảnh mới vẫn private tới APPROVE.
+- **File đã sửa:** `js/staff-portal.js`, `styles/staff-portal.css`,
+  `lib/staff-api.js`, `setup/staff-gateway.js`, `setup/apps-script.js`,
+  `setup/location-admin-review.js`, `setup/location-intake/Code.gs`, bundle generated và test/docs liên quan.
+- **Lý do:** Cán bộ không phải tải lại ảnh khi chỉ sửa metadata, đồng thời tránh UPDATE không ảnh ghi
+  đè `Published_Locations.image_url` thành rỗng hoặc làm mất khả năng STOP thu hồi ảnh khi history có ID.
+- **Kiểm tra:** targeted client/API/Gateway/pipeline/Admin Review 114/114 PASS; `npm test` 529/529 PASS;
+  `npm run build` PASS; Playwright E2E 47/47 PASS; `npm audit --omit=dev --audit-level=high` PASS
+  (9 moderate dependency advisories, không có high+). Preview được smoke-test sau khi push. Ảnh cũ sau
+  replacement chưa bị revoke trong task này; follow-up cần reconciliation-safe failure model.
+
+## [2026-08-16] PR #49 — TEST Gateway source parity và processing overlay
+- **Agent:** Codex
+- **Thay đổi:** Chuyển trạng thái mutation của `/can-bo` thành overlay fixed, nằm ngoài form và giữa viewport; overlay có live-region/busy semantics, chặn click xuyên, tự remove cùng timer ở mọi success/error path và tôn trọng reduced-motion. Bổ sung E2E cho CREATE/UPDATE, success/error cleanup, double submit, timer, mobile và reduced-motion; thêm build parity guard cho rule ảnh CREATE-only trong source Gateway/pipeline/bundle.
+- **File đã sửa:** `js/staff-portal.js`, `styles/staff-portal.css`, `test/staff-portal-client.test.js`, `test/e2e/staff-portal-modal.spec.js`, `test/location-intake-build.test.js`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Điều tra live xác nhận browser và Vercel source đã optional image cho UPDATE, còn source của TEST Apps Script v7 không có helper request-type-aware; overlay cũ ở cuối form không nhìn thấy khi form dài.
+- **Kiểm tra:** focused client/build tests 13/13 PASS; `npm test` 530/530 PASS; `npm run build` PASS; `npm run test:e2e` 49/49 PASS; `npm audit --omit=dev --audit-level=high` PASS (9 moderate transitive `uuid`, không có high); `git diff --check` PASS. Exact generated bundle đã được sync vào source TEST Apps Script và verified equal sau khi normalize line endings; Web App TEST cùng URL đã cập nhật v7 → v8. Live rehearsal UPDATE không ảnh còn chờ user; không thay logic preservation, quyền Drive, HMAC, Vercel environment hoặc Production.
+
+## [2026-08-17] PR #49 — live-acceptance evidence consolidation
+- **Agent:** Codex
+- **Thay đổi:** Tổng hợp evidence live do owner xác nhận: CREATE → APPROVE giữ số điện thoại có số 0 đầu và không duplicate; STOP → APPROVE gỡ đúng public record; UPDATE không chọn ảnh → APPROVE cập nhật metadata và giữ ảnh cũ; processing overlay luôn hiện giữa viewport. Đóng root cause `IMAGE_REQUIRED` là TEST Gateway bundle skew v7; v8 là cùng Web App TEST URL và source bundle đã được verify parity ở lần sync trước.
+- **File đã sửa:** `docs/brain/06-ai-working-log.md`; PR #49 body.
+- **Lý do:** Chuẩn bị final review bằng acceptance matrix trung thực, không gộp automated và live evidence.
+- **Kiểm tra:** HEAD `4d502e6` có GitHub CI và Vercel Preview xanh; baseline source hiện có `npm test` 530/530, build PASS, E2E 49/49, audit không có high/critical. REJECT, NEED_VERIFICATION, CONFIRM, UPDATE thay ảnh, và reconciliation partial-failure vẫn chưa có live evidence; reconciliation được giữ automated-only vì không inject failure nguy hiểm. `OLD_IMAGE_REPLACEMENT_REVOCATION_FOLLOWUP` còn mở: code chỉ best-effort revoke ảnh khi STOP, không thu hồi public sharing của ảnh cũ sau UPDATE có ảnh mới.
+
+## [2026-08-17] PR #49 — TEST rehearsal REJECT / NEED_VERIFICATION / CONFIRM
+- **Agent:** Codex
+- **Thay đổi:** Chạy live TEST trên exact HEAD `70a8a0b` bằng Preview và private workbook. REJECT đạt `PENDING → REJECTED`; CONFIRM tạo verification audit trên published record hiện hữu, không đi qua approval/public mutation. NEED_VERIFICATION submit trả lỗi chung và không tạo row trong `Location_Staging`; không retry để tránh duplicate.
+- **File đã sửa:** `docs/brain/06-ai-working-log.md`; PR #49 body.
+- **Lý do:** Ghi evidence trung thực cho ba hành vi review còn thiếu, giữ Production gate về lifecycle/revocation ảnh.
+- **Kiểm tra:** REJECT request `V_P_PR49_REHEARSAL_REJECT_20260817_20260817102337`, request ID `9ad4215abeb3ce833bc10f24057812aef7a66d81a69d6a25629952ecd572181f`, audit `REJECT` lúc `2026-08-17T10:30:25.493Z`, actor `anmphongandn@gmail.com`. CONFIRM record `V_P_PR49_REHEARSAL_CREATE_20260816_20260816001941`, verification audit lúc `2026-08-17T10:38:19.452Z`, action `CONFIRM`, actor `anmphongandn@gmail.com`; reload vẫn không publish. NEED_VERIFICATION không có request ID/staging row sau lỗi submit; case FAIL/BLOCKED. Không đổi code, không Production.
+
+## [2026-08-17] PR #49 — chẩn đoán lỗi submit fixture NEED_VERIFICATION
+- **Agent:** Claude Code (Opus 5)
+- **Thay đổi:** KHÔNG đổi code. Chỉ điều tra read-only nguyên nhân lần submit fixture NEED_VERIFICATION
+  thất bại lúc ~10:39–10:41 UTC ngày 2026-08-17, và ghi lại bằng chứng.
+- **File đã sửa:** `docs/brain/06-ai-working-log.md`; PR #49 body.
+- **Kết luận ngữ nghĩa (đã xác minh từ source):** NEED_VERIFICATION **không phải** một loại yêu cầu
+  gửi từ `/can-bo`. `lib/staff-api.js` chỉ nhận 4 `REQUEST_TYPES` tiếng Việt; chuỗi
+  `NEED_VERIFICATION` không xuất hiện trong bất kỳ file client/API nào. Nó là một **hành động review**
+  (`REVIEW_ACTIONS` trong `setup/location-admin-review.js`) chỉ áp dụng cho row đang `PENDING`
+  (`classifyForReview`), chuyển private-only sang `STATUSES.needVerification`, ghi audit
+  `NEED_VERIFICATION`, `publicTouched: false`. Vì vậy logic NEED_VERIFICATION **chưa từng được chạy**
+  trong lần rehearsal đó — hỏng xảy ra trước khi có fixture PENDING.
+- **Nguyên nhân hàng đầu — lớp Preview/Vercel, không phải defect ứng dụng:** project bật
+  `ssoProtection: all_except_custom_domains`, nên mọi Preview URL (kể cả branch alias) nằm sau Vercel
+  Authentication. Khi cookie `_vercel_jwt` của trình duyệt hết hạn/không có, edge của Vercel trả
+  **HTTP 401** kèm body JSON `{"error":{"code":"401","message":"Protected deployment"}}` **trước khi**
+  function chạy. `StaffApiClient.request` đọc `body.error.code` → ném `StaffApiError('401', 401)`;
+  `submitModal` chỉ kiểm tra `isRevoked` (không gọi `isSessionError`) và `errorMessage()` không có key
+  `'401'` → hiển thị đúng chuỗi đã quan sát **"Đã có lỗi xảy ra. Vui lòng thử lại."**. Vì function
+  không hề được gọi nên không có gateway call, không `Idempotency_Ledger`, không `Location_Staging`,
+  không audit, không public mutation — khớp 100% mọi quan sát.
+- **Bằng chứng:** `curl` trực tiếp branch alias không cookie trả đúng body 401 nói trên
+  (`/api/staff/requests` → 401 `Protected deployment`, `vercel_auth_enabled: true`); probe Node dựng
+  lại đúng body đó qua `js/staff-api-client.js` cho `error.code === "401"`, không có trong map của
+  `errorMessage()` → chuỗi generic. Runtime log Vercel của thời điểm hỏng đã hết hạn
+  (`/v3/events` chỉ còn build log, `vercel logs` chỉ stream log mới) nên không phục hồi được request gốc.
+- **Cách phân định dứt điểm (chưa chạy, cần quyền Google):** mở TEST private workbook →
+  `Idempotency_Ledger`. `submitRequest` gọi `ledgerClaim` **trước** mọi validation
+  (`setup/staff-gateway.js:264`), nên nếu request từng chạm Apps Script thì chắc chắn có row với
+  `state=FAILED`/`CLAIMED` và `last_error` là mã lỗi chính xác. **Không có row** trong khoảng
+  10:35–10:42 UTC 2026-08-17 ⇒ xác nhận hỏng ở lớp Vercel/edge, không phải Gateway/Apps Script.
+- **Rehearsal live NEED_VERIFICATION: CHƯA chạy trong phiên này.** Không có Chrome nào kết nối
+  (`list_connected_browsers` rỗng), browser in-app không có phiên Google, và tác nhân không được nhập
+  thông tin đăng nhập. Hành động review cũng nằm ở menu Apps Script trong workbook private, cần phiên
+  Google của người duyệt. Verdict giữ nguyên trạng thái BLOCKED, không nâng lên PASS.
+- **Kiểm tra:** GitHub CI trên đúng HEAD `23e9a6f` PASS (`test-build-audit: success`). `npm test` cục bộ
+  529/530; ca duy nhất fail là `chat-embed-config.test.js` với `EPERM` khi xóa thư mục `dist` — hạn chế
+  quyền của môi trường sandbox cục bộ, không tái hiện trên CI và không liên quan Staff Portal.
+  Không đụng Production, không đổi auth/CSRF/origin/HMAC/DTO/workbook boundary,
+  không rebase hay merge PR #48, `OLD_IMAGE_REPLACEMENT_REVOCATION_FOLLOWUP` giữ nguyên.

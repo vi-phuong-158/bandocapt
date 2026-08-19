@@ -19,6 +19,11 @@
 Map data path: `Google GViz -> api/google-sheet schema guard -> js/location-data normalize -> map`.
 Chat location data path: `Google GViz -> lib/published-locations schema/dataset guard -> cache -> api/chat`.
 
+The GViz request must include `headers=1`. Without this explicit parameter, Google can infer a
+second header row when the first public record is mostly text, folding that record's values into
+the semantic column labels and causing the fail-closed schema guard to return
+`GOOGLE_SHEET_SCHEMA_MISMATCH`.
+
 `GET /api/google-sheet` only returns HTTP 200 for a public `Published_Locations` schema containing semantic
 `name` and `coordinates` columns. It returns `502 GOOGLE_SHEET_SCHEMA_MISMATCH` for a source/config mismatch.
 
@@ -57,6 +62,36 @@ Chat location data path: `Google GViz -> lib/published-locations schema/dataset 
 - The legacy Form setup intentionally does not create gateway-only ledger/verification sheets in the
   compatibility workbook. No gateway deployment, Staff Portal UI/auth, Vercel staff API or Production
   migration is included.
+
+## Dual-workbook admin review (2026-08-15, stacked on PR #48)
+
+Minimal Google Sheets/Apps Script admin approval so the project owner can review `PENDING`
+requests from the Staff Portal without an Admin Web UI. Stacked on `feat/staff-location-portal-ui`
+because it needs PR #48's staging/Gateway contract; not merged into `main` yet.
+
+- `setup/location-admin-review.js` is the pure(-ish) engine — same DI shape as `setup/staff-gateway.js`
+  (`pipeline`, `workbookConfig`, `runtime`, `privateStore`, `publicStore`). It does not call
+  `SpreadsheetApp`/`DriveApp` itself. Two entry points: `reviewRequest()` (the three human menu
+  actions — Duyệt/Từ chối/Yêu cầu xác minh thêm — requires `status === PENDING`) and
+  `reconcileRequest()` (Đối soát — no status gate, derives the already-decided transition from the
+  row's own `status`/`request_type` and completes whatever step didn't finish).
+- Reuses `applyApproval`/`applyReviewAction`'s *shape* conceptually but does not call them directly:
+  they assume one atomic single-workbook pass and would throw `TARGET_RECORD_ID_NOT_FOUND` on a
+  STOP retry where the public row was already removed by a prior partial attempt. The admin engine
+  instead calls `pipeline.buildPublishedRecord`/`pipeline.sameUnitCode`/`pipeline.buildAuditEntry`
+  directly and does its own idempotent upsert/remove + dedup-by-`request_id`+`action` audit append +
+  status-if-changed staging write — see `docs/brain/03-decisions.md` for why.
+- `setup/location-intake/Code.gs` adds the GAS adapter: `adminPublicSpreadsheet_()` (new, mirrors
+  the existing `gatewayPrivateSpreadsheet_()`), `requireLocationApprover_()` (Script Property
+  `LOCATION_APPROVER_EMAILS` + `Session.getEffectiveUser().getEmail()`, fail closed), surgical
+  single-row read/update/delete helpers (`adminFindRowNumber_`/`adminUpdateRow_`), and a second
+  `SpreadsheetApp.getUi().createMenu('Bản đồ CA - Duyệt địa điểm')` appended inside the existing
+  `onOpen()`. Every menu action first asserts the active spreadsheet is the private workbook.
+  `onLocationStagingEdit` (legacy single-workbook trigger) gained a guard that no-ops if it ever
+  fires against `PRIVATE_LOCATION_SPREADSHEET_ID`, since `writeLocationState_`'s `clearContents()`
+  would corrupt the dual-workbook private sheets if that trigger were ever misinstalled there.
+- `scripts/build-location-intake-apps-script.js` bundles `setup/location-admin-review.js` into
+  `setup/location-intake/dist/Code.gs` alongside the existing pipeline/workbook-config/gateway files.
 
 ## Stack
 
@@ -314,6 +349,7 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 | `setup/apps-script.js` | Pipeline private allowlist/staging/audit -> public published approval. Phan quyen hai chieu: `authorizeSubmission` (unitName+email -> authorized?) va `resolveUnitsByEmail` (email -> units[], chua co caller runtime, prerequisite Staff Portal) | Google Apps Script, `test/location-pipeline.test.js` | SpreadsheetApp; `PRIVATE_LOCATION_SPREADSHEET_ID`, `PUBLIC_LOCATION_SPREADSHEET_ID` |
 | `scripts/dev-server.js` | Local static server delegates `/api/google-sheet` to the production handler; never fetches or returns raw GViz directly | Developer | `api/google-sheet.js`, public workbook resolver/schema guard |
 | `setup/staff-gateway.js` | Pure HMAC/freshness/action/idempotency/image/DTO gateway core for three private actions | `setup/location-intake/Code.gs`, Node security tests | `setup/apps-script.js`, `lib/location-workbooks.js` |
+| `setup/location-admin-review.js` | Pure(-ish) dual-workbook admin review/reconciliation engine: `reviewRequest` (gated, PENDING only) + `reconcileRequest` (ungated repair); idempotent public upsert/remove, dedup-by-request_id+action audit, image-share-before-finalize ordering | `setup/location-intake/Code.gs` menu handlers, `test/location-admin-review.test.js` | `setup/apps-script.js` (`buildPublishedRecord`/`sameUnitCode`/`buildAuditEntry`, not `applyApproval` directly — see 03-decisions.md) |
 | `scripts/preview-server.js` | Preview HTTP server dùng chung bởi Playwright global setup/teardown; tự đóng keep-alive connections | `test/e2e/global-setup.js`, `npm run preview` | Node `http` |
 | `scripts/run-regression.js` | Runner regression API that, loc theo ID (ca ID hoi thoai H16/H17); gui `evalDebug:true`, cham 30 ca va bao cao latency tong cung p50/p95 theo tung stage eval-only, provider/fallback. `--strict-gate` chan hard fail/provider error; `--majority`/`--runs N` tong hop hard fail da so va flaky advisory | CLI / agent | `api/chat.js`, `lib/regression-grader.js`, `lib/regression-metrics.js`, expectations/conversations va `test/results/` |
 | `scripts/repair-pinecone-temp-residence.js` | Script sua Pinecone `tthc_matt26265`: backup, re-embed, upsert UTF-8 sach, verify top-1 | CLI / agent | Pinecone, Gemini Embedding API, `.env`, `data/pinecone-backups/` |
@@ -612,7 +648,7 @@ Biến mới (2026-07-13):
 ## Location intake (2026-08-03)
 
 - `setup/apps-script.js` is the single UMD/IIFE source of location intake rules. It runs in Node tests and in the generated Apps Script bundle; no business-rule copy is maintained in `docs/Form`.
-- `scripts/build-location-intake-apps-script.js` concatenates the pure module with `setup/location-intake/Code.gs` into the generated deployable `setup/location-intake/dist/Code.gs`, and copies `setup/location-intake/appsscript.json` next to it so `dist/` is a complete clasp push root. The build refuses to emit a manifest missing the `webapp` block (`USER_DEPLOYING`/`ANYONE_ANONYMOUS`), because `clasp push` replaces the remote manifest wholesale and would otherwise delete the Staff Gateway Web App deployment that `STAFF_GATEWAY_URL` targets.
+- `scripts/build-location-intake-apps-script.js` concatenates the pure module with `setup/location-intake/Code.gs` into the generated deployable `setup/location-intake/dist/Code.gs`, and copies `setup/location-intake/appsscript.json` next to it so `dist/` is a complete clasp push root. The build refuses to emit a manifest missing the `webapp` block (`USER_DEPLOYING`/`ANYONE_ANONYMOUS`), because `clasp push` replaces the remote manifest wholesale and would otherwise delete the Staff Gateway Web App deployment that `STAFF_GATEWAY_URL` targets. Before updating a TEST deployment, rebuild this bundle from the checked-out commit; `test/location-intake-build.test.js` locks the request-type-aware image rule across `setup/apps-script.js`, `setup/staff-gateway.js`, and generated `Code.gs` so only CREATE remains image-required.
 - The thin Apps Script runtime owns only Google integrations: Form, Spreadsheet, Drive, Maps redirect fetch, Script Properties, installable triggers, LockService, menu and health check.
 - Intake flow is `Unit_Allowlist -> Location_Staging -> Published_Locations -> api/google-sheet.js -> js/location-data.js/app.js/chatbot`. A unit may own many `record_id`; all update/report/stop operations require and operate on `target_record_id`.
 - `Published_Locations` has a public allowlist schema. `api/google-sheet.js` filters the GViz table again before responding, so accidental internal columns cannot leak through the proxy.
@@ -681,6 +717,10 @@ Biến mới (2026-07-13):
   Vercel and Gateway therefore compute the same `snapshot_hash`; stale or cross-unit mutations fail closed.
 - **Operational limits:** Vercel staff responses are no-store and map Gateway failures to safe codes. Vercel
   rejects decoded images over 3 MiB; the private Gateway retains its independent 10 MiB decoded cap.
+- **Image semantics (2026-08-16):** CREATE requires a new image at the browser, Vercel, Gateway and
+  staging boundaries. UPDATE and legacy CORRECT accept no replacement image; Admin Review uses the
+  authoritative current public `image_url` and latest approved private file pointer instead of any
+  browser-supplied retained-image value. A replacement image remains private until APPROVE.
 - **Configuration/dependency:** server runtime requires `GOOGLE_CLIENT_ID`, `STAFF_SESSION_SECRET`,
   `STAFF_GATEWAY_URL`, `LOCATION_GATEWAY_SECRET`, and explicit `PUBLIC_LOCATION_SPREADSHEET_ID` (with the
   existing public resolver rules). `google-auth-library` is the only new runtime dependency. This PR adds

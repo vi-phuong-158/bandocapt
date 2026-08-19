@@ -32,6 +32,14 @@ test('request DTO builders enforce create/target/verification boundaries', () =>
     assert.deepEqual(verification, { operationId: verification.operationId, recordId: 'R1', snapshotHash: 'c'.repeat(64), eventType: 'CONFIRM', note: 'ok' });
 });
 
+test('target DTO omits an absent replacement image but keeps a selected image', () => {
+    const record = { record_id: 'R1', snapshotHash: 'd'.repeat(64) };
+    const withoutImage = client.buildTargetPayload({ locationName: 'A', image: undefined }, 'Cập nhật địa điểm đang có', record);
+    const withImage = client.buildTargetPayload({ locationName: 'A', image: { base64: 'aGVsbG8=' } }, 'Cập nhật địa điểm đang có', record);
+    assert.equal('image' in withoutImage, false);
+    assert.deepEqual(withImage.image, { base64: 'aGVsbG8=' });
+});
+
 test('portal renders API text with safe DOM APIs and does not decode or persist Google credentials', () => {
     assert.match(portalSource, /textContent/);
     assert.doesNotMatch(portalSource, /innerHTML|insertAdjacentHTML/);
@@ -46,16 +54,22 @@ test('image compression target stays below the Vercel 3 MiB decoded limit', () =
     assert.equal(image.ACCEPTED_TYPES.has('image/svg+xml'), false);
 });
 
-test('portal UI marks image, coordinates and services required for create/update/correct', () => {
-    assert.match(portalSource, /const requiresLocationFields = \['create', 'update', 'correct'\]\.includes\(modal\.mode\)/);
+test('portal unifies existing-location edits and only requires an image for create', () => {
+    assert.match(portalSource, /button\('Chỉnh sửa thông tin', 'staff-button', \(\) => openModal\('update', item\)\)/);
+    assert.doesNotMatch(portalSource, /button\('Báo địa chỉ\/vị trí sai'/);
+    assert.match(portalSource, /update: 'Chỉnh sửa thông tin'/);
+    assert.match(portalSource, /const requiresLocationFields = \['create', 'update'\]\.includes\(modal\.mode\)/);
+    assert.match(portalSource, /const requiresNewImage = modal\.mode === 'create'/);
     assert.match(portalSource, /servicesField\(form, source\.services, requiresLocationFields\)/);
     assert.match(portalSource, /Dịch vụ\$\{required \? ' \(bắt buộc\)' : ''\}/);
     assert.match(portalSource, /grid\.setAttribute\('aria-required', 'true'\)/);
     assert.doesNotMatch(portalSource, /input\.required = required &&/);
     assert.match(portalSource, /if \(requiresLocationFields && !values\.coordinates\) throw clientError\('COORDINATE_NEEDS_REVIEW'\)/);
-    assert.match(portalSource, /imageInput\.required = requiresLocationFields/);
-    assert.match(portalSource, /if \(requiresLocationFields && !file\) throw clientError\('IMAGE_REQUIRED'\)/);
-    assert.doesNotMatch(portalSource, /Ảnh địa điểm \(không bắt buộc\)/);
+    assert.match(portalSource, /imageInput\.required = requiresNewImage/);
+    assert.match(portalSource, /if \(state\.modal\.mode === 'create' && !file\) throw clientError\('IMAGE_REQUIRED'\)/);
+    assert.match(portalSource, /Thay ảnh địa điểm \(không bắt buộc\)/);
+    assert.match(portalSource, /Ảnh hiện tại sẽ được giữ nguyên/);
+    assert.match(portalSource, /staff-current-image/);
 });
 
 test('portal keeps service and image validation contracts', () => {
@@ -75,6 +89,11 @@ test('submit progress UX gives immediate feedback without fake percentages or pe
     assert.match(portalSource, /Đang chuẩn bị và gửi dữ liệu\.\.\./);
     assert.match(portalSource, /Hệ thống đang xử lý yêu cầu\.\.\./);
     assert.match(portalSource, /Yêu cầu vẫn đang được xử lý, vui lòng tiếp tục chờ\.\.\./);
+    assert.match(portalSource, /const overlay = el\('div', 'staff-processing-overlay'\)/);
+    assert.match(portalSource, /overlay\.setAttribute\('role', 'status'\)/);
+    assert.match(portalSource, /overlay\.setAttribute\('aria-live', 'polite'\)/);
+    assert.match(portalSource, /overlay\.setAttribute\('aria-busy', 'true'\)/);
+    assert.match(portalSource, /document\.body\.appendChild\(overlay\)/);
     // No fake/simulated progress percentage anywhere in the portal source.
     assert.doesNotMatch(portalSource, /\d+\s*%/);
     // No persisted loading state — only in-memory state, per the same rule already enforced for form values.
@@ -82,7 +101,7 @@ test('submit progress UX gives immediate feedback without fake percentages or pe
 });
 
 test('processing timer starts on submit and is stopped on every exit path (no orphan interval)', () => {
-    assert.match(portalSource, /function startProcessingTimer\(onTick\)/);
+    assert.match(portalSource, /function startProcessingTimer\(onTick, overlay\)/);
     assert.match(portalSource, /function stopProcessingTimer\(\)/);
     assert.match(portalSource, /clearInterval\(state\.processing\.intervalId\)/);
     assert.match(portalSource, /startProcessingTimer\(seconds => \{/);
@@ -92,9 +111,10 @@ test('processing timer starts on submit and is stopped on every exit path (no or
     assert.match(portalSource, /\} catch \(error\) \{\s*\n\s*stopProcessingTimer\(\);\s*\n\s*state\.busy = false;/);
 });
 
-test('processing panel is an accessible live region with a decorative, non-spammy spinner and timer', () => {
-    assert.match(portalSource, /panel\.setAttribute\('role', 'status'\)/);
-    assert.match(portalSource, /panel\.setAttribute\('aria-live', 'polite'\)/);
+test('processing overlay is an accessible live region with a decorative, non-spammy spinner and timer', () => {
+    assert.match(portalSource, /overlay\.setAttribute\('role', 'status'\)/);
+    assert.match(portalSource, /overlay\.setAttribute\('aria-live', 'polite'\)/);
+    assert.match(portalSource, /state\.processing\?\.overlay\?\.remove\(\)/);
     assert.match(portalSource, /spinner\.setAttribute\('aria-hidden', 'true'\)/);
     assert.match(portalSource, /elapsed\.setAttribute\('aria-hidden', 'true'\)/);
 });

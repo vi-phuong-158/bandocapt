@@ -64,6 +64,7 @@ test('published-location fetch resolves the explicit public workbook, never the 
     });
 
     assert.match(requestedUrl, /public-workbook/);
+    assert.match(requestedUrl, /(?:[?&])headers=1(?:&|$)/);
     assert.doesNotMatch(requestedUrl, /private-workbook/);
 });
 
