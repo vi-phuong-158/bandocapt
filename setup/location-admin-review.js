@@ -41,6 +41,25 @@
         return fileId ? `https://drive.google.com/uc?export=view&id=${encodeURIComponent(fileId)}` : '';
     }
 
+    // Published_Locations deliberately stores only the public URL. This extracts a Drive file ID
+    // solely inside the private review runtime so the old file can be revoked after a replacement.
+    // Unknown/non-Drive URLs intentionally produce no candidate: revoking an unproven file would
+    // be worse than leaving a legacy URL for a manual follow-up.
+    function driveFileIdFromUrl(value) {
+        const source = text(value);
+        if (!source) return '';
+        try {
+            const url = new URL(source);
+            const queryId = text(url.searchParams.get('id'));
+            if (queryId) return queryId;
+            const pathMatch = url.pathname.match(/\/d\/([^/?#]+)/);
+            return pathMatch ? decodeURIComponent(pathMatch[1]) : '';
+        } catch (_) {
+            const queryMatch = source.match(/[?&]id=([^&#]+)/);
+            return queryMatch ? decodeURIComponent(queryMatch[1]) : '';
+        }
+    }
+
     // Compares only the public-facing schema, never private staging columns. Timestamps are
     // excluded — same content re-approved later must not read as a conflict.
     function canonicalPublishedEqual(pipeline, a, b) {
@@ -76,6 +95,10 @@
             return (privateStore.getAuditRows() || []).some(row => text(row.request_id) === text(requestId) && text(row.action) === action);
         }
 
+        function findAuditEntry(requestId, action) {
+            return (privateStore.getAuditRows() || []).find(row => text(row.request_id) === text(requestId) && text(row.action) === action) || null;
+        }
+
         // Dedup by request_id + action: a retry after an audit-append crash (F3) must not create
         // a second logical entry for the same completed business mutation.
         function ensureAudit(action, payload) {
@@ -96,6 +119,87 @@
                     (text(candidate.record_id) === targetId || text(candidate.target_record_id) === targetId))
                 .sort((left, right) => String(right.reviewed_at || right.updated_at).localeCompare(String(left.reviewed_at || left.updated_at)))[0];
             return approved ? text(approved.published_image_file_id) || text(approved.image_file_id) : '';
+        }
+
+        function parseReplacementPlan(row) {
+            const entry = findAuditEntry(row.request_id, 'IMAGE_REPLACEMENT_PREPARED');
+            if (!entry) return null;
+            let snapshot;
+            try { snapshot = JSON.parse(text(entry.snapshot_json) || '{}'); }
+            catch (_) { throw coreError('IMAGE_REPLACEMENT_AUDIT_INVALID'); }
+            const plan = snapshot.imageReplacement;
+            if (!plan || text(plan.recordId) !== (text(row.target_record_id) || text(row.record_id)) ||
+                text(plan.newFileId) !== text(row.image_file_id)) throw coreError('IMAGE_REPLACEMENT_AUDIT_INVALID');
+            return {
+                oldFileId: text(plan.oldFileId),
+                newFileId: text(plan.newFileId),
+                revocationRequired: plan.revocationRequired === true,
+                skipReason: text(plan.skipReason),
+            };
+        }
+
+        function isReferencedByAnotherPublicRecord(fileId, targetId) {
+            if (!fileId) return false;
+            if (!publicStore.getAll) throw coreError('ADMIN_PUBLIC_STORE_NOT_CONFIGURED');
+            return (publicStore.getAll() || []).some(record => text(record.record_id) !== text(targetId) &&
+                driveFileIdFromUrl(record.image_url) === fileId);
+        }
+
+        // The private audit log is the durable reconciliation record for the pre-replacement
+        // pointer. It is written before public mutation; consequently a retry can still target A
+        // after Published_Locations already points to B, without adding a private identifier to
+        // the public schema or a new staging column.
+        function prepareReplacementPlan(row, currentTarget, targetId, actorEmail, note, isoNow) {
+            const existing = parseReplacementPlan(row);
+            if (existing) return existing;
+            const oldFileId = driveFileIdFromUrl(currentTarget?.image_url);
+            const sharedReference = oldFileId && isReferencedByAnotherPublicRecord(oldFileId, targetId);
+            const plan = {
+                recordId: targetId,
+                oldFileId,
+                newFileId: text(row.image_file_id),
+                revocationRequired: Boolean(oldFileId && oldFileId !== text(row.image_file_id) && !sharedReference),
+                skipReason: !oldFileId ? 'OLD_IMAGE_FILE_ID_UNAVAILABLE' :
+                    (oldFileId === text(row.image_file_id) ? 'SAME_FILE_ID' : (sharedReference ? 'SHARED_PUBLIC_REFERENCE' : '')),
+            };
+            ensureAudit('IMAGE_REPLACEMENT_PREPARED', {
+                timestamp: isoNow, recordId: targetId, requestId: row.request_id, unitCode: row.unit_code,
+                actorEmail, submitterEmail: row.submitter_email, previousStatus: row.status, nextStatus: row.status,
+                note, snapshot: { imageReplacement: plan },
+            });
+            return plan;
+        }
+
+        function finalizeReplacementRevocation(row, plan, targetId, actorEmail, note, isoNow, expected) {
+            if (!plan || !plan.revocationRequired || hasAuditEntry(row.request_id, 'IMAGE_REVOKE')) {
+                return { imageRevoked: false, imageRevokeError: '' };
+            }
+            const current = publicStore.findById(targetId);
+            if (!canonicalPublishedEqual(pipeline, current, expected)) {
+                return { imageRevoked: false, imageRevokeError: 'IMAGE_REVOKE_PUBLIC_STATE_UNVERIFIED' };
+            }
+            // Recheck immediately before revocation. A file referenced by another public location
+            // must never be made private by this request, even if a stale plan said otherwise.
+            if (isReferencedByAnotherPublicRecord(plan.oldFileId, targetId)) {
+                ensureAudit('IMAGE_REVOKE_SKIPPED_SHARED_REFERENCE', {
+                    timestamp: isoNow, recordId: targetId, requestId: row.request_id, unitCode: row.unit_code,
+                    actorEmail, submitterEmail: row.submitter_email, previousStatus: pipeline.STATUSES.approved,
+                    nextStatus: pipeline.STATUSES.approved, note, snapshot: { imageReplacement: plan },
+                });
+                return { imageRevoked: false, imageRevokeError: 'IMAGE_REVOKE_SHARED_REFERENCE' };
+            }
+            if (!runtime.revokeImagePublic) return { imageRevoked: false, imageRevokeError: 'IMAGE_REVOKE_RUNTIME_UNAVAILABLE' };
+            try {
+                runtime.revokeImagePublic(plan.oldFileId);
+                ensureAudit('IMAGE_REVOKE', {
+                    timestamp: isoNow, recordId: targetId, requestId: row.request_id, unitCode: row.unit_code,
+                    actorEmail, submitterEmail: row.submitter_email, previousStatus: pipeline.STATUSES.approved,
+                    nextStatus: pipeline.STATUSES.approved, note, snapshot: { imageReplacement: plan },
+                });
+                return { imageRevoked: true, imageRevokeError: '' };
+            } catch (error) {
+                return { imageRevoked: false, imageRevokeError: (error && error.code) || 'IMAGE_REVOKE_FAILED' };
+            }
         }
 
         // Only PENDING is reviewable through the three human actions. NEED_VERIFICATION and
@@ -144,6 +248,9 @@
                 ? text(row.image_file_id)
                 : text(row.published_image_file_id) || findPriorPublishedImageFileId(targetId);
             const expected = pipeline.buildPublishedRecord({ ...row, record_id: targetId, image_public_url: imageUrl }, isoNow);
+            const replacementPlan = hasNewImage && !isCreate
+                ? prepareReplacementPlan(row, currentTarget, targetId, actorEmail, note, isoNow)
+                : null;
 
             // CREATE: target_record_id is fresh/server-generated, so nothing should legitimately
             // exist there yet. If something does and it doesn't exactly match what THIS request
@@ -156,17 +263,18 @@
             if (isCreate && currentTarget && !canonicalPublishedEqual(pipeline, currentTarget, expected)) {
                 throw coreError('APPROVAL_PUBLIC_CONFLICT');
             }
-            const publicChanged = !currentTarget || !canonicalPublishedEqual(pipeline, currentTarget, expected);
-            if (publicChanged) publicStore.upsert(expected);
-
-            // Public record write (deterministic URL) always happens BEFORE Drive sharing, so a
-            // sharing failure never leaves an unapproved image world-readable. A sharing failure
-            // here aborts before any private mutation — the row stays exactly as it was so a
-            // retry (same menu action, or "Đối soát") only needs to retry the sharing call.
+            // New B must become public before Published_Locations points to it. The replacement
+            // plan above already makes A recoverable, while staging remains PENDING until every
+            // public-record transition has succeeded.
             if (hasNewImage) {
                 if (!runtime.setImagePublic) throw coreError('IMAGE_SHARING_RUNTIME_UNAVAILABLE');
                 try { runtime.setImagePublic(row.image_file_id); }
                 catch (error) { throw coreError('IMAGE_SHARING_FAILED', { recoverable: true }); }
+            }
+            const publicChanged = !currentTarget || !canonicalPublishedEqual(pipeline, currentTarget, expected);
+            if (publicChanged) publicStore.upsert(expected);
+            if (!canonicalPublishedEqual(pipeline, publicStore.findById(targetId), expected)) {
+                throw coreError('APPROVAL_PUBLIC_WRITE_UNVERIFIED', { recoverable: true });
             }
 
             const wroteAudit = ensureAudit('APPROVE', {
@@ -179,7 +287,11 @@
                 updated_at: isoNow, published_image_file_id: publishedImageFileId,
                 image_public_url: imageUrl,
             });
-            return { ok: true, requestId: row.request_id, recordId: targetId, status: pipeline.STATUSES.approved, publicTouched: publicChanged, wroteAudit, wroteStaging };
+            const revocation = finalizeReplacementRevocation(row, replacementPlan, targetId, actorEmail, note, isoNow, expected);
+            return {
+                ok: true, requestId: row.request_id, recordId: targetId, status: pipeline.STATUSES.approved,
+                publicTouched: publicChanged, wroteAudit, wroteStaging, ...revocation,
+            };
         }
 
         function finalizeStopApproval(row, actorEmail, note, at) {
@@ -278,6 +390,7 @@
         REVIEW_ACTIONS,
         isApprover,
         deterministicImageUrl,
+        driveFileIdFromUrl,
         canonicalPublishedEqual,
         createLocationAdminReview,
     };

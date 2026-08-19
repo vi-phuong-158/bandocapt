@@ -62,6 +62,7 @@ function makeStores({ staging = [], published = [], audit = [] } = {}) {
         },
     };
     const publicStore = {
+        getAll: () => state.published.map(row => ({ ...row })),
         findById: recordId => state.published.find(row => row.record_id === recordId) || null,
         upsert: record => {
             if (failures.upsert) { failures.upsert = false; throw new Error('simulated public write failure'); }
@@ -209,7 +210,7 @@ test('UPDATE without a replacement image keeps a legacy public URL even when pri
     assert.deepEqual(runtimeWrap.calls.setImagePublic, []);
 });
 
-test('UPDATE with a replacement image publishes and shares only the new image', () => {
+test('UPDATE with a replacement image publishes B, revokes A, and leaves a private audit trail', () => {
     const original = buildApprovedPublished({ requestId: 'REQ_REPLACE_ORIGINAL' });
     const edit = buildStaging({
         requestId: 'REQ_REPLACE_NEW', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: original.record_id,
@@ -217,10 +218,30 @@ test('UPDATE with a replacement image publishes and shares only the new image', 
     }, [original]);
     const stores = makeStores({ staging: [edit], published: [original] });
     const runtimeWrap = makeRuntime();
-    makeEngine(stores, runtimeWrap).reviewRequest({ requestId: edit.request_id, action: 'APPROVE', actorEmail: APPROVER });
+    const result = makeEngine(stores, runtimeWrap).reviewRequest({ requestId: edit.request_id, action: 'APPROVE', actorEmail: APPROVER });
     assert.equal(stores.state.published[0].image_url, deterministicImageUrl('file-new'));
     assert.equal(stores.state.staging[0].published_image_file_id, 'file-new');
     assert.deepEqual(runtimeWrap.calls.setImagePublic, ['file-new']);
+    assert.deepEqual(runtimeWrap.calls.revokeImagePublic, ['file-1']);
+    assert.equal(result.imageRevoked, true);
+    assert.deepEqual(stores.state.audit.map(row => row.action), ['IMAGE_REPLACEMENT_PREPARED', 'APPROVE', 'IMAGE_REVOKE']);
+});
+
+test('replacement shares B before the public record changes from A to B', () => {
+    const original = buildApprovedPublished({ requestId: 'REQ_ORDER_ORIGINAL' });
+    const edit = buildStaging({
+        requestId: 'REQ_ORDER_REPLACE', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: original.record_id,
+        imageFileId: 'file-b', imageMimeType: 'image/png', imagePublicUrl: '',
+    }, [original]);
+    const stores = makeStores({ staging: [edit], published: [original] });
+    const runtimeWrap = makeRuntime();
+    const order = [];
+    const share = runtimeWrap.runtime.setImagePublic;
+    const upsert = stores.publicStore.upsert;
+    runtimeWrap.runtime.setImagePublic = fileId => { order.push(`share:${fileId}`); return share(fileId); };
+    stores.publicStore.upsert = record => { order.push(`public:${record.image_url}`); return upsert(record); };
+    makeEngine(stores, runtimeWrap).reviewRequest({ requestId: edit.request_id, action: 'APPROVE', actorEmail: APPROVER });
+    assert.deepEqual(order.slice(0, 2), ['share:file-b', `public:${deterministicImageUrl('file-b')}`]);
 });
 
 test('A6 STOP approval removes public target, staging REVOKED, exactly one REVOKE audit', () => {
@@ -322,13 +343,50 @@ test('F4 image sharing failure blocks finalize; retry reuses the same file id an
     const runtimeWrap = makeRuntime({ failSetImagePublicOnce: true });
     const engine = makeEngine(stores, runtimeWrap);
     assert.throws(() => engine.reviewRequest({ requestId: staging.request_id, action: 'APPROVE', actorEmail: APPROVER }), /IMAGE_SHARING_FAILED/);
-    assert.equal(stores.state.published.length, 1);
+    assert.equal(stores.state.published.length, 0);
     assert.equal(stores.state.staging[0].status, pipeline.STATUSES.pending);
     assert.equal(stores.state.audit.length, 0);
     const result = engine.reviewRequest({ requestId: staging.request_id, action: 'APPROVE', actorEmail: APPROVER });
     assert.equal(result.status, pipeline.STATUSES.approved);
     assert.deepEqual(runtimeWrap.calls.setImagePublic, ['file-1', 'file-1']);
     assert.equal(stores.state.published.length, 1);
+});
+
+test('replacement revocation failure keeps B published, preserves A in private audit, and reconcile safely retries only A', () => {
+    const original = buildApprovedPublished({ requestId: 'REQ_REVOKE_ORIGINAL' });
+    const edit = buildStaging({
+        requestId: 'REQ_REVOKE_RETRY', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: original.record_id,
+        imageFileId: 'file-b', imageMimeType: 'image/png', imagePublicUrl: '',
+    }, [original]);
+    const stores = makeStores({ staging: [edit], published: [original] });
+    const runtimeWrap = makeRuntime({ failRevokeImagePublicOnce: true });
+    const engine = makeEngine(stores, runtimeWrap);
+    const first = engine.reviewRequest({ requestId: edit.request_id, action: 'APPROVE', actorEmail: APPROVER });
+    assert.equal(first.imageRevokeError, 'IMAGE_REVOKE_FAILED');
+    assert.equal(stores.state.published[0].image_url, deterministicImageUrl('file-b'));
+    assert.equal(stores.state.staging[0].status, pipeline.STATUSES.approved);
+    assert.deepEqual(runtimeWrap.calls.revokeImagePublic, ['file-1']);
+    const second = engine.reconcileRequest({ requestId: edit.request_id, actorEmail: APPROVER });
+    assert.equal(second.imageRevoked, true);
+    assert.deepEqual(runtimeWrap.calls.revokeImagePublic, ['file-1', 'file-1']);
+    assert.deepEqual(stores.state.audit.map(row => row.action), ['IMAGE_REPLACEMENT_PREPARED', 'APPROVE', 'IMAGE_REVOKE']);
+    assert.equal(stores.state.published[0].image_url, deterministicImageUrl('file-b'));
+});
+
+test('replacement never revokes a file still referenced by another public location', () => {
+    const original = buildApprovedPublished({ requestId: 'REQ_SHARED_ORIGINAL' });
+    const another = { ...buildApprovedPublished({ requestId: 'REQ_SHARED_ANOTHER', locationName: 'Trụ sở khác' }), record_id: 'LOC_SHARED', image_url: original.image_url };
+    const edit = buildStaging({
+        requestId: 'REQ_SHARED_REPLACE', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: original.record_id,
+        imageFileId: 'file-b', imageMimeType: 'image/png', imagePublicUrl: '',
+    }, [original, another]);
+    const stores = makeStores({ staging: [edit], published: [original, another] });
+    const runtimeWrap = makeRuntime();
+    const result = makeEngine(stores, runtimeWrap).reviewRequest({ requestId: edit.request_id, action: 'APPROVE', actorEmail: APPROVER });
+    assert.equal(result.imageRevoked, false);
+    assert.deepEqual(runtimeWrap.calls.revokeImagePublic, []);
+    assert.equal(stores.state.published.find(row => row.record_id === original.record_id).image_url, deterministicImageUrl('file-b'));
+    assert.equal(stores.state.published.find(row => row.record_id === another.record_id).image_url, deterministicImageUrl('file-1'));
 });
 
 test('F5 an already-approved request cannot be re-approved into a second public mutation', () => {
