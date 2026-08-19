@@ -48,7 +48,11 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    const relativePath = requestUrl.pathname === '/' ? 'index.html' : requestUrl.pathname.slice(1);
+    const relativePath = requestUrl.pathname === '/'
+        ? 'index.html'
+        : requestUrl.pathname === '/can-bo' || requestUrl.pathname === '/can-bo/'
+            ? 'can-bo/index.html'
+            : requestUrl.pathname.slice(1);
     const filePath = path.resolve(root, relativePath);
     if (!filePath.startsWith(root + path.sep) || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
         res.writeHead(404).end('Not found');

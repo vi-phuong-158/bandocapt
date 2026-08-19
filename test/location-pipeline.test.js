@@ -153,6 +153,72 @@ test('classifies Maps coordinate conditions without losing the original URL', ()
     assert.equal(pipeline.classifyCoordinateStatus({ coordinates: '21.32,105.36', manuallyConfirmed: true }).status, pipeline.COORDINATE_STATUSES.manuallyConfirmed);
 });
 
+// ---------------------------------------------------------------------------------------------
+// Precedence toạ độ trong URL Google Maps.
+//
+// Bug gốc: parser lấy pattern khớp ĐẦU TIÊN theo thứ tự mảng regex, mà `@lat,lng` đứng đầu. `@` là
+// tâm camera/khung nhìn, KHÔNG phải vị trí địa điểm. Khi resolve short link, Google điền `@` bằng
+// một khung nhìn mặc định theo khu vực — đo thực tế 2026-08-15 cho thấy BA short link tới ba địa
+// điểm khác nhau ở Việt Trì đều trả cùng `@21.3140333,105.4126319`, tức mọi trụ sở gửi qua Staff
+// Portal sẽ nhận CÙNG một điểm sai. Toạ độ thật của địa điểm nằm ở khối `!8m2!3d<lat>!4d<lng>`.
+// ---------------------------------------------------------------------------------------------
+
+test('R1: toạ độ place entity thắng toạ độ viewport khi URL có cả hai', () => {
+    const url = 'https://www.google.com/maps/place/X/@21.313747901679267,105.41112020322824,17z'
+        + '/data=!4m6!3m5!1s0x0:0x0!8m2!3d21.313428060472614!4d105.41124894925905';
+    assert.deepEqual(pipeline.parseCoordinates(url), {
+        ok: true, lat: 21.313428060472614, lng: 105.41124894925905, source: 'PLACE_ENTITY',
+    });
+});
+
+test('R1b: candidate extraction phơi bày đủ các nguồn, selection theo priority chứ không theo thứ tự regex', () => {
+    const url = 'https://www.google.com/maps/place/X/@21.30,105.40,17z/data=!8m2!3d21.31!4d105.41?q=21.32,105.42';
+    const candidates = pipeline.extractCoordinateCandidates(url);
+    const bySource = candidates.reduce((acc, c) => Object.assign(acc, { [c.source]: c }), {});
+    assert.deepEqual(bySource.PLACE_ENTITY, { source: 'PLACE_ENTITY', lat: 21.31, lng: 105.41 });
+    assert.deepEqual(bySource.QUERY, { source: 'QUERY', lat: 21.32, lng: 105.42 });
+    assert.deepEqual(bySource.VIEWPORT, { source: 'VIEWPORT', lat: 21.30, lng: 105.40 });
+    assert.equal(pipeline.selectBestCoordinate(candidates).source, 'PLACE_ENTITY');
+    // Priority là quy tắc nghiệp vụ tường minh, không phải thứ tự tình cờ của mảng regex.
+    assert.ok(pipeline.COORDINATE_SOURCE_PRIORITY.PLACE_ENTITY < pipeline.COORDINATE_SOURCE_PRIORITY.QUERY);
+    assert.ok(pipeline.COORDINATE_SOURCE_PRIORITY.QUERY < pipeline.COORDINATE_SOURCE_PRIORITY.VIEWPORT);
+    assert.ok(pipeline.COORDINATE_SOURCE_PRIORITY.VIEWPORT < pipeline.COORDINATE_SOURCE_PRIORITY.RAW);
+});
+
+test('R1c: nhiều cặp !3d!4d thì khối place chuẩn !8m2 thắng, kết quả tất định', () => {
+    const url = 'https://www.google.com/maps/search/x/data=!3d21.10!4d105.10!8m2!3d21.32!4d105.36';
+    assert.deepEqual(pipeline.parseCoordinates(url), { ok: true, lat: 21.32, lng: 105.36, source: 'PLACE_ENTITY' });
+});
+
+test('R5: URL chỉ có viewport vẫn parse được — `@` bị giảm priority, không bị loại bỏ', () => {
+    assert.deepEqual(pipeline.parseCoordinates('https://www.google.com/maps/@21.3,105.4,15z'),
+        { ok: true, lat: 21.3, lng: 105.4, source: 'VIEWPORT' });
+});
+
+test('R6: URL chỉ có query coordinate không hồi quy', () => {
+    for (const key of ['q', 'query', 'll', 'center']) {
+        assert.deepEqual(pipeline.parseCoordinates(`https://maps.google.com/?${key}=21.3,105.4`),
+            { ok: true, lat: 21.3, lng: 105.4, source: 'QUERY' });
+    }
+});
+
+test('R7: destination của link chỉ đường thắng viewport, và toạ độ nhập tay vẫn hoạt động', () => {
+    assert.deepEqual(
+        pipeline.parseCoordinates('https://www.google.com/maps/dir/@21.30,105.40,15z/?api=1&destination=21.32%2C105.36'),
+        { ok: true, lat: 21.32, lng: 105.36, source: 'QUERY' },
+    );
+    assert.deepEqual(pipeline.parseCoordinates('21.325, 105.365'), { ok: true, lat: 21.325, lng: 105.365, source: 'RAW' });
+});
+
+test('R8: ứng viên priority cao nằm ngoài Phú Thọ thì fail closed, KHÔNG tụt xuống viewport để lọt bounds', () => {
+    const url = 'https://www.google.com/maps/place/X/@21.32,105.36,17z/data=!8m2!3d10.762622!4d106.660172';
+    const parsed = pipeline.parseCoordinates(url);
+    assert.equal(parsed.ok, false);
+    assert.equal(parsed.error, 'COORDINATES_OUTSIDE_SERVICE_AREA');
+    assert.equal(parsed.lat, 10.762622, 'phải báo lỗi trên chính ứng viên đã chọn, không phải viewport');
+    assert.equal(pipeline.classifyCoordinateStatus({ mapsUrl: url }).status, pipeline.COORDINATE_STATUSES.outsidePhuTho);
+});
+
 test('coordinate classification không phụ thuộc global URL (Apps Script V8 không có URL)', () => {
     // Regression: bản cũ dùng `new URL()`; trong runtime GAS không có URL global nên mọi link
     // Maps bị coi là INVALID_LINK. Mô phỏng GAS bằng cách gỡ globalThis.URL rồi kiểm.

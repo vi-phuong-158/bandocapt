@@ -6,10 +6,11 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'dist');
-const ENTRY_HTML = new Set(['index.html', 'chat-embed.html']);
+const ENTRY_HTML = new Set(['index.html', 'chat-embed.html', 'can-bo/index.html']);
 const files = [
     'index.html',
     'chat-embed.html',
+    'can-bo/index.html',
     'app.js',
     'data.js',
     'data/tthc-catalog.json',
@@ -18,6 +19,7 @@ const files = [
     'tokens.css',
     'styles.css',
     'styles/chat-embed.css',
+    'styles/staff-portal.css',
     'assets/logo.png',
     'assets/icon-128.webp',
     'assets/icon-bottom.png',
@@ -31,6 +33,10 @@ const files = [
     'js/location-data.js',
     'js/project-info.js',
     'js/tthc-catalog.js',
+    'js/staff-api-client.js',
+    'js/staff-google-signin.js',
+    'js/staff-image.js',
+    'js/staff-portal.js',
 ];
 
 const TEXT_EXTENSIONS = new Set(['.css', '.html', '.js', '.json']);

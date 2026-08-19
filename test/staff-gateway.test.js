@@ -9,6 +9,8 @@ const createStaffGateway = require('../setup/staff-gateway');
 const SECRET = 'synthetic-gateway-secret';
 const NOW = 1_786_320_000_000;
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0x00, 0x01]).toString('base64');
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).toString('base64');
+const WEBP = Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50]).toString('base64');
 
 function sign(rawBody, timestamp = NOW, secret = SECRET) {
     return crypto.createHmac('sha256', secret).update(`${timestamp}.${rawBody}`).digest('hex');
@@ -210,6 +212,15 @@ test('image validation uses decoded magic bytes and authoritative size, ignoring
     });
     const large = rawRequest('submitRequest', 'REQ_LARGE_IMAGE', basePayload({ image: { base64: 'AAAA', mimeType: 'image/jpeg' } }));
     assert.throws(() => largeGateway.handleRawRequest(large.raw, large.metadata), /IMAGE_TOO_LARGE/);
+});
+
+test('image magic bytes accept JPEG, PNG and WebP, but reject a fake WebP marker', () => {
+    assert.equal(createStaffGateway.detectImageType(Buffer.from(JPEG, 'base64')), 'image/jpeg');
+    assert.equal(createStaffGateway.detectImageType(Buffer.from(PNG, 'base64')), 'image/png');
+    assert.equal(createStaffGateway.detectImageType(Buffer.from(WEBP, 'base64')), 'image/webp');
+    const fakeWebp = Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x4a, 0x55, 0x4e, 0x4b]);
+    assert.equal(createStaffGateway.detectImageType(fakeWebp), '');
+    assert.deepEqual(createStaffGateway.validateImageBase64({ base64: WEBP }), { ok: true, bytes: Buffer.from(WEBP, 'base64'), mimeType: 'image/webp', size: 12 });
 });
 
 test('Drive crash after create recovers deterministic file and does not duplicate staging or Drive side effects', () => {

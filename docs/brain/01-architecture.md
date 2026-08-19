@@ -116,6 +116,163 @@ bandocapt/
 `- package.json
 ```
 
+## Staff Portal browser UI (PR #48, 2026-08-11)
+
+- `/can-bo` is a static, mobile-first entry (`can-bo/index.html`). Its browser assets are split into
+  `js/staff-portal.js` (state machine and safe DOM rendering), `js/staff-api-client.js` (same-origin
+  Vercel DTO client), `js/staff-google-signin.js` (official GIS rendered button), `js/staff-image.js`
+  (device-side image compression), and `styles/staff-portal.css` (design-system tokens).
+- The browser boot sequence is `GET /api/staff/auth/csrf` then `GET /api/staff/session`. A valid session
+  loads `GET /api/staff/locations`; a 401 renders login and `STAFF_ACCESS_REVOKED` clears private UI.
+  The browser never reads the HttpOnly session cookie or decodes/stores the Google credential.
+- State-changing calls carry the CSRF token in JS memory. API request DTOs are built explicitly; create
+  omits target/hash, target mutations carry the displayed record/hash, verification carries only its
+  confirmation DTO, and operation IDs are stable for the same retry payload.
+- The static builder keeps `can-bo/index.html` unhashed while hashing every portal CSS/JS asset. Preview
+  routing maps both `/can-bo` and `/can-bo/` to that entry. Vercel excludes both paths from the generic
+  CSP and applies the narrow GIS CSP/COOP/no-store security headers.
+
+### PR #48 code graph
+
+```text
+can-bo/index.html
+  -> js/staff-portal.js
+      -> js/staff-api-client.js -> /api/staff/* -> lib/staff-api.js
+      -> js/staff-google-signin.js -> accounts.google.com/gsi/client
+      -> js/staff-image.js -> browser canvas/FileReader only
+  -> styles/staff-portal.css -> tokens.css
+scripts/build-static.js -> dist/can-bo/index.html + hashed portal assets
+vercel.json -> portal-specific CSP/COOP/no-store headers
+```
+
+## PR #48 staff contract remediation (2026-08-13)
+
+- `js/staff-portal.js` marks image, coordinates and services as required for `create`, `update` and
+  `correct`; `stop` keeps its intentional no-image/no-coordinate/no-services contract. Vietnamese field
+  and Gateway validation messages are mapped without exposing internal diagnostics.
+- `lib/staff-api.js` validates the recognized request text fields and `services` array at the Vercel
+  boundary, returning `STAFF_REQUEST_INVALID` with HTTP 400 before any Gateway call. The existing
+  server-derived email, authorized unit, target ownership and snapshot checks remain authoritative.
+- `lib/staff-gateway-client.js` and `lib/staff-api-errors.js` allowlist the Gateway's user-actionable
+  validation codes (`IMAGE_REQUIRED`, services/address/location/coordinate errors) while preserving
+  generic handling for unknown or infrastructure failures.
+- `setup/staff-gateway.js` classifies WebP with RIFF/WEBP byte signatures; JPEG, PNG and WebP remain
+  validated from decoded bytes rather than browser MIME or filename.
+
+### PR #48 remediation code graph
+
+```text
+js/staff-portal.js -> js/staff-api-client.js -> /api/staff/requests|verification
+  -> lib/staff-api.js (boundary text/array validation, server authority)
+  -> lib/staff-gateway-client.js (safe remote error mapping)
+  -> Apps Script Gateway -> setup/staff-gateway.js (byte validation)
+lib/staff-api-errors.js <- route adapters and browser error presentation
+```
+
+No route, deployment, workbook, migration, or public/private boundary change is included in this
+remediation. Production 404 classification remains an external Vercel deployment/configuration check.
+
+## PR #48 Gateway timeout policy (2026-08-14)
+
+Real incident evidence (Apps Script Executions log) showed an image-bearing `submitRequest` took
+26.633s end to end — `submitRequest`/`writeVerificationEvent` both hold Apps Script's project-wide
+`LockService.getScriptLock()` for the whole operation (Sheets reads/writes plus, for `submitRequest`,
+Drive image persist), which can legitimately exceed the old flat `DEFAULT_TIMEOUT_MS=8000`/`MAX_ATTEMPTS=2`
+used for every Gateway action. The caller aborted at 8s and returned a false `STAFF_GATEWAY_UNAVAILABLE`
+503 even though the Gateway went on to complete successfully (`Idempotency_Ledger` `COMPLETED`, one
+`Location_Staging` row, one Drive file) — the browser saw a failure for an operation that actually
+succeeded.
+
+- `lib/staff-gateway-client.js` `callGateway()` now accepts a per-call `options.maxAttempts` (alongside
+  the existing `options.timeoutMs`) instead of a single module-wide `MAX_ATTEMPTS`. New exported
+  constants `MUTATION_TIMEOUT_MS=40000`/`MUTATION_MAX_ATTEMPTS=1` are the policy for lock-holding
+  mutations; `DEFAULT_TIMEOUT_MS=8000`/`MAX_ATTEMPTS=2` remain the default for `resolveUnits` (observed
+  1.8-2.6s, unchanged, still retry-capable since it never takes the Script Lock).
+- `lib/staff-api.js` passes `timeoutMs: MUTATION_TIMEOUT_MS, maxAttempts: MUTATION_MAX_ATTEMPTS`
+  explicitly on the `submitRequest` and `writeVerificationEvent` `gatewayCall(...)` sites only; the
+  `resolveUnits` call site is untouched and keeps the client's defaults.
+- `vercel.json` raises `maxDuration` to 45s for `api/staff/requests.js` and `api/staff/verification.js`
+  (5s margin over `MUTATION_TIMEOUT_MS`) so the Vercel function itself isn't killed by the platform
+  before `callGateway`'s own internal timeout can fire; `api/chat.js` already proves 60s is accepted on
+  this account/plan.
+- Automatic retry for `submitRequest`/`writeVerificationEvent` is now `attempts=1` by design: a second
+  automatic attempt would arrive while the first is still holding the Script Lock and just queue behind
+  it, wasting the caller's own timeout budget without doing useful work. Manual user retry stays safe —
+  unchanged — via the Gateway's existing `request_id`/`body_hash` idempotency ledger (`GATEWAY.md`).
+- `js/staff-portal.js` `submitModal()`/`renderModal()`: on a retryable server/network error the modal no
+  longer rebuilds blank. Entered text/select/services values are kept in `state.modal.values` (in-memory
+  only, no `localStorage`/`sessionStorage`, `image` explicitly excluded) and restored on re-render, so a
+  false-503-looking failure doesn't read as "the Submit button did nothing." The image file input can
+  never be programmatically restored by a browser, so the user is always asked to re-select it, with an
+  inline hint when values were preserved.
+
+No change to HMAC signing, freshness window, request-id/body-hash derivation, or any Apps Script code
+(`setup/staff-gateway.js`, `Code.gs`) — this is caller-side timeout/attempts policy and UX only.
+
+### Follow-up: mutation timeout margin widened again (2026-08-15)
+
+A second live rehearsal produced a genuine `doPost` execution of 39.402s — the 40s value above left
+almost no margin and still false-503'd on the browser's first submit (user then retried on the
+UX-preserved form; the retry hit the now-`COMPLETED` idempotency ledger and returned in ~8.1s). Raised
+`MUTATION_TIMEOUT_MS` to `50000` (~10.6s margin over the observed 39.402s) and `vercel.json`
+`maxDuration` for `api/staff/requests.js`/`api/staff/verification.js` to `60` (matching `api/chat.js`'s
+already-proven-safe ceiling on this account). `MUTATION_MAX_ATTEMPTS` stays `1`; `resolveUnits` untouched.
+Same caveat as before: this is still evidence from individual observed durations, not a P50/P95
+distribution — revisit if real traffic shows a wider spread than ~40s.
+
+### PR #48 staff form simplification + Google Maps resolver (2026-08-15)
+
+Principle: identity and unit are authoritative server/session data (never re-typed by staff); Google
+Maps coordinates are derived automatically when possible, with manual entry as fallback only.
+
+- `lib/staff-auth.js`/`lib/staff-session.js`: verified Google `name` claim (already present under the
+  GIS button's default scope) is bounded and carried into the signed session alongside `sub`/`email`.
+  `lib/staff-api.js` returns it as `user.name` from both `google`/`session`, and overrides
+  `submitter_name` on `create`/`update`/`correct` from it — a client-submitted value is fallback-only.
+- `js/staff-portal.js` `renderModal()`: `create` mode shows the unit read-only (single authorized unit)
+  or as a `<select>` scoped to `state.units` (multiple) — never a free-text field; `update`/`correct`
+  never show a unit control at all, since the target record's own unit is already authoritative
+  (`findAuthorizedUnit(units, currentTarget.unitCode)`, unchanged). A `HEADQUARTERS` site type
+  auto-fills the location name from the unit's own `unitName` when the field is still empty.
+- New `lib/staff-maps-resolver.js` + `POST /api/staff/maps/resolve` (session + Origin + CSRF
+  protected): resolves a pasted Google Maps URL, including `maps.app.goo.gl` short links, to
+  `{ lat, lng }` server-side (browser has no CORS/direct path to Google's redirect chain). Reuses
+  `isGoogleMapsUrl`/`parseCoordinates` from `setup/apps-script.js` — both the initial URL and every
+  redirect hop are checked against that same host allowlist, `redirect: 'manual'` means the response
+  body is never read, and one shared `AbortController` bounds total wall time across the whole chain
+  regardless of hop count. See `docs/location-intake/STAFF_API.md` for the full contract.
+- `js/staff-portal.js`'s `mapsField()` replaces the old free-text `coordinates` input with this
+  resolver-driven UI (loading/success/error states + a hidden `coordinates` field the resolver
+  populates); manual coordinate entry remains available as an explicit fallback. This is UX only — the
+  Gateway's existing `classifyCoordinateStatus`/`parseCoordinates` (`setup/apps-script.js`, untouched)
+  remain the sole authoritative check at actual submit time, regardless of how `coordinates` got filled.
+- No Google Maps Platform API key, billing, geocoding or Places API was added — only the existing
+  Maps-URL coordinate-in-URL convention, resolved server-side instead of requiring the user to extract
+  it manually.
+
+### Coordinate precedence in a Maps URL (2026-08-15)
+
+A resolved Google Maps URL usually carries **more than one** coordinate pair, and they do not mean the
+same thing. `parseCoordinates` in `setup/apps-script.js` therefore splits
+`extractCoordinateCandidates()` (list every pair with its `source`) from `selectBestCoordinate()`
+(pick by the explicit `COORDINATE_SOURCE_PRIORITY` constant), so the rule is not the accidental order of
+a regex array:
+
+| Priority | Source | URL shape | Meaning |
+|----------|--------|-----------|---------|
+| 1 | `PLACE_ENTITY` | `!8m2!3d<lat>!4d<lng>`, else bare `!3d!4d` | the place the link points at |
+| 2 | `QUERY` | `?q=` `query=` `ll=` `destination=` `center=` | coordinate stated explicitly by the link author |
+| 3 | `VIEWPORT` | `@<lat>,<lng>` | map camera. **Not the place** — Google fills it with a regional default when resolving a short link, so different places can share one `@` value |
+| 4 | `RAW` | `lat,lng` | coordinates typed by staff |
+
+`@` is de-prioritised, never dropped: a `/maps/@lat,lng,15z` URL still resolves. Bounds validation is
+fail-closed on the **selected** candidate — a place entity outside Phú Thọ returns
+`COORDINATES_OUTSIDE_SERVICE_AREA` rather than falling back to a viewport that happens to be in bounds.
+Selection never considers distance between candidates. `parseCoordinates` returns an extra `source`
+field for tests/debug; `resolveMapsCoordinates` still returns exactly `{lat, lng}`, so the Staff API DTO
+is unchanged. `js/location-data.js` keeps a twin parser for the public map and follows the same
+precedence, so the frontend and the authoritative server/Gateway path cannot diverge.
+
 ## Code Graph
 
 | Module / file | Vai tro | Duoc goi boi | Phu thuoc vao |

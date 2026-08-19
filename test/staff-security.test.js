@@ -43,6 +43,7 @@ test('staff origins are exact and do not accept suffix tricks', () => {
 test('staff API error mapping never exposes arbitrary internal codes', () => {
     assert.equal(publicErrorCode({ code: 'PRIVATE_STACK_TRACE_OR_SECRET' }), 'STAFF_REQUEST_FAILED');
     assert.equal(publicErrorCode({ code: 'IMAGE_ENCODING_INVALID' }), 'IMAGE_ENCODING_INVALID');
+    assert.equal(publicErrorCode({ code: 'IMAGE_REQUIRED' }), 'IMAGE_REQUIRED');
     assert.equal(publicErrorCode({ code: 'UNKNOWN_GATEWAY_CODE' }), 'STAFF_REQUEST_FAILED');
     assert.equal(publicErrorCode({ code: 'STAFF_GATEWAY_UNAVAILABLE' }), 'STAFF_GATEWAY_UNAVAILABLE');
     assert.equal(publicErrorCode({ code: 'STAFF_GATEWAY_CONFIG_INVALID' }), 'STAFF_GATEWAY_CONFIG_INVALID');
@@ -50,4 +51,5 @@ test('staff API error mapping never exposes arbitrary internal codes', () => {
     assert.equal(statusForError('STAFF_GATEWAY_UNAVAILABLE'), 503);
     assert.equal(statusForError('STAFF_GATEWAY_CONFIG_INVALID'), 503);
     assert.equal(statusForError('STAFF_GATEWAY_INVALID_RESPONSE'), 502);
+    assert.equal(statusForError('IMAGE_REQUIRED'), 400);
 });

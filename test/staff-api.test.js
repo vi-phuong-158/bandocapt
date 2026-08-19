@@ -2,10 +2,11 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const test = require('node:test');
 
-const { createStaffApi, deriveGatewayRequestId, validateStaffImage } = require('../lib/staff-api');
+const { createStaffApi, deriveGatewayRequestId, validateStaffImage, normalizeRequestBody } = require('../lib/staff-api');
 const { snapshotHash } = require('../lib/staff-location-contract');
 const { createStaffSession } = require('../lib/staff-session');
 const { getPublishedLocations, resetPublishedLocationsCache } = require('../lib/published-locations');
+const { MUTATION_TIMEOUT_MS, MUTATION_MAX_ATTEMPTS } = require('../lib/staff-gateway-client');
 
 const SECRET = 'synthetic-staff-session-secret-32-bytes';
 const ENV = {
@@ -73,7 +74,7 @@ test('Google login verifies server claims, resolves allowlist and issues protect
         verifyToken: async (credential, audience) => {
             assert.equal(credential, 'synthetic-google-token');
             assert.equal(audience, ENV.GOOGLE_CLIENT_ID);
-            return { sub: 'google-sub-a', email: 'staff@example.test' };
+            return { sub: 'google-sub-a', email: 'staff@example.test', name: 'Cán Bộ A' };
         },
         gatewayCall: async (action, payload) => {
             calls.push({ action, payload });
@@ -88,10 +89,59 @@ test('Google login verifies server claims, resolves allowlist and issues protect
     await api.google(request('POST', { credential: 'synthetic-google-token' }, csrfHeaders('login-csrf')), loginResponse);
     assert.equal(loginResponse.statusCode, 200);
     assert.equal(loginResponse.body.ok, true);
-    assert.deepEqual(loginResponse.body.data.user, { email: 'staff@example.test' });
+    assert.deepEqual(loginResponse.body.data.user, { email: 'staff@example.test', name: 'Cán Bộ A' });
     assert.match(loginResponse.getHeader('Set-Cookie').join('\n'), /staff_session=.*HttpOnly/);
     assert.equal(calls[0].action, 'resolveUnits');
     assert.deepEqual(calls[0].payload, { email: 'staff@example.test' });
+});
+
+test('verified display name flows into the signed session and /api/staff/session, and overrides a client-submitted submitter name', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', name: 'Cán Bộ Xác Thực', now: Date.now() }, SECRET);
+    const calls = [];
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async (action, payload) => {
+            calls.push({ action, payload });
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            return { status: 'PENDING' };
+        },
+    });
+    const sessionRes = response();
+    await api.session(request('GET', null, { cookie: `staff_session=${encodeURIComponent(session)}` }), sessionRes);
+    assert.equal(sessionRes.statusCode, 200);
+    assert.deepEqual(sessionRes.body.data.user, { email: 'staff@example.test', name: 'Cán Bộ Xác Thực' });
+
+    const baseHeaders = { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` };
+    const create = response();
+    await api.requests(request('POST', {
+        operationId: 'op_identity', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
+        submitterName: 'Tên giả mạo do client tự gửi',
+    }, baseHeaders), create);
+    assert.equal(create.statusCode, 200);
+    const submitCall = calls.find(call => call.action === 'submitRequest');
+    assert.equal(submitCall.payload.submitter_name, 'Cán Bộ Xác Thực');
+});
+
+test('missing verified display name falls back to the client-submitted submitter name', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const calls = [];
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async (action, payload) => {
+            calls.push({ action, payload });
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            return { status: 'PENDING' };
+        },
+    });
+    const baseHeaders = { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` };
+    const create = response();
+    await api.requests(request('POST', {
+        operationId: 'op_fallback_name', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
+        submitterName: 'Nhập tay vì không có tên xác thực',
+    }, baseHeaders), create);
+    assert.equal(create.statusCode, 200);
+    const submitCall = calls.find(call => call.action === 'submitRequest');
+    assert.equal(submitCall.payload.submitter_name, 'Nhập tay vì không có tên xác thực');
 });
 
 test('login rejects client identity fields and exact Origin suffix tricks', async () => {
@@ -136,6 +186,28 @@ test('locations are filtered by current unit and snapshot hashes are determinist
     const item = res.body.data.locations[0];
     assert.equal(item.record.record_id, 'R_A');
     assert.equal(item.snapshotHash, snapshotHash(item.record));
+});
+
+test('the location list DTO never leaks private/internal fields even if the source object carries them', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const withPrivateFields = record({
+        submitter_email: 'someone.else@example.test', submitterEmail: 'someone.else@example.test',
+        image_file_id: 'drive-file-id-secret', imageDriveUrl: 'https://drive.google.com/private/secret',
+        review_note: 'ghi chú nội bộ', auth_status: 'AUTHORIZED', request_id: 'REQ_INTERNAL',
+        validation_errors: '', warnings: '',
+    });
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async () => ({ units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] }),
+        getLocations: async () => ({ locations: [withPrivateFields] }),
+    });
+    const res = response();
+    await api.locations(request('GET', null, { cookie: `staff_session=${encodeURIComponent(session)}` }), res);
+    assert.equal(res.statusCode, 200);
+    const fields = Object.keys(res.body.data.locations[0].record);
+    for (const leaked of ['submitter_email', 'submitterEmail', 'image_file_id', 'imageDriveUrl', 'review_note', 'auth_status', 'request_id', 'validation_errors', 'warnings']) {
+        assert.equal(fields.includes(leaked), false, `${leaked} must not reach the Staff API DTO`);
+    }
 });
 
 test('authoritative mutation bypasses fresh cache and never accepts stale fallback', async () => {
@@ -279,6 +351,83 @@ test('request endpoint ignores client identity and blocks stale/cross-unit/creat
     assert.equal(calls.filter(call => call.action === 'submitRequest').length, 3);
 });
 
+test('U3: a client-submitted unit_code outside the session\'s authorized units is rejected, not trusted', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    let submitCalls = 0;
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => {
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            submitCalls += 1;
+            return { status: 'PENDING' };
+        },
+    });
+    const res = response();
+    await api.requests(request('POST', {
+        operationId: 'op_wrong_unit', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_B_NOT_AUTHORIZED',
+    }, { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` }), res);
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.error.code, 'EMAIL_NOT_AUTHORIZED_FOR_UNIT');
+    assert.equal(submitCalls, 0, 'the Gateway must never be called with an unauthorized unit');
+});
+
+test('U4: an email with no authorized units cannot reach the mutation flow', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'nobody@example.test', now: Date.now() }, SECRET);
+    let submitCalls = 0;
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => {
+            if (action === 'resolveUnits') return { units: [] };
+            submitCalls += 1;
+            return { status: 'PENDING' };
+        },
+    });
+    const res = response();
+    await api.requests(request('POST', {
+        operationId: 'op_no_units', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
+    }, { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` }), res);
+    assert.equal(res.statusCode, 403);
+    assert.equal(res.body.error.code, 'STAFF_ACCESS_REVOKED');
+    assert.equal(submitCalls, 0);
+});
+
+test('U4/C4/S4/F4: update/correct/stop/confirm against a genuinely different unit\'s target fail closed at the Vercel layer, not just on the UI', async () => {
+    // Session is authorized ONLY for UNIT_A. The target record's authoritative unit is UNIT_B — a
+    // real cross-unit attempt, distinct from the existing stale-hash tests (same unit, old hash).
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const foreignRecord = record({ id: 'R_B', unitCode: 'UNIT_B', name: 'Điểm của đơn vị khác' });
+    const foreignHash = snapshotHash(require('../lib/staff-location-contract').toPublicSnapshot(foreignRecord));
+    let mutationCalls = 0;
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => {
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            mutationCalls += 1;
+            return { status: 'PENDING', eventType: 'CONFIRM' };
+        },
+        getLocations: async () => ({ locations: [foreignRecord] }),
+    });
+    const headers = { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` };
+
+    for (const [operationId, requestType] of [
+        ['op_cross_update', 'Cập nhật địa điểm đang có'],
+        ['op_cross_correct', 'Báo địa chỉ hoặc vị trí sai'],
+        ['op_cross_stop', 'Báo địa điểm ngừng hoạt động'],
+    ]) {
+        const res = response();
+        await api.requests(request('POST', { operationId, requestType, targetRecordId: 'R_B', snapshotHash: foreignHash }, headers), res);
+        assert.equal(res.statusCode, 403, `${requestType} must fail closed`);
+        assert.equal(res.body.error.code, 'TARGET_RECORD_UNIT_MISMATCH');
+    }
+
+    const confirmRes = response();
+    await api.verification(request('POST', { operationId: 'op_cross_confirm', recordId: 'R_B', snapshotHash: foreignHash, eventType: 'CONFIRM' }, headers), confirmRes);
+    assert.equal(confirmRes.statusCode, 403);
+    assert.equal(confirmRes.body.error.code, 'TARGET_RECORD_UNIT_MISMATCH');
+
+    assert.equal(mutationCalls, 0, 'the Gateway must never be called for a cross-unit target on any of the four flows');
+});
+
 test('staff image preflight rejects malformed and over-cap decoded payloads', () => {
     assert.equal(validateStaffImage(null), null);
     assert.throws(() => validateStaffImage({ base64: 'not-base64' }), /IMAGE_ENCODING_INVALID/);
@@ -286,4 +435,90 @@ test('staff image preflight rejects malformed and over-cap decoded payloads', ()
     assert.throws(() => validateStaffImage({ base64: oversized }), /STAFF_IMAGE_TOO_LARGE|IMAGE_ENCODING_INVALID/);
     const tiny = Buffer.from('synthetic').toString('base64');
     assert.equal(validateStaffImage({ base64: tiny }).base64, tiny);
+});
+
+test('staff request boundary rejects non-text fields, oversized text and non-array services', () => {
+    assert.throws(() => normalizeRequestBody({ locationName: { value: 'A' } }), /STAFF_REQUEST_INVALID/);
+    assert.throws(() => normalizeRequestBody({ reviewNote: 'x'.repeat(2001) }), /STAFF_REQUEST_INVALID/);
+    assert.throws(() => normalizeRequestBody({ services: 'POLICE_OFFICE' }), /STAFF_REQUEST_INVALID/);
+    assert.deepEqual(normalizeRequestBody({ locationName: '  Điểm A  ', services: [' POLICE_OFFICE ', ''] }), {
+        locationName: 'Điểm A', services: ['POLICE_OFFICE'],
+    });
+});
+
+test('malformed staff request returns a safe 400 before Apps Script submission', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    let submitCalls = 0;
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => {
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            submitCalls += 1;
+            return { status: 'PENDING' };
+        },
+    });
+    const res = response();
+    await api.requests(request('POST', { operationId: 'op_invalid', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A', locationName: { value: 'not text' } }, {
+        ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token`,
+    }), res);
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(res.body, { ok: false, error: { code: 'STAFF_REQUEST_INVALID' } });
+    assert.equal(submitCalls, 0);
+});
+
+test('public staff auth config exposes only the Google client id and fails closed when missing', async () => {
+    const configured = response();
+    await createStaffApi({ env: ENV }).config(request('GET', null), configured);
+    assert.equal(configured.statusCode, 200);
+    assert.deepEqual(configured.body, { ok: true, data: { googleClientId: ENV.GOOGLE_CLIENT_ID } });
+    assert.equal(configured.headers.get('Cache-Control'), 'no-store');
+
+    const missing = response();
+    await createStaffApi({ env: { ...ENV, GOOGLE_CLIENT_ID: '' } }).config(request('GET', null), missing);
+    assert.equal(missing.statusCode, 503);
+    assert.deepEqual(missing.body, { ok: false, error: { code: 'STAFF_AUTH_CONFIG_INVALID' } });
+    assert.equal(JSON.stringify(missing.body).includes('STAFF_SESSION_SECRET'), false);
+});
+
+test('resolveUnits keeps default Gateway timeout/attempts; submitRequest and writeVerificationEvent use the long mutation policy', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const location = record();
+    const calls = [];
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async (action, payload, options) => {
+            calls.push({ action, options });
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            if (action === 'submitRequest') return { status: 'PENDING' };
+            return { eventType: 'CONFIRM' };
+        },
+        getLocations: async () => ({ locations: [location] }),
+    });
+    const baseHeaders = { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` };
+
+    const create = response();
+    await api.requests(request('POST', {
+        operationId: 'op_wiring_create', requestType: 'Thêm địa điểm mới', unitCode: 'UNIT_A',
+    }, baseHeaders), create);
+    assert.equal(create.statusCode, 200);
+
+    const currentHash = snapshotHash(require('../lib/staff-location-contract').toPublicSnapshot(location));
+    const verify = response();
+    await api.verification(request('POST', { operationId: 'op_wiring_verify', recordId: 'R_A', snapshotHash: currentHash, eventType: 'CONFIRM' }, baseHeaders), verify);
+    assert.equal(verify.statusCode, 200);
+
+    const resolveUnitsCalls = calls.filter(call => call.action === 'resolveUnits');
+    assert.ok(resolveUnitsCalls.length >= 1);
+    resolveUnitsCalls.forEach(call => {
+        assert.equal(call.options.timeoutMs, undefined, 'resolveUnits must not opt into the long mutation timeout');
+        assert.equal(call.options.maxAttempts, undefined, 'resolveUnits must keep the default retry-capable attempt count');
+    });
+
+    const submitCall = calls.find(call => call.action === 'submitRequest');
+    assert.equal(submitCall.options.timeoutMs, MUTATION_TIMEOUT_MS);
+    assert.equal(submitCall.options.maxAttempts, MUTATION_MAX_ATTEMPTS);
+
+    const verifyCall = calls.find(call => call.action === 'writeVerificationEvent');
+    assert.equal(verifyCall.options.timeoutMs, MUTATION_TIMEOUT_MS);
+    assert.equal(verifyCall.options.maxAttempts, MUTATION_MAX_ATTEMPTS);
 });

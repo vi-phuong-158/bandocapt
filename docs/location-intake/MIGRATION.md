@@ -26,6 +26,26 @@ Use TEST exports for smoke exercises. No Production workbook or Production envir
 this command. Before any later alias promotion, run `npm run verify:published-locations` against the
 candidate deployment and require valid semantic columns and coordinates.
 
+## Cutover gate checklist — PR #48 preparation
+
+The following is a manual, owner-approved sequence. It is a checklist only; PR #48 does not execute it,
+change Production aliases, or write either workbook.
+
+- [ ] Verify the candidate Vercel deployment contains the intended PR #47/API and PR #48 portal commits;
+  check `/api/staff/auth/csrf` and both `/can-bo` paths before OAuth testing.
+- [ ] Confirm Vercel Root Directory, `npm run build`, `dist` output and absence of a legacy `builds`
+  override; keep Deployment Protection enabled and use the approved Preview access path.
+- [ ] Verify Preview-only environment values and exact allowed origin (`GOOGLE_CLIENT_ID`,
+  `STAFF_SESSION_SECRET`, `STAFF_GATEWAY_URL`, `LOCATION_GATEWAY_SECRET`, and public workbook config).
+  Keep private workbook IDs, Gateway secrets and allowlist data server-side.
+- [ ] Run `npm run verify:published-locations -- --base-url <candidate-url>` and require no blockers.
+- [ ] Run `npm run migrate:locations:dual:dry-run -- --source <source-export.json> --target <target-export.json>`
+  with TEST exports and require an empty `blockers` list; do not pass `--apply` or `--write`.
+- [ ] Complete OAuth/session, authorized-unit, cross-unit, stale-snapshot, submit and revoke smoke checks
+  on Preview; record evidence and rollback owner before any later alias promotion.
+- [ ] Obtain a separate approval for workbook reconciliation and Production alias promotion. No production
+  migration or cutover is part of PR #48.
+
 ```powershell
 # Xem báo cáo, không thay đổi nguồn
 npm run migrate:locations -- --input .\published-export.json

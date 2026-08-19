@@ -1,5 +1,153 @@
 # 03 — Technical Decisions
 
+## [2026-08-15] PR #48 Google Maps coordinate precedence: place entity beats viewport
+
+- **Evidence (live resolve 2026-08-15, 3 real short links):** every resolved final URL carried **two**
+  different coordinate pairs, and all three URLs — three *different* places in Việt Trì — shared the
+  identical viewport `@21.3140333,105.4126319`. Google fills `@` with a regional default camera when it
+  resolves a short link, so `@` is not the place at all. The place lives in the `data=` blob as
+  `!8m2!3d<lat>!4d<lng>`. Distance from the place to the operator's own reading: 74.6 m / 17.6 m / 26.7 m;
+  from the shared viewport: 158.3 m / 545.3 m / 294.8 m.
+- **Decision:** coordinate selection is by **semantic source**, with an explicit priority constant:
+  `PLACE_ENTITY (!3d!4d) > QUERY (q|query|ll|destination|center) > VIEWPORT (@) > RAW`. The old parser
+  took the first matching regex from an array whose first entry was `@`, which silently made *array
+  order* the business rule. Extraction (`extractCoordinateCandidates`) is now separate from selection
+  (`selectBestCoordinate`) so the rule is readable and testable.
+- **Decision:** `@` is de-prioritised, never dropped. A `/maps/@lat,lng,15z` URL has no better source and
+  must keep resolving (regression R5).
+- **Decision:** selection never uses distance between candidates. "The two points are close, pick either"
+  is not a rule — a trụ sở marker needs the entity coordinate, and proximity would silently accept the
+  camera whenever the camera happened to be near.
+- **Decision:** bounds validation stays fail-closed *on the selected candidate*. If the place entity falls
+  outside Phú Thọ, the result is `COORDINATES_OUTSIDE_SERVICE_AREA` — it does **not** fall back to a
+  lower-priority viewport just to pass bounds (regression R8).
+- **Decision:** when a URL carries several `!3d!4d` pairs (search/directions blobs), the canonical
+  `!8m2`-anchored block is preferred, then the first pair. Deterministic, no ambiguity fallback.
+- **Trade-off:** `parseCoordinates` now returns an extra `source` field. It is internal/debug only —
+  `resolveMapsCoordinates` still returns exactly `{lat, lng}`, so the Staff API DTO is unchanged and no
+  new field reaches a sheet. Callers read named fields, so the additive field is safe.
+- **Trade-off:** the operator's acceptance coordinates are manual readings that do not appear literally in
+  any URL (17–75 m from Google's own place centroid). Returning them exactly would require a fixture→
+  coordinate mapping, which is forbidden and would not generalise. The parser returns the place entity
+  coordinate; regression tests assert that exact value plus a 100 m acceptance envelope.
+- **Unchanged:** resolver security (HTTPS-only, Google host allowlist on the original URL *and* every hop,
+  `redirect:'manual'` so no body is read, `MAX_REDIRECTS=5`, one shared 6 s deadline), Phú Thọ bounds,
+  session/CSRF/Origin gate, Gateway HMAC and idempotency, and the paste→loading→✅ UX.
+
+## [2026-08-15] PR #48 staff form simplification: authoritative identity/unit, Maps URL resolver
+
+- **Decision:** Identity and unit are authoritative server/session data — the form never asks staff to
+  re-type their unit or name when the system already knows it. `create` shows unit read-only (one
+  authorized unit) or as a `<select>` scoped to `state.units` (multiple); `update`/`correct` never show
+  a unit control since the target record's own unit is already authoritative server-side (unchanged).
+  `submitter_name` is overridden server-side from the verified Google `name` claim when present.
+- **Decision:** Google Maps coordinates are derived automatically when possible. New
+  `lib/staff-maps-resolver.js` + `POST /api/staff/maps/resolve` follows Google Maps short-link
+  redirects (`maps.app.goo.gl` etc.) server-side and returns `{ lat, lng }`. Manual coordinate entry is
+  a fallback only, reached on resolver failure or by explicit user choice — never the default UI.
+- **Decision:** No new coordinate-parsing implementation. The resolver reuses the existing
+  `isGoogleMapsUrl`/`parseCoordinates` from `setup/apps-script.js` via `require()` rather than
+  duplicating regex patterns; the Gateway's `classifyCoordinateStatus` (unchanged) stays the sole
+  authoritative validator at actual submit time — the resolver is UX only.
+- **Decision (SSRF):** The resolver is not a generic URL fetch proxy. Both the initial URL and every
+  redirect hop must pass `isGoogleMapsUrl` (HTTPS + Google-owned host allowlist) before being followed;
+  a redirect to any other host is rejected before the fetch happens. `redirect: 'manual'` means the
+  response body is never read (only the `Location` header on 3xx). One shared `AbortController` bounds
+  total wall time (6s default) across however many hops occur; `MAX_REDIRECTS=5` bounds hop count
+  independently. All failure modes collapse to a small, already-existing error vocabulary
+  (`COORDINATE_INVALID_LINK`/`COORDINATE_NEEDS_REVIEW`/`COORDINATE_OUTSIDE_PHU_THO`, plus one new
+  `MAPS_RESOLVE_UNAVAILABLE` for transport-level failures) rather than inventing a parallel taxonomy.
+- **Decision:** No `Staff_Allowlist` or other new identity store — verified Google identity plus the
+  existing `Unit_Allowlist`-backed `resolveUnits` was already sufficient; adding a database would have
+  been unjustified scope for what a session field addition already solves.
+- **Rejected:** Making the visible `mapsUrl` input HTML5 `required` — an existing record can have valid
+  preloaded `coordinates` with an empty stored `google_maps_url` (e.g. legacy data), and blocking native
+  submission in that case would force a pointless re-paste. The actual requirement (coordinates present)
+  is checked explicitly in `submitModal()` instead, uniformly regardless of how they were obtained.
+- **Consequence:** No auth model change, no new Google Maps Platform API key/billing, no reverse
+  geocoding, no Apps Script/Gateway code touched. `docs/location-intake/STAFF_API.md` and `SECURITY.md`
+  document the new route and its SSRF posture.
+
+## [2026-08-15] PR #48 Gateway mutation timeout widened again: 40s margin was still too tight
+
+- **Decision:** `MUTATION_TIMEOUT_MS` raised from `40000` to `50000`; `vercel.json` `maxDuration` for
+  `api/staff/requests.js`/`api/staff/verification.js` raised from `45` to `60`. `MUTATION_MAX_ATTEMPTS`
+  stays `1`; `resolveUnits` (`DEFAULT_TIMEOUT_MS=8000`/`MAX_ATTEMPTS=2`) is untouched.
+- **Evidence:** A second live rehearsal recorded a genuine `doPost` execution of 39.402s (`Idempotency_Ledger`
+  `COMPLETED`, exactly one `Location_Staging` row, one Drive file, no duplicates) — the browser's first
+  submit still received a false `STAFF_GATEWAY_UNAVAILABLE` 503 under the prior 40s timeout, since the
+  margin (40s vs 39.402s) was effectively zero. The user's manual retry landed on the already-`COMPLETED`
+  ledger entry and returned in ~8.1s, confirming the 2026-08-14 UX preservation fix and idempotency both
+  worked exactly as designed even while the timeout itself was still miscalibrated.
+- **Margin:** 50s gives ~10.6s over the observed 39.402s; 60s Vercel `maxDuration` gives ~10s of platform
+  ceiling above that internal timeout, matching `api/chat.js`'s already-proven-safe value on this
+  account/plan. Still evidence from individual observed durations (26.633s, then 39.402s), not a
+  P50/P95 distribution — if a third false-503 surfaces, the right fix is investigating and reducing the
+  actual Apps Script critical-path latency (Script Lock scope, Sheets/Drive call count), not raising the
+  timeout a third time.
+- **Rejected:** Raising `MUTATION_TIMEOUT_MS` all the way to match the 60s Vercel `maxDuration` — kept a
+  deliberate gap so the caller's own abort fires and returns a clean, classified `STAFF_GATEWAY_UNAVAILABLE`
+  before the Vercel platform would otherwise kill the function outright.
+- **Consequence:** Same scope boundary as the prior entry — no Apps Script, HMAC, freshness, or
+  idempotency change. This is the second timeout-margin correction; if actual execution duration keeps
+  growing, that points at real Apps Script performance work as the next task, not a third timeout bump.
+
+## [2026-08-14] PR #48 Gateway timeout per action, not one global constant
+
+- **Decision:** `lib/staff-gateway-client.js`'s `callGateway()` takes a per-call `maxAttempts` option
+  (in addition to the existing `timeoutMs`) instead of one module-wide `MAX_ATTEMPTS`/`DEFAULT_TIMEOUT_MS`
+  applied to every action. `resolveUnits` keeps the original `DEFAULT_TIMEOUT_MS=8000`/`MAX_ATTEMPTS=2`
+  (never takes the Script Lock, observed 1.8-2.6s — unchanged). `submitRequest`/`writeVerificationEvent`
+  use new `MUTATION_TIMEOUT_MS=40000`/`MUTATION_MAX_ATTEMPTS=1`, wired explicitly from their `lib/staff-api.js`
+  call sites.
+- **Evidence:** Real production incident — Apps Script Executions log showed an image-bearing
+  `submitRequest` (`doPost`) took 26.633s; `Idempotency_Ledger` reached `COMPLETED`, exactly one
+  `Location_Staging` row and one Drive file were created, but the browser had already received a false
+  `STAFF_GATEWAY_UNAVAILABLE` 503 at the old 8s timeout. Margin: 40s gives ~13.4s (~50%) over the single
+  observed duration; not a distribution (P50/P95) yet, so this should be revisited if real traffic shows
+  a wider spread.
+- **Decision:** `submitRequest`/`writeVerificationEvent` get `maxAttempts=1` (no automatic HTTP retry),
+  because both hold Apps Script's project-wide `LockService.getScriptLock()` for the whole operation — an
+  automatic second attempt would arrive while the first is still holding the lock and just queue behind
+  it, burning the caller's timeout budget on a wait that does nothing. `resolveUnits` keeps its 2-attempt
+  retry since it never contends for the lock and is cheap to repeat.
+- **Decision:** Manual user retry is intentionally left exactly as safe as before — `request_id`/`body_hash`
+  Gateway-side idempotency ([GATEWAY.md](../location-intake/GATEWAY.md)) is unchanged, still the single
+  source of truth for "same operation, don't duplicate." No idempotency/HMAC/freshness code touched.
+- **Decision:** `vercel.json` `maxDuration` raised to 45s for `api/staff/requests.js` and
+  `api/staff/verification.js` only (5s margin over `MUTATION_TIMEOUT_MS`) — `resolveUnits`-only routes
+  (`session.js`, `locations.js`, `auth/google.js`) are untouched and keep failing fast. 45s stays well
+  under the 60s already proven safe for `api/chat.js` on this account/plan.
+- **Decision:** UX — `js/staff-portal.js` preserves entered text/select/services values in memory
+  (`state.modal.values`) across a retryable server error, explicitly dropping the `image` field; the
+  image must always be re-selected (browsers cannot programmatically restore a `File` into an
+  `<input type=file>`). No `localStorage`/`sessionStorage` used.
+- **Rejected:** Blanket-raising `DEFAULT_TIMEOUT_MS` to a large value for every action — would have made
+  `resolveUnits` (called on every protected request, including page loads) needlessly slow to fail during
+  a real outage. Rejected making `getOperationalRecords()` conditional/lazy for `create` as a latency
+  optimization in a prior investigation pass — it also feeds `detectDuplicateWarnings()` for `create`,
+  so skipping it would have silently disabled duplicate-location detection; out of scope for this fix
+  (see BƯỚC 14 in the incident task: no Apps Script/Script Lock/Drive redesign in this change).
+- **Consequence:** This closes the specific false-503 failure mode without touching Apps Script code,
+  HMAC, freshness, or idempotency. Actual Apps Script execution latency (Script Lock contention, full
+  Sheets scans, Drive API round trips) is unchanged and still the real cost driver — a follow-up
+  performance task, not this one.
+
+## [2026-08-13] PR #48 staff request contract remediation
+
+- **Decision:** `create`, `update` and `correct` require services, a valid coordinate input and exactly
+  one image in the portal UI and Gateway contract. `stop` remains exempt because it removes an existing
+  published location and does not create a replacement record.
+- **Decision:** Validate recognized request text fields and arrays at the Vercel API boundary with bounded
+  lengths and HTTP 400 `STAFF_REQUEST_INVALID`; invalid input never reaches Apps Script. Keep the existing
+  explicit DTO allowlist and server-derived identity/unit/request ID.
+- **Decision:** Fix WebP detection using RIFF/WEBP magic bytes and keep JPEG/PNG/WebP byte validation
+  authoritative at the Gateway. Allowlist only actionable business validation codes for the UI; unknown
+  remote errors remain generic.
+- **Consequence:** This closes the PR #48 contract/test gaps without adding rental, CSKV, multi-image,
+  migration, seed, deployment, or Production alias changes. Live Production route and OAuth acceptance
+  remain blocked until deployment configuration is verified by the environment owner.
+
 ## [2026-08-11] Vercel Staff Auth/API Gate (PR #47)
 
 - **Decision:** Authenticate with Google ID tokens through the official `google-auth-library`, then resolve
@@ -1304,6 +1452,20 @@
 - **Lý do:** Tránh bỏ sót thủ tục cấp thẻ tạm trú hợp lệ trong namespace ứng viên, mất liên kết nguồn chính thức, hoặc upsert nhầm vào namespace production/đã có dữ liệu.
 - **Tác động:** Không đổi cờ `RAG_GOVERNANCE_FILTER` hay namespace production; áp dụng cho dry-run/apply importer và retrieval ứng viên.
 ## [2026-08-03] Location intake uses canonical record IDs and generated Apps Script
+
+## [2026-08-11] PR #48 browser staff portal boundary
+
+- **Decision:** Keep `/can-bo` as a vanilla static page. The browser uses only the Vercel Staff API;
+  it never calls Apps Script, reads a workbook, receives a Gateway secret, or decides authorization.
+- **Decision:** Load CSRF then session before rendering private location forms. Use the official Google
+  Identity Services rendered button without One Tap, JWT decoding, credential persistence, or OAuth revoke.
+- **Decision:** Add `GET /api/staff/auth/config` as a no-store public config endpoint returning only
+  `GOOGLE_CLIENT_ID`; missing configuration fails closed with `STAFF_AUTH_CONFIG_INVALID`/503.
+- **Decision:** Use explicit client DTO builders and in-memory operation-id reuse for retries. Image input
+  is compressed toward 2.5 MiB before the existing Vercel 3 MiB decoded limit; mutations never update a
+  public card optimistically and stale snapshots are refreshed without silent retry.
+- **Decision:** `/can-bo` and `/can-bo/*` get a separate CSP with the narrow GIS allowlist and
+  `same-origin-allow-popups`; the generic site CSP excludes these routes to avoid duplicate headers.
 
 - **Decision:** A location is identified by `record_id`, not `unit_code`. A unit can have multiple locations; update, report and stop requests require an existing `target_record_id` and cannot silently become creates.
 - **Decision:** `setup/apps-script.js` is the only business-rule source. The Apps Script deployable is generated from it plus a thin integration runtime, keeping Node tests and Google runtime behavior aligned.

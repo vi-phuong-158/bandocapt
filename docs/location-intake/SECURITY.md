@@ -36,6 +36,39 @@
 
 Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, Spreadsheet và thư mục ảnh. Khi nghi lộ ảnh hoặc cấu hình sai, thu hồi quyền Drive trước, sau đó xử lý record published và audit theo quy trình vận hành.
 
+## Staff Portal browser security (PR #48)
+
+- `/can-bo` is a presentation layer only. The browser receives no Gateway URL/secret, private workbook ID,
+  private row, session cookie value or server-derived request ID.
+- The Google callback reference is used only long enough to POST `{ credential }` to Vercel. The client does
+  not decode JWT claims, use email/sub for authorization, log the token, or write it to storage.
+- API/Sheet text is inserted with `textContent`/form values and DOM node creation. Portal forms keep record
+  ID and snapshot hash in application memory; staff are never asked to type either value.
+- The route-specific CSP allowlists only `accounts.google.com/gsi/client` and its GIS iframe/style/connect
+  endpoints. The generic site CSP excludes `/can-bo` so conflicting CSP headers are not combined.
+- Browser image compression targets 2.5 MiB; Vercel's existing 3 MiB decoded preflight and Gateway magic
+  byte checks remain authoritative. No mutation retries a stale snapshot silently.
+
+## PR #48 form simplification & Maps resolver SSRF hardening (2026-08-15)
+
+- Identity and unit are authoritative server/session data, never free-text: `submitter_name` is
+  overridden server-side from the verified Google `name` claim whenever present (client-submitted
+  value is fallback-only, never authoritative when a verified name exists); `unit_code` on `create` is
+  always checked against the session's `resolveUnits` result, same as before — the UI now also stops
+  offering an editable unit field for single-unit accounts and restricts the dropdown to authorized
+  units only for multi-unit accounts, but the server-side check this relies on already existed.
+- `POST /api/staff/maps/resolve` is a new authenticated (session + Origin + CSRF), same-origin
+  endpoint that follows Google Maps short-link redirects server-side so the browser never needs
+  CORS/direct access to `maps.app.goo.gl`. It is not a generic URL fetch proxy: both the initial URL
+  and every redirect hop are checked against the existing `isGoogleMapsUrl` allowlist (HTTPS + Google
+  Maps hosts only), the response body is never read (only the `Location` header on 3xx hops), redirect
+  count and total wall time are both bounded, and no Google Maps Platform API key/billing was added —
+  coordinates already embedded in the URL text are extracted directly, nothing more.
+- Google Maps coordinates are derived automatically when possible; manual coordinate entry is a
+  fallback only, shown on resolver failure or by explicit choice. Either way, the resolver's output is
+  UX convenience only — the Gateway's existing `classifyCoordinateStatus`/`parseCoordinates`
+  (unchanged) remain the sole authoritative validation when a mutation actually submits.
+
 ## Private Gateway V2
 
 - Browser không được gọi Apps Script gateway trực tiếp; chỉ Vercel server đã xác thực mới được ký HMAC.
@@ -54,6 +87,15 @@ Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, S
 - Gateway infrastructure errors remain distinct from remote business errors: `STAFF_GATEWAY_UNAVAILABLE`
   (503), `STAFF_GATEWAY_CONFIG_INVALID` (503), and `STAFF_GATEWAY_INVALID_RESPONSE` (502) are not remapped
   to `STAFF_GATEWAY_REJECTED`.
+
+## PR #48 request-boundary hardening (2026-08-13)
+
+- Vercel validates recognized text fields and the `services` array before constructing the Gateway DTO;
+  malformed or oversized values return safe HTTP 400 `STAFF_REQUEST_INVALID` and never reach Apps Script.
+- `create`, `update` and `correct` require an image, services and valid coordinates in the portal/Gateway
+  contract. `stop` remains the only mutation mode exempt from replacement-image/location-field checks.
+- Remote image/business validation codes are explicitly allowlisted for user guidance. Unknown codes,
+  raw Gateway bodies, secrets, private IDs and diagnostic details remain hidden.
 
 ## Vercel Staff API (PR #47)
 
