@@ -12,6 +12,11 @@ const mimeTypes = {
     '.png': 'image/png',
 };
 
+// Fixture xác định, không phải dữ liệu Production. Dùng đúng dạng URL mà APPROVE ghi vào
+// `Published_Locations.image_url`; E2E chặn request tới host này và trả một ảnh cục bộ.
+const PREVIEW_PUBLIC_IMAGE_URL =
+    'https://drive.google.com/uc?export=view&id=1previewFIXTUREimage0000000000abc';
+
 function createLocationFixture() {
     const cols = [
         { label: 'record_id' },
@@ -33,7 +38,11 @@ function createLocationFixture() {
                 { v: `Phường thử nghiệm ${index + 1}, Phú Thọ` },
                 { v: '0210 000 000' },
                 { v: `${lat.toFixed(6)},${lng.toFixed(6)}` },
-                { v: '' },
+                // Đúng một bản ghi có ảnh công khai, dạng URL như APPROVE sinh ra
+                // (`deterministicImageUrl`), để E2E phủ cả ca có ảnh và ca không ảnh.
+                // KHÔNG đặt ở bản ghi đầu: các spec sẵn có bấm `.result-item` đầu tiên và
+                // khẳng định đúng hành vi mobile của ca KHÔNG ảnh (hero ẩn, preview hiện).
+                { v: index === 1 ? PREVIEW_PUBLIC_IMAGE_URL : '' },
             ],
         };
     });
@@ -104,4 +113,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { startPreviewServer, stopPreviewServer };
+module.exports = { startPreviewServer, stopPreviewServer, PREVIEW_PUBLIC_IMAGE_URL };

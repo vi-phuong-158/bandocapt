@@ -1,5 +1,40 @@
 # 03 — Technical Decisions
 
+## [2026-08-17] Ảnh địa điểm công khai: một ảnh, lightbox nhẹ, không nới hợp đồng công khai
+
+- **Quyết định — KHÔNG mở rộng schema để làm gallery nhiều ảnh.** Backend hiện tại là **một ảnh
+  cho một bản ghi**: `Location_Staging.image_file_id` (một) → `Published_Locations.image_url`
+  (một). Không có cột nào mang danh sách ảnh. Task yêu cầu gallery *nếu data model đã hỗ trợ*;
+  nó không hỗ trợ, nên phần "nhiều ảnh" cố tình không làm. Thêm cột chỉ để có gallery sẽ kéo theo
+  Gateway, staging, admin review và migration — vượt xa phạm vi hiển thị.
+- **Quyết định — lightbox dùng lại đúng `src` của hero, không tự dựng URL khác.** Hero đã là
+  `drive.google.com/thumbnail?id=...&sz=w1000` (đủ lớn cho mọi viewport). Dùng lại đúng URL đó
+  nghĩa là: mở ảnh lớn **không phát sinh request mới** (cache hit, mở tức thì), và không tồn tại
+  kịch bản "hero tải được nhưng ảnh lớn hỏng" cần xử lý riêng. Đây cũng là lý do không thêm
+  error handler thứ hai cho lightbox — theo luật "không xử lý lỗi cho kịch bản không thể xảy ra".
+- **Quyết định — hero vẫn `object-cover`, chỉ lightbox mới `object-contain`.** `#detail-hero` là
+  một **banner có badge + tiêu đề đè lên**, không phải khung xem ảnh; đổi nó sang `object-contain`
+  sẽ tạo hai dải trống và làm chữ tiêu đề nằm trên nền rỗng — tức là redesign popup, điều task
+  cấm. Nhu cầu "xem đúng tỷ lệ, không crop" được đáp ứng ở lightbox, nơi ảnh hiển thị toàn vẹn.
+- **Quyết định — `pointer-events-none` cho overlay không tương tác trong hero.** Khối badge+tiêu đề
+  và badge khoảng cách là **nhãn**, nhưng vì `absolute ... z-10` nên chúng chặn cú bấm vào ảnh ở
+  giữa hero (phát hiện bằng visual acceptance: Playwright báo `<div class="absolute bottom-6 ...">
+  intercepts pointer events`). `#back-to-list-btn` **không** được đụng tới vì nó là control thật.
+  Đánh đổi: không bôi đen chọn được chữ tiêu đề — chấp nhận, đổi lấy toàn bộ ảnh bấm được.
+- **Quyết định — `--z-lightbox: 2100`, cố ý nằm ngoài thang token 0–400.** Nhóm launcher/cửa sổ
+  chat và catalog dùng z-index cũ hardcode 1999–2001, vốn đã phá thang token từ trước. Lightbox
+  phải phủ chúng, nếu không nút "Hỏi đáp AI" nổi đè lên ảnh đang xem. Chọn nâng đúng một biến của
+  mình thay vì refactor z-index của chat/catalog — đó là việc không liên quan tới task này.
+  Ràng buộc bằng assertion E2E so sánh z-index thực tế, để không ai vô tình hạ xuống.
+- **Quyết định — fixture E2E đặt ảnh ở bản ghi thứ HAI, không phải bản ghi đầu.** Các spec sẵn có
+  (`detail-panel`, `civic-mobile-ui`) bấm `.result-item` đầu tiên và khẳng định đúng hành vi mobile
+  của ca **không ảnh** (hero ẩn, `#location-preview` hiện). Cho bản ghi đầu có ảnh sẽ làm hai spec
+  đó đỏ — sửa fixture còn hơn sửa test của người khác để hợp ý mình.
+- **Không đổi:** không thêm field/endpoint/schema/dependency; không nới `img-src` (CSP hiện tại đã
+  có `drive.google.com` + `*.googleusercontent.com`); không đổi DTO filtering, ranh giới
+  public/private workbook, hay semantics giữ-ảnh-cũ khi UPDATE không kèm ảnh (vẫn do
+  `setup/location-admin-review.js` quyết định ở server, không tin browser).
+
 ## [2026-08-16] Staff Portal gộp UX chỉnh sửa và giữ ảnh cũ ở server
 
 - **Quyết định:** `/can-bo` chỉ gửi `Cập nhật địa điểm đang có` cho mọi chỉnh sửa location hiện hữu;

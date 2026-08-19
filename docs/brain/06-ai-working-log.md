@@ -1,5 +1,48 @@
 # 06 — AI Working Log
 
+## [2026-08-17] Hiển thị ảnh địa điểm công khai ngay trong thông tin chi tiết + lightbox
+- **Agent:** Claude Code
+- **Bối cảnh (audit trước khi sửa):** đường ĐỌC ảnh công khai **đã tồn tại sẵn** —
+  `Published_Locations.image_url` (trong `PUBLIC_FIELDS`) → `api/google-sheet.js` lọc DTO →
+  `js/location-data.js` map sang `imageUrl` → `app.js` `convertGoogleDriveUrl` → `#detail-image`
+  trong `#detail-hero`. Nên task này **không** thêm field, endpoint hay schema nào. Thiếu đúng ba
+  thứ: (1) không có cách xem ảnh lớn, (2) không có xử lý ảnh lỗi → hiện icon ảnh hỏng,
+  (3) alt text tĩnh.
+- **Thay đổi:**
+  - `app.js`: tách `applyDetailImage()`/`showDetailImageFallback()` khỏi `openDetailPanel`; thêm
+    listener `error` trên `#detail-image` để ảnh 404/mất quyền/lỗi mạng rơi về logo thay vì icon
+    hỏng; thêm lightbox (đóng bằng nút, nền, `Esc`, giữ Tab trong overlay, trả focus về đúng
+    control); `Esc` ưu tiên đóng lightbox trước detail panel; `closeDetailPanel` đóng luôn lightbox;
+    alt text lấy theo tên địa điểm. Thêm cờ `detailImageIsPublic` — `syncPanelsToViewport` không
+    còn suy lại từ `loc.imageUrl` (URL hợp lệ vẫn có thể tải lỗi, suy lại sẽ hiện hero rỗng khi
+    xoay màn hình).
+  - `index.html`: bọc `#detail-image` trong `<button id="detail-image-button">` (accessible, bàn
+    phím dùng được), thêm markup lightbox, đổi `src` mặc định từ `ui-avatars.com` (host ngoài, bị
+    CSP chặn) sang `assets/logo.png`.
+  - `styles.css` + `tokens.css`: style lightbox/nút bằng **token có sẵn**, thêm `--scrim-strong`
+    và `--z-lightbox`.
+  - `scripts/preview-server.js`: fixture E2E tất định — đúng 1/30 bản ghi có ảnh công khai.
+- **Hai lỗi UI thật do visual acceptance bắt được (không phải lỗi test):**
+  1. Khối badge+tiêu đề (`absolute ... z-10`) phủ giữa hero và **nuốt cú bấm vào ảnh** — người dùng
+     chỉ bấm được dải hẹp phía trên. Vá: `pointer-events-none` cho hai overlay **không tương tác**
+     (badge/tiêu đề và badge khoảng cách); `#back-to-list-btn` giữ nguyên vì nó là control thật.
+  2. Lightbox bị **nút chat/catalog nổi đè lên** vì chúng dùng z-index cũ 1999–2001 nằm ngoài thang
+     token (`--z-navigation: 400`). Vá: `--z-lightbox: 2100` (có comment giải thích), khoá lại bằng
+     assertion trong E2E.
+- **File đã sửa:** `app.js`, `index.html`, `styles.css`, `tokens.css`, `scripts/preview-server.js`,
+  `test/location-image-public.test.js` (mới), `test/e2e/location-image.spec.js` (mới),
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** cán bộ/người dân xem được ảnh trụ sở ngay trên bản đồ, không phải mở Google Drive.
+- **Kiểm tra:** `npm test` **543/543 PASS** (530 cũ + 13 mới). `npm run build` PASS.
+  `npm audit --omit=dev --audit-level=high` PASS (còn 6 moderate `uuid` transitive, có sẵn từ trước).
+  `git diff --check` PASS. Visual acceptance desktop 1280×800 + mobile 390×844: **28/28 check PASS**
+  kèm ảnh chụp màn hình.
+- **Giới hạn môi trường (đã đối chứng, KHÔNG phải regression):** E2E Playwright không chạy được
+  trong sandbox này vì network policy chặn `unpkg.com` → Leaflet không tải → `L is not defined`.
+  Đã xác nhận spec **có sẵn** `detail-panel.spec.js` cũng fail 3/3 với đúng nguyên nhân đó trên
+  commit gốc chưa sửa. Visual acceptance ở trên chạy được nhờ nạp Leaflet cục bộ bằng một harness
+  tạm **ngoài repo** (không commit, `package.json` không đổi). E2E mới sẽ chạy trên CI.
+
 ## [2026-08-16] PR #49 live rehearsal: mất số 0 đứng đầu của số điện thoại khi ghi Sheet
 - **Agent:** Claude Code
 - **Thay đổi:** Live rehearsal CREATE→APPROVE đầu tiên trên bộ TEST dual-workbook phát hiện một

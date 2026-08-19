@@ -22,6 +22,10 @@ const detailHoursContainer = document.getElementById("detail-hours-container");
 const detailServiceMeta = document.getElementById("detail-service-meta");
 const detailHero = document.getElementById("detail-hero");
 const detailImage = document.getElementById("detail-image");
+const detailImageButton = document.getElementById("detail-image-button");
+const imageLightbox = document.getElementById("image-lightbox");
+const imageLightboxImage = document.getElementById("image-lightbox-image");
+const imageLightboxClose = document.getElementById("image-lightbox-close");
 const actionDirections = document.getElementById("action-directions");
 const actionCall = document.getElementById("action-call");
 const backToListBtn = document.getElementById("back-to-list-btn");
@@ -45,6 +49,10 @@ let currentlySelectedLocation = null;
 let previousSelectedLocation = null;
 let detailTrigger = null;
 let detailSuspended = false;
+// Ảnh công khai đang hiển thị thật trong hero hay không. KHÔNG suy lại từ `loc.imageUrl` ở
+// những chỗ khác: một URL hợp lệ vẫn có thể tải lỗi (404/mất quyền), khi đó hero đã rơi về logo.
+let detailImageIsPublic = false;
+let lightboxReturnFocus = null;
 
 // Debounce utility
 function debounce(fn, delay) {
@@ -409,6 +417,77 @@ function isAllowedLocationImage(imageUrl) {
   }
 }
 
+// Chỉ nhận `imageUrl` — trường ảnh duy nhất đã đi qua hợp đồng công khai
+// (`Published_Locations.image_url`). Ảnh chỉ được tải khi người dùng mở đúng địa điểm này,
+// nên mở bản đồ không kéo theo ảnh của toàn bộ địa điểm.
+function applyDetailImage(loc) {
+  if (!isAllowedLocationImage(loc.imageUrl)) {
+    showDetailImageFallback();
+    return;
+  }
+  detailImageIsPublic = true;
+  detailHero.hidden = false;
+  detailPanel.classList.add("has-detail-image");
+  detailImage.alt = `Ảnh ${loc.name}`;
+  detailImage.loading = 'lazy';
+  detailImage.referrerPolicy = 'no-referrer';
+  detailImage.className = 'w-full h-full object-cover opacity-90 transform-gpu';
+  detailImage.src = loc.imageUrl;
+  detailImageButton.disabled = false;
+}
+
+function showDetailImageFallback() {
+  detailImageIsPublic = false;
+  detailHero.hidden = isMobileViewport();
+  detailPanel.classList.remove("has-detail-image");
+  detailImage.alt = 'Biểu trưng Công an nhân dân';
+  detailImage.className = 'w-full h-full object-contain p-10 opacity-90 transform-gpu';
+  detailImage.src = 'assets/logo.png';
+  detailImageButton.disabled = true;
+  closeImageLightbox();
+}
+
+// Ảnh công khai tải lỗi (404, mất quyền chia sẻ Drive, lỗi mạng): phần thông tin địa điểm phải
+// giữ nguyên và rơi về logo, không để trình duyệt vẽ icon ảnh hỏng trong hero.
+detailImage.addEventListener("error", () => {
+  if (!detailImageIsPublic) return;
+  console.warn("[location-image] Không tải được ảnh công khai của địa điểm.");
+  showDetailImageFallback();
+});
+
+function openImageLightbox() {
+  if (!detailImageIsPublic) return;
+  // Dùng đúng URL của hero nên ảnh đã nằm trong cache trình duyệt: không phát sinh request mới.
+  imageLightboxImage.src = detailImage.src;
+  imageLightboxImage.alt = detailImage.alt;
+  lightboxReturnFocus = document.activeElement;
+  imageLightbox.hidden = false;
+  document.body.classList.add("lightbox-open");
+  imageLightboxClose.focus();
+}
+
+function closeImageLightbox() {
+  if (imageLightbox.hidden) return;
+  imageLightbox.hidden = true;
+  document.body.classList.remove("lightbox-open");
+  imageLightboxImage.removeAttribute("src");
+  const returnTarget = lightboxReturnFocus;
+  lightboxReturnFocus = null;
+  if (returnTarget && typeof returnTarget.focus === "function") returnTarget.focus();
+}
+
+detailImageButton.addEventListener("click", openImageLightbox);
+imageLightboxClose.addEventListener("click", () => closeImageLightbox());
+imageLightbox.addEventListener("click", event => {
+  if (event.target === imageLightbox) closeImageLightbox();
+});
+// Overlay chỉ có đúng một control nên giữ Tab ở lại nút Đóng; Esc/nền/nút đều thoát được.
+imageLightbox.addEventListener("keydown", event => {
+  if (event.key !== "Tab") return;
+  event.preventDefault();
+  imageLightboxClose.focus();
+});
+
 function openDetailPanel(loc, trigger = null) {
   detailTrigger = trigger;
   previousSelectedLocation = currentlySelectedLocation;
@@ -433,22 +512,7 @@ detailBadge.textContent = loc.services?.includes("POLICE_OFFICE") && loc.service
 detailTitle.textContent = loc.name;
   detailTitle.className = "font-display text-[26px] md:text-[28px] font-bold leading-tight drop-shadow-md text-white";
 
-  const isAllowedImage = isAllowedLocationImage(loc.imageUrl);
-  if (isAllowedImage) {
-    detailHero.hidden = false;
-    detailPanel.classList.add("has-detail-image");
-    detailImage.src = loc.imageUrl;
-    detailImage.alt = 'Ảnh trụ sở';
-    detailImage.loading = 'lazy';
-    detailImage.referrerPolicy = 'no-referrer';
-    detailImage.className = 'w-full h-full object-cover opacity-90 transform-gpu';
-  } else {
-    detailHero.hidden = isMobileViewport();
-    detailPanel.classList.remove("has-detail-image");
-    detailImage.src = 'assets/logo.png';
-    detailImage.alt = 'Biểu trưng Công an nhân dân';
-    detailImage.className = 'w-full h-full object-contain p-10 opacity-90 transform-gpu';
-  }
+  applyDetailImage(loc);
 
 detailAddress.textContent = loc.address;
 
@@ -535,6 +599,7 @@ function closeDetailPanel({ restoreFocus = true } = {}) {
   if (isDragging) {
     endSheetDrag({ cancelled: true });
   }
+  closeImageLightbox();
   previousSelectedLocation = currentlySelectedLocation;
   currentlySelectedLocation = null;
   detailSuspended = false;
@@ -968,7 +1033,10 @@ filterAndRender();
 
 document.addEventListener("keydown", event => {
   if (event.key !== "Escape") return;
-  if (activeSheetState !== SHEET_STATES.HIDDEN) {
+  // Lightbox nằm trên cùng: Esc đóng ảnh trước, không đóng luôn phần thông tin phía dưới.
+  if (!imageLightbox.hidden) {
+    closeImageLightbox();
+  } else if (activeSheetState !== SHEET_STATES.HIDDEN) {
     closeDetailPanel();
   } else if (closeSearchBtn.offsetParent !== null) {
     // Mobile search panel đang mở (close button hiển thị)
@@ -985,9 +1053,8 @@ function syncPanelsToViewport() {
     return;
   }
   if (currentlySelectedLocation) {
-    const hasDetailImage = isAllowedLocationImage(currentlySelectedLocation.imageUrl);
-    detailHero.hidden = isMobileViewport() && !hasDetailImage;
-    detailPanel.classList.toggle("has-detail-image", hasDetailImage);
+    detailHero.hidden = isMobileViewport() && !detailImageIsPublic;
+    detailPanel.classList.toggle("has-detail-image", detailImageIsPublic);
   }
   setSheetState(
     isMobileViewport() ? SHEET_STATES.COLLAPSED : SHEET_STATES.EXPANDED,

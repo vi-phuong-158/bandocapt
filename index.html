@@ -160,21 +160,26 @@
             </div>
 
 <div id="detail-hero" class="flex-none relative w-full h-[220px] md:h-[240px] bg-slate-900 shrink-0 transform-gpu" style="perspective: 1000px;">
-                <img id="detail-image" alt="Hình ảnh trụ sở" class="w-full h-full object-cover opacity-90 transform-gpu" src="https://ui-avatars.com/api/?name=Police&background=random" />
-                <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
+                <button id="detail-image-button" type="button" class="detail-image-button" aria-label="Xem ảnh lớn của địa điểm" disabled>
+                    <img id="detail-image" alt="Hình ảnh trụ sở" class="w-full h-full object-cover opacity-90 transform-gpu" src="assets/logo.png" />
+                    <span class="detail-image-zoom" aria-hidden="true">
+                        <span class="material-symbols-outlined">zoom_in</span>
+                    </span>
+                </button>
+                <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent pointer-events-none"></div>
 
                 <button id="back-to-list-btn" aria-label="Quay lại danh sách" class="absolute top-4 left-4 w-10 h-10 rounded-full bg-slate-900/30 backdrop-blur-md border border-white/20 text-white flex items-center justify-center hover:bg-slate-900/50 transition-colors z-10 transform-gpu focus-visible:ring-2 focus-visible:ring-white">
                     <span class="material-symbols-outlined hidden md:block" aria-hidden="true">arrow_back</span>
                     <span class="material-symbols-outlined md:hidden" aria-hidden="true">close</span>
                 </button>
 
-<div class="absolute bottom-6 left-6 right-24 z-10 text-white transform-gpu">
+<div class="absolute bottom-6 left-6 right-24 z-10 text-white transform-gpu pointer-events-none">
 
 <span id="detail-badge" class="inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-md text-[12px] font-medium mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu">Loại đơn vị</span>
                     <h1 id="detail-title" class="font-display text-[26px] md:text-[28px] font-bold leading-tight drop-shadow-md text-white transform-gpu">Tên trụ sở</h1>
                 </div>
 
-<div class="absolute bottom-6 right-6 z-10">
+<div class="absolute bottom-6 right-6 z-10 pointer-events-none">
                     <span id="detail-distance-badge" class="inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-md text-primary text-[13px] font-bold px-3.5 py-2 rounded-full shadow-lg border border-white/30 hidden transform-gpu">
                         <span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">near_me</span>
                         <span id="detail-distance-text">-- km</span>
@@ -256,6 +261,13 @@
                 <span class="material-symbols-outlined text-[24px]" aria-hidden="true">remove</span>
             </button>
         </div>
+    </div>
+
+    <div id="image-lightbox" class="image-lightbox" role="dialog" aria-modal="true" aria-label="Ảnh địa điểm" hidden>
+        <button id="image-lightbox-close" type="button" class="image-lightbox-close" aria-label="Đóng ảnh">
+            <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+        <img id="image-lightbox-image" class="image-lightbox-image" alt="" />
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous" defer></script>
