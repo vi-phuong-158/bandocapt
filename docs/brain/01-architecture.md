@@ -35,7 +35,7 @@ the semantic column labels and causing the fail-closed schema guard to return
   private workbook as the public source, fails closed before the Google GViz request.
 - `PRIVATE_LOCATION_SPREADSHEET_ID` has no public fallback. The boundary declares
   `Published_Locations` public and `Unit_Allowlist`, `Location_Staging`, `Approval_Audit_Log`,
-  `Staff_Verification_Audit`, `Idempotency_Ledger`, `Intake_Setup_Info` and Form Responses private.
+  `Staff_Verification_Audit`, `Idempotency_Ledger`, `Operational_Baseline`, `Intake_Setup_Info` and Form Responses private.
 - `scripts/dual-workbook-dry-run.js` accepts JSON exports only and is read-only. It inventories sheets,
   validates the P0 public schema and coordinates, classifies boundaries, compares record IDs and can write
   a local JSON cutover report. A target is not cutover-safe when its public dataset is empty/invalid,
@@ -59,6 +59,10 @@ the semantic column labels and causing the fail-closed schema guard to return
 - State-changing actions use private `Idempotency_Ledger` and Script Lock. `submitRequest` writes only
   private staging, validates image bytes server-side, uses deterministic Drive resource keys and never
   publishes an image. `writeVerificationEvent` writes only the private verification audit allowlist.
+- `Operational_Baseline` is a provenance-marked private read model for legacy public records. The Apps
+  Script adapter merges it with compatible `APPROVED` staging rows before Gateway target preflight; it
+  never reads the public workbook at runtime. `scripts/reconcile-operational-baseline.js` is a local,
+  JSON-export dry-run planner that rejects all write flags.
 - The legacy Form setup intentionally does not create gateway-only ledger/verification sheets in the
   compatibility workbook. No gateway deployment, Staff Portal UI/auth, Vercel staff API or Production
   migration is included.
@@ -167,6 +171,7 @@ bandocapt/
 |- lib/
 |  |- output-validator.js
 |  |- location-workbooks.js
+|  |- operational-baseline.js
 |  |- published-locations.js
 |  |- request-security.js
 |  |- regression-metrics.js
@@ -179,6 +184,7 @@ bandocapt/
 |- scripts/
 |  |- generate-tthc-catalog.js
 |  |- dual-workbook-dry-run.js
+|  |- reconcile-operational-baseline.js
 |  `- read-feedback.js
 |- test/
 |- assets/
@@ -360,6 +366,7 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 | `data/tthc-catalog.json` | Catalog TTHC tinh de nguoi dung doi chieu cau tra loi AI | `js/tthc-catalog.js` | sinh tu Pinecone live + audit phi, fallback backup khi local khong co key |
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai. T1.9: cau tra loi quoc tich ("Nguoi Viet Nam"...) KHONG phai dia danh — `NATIONALITY_ANSWER_PATTERN` loai khoi heuristic cau ngan; `isNationalityAnswerContext` cho `api/chat.js` ne nhanh tat dinh no_match khi bot vua hoi quoc tich | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
 | `lib/location-workbooks.js` | Resolves public/private workbook IDs with fail-closed conflict and boundary checks; explicitly classifies sheet trust boundary | `api/google-sheet.js`, `lib/published-locations.js`, migration dry-run, test | environment contract only; never Google credentials |
+| `lib/operational-baseline.js` | Canonical private baseline projection, provenance validation, reconciliation and staging overlay for legacy published records | Apps Script adapter, dry-run tool, Gateway tests | `lib/staff-location-contract.js`; no Google API or private PII |
 | `lib/output-validator.js` | Fail-closed output guard: doi chieu va redact SDT/Maps/toa do/URL cong khai/so lieu phap ly khong co trong nguon xac minh; URL chi duoc giu khi xuat hien trong RAG/citation/tru so da duyet | `api/chat.js`, test | - |
 | `lib/request-security.js` | CORS, lay IP, HMAC request, sanitize diagnostic va Telegram alert dung chung | `api/chat.js`, `api/feedback.js` | Node crypto, fetch |
 | `lib/regression-metrics.js` | Dem tu Unicode-safe va giu ngan sach verbosity 120/250 dong bo voi prompt answer-first | `scripts/run-regression.js`, test | `Intl.Segmenter` Node 20 |
@@ -368,6 +375,7 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 | `scripts/read-feedback.js` | Doc `chat_feedback/<date_key>` tu RTDB, in bao cao theo ngay (loc `--down`) de admin ra soat | Developer / cron | Firebase RTDB, `.env` |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
 | `scripts/dual-workbook-dry-run.js` | Read-only JSON-export inventory and cutover comparison; validates P0 schema/coordinates and detects missing, unexpected or duplicate record IDs | Operator / test | `lib/location-workbooks.js`, `js/location-data.js` |
+| `scripts/reconcile-operational-baseline.js` | Read-only JSON-export planner for `Operational_Baseline`; rejects write flags and reports count/provenance/fidelity blockers | Operator / test | `lib/operational-baseline.js` |
 | `api/chat.js` | Serverless chinh: xac thuc, rate limit atomic chi theo IP/ngay (khong quota tong ngay/thang), RAG Pinecone; Gemini chi mot request embedding/cau hoi RAG, DeepSeek V4 Flash sinh cau tra loi va utility (rewrite/dich/rerank/tom tat/groundedness, utility tat thinking); strict default khong fallback, stable chi DeepSeek 429/5xx -> Gemini; T2C deadline/telemetry; stream model da validator. (2026-08-06) `startSseHeartbeat()` phat `status:generating` moi 5s trong luc cho generation, tranh client tu huy do idle timeout gia | `js/gemini.js` | Pinecone, Gemini/DeepSeek, Firebase, `@vercel/functions`, `data/tthc-catalog.json`, `lib/published-locations.js`, `lib/request-security.js` |
 | `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live, mac dinh gom `tthc_*` + `guide_*` co noi dung (loc guide rong/noi bo), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
 | `scripts/scrape-phutho-tthc.js` | Thu thap tuan tu 18 linh vuc/chi tiet TTHC Cong an Phu Tho; sinh snapshot co hash + CSV doi chieu 39 record HIGH, khong tu dong approved/ghi Pinecone | Developer / nguoi duyet T3.3 | `https://congan.phutho.gov.vn/TTHC.aspx`, `data/corpus-governance-draft.csv` |

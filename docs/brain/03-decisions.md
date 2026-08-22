@@ -1,5 +1,21 @@
 # 03 — Technical Decisions
 
+## [2026-08-22] Legacy published records use a separate private operational baseline
+
+- **Decision:** choose Option A: a provenance-marked private `Operational_Baseline` read model seeded
+  from the current public snapshot through a dry-run-first reconciliation. Do not make the Gateway read the
+  public workbook at runtime and do not insert synthetic `APPROVED` staging/audit history.
+- **Why:** it preserves the public/private boundary, keeps current Gateway availability independent of a
+  public GViz request, retains current staging/approval/idempotency semantics, and allows a deterministic
+  count/fidelity gate before any owner-approved data write. Option B would couple the private mutation
+  boundary to a public-reader service and weaken the documented fail-closed architecture.
+- **Data contract:** baseline rows contain only the public snapshot allowlist plus source/status/version
+  provenance. Duplicate IDs, unknown units, malformed provenance, mismatch with public snapshot, and
+  count drift are blockers. A later approved staging row may supersede a same-unit baseline row; cross-unit
+  conflicts fail closed.
+- **Consequence:** this change adds only local source/tests/dry-run documentation. It does not deploy,
+  create a Sheet, seed a baseline, alter public data, or authorize a Production mutation.
+
 ## [2026-08-17] Ảnh địa điểm công khai: một ảnh, lightbox nhẹ, không nới hợp đồng công khai
 
 - **Quyết định — KHÔNG mở rộng schema để làm gallery nhiều ảnh.** Backend hiện tại là **một ảnh

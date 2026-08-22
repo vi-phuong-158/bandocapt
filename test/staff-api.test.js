@@ -352,6 +352,32 @@ test('request endpoint ignores client identity and blocks stale/cross-unit/creat
     assert.equal(calls.filter(call => call.action === 'submitRequest').length, 3);
 });
 
+test('a current public target missing from the private operational baseline fails closed with the explicit remediation code', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const location = record({ id: 'LEGACY_0001', unitCode: 'UNIT_A' });
+    const currentHash = snapshotHash(require('../lib/staff-location-contract').toPublicSnapshot(location));
+    let submitCalls = 0;
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => {
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] };
+            submitCalls += 1;
+            const error = new Error('TARGET_RECORD_ID_NOT_FOUND');
+            error.gatewayCode = 'TARGET_RECORD_ID_NOT_FOUND';
+            throw error;
+        },
+        getLocations: async () => ({ locations: [location] }),
+    });
+    const res = response();
+    await api.requests(request('POST', {
+        operationId: 'op_legacy_baseline_missing', requestType: 'Cập nhật địa điểm đang có',
+        targetRecordId: 'LEGACY_0001', snapshotHash: currentHash,
+    }, { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` }), res);
+    assert.equal(res.statusCode, 503);
+    assert.equal(res.body.error.code, 'STAFF_OPERATIONAL_BASELINE_NOT_READY');
+    assert.equal(submitCalls, 1);
+});
+
 test('U3: a client-submitted unit_code outside the session\'s authorized units is rejected, not trusted', async () => {
     const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
     let submitCalls = 0;

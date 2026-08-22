@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const logicPath = path.join(root, 'setup', 'apps-script.js');
 const workbookConfigPath = path.join(root, 'lib', 'location-workbooks.js');
 const staffLocationContractPath = path.join(root, 'lib', 'staff-location-contract.js');
+const operationalBaselinePath = path.join(root, 'lib', 'operational-baseline.js');
 const gatewayPath = path.join(root, 'setup', 'staff-gateway.js');
 const adminReviewPath = path.join(root, 'setup', 'location-admin-review.js');
 const runtimePath = path.join(root, 'setup', 'location-intake', 'Code.gs');
@@ -35,10 +36,11 @@ function buildLocationIntakeAppsScript() {
     const logic = fs.readFileSync(logicPath, 'utf8').replace(/^#!.*\r?\n/, '');
     const workbookConfig = fs.readFileSync(workbookConfigPath, 'utf8').replace(/^#!.*\r?\n/, '');
     const staffLocationContract = fs.readFileSync(staffLocationContractPath, 'utf8').replace(/^#!.*\r?\n/, '');
+    const operationalBaseline = fs.readFileSync(operationalBaselinePath, 'utf8').replace(/^#!.*\r?\n/, '');
     const gateway = fs.readFileSync(gatewayPath, 'utf8').replace(/^#!.*\r?\n/, '');
     const adminReview = fs.readFileSync(adminReviewPath, 'utf8').replace(/^#!.*\r?\n/, '');
     const runtime = fs.readFileSync(runtimePath, 'utf8').replace(/^#!.*\r?\n/, '');
-    const bundle = `${banner}${staffLocationContract}\n\n${workbookConfig}\n\n${logic}\n\n${gateway}\n\n${adminReview}\n\n${runtime}\n`;
+    const bundle = `${banner}${staffLocationContract}\n\n${operationalBaseline}\n\n${workbookConfig}\n\n${logic}\n\n${gateway}\n\n${adminReview}\n\n${runtime}\n`;
     // Syntax only: Apps Script globals are intentionally resolved when deployed.
     new Function(bundle); // eslint-disable-line no-new-func
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });

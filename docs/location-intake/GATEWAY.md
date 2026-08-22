@@ -29,8 +29,10 @@ signature, private row, body hash, snapshot JSON hoặc Drive ID không cần th
 
 Gateway resolve `PRIVATE_LOCATION_SPREADSHEET_ID` qua `LocationWorkbookConfig.resolvePrivateLocationWorkbook()`.
 Thiếu private ID, public/private collapse hoặc public config conflict đều fail closed. Gateway không đọc
-public workbook. Legacy Form setup chỉ tạo bốn sheet cũ; gateway ledger/audit sheet không được tạo vào
-workbook legacy.
+public workbook. `Operational_Baseline` là private read model có provenance cho các record đã public trước
+khi Gateway tồn tại; nó không phải `Location_Staging`, không tạo audit lịch sử, và được merge với staging
+`APPROVED` theo `record_id` (staging mới hơn chỉ được override khi cùng `unit_code`). Legacy Form setup chỉ
+tạo bốn sheet cũ; gateway ledger/audit sheet không được tạo vào workbook legacy.
 
 Script Properties cần cho runtime:
 

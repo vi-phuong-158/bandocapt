@@ -25,6 +25,11 @@
   legacy conflict or a public ID equal to `PRIVATE_LOCATION_SPREADSHEET_ID` fails closed. The P0 semantic
   schema guard remains mandatory. `Unit_Allowlist`, staging, all audits, `Idempotency_Ledger`, setup data
   and Form Responses are classified private and must never be exposed by `/api/google-sheet`.
+- `Operational_Baseline` is also private. It is a public-field projection with explicit migration
+  provenance, never a fabricated staff submission or approval: no email, request ID, approver, audit
+  snapshot, HMAC material, or private Drive pointer may be seeded into it. Gateway rejects invalid
+  provenance, duplicate IDs, unit mismatch, or public/baseline drift rather than treating the row as
+  trusted history.
 - **Còn mở:** `Unit_Allowlist` (email cán bộ) nằm cùng bảng tính với `Published_Locations`, mà bảng tính
   đó phải cho "ai có liên kết đều xem" để endpoint GViz không xác thực trong `lib/published-locations.js`
   đọc được. `GOOGLE_SHEET_ID` là biến môi trường, không phải kiểm soát truy cập. Phải tách
@@ -46,6 +51,10 @@ Kiểm tra định kỳ `Approval_Audit_Log`, membership/ownership của Form, S
   ID and snapshot hash in application memory; staff are never asked to type either value.
 - The route-specific CSP allowlists only `accounts.google.com/gsi/client` and its GIS iframe/style/connect
   endpoints. The generic site CSP excludes `/can-bo` so conflicting CSP headers are not combined.
+- **Known separate defect:** legacy `https://drive.google.com/file/d/.../view` image URLs are not an
+  allowed `/can-bo` image source, while `https://*.googleusercontent.com` is. Normalize legacy public
+  image URLs to an approved Google content URL/proxy in a separate change; do not broadly allow arbitrary
+  Drive URLs or weaken the CSP as a shortcut. GIS style warnings require a separately scoped CSP review.
 - Browser image compression targets 2.5 MiB; Vercel's existing 3 MiB decoded preflight and Gateway magic
   byte checks remain authoritative. No mutation retries a stale snapshot silently.
 
