@@ -12,6 +12,7 @@
         audit: 'Approval_Audit_Log',
         verificationAudit: 'Staff_Verification_Audit',
         ledger: 'Idempotency_Ledger',
+        operationalBaseline: 'Operational_Baseline',
         info: 'Intake_Setup_Info',
     });
 
@@ -26,6 +27,7 @@
             SHEETS.audit,
             SHEETS.verificationAudit,
             SHEETS.ledger,
+            SHEETS.operationalBaseline,
             SHEETS.info,
             'Form Responses 1',
         ]),
@@ -86,6 +88,12 @@
         ledger: [
             'request_id', 'action', 'body_hash', 'state', 'image_resource_key', 'image_file_id',
             'image_drive_url', 'image_mime_type', 'result_json', 'last_error', 'created_at', 'updated_at',
+        ],
+        // A separate, provenance-marked operational read model for records that were published
+        // before the Staff Gateway existed. It is never a staff submission, review, or audit row.
+        operationalBaseline: [
+            ...PUBLIC_FIELDS,
+            'baseline_source', 'baseline_status', 'baseline_version', 'source_updated_at', 'reconciled_at',
         ],
     });
 

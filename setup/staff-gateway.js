@@ -10,7 +10,7 @@
     const STATE = Object.freeze({ CLAIMED: 'CLAIMED', UPLOAD_PERSISTED: 'UPLOAD_PERSISTED', COMPLETED: 'COMPLETED', FAILED: 'FAILED' });
     const PRIVATE_SHEETS = Object.freeze({
         allowlist: 'Unit_Allowlist', staging: 'Location_Staging', audit: 'Approval_Audit_Log',
-        verificationAudit: 'Staff_Verification_Audit', ledger: 'Idempotency_Ledger',
+        verificationAudit: 'Staff_Verification_Audit', ledger: 'Idempotency_Ledger', operationalBaseline: 'Operational_Baseline',
     });
     const ALLOWED_IMAGE_TYPES = Object.freeze({ jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' });
     const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -266,9 +266,12 @@
                     resolvePrivateConfig();
                     const allowlistRows = rows(PRIVATE_SHEETS.allowlist);
                     const authorization = authorize(payload, allowlistRows);
-                    const operationalRecords = store.getOperationalRecords ? store.getOperationalRecords() : [];
-                    preflightTarget(payload, authorization.unit, operationalRecords);
                     const requestType = payload.request_type || payload.requestType;
+                    // CREATE is semantically independent of the operational baseline. It must not
+                    // become unavailable merely because a legacy baseline is missing or rebuilding.
+                    const operationalRecords = requestType === pipeline.REQUEST_TYPES.create
+                        ? [] : (store.getOperationalRecords ? store.getOperationalRecords() : []);
+                    preflightTarget(payload, authorization.unit, operationalRecords);
                     if (pipeline.requiresNewImage(requestType) && !payload.image) throw gatewayError('IMAGE_REQUIRED');
                     const image = persistImage(payload, requestId, previous);
                     const input = {

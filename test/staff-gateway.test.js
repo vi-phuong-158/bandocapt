@@ -4,6 +4,7 @@ const test = require('node:test');
 
 const pipeline = require('../setup/apps-script');
 const workbookConfig = require('../lib/location-workbooks');
+const operationalBaseline = require('../lib/operational-baseline');
 const createStaffGateway = require('../setup/staff-gateway');
 
 const SECRET = 'synthetic-gateway-secret';
@@ -51,7 +52,10 @@ function makeStore(options = {}) {
     let failUploadPersist = false;
     return {
         getRows: sheet => sheet === 'Unit_Allowlist' ? allowlist() : (sheet === 'Location_Staging' ? staging.map(row => ({ ...row })) : []),
-        getOperationalRecords: () => options.operationalRecords || [],
+        getOperationalRecords: () => {
+            if (options.operationalRecordsError) throw new Error(options.operationalRecordsError);
+            return options.operationalRecords || [];
+        },
         findLedger: requestId => ledgers.get(requestId) || null,
         createLedger: row => ledgers.set(row.request_id, { ...row }),
         updateLedger: (requestId, patch) => {
@@ -163,14 +167,18 @@ test('submitRequest authorizes unit, writes private staging once, and replay is 
     assert.equal(store.rows().staging[0].status, 'PENDING');
 });
 
-test('update and legacy correct accept no replacement image and preserve the latest private file pointer', () => {
+test('a migrated operational baseline permits update, legacy correct, and stop without a replacement image', () => {
     const target = { record_id: 'CA_A_OLD', unit_code: 'CA_A', name: 'Điểm cũ', address: 'Địa chỉ cũ', coordinates: '21.3225,105.4027', image_url: 'https://drive.google.com/uc?export=view&id=file-old' };
     const prior = { record_id: target.record_id, status: pipeline.STATUSES.approved, published_image_file_id: 'file-old', reviewed_at: '2026-08-15T00:00:00.000Z' };
+    const baselinePlan = operationalBaseline.reconcileOperationalBaseline({ publicRecords: [target], allowlistRows: allowlist(), reconciledAt: '2026-08-22T00:00:00.000Z' });
+    assert.deepEqual(baselinePlan.blockers, []);
+    const operationalRecords = operationalBaseline.mergeOperationalRecords({ baselineRows: baselinePlan.plannedRows });
     for (const [requestId, requestType] of [
         ['REQ_UPDATE_NO_IMAGE', pipeline.REQUEST_TYPES.update],
         ['REQ_CORRECT_NO_IMAGE', pipeline.REQUEST_TYPES.correct],
+        ['REQ_STOP_NO_IMAGE', pipeline.REQUEST_TYPES.stop],
     ]) {
-        const store = makeStore({ operationalRecords: [target], stagingRows: [prior] });
+        const store = makeStore({ operationalRecords, stagingRows: [prior] });
         const gateway = makeGateway(store);
         const payload = basePayload({ request_type: requestType, target_record_id: target.record_id });
         delete payload.image;
@@ -180,6 +188,15 @@ test('update and legacy correct accept no replacement image and preserve the lat
         assert.equal(store.counts().imageCreates, 0);
         assert.equal(store.rows().staging.find(row => row.request_id === requestId).published_image_file_id, 'file-old');
     }
+});
+
+test('CREATE remains independent when the legacy operational baseline is unavailable', () => {
+    const store = makeStore({ operationalRecordsError: 'PRIVATE_SHEET_MISSING:Operational_Baseline' });
+    const gateway = makeGateway(store);
+    const request = rawRequest('submitRequest', 'REQ_CREATE_BASELINE_INDEPENDENT', basePayload());
+    const result = gateway.handleRawRequest(request.raw, request.metadata);
+    assert.equal(result.status, 'PENDING');
+    assert.equal(store.counts().staging, 1);
 });
 
 test('gateway rejects create without an image before staging or Drive side effects', () => {

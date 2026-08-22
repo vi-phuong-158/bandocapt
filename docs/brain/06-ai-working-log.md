@@ -1,5 +1,19 @@
 # 06 — AI Working Log
 
+## [2026-08-22] Legacy Staff Portal operational baseline gap — dry-run remediation only
+- **Agent:** Codex
+- **Thay đổi:** Added a private `Operational_Baseline` schema and pure reconciliation module, a local
+  JSON-export dry-run CLI, Apps Script bundle support, and regression coverage for legacy update, fail-closed
+  missing baseline, cross-unit/stale protections, idempotency, CREATE independence, and no private fields in
+  baseline rows.
+- **Lý do:** Production rehearsal against `LEGACY_0001` reached the Gateway but correctly returned
+  `TARGET_RECORD_ID_NOT_FOUND`, mapped by Vercel to `STAFF_OPERATIONAL_BASELINE_NOT_READY`: 142 public
+  legacy records existed while zero approved/private operational records existed.
+- **Kiểm tra:** live read-only reconciliation: public=142, eligible=142, planned=142, duplicate IDs=0,
+  unknown units=0, blockers=0; focused tests 43/43, `npm test` 553/553, build, Playwright E2E, and high-severity
+  audit gate passed (9 moderate transitive `uuid` advisories remain, no fix available). No workbook,
+  Apps Script, Vercel, OAuth, environment, alias, tag, or Production data was modified.
+
 ## [2026-08-17] Hiển thị ảnh địa điểm công khai ngay trong thông tin chi tiết + lightbox
 - **Agent:** Claude Code
 - **Bối cảnh (audit trước khi sửa):** đường ĐỌC ảnh công khai **đã tồn tại sẵn** —

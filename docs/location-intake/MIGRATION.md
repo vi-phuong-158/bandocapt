@@ -26,6 +26,43 @@ Use TEST exports for smoke exercises. No Production workbook or Production envir
 this command. Before any later alias promotion, run `npm run verify:published-locations` against the
 candidate deployment and require valid semantic columns and coordinates.
 
+## Operational baseline reconciliation — dry-run only
+
+Legacy rows already in public `Published_Locations` are not historical staff submissions. The Gateway
+therefore uses the separate private `Operational_Baseline` sheet to authorize an existing target without
+inventing a `Location_Staging` request, approver, audit entry, or submitter identity. The public workbook
+remains the public read model; the Gateway still never reads it at runtime.
+
+`npm run migrate:locations:operational-baseline:dry-run -- --dry-run --input <dual-export.json> --report <local-report.json>`
+accepts a local JSON export with `public.sheets.Published_Locations`,
+`private.sheets.Unit_Allowlist`, and optionally `private.sheets.Operational_Baseline`. `--dry-run` is
+explicit but also the default. It is deliberately dry-run only: `--apply`, `--write`, and `--execute` are
+rejected. The command prints `PUBLIC_RECORDS`, `BASELINE_ELIGIBLE`, `BASELINE_EXISTING`,
+`BASELINE_PLANNED`, `BASELINE_PROJECTED`, `DUPLICATE_RECORD_IDS`, `UNKNOWN_UNIT_CODES`, `BLOCKERS`, and
+`WRITE_PERFORMED`. The local report may contain public
+location data and must remain access-controlled.
+
+Each proposed private baseline row is the public snapshot allowlist plus only these provenance fields:
+`baseline_source=MIGRATED_PUBLISHED_LOCATION`, `baseline_status=ACTIVE`, `baseline_version=v1`,
+`source_updated_at`, and `reconciled_at`. It contains no request ID, staff email, approver, audit snapshot,
+Drive file ID, or historical approval claim.
+
+The reconciliation fails closed for duplicate public/baseline `record_id`, missing public identity/name/
+coordinates, unknown unit code, invalid baseline provenance/status/version, a baseline record absent from
+public data, a public/baseline field mismatch, or projected public/private count mismatch. A repeat run
+with matching baseline rows plans zero inserts.
+
+The 2026-08-22 read-only Production dry-run reported: `PUBLIC_RECORDS=142`,
+`BASELINE_ELIGIBLE=142`, `BASELINE_EXISTING=0`, `BASELINE_PLANNED=142`,
+`DUPLICATE_RECORD_IDS=0`, `UNKNOWN_UNIT_CODES=0`, and no blockers. This is evidence only, not authority
+to write Production.
+
+An owner-approved Production migration is a separate future action. Its expected deltas are
+`Published_Locations=0`, `Unit_Allowlist=0`, `Location_Staging=0`, `Approval_Audit_Log=0`,
+`Idempotency_Ledger=0`, and `Operational_Baseline=+142`. It must create only the private sheet/header and
+exact reviewed rows, under a controlled Apps Script/Sheets procedure; this CLI does not implement or invoke
+that write.
+
 ## Cutover gate checklist — PR #48 preparation
 
 The following is a manual, owner-approved sequence. It is a checklist only; PR #48 does not execute it,

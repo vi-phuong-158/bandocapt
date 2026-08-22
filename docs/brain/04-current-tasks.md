@@ -1,5 +1,14 @@
 # 04 — Current Tasks
 
+## [OWNER APPROVAL REQUIRED 2026-08-22] Production operational baseline reconciliation
+
+- The controlled Production rehearsal found that all 142 `LEGACY_*` public rows have no private operational
+  baseline, so update/correct/stop safely return `STAFF_OPERATIONAL_BASELINE_NOT_READY`.
+- Source now contains a dry-run-only reconciliation planner and private baseline schema. The live read-only
+  dry-run projected 142 baseline rows with zero duplicate IDs, unknown units, or blockers.
+- Stop point: no deploy, Apps Script change, Sheet creation, or Production write. A separate owner approval
+  is required for the reviewed baseline migration and a subsequent one-update rehearsal.
+
 ## [DONE 2026-08-11] PR #47 — Staff Auth + Vercel Staff API Gate
 
 - PR #46 was verified merged before implementation; this branch is based on its merge commit.

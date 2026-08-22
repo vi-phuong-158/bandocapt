@@ -240,13 +240,17 @@ function gatewayRuntime_(spreadsheet) {
 
 function gatewayStore_(spreadsheet, runtime) {
     const pipeline = locationPipeline_();
+    if (!globalThis.OperationalBaseline) throw new Error('OPERATIONAL_BASELINE_RUNTIME_UNAVAILABLE');
     const ledger = runtime.getLedger;
     const stagingHeaders = pipeline.HEADERS.staging;
     const auditHeaders = pipeline.HEADERS.audit;
     const verificationHeaders = pipeline.HEADERS.verificationAudit;
-    const publishedRecords = () => gatewayRows_(spreadsheet, pipeline.SHEETS.staging, stagingHeaders)
-        .filter(row => String(row.status || '') === pipeline.STATUSES.approved && String(row.record_id || '').trim())
-        .map(row => Object.assign({}, row, { name: row.location_name, coordinates: row.coordinates }));
+    const baselineHeaders = pipeline.HEADERS.operationalBaseline;
+    const publishedRecords = () => globalThis.OperationalBaseline.mergeOperationalRecords({
+        baselineRows: gatewayRows_(spreadsheet, pipeline.SHEETS.operationalBaseline, baselineHeaders),
+        stagingRows: gatewayRows_(spreadsheet, pipeline.SHEETS.staging, stagingHeaders),
+        approvedStatus: pipeline.STATUSES.approved,
+    });
     function privateFolder() {
         if (!runtime.imageFolderId) throw new Error('GATEWAY_PROPERTY_MISSING:STAFF_GATEWAY_IMAGE_FOLDER_ID');
         return DriveApp.getFolderById(runtime.imageFolderId);
@@ -255,7 +259,9 @@ function gatewayStore_(spreadsheet, runtime) {
         getRows: sheet => {
             const headers = sheet === pipeline.SHEETS.allowlist ? pipeline.HEADERS.allowlist
                 : sheet === pipeline.SHEETS.staging ? stagingHeaders
-                    : sheet === pipeline.SHEETS.audit ? auditHeaders : sheet === pipeline.SHEETS.verificationAudit ? verificationHeaders : pipeline.HEADERS.ledger;
+                    : sheet === pipeline.SHEETS.audit ? auditHeaders
+                        : sheet === pipeline.SHEETS.verificationAudit ? verificationHeaders
+                            : sheet === pipeline.SHEETS.operationalBaseline ? baselineHeaders : pipeline.HEADERS.ledger;
             return gatewayRows_(spreadsheet, sheet, headers);
         },
         findLedger: ledger.find,

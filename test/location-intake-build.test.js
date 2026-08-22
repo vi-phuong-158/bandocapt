@@ -17,6 +17,8 @@ test('Apps Script intake bundle is reproducible and includes one logic source', 
     assert.match(firstContent, /GENERATED FILE/);
     assert.match(firstContent, /function gatewayUtf8Bytes_\(value\)/);
     assert.match(firstContent, /computeHmacSha256Signature\(gatewayUtf8Bytes_\(message\), gatewayUtf8Bytes_\(secret\)\)/);
+    assert.match(firstContent, /OperationalBaseline/);
+    assert.match(firstContent, /Operational_Baseline/);
 });
 
 test('generated manifest keeps the Web App config so clasp push does not drop the gateway deployment', () => {
