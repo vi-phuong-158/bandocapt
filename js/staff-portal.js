@@ -9,6 +9,7 @@
         units: [],
         selectedUnitCode: '',
         locations: [],
+        pendingRequests: [],
         notice: null,
         modal: null,
         config: null,
@@ -60,15 +61,41 @@
     }
 
     function append(parent, ...children) { children.filter(Boolean).forEach(child => parent.appendChild(child)); return parent; }
-    function button(label, className, handler) {
+    function button(label, className, handler, disabled = false) {
         const node = el('button', `staff-button ${className || ''}`, label);
         node.type = 'button';
+        node.disabled = disabled;
         if (handler) node.addEventListener('click', handler);
         return node;
     }
     function recordValue(record, snake, camel, fallback = '') { return record?.[snake] ?? record?.[camel] ?? fallback; }
     function displayStatus(value) { return STATUS_TEXT[value] || (value ? String(value) : 'Chưa có trạng thái'); }
     function displayServices(value) { return Array.isArray(value) ? value.join(', ') : String(value || ''); }
+    function requestTypeText(type) {
+        return ({
+            'Thêm địa điểm mới': 'Thêm địa điểm mới',
+            'Cập nhật địa điểm đang có': 'Yêu cầu chỉnh sửa thông tin',
+            'Báo địa chỉ hoặc vị trí sai': 'Yêu cầu chỉnh sửa thông tin',
+            'Báo địa điểm ngừng hoạt động': 'Báo ngừng hoạt động',
+        })[type] || 'Yêu cầu cập nhật';
+    }
+    function formatSubmittedAt(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? '' : `Đã gửi ${new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)}`;
+    }
+    // `image_url` is the existing public contract. Legacy Google Drive view URLs are converted
+    // only to their Google content representation so the portal CSP remains narrowly scoped.
+    function publicImageUrl(value) {
+        try {
+            const url = new URL(String(value || ''));
+            if (url.protocol !== 'https:') return '';
+            if (url.hostname === 'drive.google.com') {
+                const id = url.searchParams.get('id') || (url.pathname.match(/\/d\/([^/]+)/) || [])[1];
+                return /^[A-Za-z0-9_-]{10,}$/.test(id || '') ? `https://lh3.googleusercontent.com/d/${id}=w1000` : '';
+            }
+            return url.hostname.endsWith('.googleusercontent.com') ? url.toString() : '';
+        } catch (_) { return ''; }
+    }
     function clearPortal() { while (portal.firstChild) portal.removeChild(portal.firstChild); }
 
     function notice(message, tone = 'warning') { state.notice = { message, tone }; }
@@ -88,6 +115,7 @@
             STAFF_REQUEST_INVALID: 'Một hoặc nhiều trường nhập chưa đúng định dạng hoặc quá dài.',
             TARGET_RECORD_UNIT_MISMATCH: 'Bạn không có quyền cập nhật địa điểm này.',
             TARGET_RECORD_ID_NOT_FOUND: 'Không tìm thấy địa điểm cần cập nhật.',
+            PENDING_REQUEST_CONFLICT: 'Địa điểm này đã có yêu cầu đang chờ duyệt. Dữ liệu mới đã được tải lại để bạn kiểm tra.',
             STALE_PUBLIC_SNAPSHOT: 'Thông tin địa điểm đã thay đổi. Dữ liệu mới đã được tải lại, vui lòng kiểm tra trước khi gửi.',
             IMAGE_REQUIRED: 'Vui lòng chọn ảnh địa điểm trước khi gửi yêu cầu.',
             STAFF_IMAGE_TOO_LARGE: 'Ảnh vẫn còn quá lớn. Vui lòng chọn ảnh khác.',
@@ -185,6 +213,7 @@
         append(headingRow, el('h2', '', 'Địa điểm của đơn vị'), button('+ Thêm địa điểm mới', 'staff-button-primary', () => openModal('create')));
         shell.appendChild(headingRow);
         const selectedLocations = state.locations.filter(item => !state.selectedUnitCode || recordValue(item.record, 'unit_code', 'unitCode') === state.selectedUnitCode);
+        const pendingCreates = state.pendingRequests.filter(request => !request.locationId && (!state.selectedUnitCode || request.unitCode === state.selectedUnitCode));
         if (!selectedLocations.length) {
             const empty = el('section', 'staff-state-card');
             append(empty, el('h2', '', 'Đơn vị chưa có địa điểm đang hiển thị.'), button('Thêm địa điểm mới', 'staff-button-primary', () => openModal('create')));
@@ -193,6 +222,14 @@
             const list = el('div', 'staff-location-list');
             selectedLocations.forEach(item => list.appendChild(renderLocationCard(item)));
             shell.appendChild(list);
+        }
+        if (pendingCreates.length) {
+            const pendingSection = el('section', 'staff-pending-section');
+            append(pendingSection, el('h2', '', 'Yêu cầu đang chờ duyệt'));
+            const list = el('div', 'staff-pending-list');
+            pendingCreates.forEach(request => list.appendChild(renderPendingRequest(request)));
+            pendingSection.appendChild(list);
+            shell.appendChild(pendingSection);
         }
         portal.appendChild(shell);
         if (state.modal) renderModal();
@@ -210,13 +247,29 @@
         ];
         rows.forEach(([label, value]) => { if (value) append(dl, el('dt', '', label), el('dd', '', value)); });
         const status = el('span', 'staff-status', displayStatus(recordValue(record, 'status', 'status')));
+        const pending = state.pendingRequests.filter(request => request.locationId === recordValue(record, 'record_id', 'recordId'));
         const actions = el('div', 'staff-card-actions');
+        const pendingLabel = pending.length ? 'Đang chờ duyệt' : '';
         append(actions,
-            button('Xác nhận thông tin đúng', 'staff-button-soft', () => openModal('confirm', item)),
-            button('Chỉnh sửa thông tin', 'staff-button', () => openModal('update', item)),
-            button('Báo ngừng hoạt động', 'staff-button-danger', () => openModal('stop', item)));
-        append(card, title, dl, status, actions);
+            button(pendingLabel || 'Xác nhận thông tin đúng', 'staff-button-soft', () => openModal('confirm', item), Boolean(pending.length)),
+            button(pendingLabel || 'Chỉnh sửa thông tin', 'staff-button', () => openModal('update', item), Boolean(pending.length)),
+            button(pendingLabel || 'Báo ngừng hoạt động', 'staff-button-danger', () => openModal('stop', item), Boolean(pending.length)));
+        const imageUrl = publicImageUrl(recordValue(record, 'image_url', 'imageUrl'));
+        if (imageUrl) {
+            const image = el('img', 'staff-location-image');
+            image.src = imageUrl; image.loading = 'lazy'; image.alt = `Ảnh địa điểm ${recordValue(record, 'name', 'name', 'địa điểm')}`;
+            image.addEventListener('error', () => image.remove());
+            card.appendChild(image);
+        }
+        append(card, title, dl, status, ...pending.map(renderPendingRequest), actions);
         return card;
+    }
+
+    function renderPendingRequest(request) {
+        const node = el('section', 'staff-pending-request');
+        const submitted = formatSubmittedAt(request.submittedAt);
+        append(node, el('strong', '', 'Đang chờ duyệt'), el('p', '', `${requestTypeText(request.type)} đã được gửi.`), submitted ? el('small', '', submitted) : null);
+        return node;
     }
 
     function field(form, name, label, value = '', type = 'text', required = false, help = '') {
@@ -549,7 +602,7 @@
             field(form, 'reviewNote', 'Ghi chú gửi duyệt', kept('reviewNote', ''), 'textarea');
             const image = document.createElement('div');
             image.className = 'staff-field';
-            const currentImageUrl = recordValue(record, 'image_url', 'imageUrl');
+            const currentImageUrl = publicImageUrl(recordValue(record, 'image_url', 'imageUrl'));
             if (modal.mode === 'update') {
                 if (currentImageUrl) {
                     const preview = document.createElement('img');
@@ -621,7 +674,7 @@
             stopProcessingTimer();
             state.modal = null;
             state.busy = false;
-            renderAuthorized();
+            await loadLocations();
         } catch (error) {
             stopProcessingTimer();
             state.busy = false;
@@ -644,6 +697,7 @@
         try {
             const data = await api.getLocations();
             state.locations = Array.isArray(data.locations) ? data.locations : [];
+            state.pendingRequests = Array.isArray(data.pendingRequests) ? data.pendingRequests : [];
             state.status = 'READY';
             renderAuthorized();
         } catch (error) {

@@ -6,7 +6,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (staffLocationContract, defaultPipeline, defaultWorkbookConfig) {
     'use strict';
 
-    const ACTIONS = Object.freeze(['resolveUnits', 'submitRequest', 'writeVerificationEvent']);
+    const ACTIONS = Object.freeze(['resolveUnits', 'listStaffRequestStatuses', 'submitRequest', 'writeVerificationEvent']);
     const STATE = Object.freeze({ CLAIMED: 'CLAIMED', UPLOAD_PERSISTED: 'UPLOAD_PERSISTED', COMPLETED: 'COMPLETED', FAILED: 'FAILED' });
     const PRIVATE_SHEETS = Object.freeze({
         allowlist: 'Unit_Allowlist', staging: 'Location_Staging', audit: 'Approval_Audit_Log',
@@ -240,6 +240,20 @@
             if (text(target.unit_code).toLowerCase() !== text(unit.unitCode).toLowerCase()) throw gatewayError('TARGET_RECORD_UNIT_MISMATCH');
         }
 
+        // A location can have only one staff change request awaiting review.  This runs under
+        // the Gateway lock, so a second tab cannot bypass the portal's disabled controls.
+        // CREATE has no target record and remains independent because a unit may add locations.
+        function assertNoPendingTargetConflict(requestId, payload, unit) {
+            const targetId = text(payload.target_record_id || payload.targetRecordId);
+            if (!targetId) return;
+            const hasConflict = rows(PRIVATE_SHEETS.staging).some(row =>
+                text(row.request_id) !== requestId &&
+                text(row.status) === pipeline.STATUSES.pending &&
+                text(row.target_record_id) === targetId &&
+                text(row.unit_code).toLowerCase() === text(unit.unitCode).toLowerCase());
+            if (hasConflict) throw gatewayError('PENDING_REQUEST_CONFLICT');
+        }
+
         // File IDs are private operational metadata. For an edit without a replacement upload,
         // recover the latest approved pointer server-side so a later STOP can revoke sharing.
         // Legacy public rows may have no private pointer; that must not block a valid edit.
@@ -272,6 +286,7 @@
                     const operationalRecords = requestType === pipeline.REQUEST_TYPES.create
                         ? [] : (store.getOperationalRecords ? store.getOperationalRecords() : []);
                     preflightTarget(payload, authorization.unit, operationalRecords);
+                    assertNoPendingTargetConflict(requestId, payload, authorization.unit);
                     if (pipeline.requiresNewImage(requestType) && !payload.image) throw gatewayError('IMAGE_REQUIRED');
                     const image = persistImage(payload, requestId, previous);
                     const input = {
@@ -382,6 +397,30 @@
             return { units: pipeline.resolveUnitsByEmail(email, rows(PRIVATE_SHEETS.allowlist)) };
         }
 
+        // Projection only: never return private staging fields such as submitter, review, audit,
+        // or Drive metadata to the browser.
+        function listStaffRequestStatuses(payload) {
+            resolvePrivateConfig();
+            const email = pipeline.normalizeEmail(payload.email);
+            if (!email) return { requests: [] };
+            const allowed = new Set(pipeline.resolveUnitsByEmail(email, rows(PRIVATE_SHEETS.allowlist))
+                .map(unit => text(unit.unitCode).toLowerCase()));
+            const permittedTypes = new Set(Object.values(pipeline.REQUEST_TYPES));
+            return {
+                requests: rows(PRIVATE_SHEETS.staging)
+                    .filter(row => text(row.request_id) && text(row.status) === pipeline.STATUSES.pending &&
+                        allowed.has(text(row.unit_code).toLowerCase()) && permittedTypes.has(text(row.request_type)))
+                    .map(row => ({
+                        locationId: text(row.target_record_id),
+                        unitCode: text(row.unit_code),
+                        type: text(row.request_type),
+                        status: pipeline.STATUSES.pending,
+                        submittedAt: text(row.submitted_at),
+                    }))
+                    .filter(row => row.unitCode),
+            };
+        }
+
         function dispatch(body) {
             const action = text(body && body.action);
             if (!ACTIONS.includes(action)) throw gatewayError('UNKNOWN_ACTION');
@@ -394,6 +433,7 @@
                 ? { ...body.payload, request_id: envelopeRequestId || payloadRequestId }
                 : body;
             if (action === 'resolveUnits') return resolveUnits(payload || {});
+            if (action === 'listStaffRequestStatuses') return listStaffRequestStatuses(payload || {});
             if (action === 'submitRequest') return submitRequest(payload || {});
             return writeVerificationEvent(payload || {});
         }
@@ -426,7 +466,7 @@
             });
         }
 
-        return Object.freeze({ assertAction, dispatch, handleRawRequest, verifyRequest, resolvePrivateConfig, submitRequest, writeVerificationEvent, resolveUnits });
+        return Object.freeze({ assertAction, dispatch, handleRawRequest, verifyRequest, resolvePrivateConfig, submitRequest, writeVerificationEvent, resolveUnits, listStaffRequestStatuses });
     }
 
     createStaffGateway.ACTIONS = ACTIONS;

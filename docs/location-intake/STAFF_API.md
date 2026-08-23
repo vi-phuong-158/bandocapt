@@ -24,13 +24,35 @@ workbook, deploy Apps Script, or change Production environment variables.
 | `POST /api/staff/auth/google` | Accepts only `{ credential }`; returns safe user/unit DTO and sets the signed session cookie. |
 | `POST /api/staff/auth/logout` | Requires Origin + CSRF and clears the session/CSRF cookies. |
 | `GET /api/staff/session` | Revalidates the session against current Gateway units and returns safe DTO only. |
-| `GET /api/staff/locations` | Reads only public `Published_Locations`, filters by current authorized `unit_code`, and returns a canonical snapshot plus SHA-256 hash. |
+| `GET /api/staff/locations` | Reads only public `Published_Locations`, filters by current authorized `unit_code`, and returns a canonical snapshot plus SHA-256 hash plus a safe projection of pending staged requests for those units. |
 | `POST /api/staff/requests` | Allows only the explicit intake DTO. Create rejects target/hash; update/correct/stop require an authorized fresh target. `submitter_name` is overridden server-side from the verified session `name` whenever one is present — a client-submitted value is only used as a fallback while no verified name exists. |
 | `POST /api/staff/verification` | Builds the current snapshot server-side, rejects stale hashes with HTTP 409, and only then calls `writeVerificationEvent`. |
 | `POST /api/staff/maps/resolve` | Requires Origin + CSRF + valid session. Resolves a Google Maps URL (including `maps.app.goo.gl` short links) to `{ coordinates: { lat, lng } }` for UX only — see "Maps URL resolver" below for the authoritative contract. |
 
 All responses are `no-store` and use `{ ok, data }` / `{ ok: false, error: { code } }`. Raw Gateway bodies,
 private rows, credentials, cookie tokens, secrets, signatures, body hashes and Drive IDs are not returned.
+
+## Pending-request projection
+
+The locations response is additive: `{ locations, pendingRequests }`. `pendingRequests` comes from the
+private Gateway read action `listStaffRequestStatuses`, which re-resolves the signed session email against
+`Unit_Allowlist` and returns only rows that are both `PENDING` and in an authorized unit. Each safe row is
+`{ locationId, unitCode, type, status, submittedAt }`; it excludes opaque server-derived request IDs,
+submitter/reviewer/audit text, validation fields and every private image/Drive pointer. `locationId` is the
+staging target ID for an existing location and empty for a CREATE request, allowing a pending CREATE to
+remain visible before it has a public `Published_Locations` row. A failed status read fails the whole
+protected locations response; the browser therefore never treats an unavailable private source as “no
+pending request”.
+
+Current workflow semantics are intentionally preserved: CREATE/UPDATE/CORRECT/STOP have `Location_Staging`
+review state (`PENDING` until the admin decision); APPROVED/REJECTED/NEED_VERIFICATION/REVOKED are not
+returned as a history feed. CONFIRM is a completed `Staff_Verification_Audit` event, not a staging/Admin
+Review request, so it is not falsely shown as pending.
+
+For a target location, Gateway rejects a distinct CREATE/UPDATE/CORRECT/STOP request while any request for
+that target is still `PENDING`; the check is performed inside the existing Script Lock. This closes a
+second-tab race independently of the portal's disabled controls. CREATE remains exempt because it has no
+target and a unit may legitimately submit more than one new location.
 
 ## Cache and authoritative snapshot policy
 
@@ -81,6 +103,12 @@ CREATE must include a replacement image at both Vercel and Gateway. UPDATE and l
 `image`; their browser DTO omits the field rather than sending `null`. On approval without a new file,
 the server preserves the current public `image_url` and recovers the latest approved private file ID when
 available. No browser value is authoritative for either retained value.
+
+The staff card renders only this existing public `image_url` contract. A legacy public Drive view URL is
+converted in-browser to its `lh3.googleusercontent.com` content form for the route's narrow image CSP;
+this does not read or expose a private staging file ID. Missing, malformed or failed images are removed
+without breaking the card. A pending replacement image remains private; the card continues to show only
+the currently published image.
 
 ## Browser portal additions (PR #48)
 
