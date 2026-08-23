@@ -67,6 +67,67 @@ test('update uses target record_id and does not overwrite another record in the 
     assert.equal(state.publishedRecords.find(record => record.record_id === second.record_id).name, 'Điểm B');
 });
 
+test('existing UPDATE/CORRECT preserves a blank Maps URL while coordinates remain independent', () => {
+    const original = {
+        record_id: 'LEGACY_0001', unit_code: 'CA_TIEN_CAT', name: 'Công an tỉnh Phú Thọ', type: 'police_station',
+        address: 'Địa chỉ hiện tại', phone: '0210', coordinates: '21.327883,105.403052', image_url: '',
+        search_aliases: '', updated_at: '2026-08-03T00:00:00.000Z', site_type: 'HEADQUARTERS',
+        services: 'POLICE_OFFICE', google_maps_url: '', cccd_service_mode: 'NOT_PROVIDED',
+        service_schedule: '', served_units: '', status: 'published', verified_at: '2026-08-03T00:00:00.000Z',
+    };
+    const update = stage(submission({
+        requestId: 'REQ_BLANK_MAPS_UPDATE', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: original.record_id,
+        locationName: 'Công an tỉnh Phú Thọ (Khu A)', address: original.address,
+        mapsUrlOriginal: '', mapsUrlResolved: '', coordinates: original.coordinates,
+        imageFileId: '', imageDriveUrl: '', imagePublicUrl: '', imageMimeType: '',
+    }), [original]);
+    assert.equal(update.validation_errors, '');
+    assert.equal(update.maps_url_original, '');
+    assert.equal(update.maps_url_resolved, '');
+    assert.equal(update.coordinates, original.coordinates);
+
+    const state = pipeline.applyApproval({ stagingRecords: [update], publishedRecords: [original], auditEntries: [] }, update.request_id, 'reviewer@example.gov.vn', '', NOW);
+    const published = state.publishedRecords[0];
+    assert.equal(published.name, 'Công an tỉnh Phú Thọ (Khu A)');
+    assert.equal(published.google_maps_url, '');
+    assert.equal(published.coordinates, original.coordinates);
+
+    const correct = stage(submission({
+        requestId: 'REQ_BLANK_MAPS_CORRECT', requestType: pipeline.REQUEST_TYPES.correct, targetRecordId: original.record_id,
+        mapsUrlOriginal: '', mapsUrlResolved: '', coordinates: '21.328000,105.404000',
+        imageFileId: '', imageDriveUrl: '', imagePublicUrl: '', imageMimeType: '',
+    }), [original]);
+    assert.equal(correct.validation_errors, '');
+    assert.equal(correct.maps_url_original, '');
+    assert.equal(correct.maps_url_resolved, '');
+    assert.equal(correct.coordinates, '21.328,105.404');
+});
+
+test('existing UPDATE preserves a nonblank Maps URL and accepts an explicit Maps URL change', () => {
+    const original = {
+        record_id: 'LEGACY_MAPS', unit_code: 'CA_TIEN_CAT', name: 'Điểm cũ', type: 'police_station',
+        address: 'Địa chỉ', phone: '0210', coordinates: '21.327883,105.403052', image_url: '',
+        search_aliases: '', updated_at: '2026-08-03T00:00:00.000Z', site_type: 'HEADQUARTERS',
+        services: 'POLICE_OFFICE', google_maps_url: 'https://maps.google.com/?q=21.327883,105.403052',
+        cccd_service_mode: 'NOT_PROVIDED', service_schedule: '', served_units: '', status: 'published', verified_at: '',
+    };
+    const preserved = stage(submission({
+        requestId: 'REQ_MAPS_PRESERVE', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: original.record_id,
+        mapsUrlOriginal: original.google_maps_url, mapsUrlResolved: '', coordinates: original.coordinates,
+        imageFileId: '', imageDriveUrl: '', imagePublicUrl: '', imageMimeType: '',
+    }), [original]);
+    assert.equal(preserved.maps_url_original, original.google_maps_url);
+
+    const changed = stage(submission({
+        requestId: 'REQ_MAPS_CHANGE', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: original.record_id,
+        mapsUrlOriginal: 'https://maps.google.com/?q=21.328,105.404', mapsUrlResolved: '', coordinates: '21.328,105.404',
+        imageFileId: '', imageDriveUrl: '', imagePublicUrl: '', imageMimeType: '',
+    }), [original]);
+    assert.equal(changed.maps_url_original, 'https://maps.google.com/?q=21.328,105.404');
+    const state = pipeline.applyApproval({ stagingRecords: [changed], publishedRecords: [original], auditEntries: [] }, changed.request_id, 'reviewer@example.gov.vn', '', NOW);
+    assert.equal(state.publishedRecords[0].google_maps_url, 'https://maps.google.com/?q=21.328,105.404');
+});
+
 test('update and legacy correct accept no replacement image, while create still requires one', () => {
     const created = stage(submission({ requestId: 'REQ_IMAGE_ORIGINAL' }));
     let state = pipeline.applyApproval({ stagingRecords: [created], publishedRecords: [], auditEntries: [] }, created.request_id, 'reviewer@example.gov.vn', '', NOW);

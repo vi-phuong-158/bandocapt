@@ -115,6 +115,22 @@ test('published locations dedupe identical rows and keep conflicting rows separa
     assert.equal(result.conflicts[0].records.length, 2);
 });
 
+test('published locations retain the raw Maps URL alongside the assistant-derived helper URL', async () => {
+    const payload = {
+        table: {
+            cols: [{ label: 'record_id' }, { label: 'name' }, { label: 'coordinates' }, { label: 'google_maps_url' }],
+            rows: [{ c: [{ v: 'LEGACY_0001' }, { v: 'Công an tỉnh Phú Thọ' }, { v: '21.327883,105.403052' }, { v: '' }] }],
+        },
+    };
+    const result = await getPublishedLocations({
+        now: 1,
+        fetchImpl: async () => new Response(`google.visualization.Query.setResponse(${JSON.stringify(payload)});`),
+        sheetId: 'sheet-id',
+    });
+    assert.equal(result.locations[0].sourceGoogleMapsUrl, '');
+    assert.equal(result.locations[0].googleMapsUrl, 'https://www.google.com/maps/search/?api=1&query=21.327883,105.403052');
+});
+
 test('published locations cache serves fresh then stale fallback up to five minutes', async () => {
     const payload = buildPayload([
         {
