@@ -189,6 +189,56 @@ test('locations are filtered by current unit and snapshot hashes are determinist
     assert.equal(item.snapshotHash, snapshotHash(item.record));
 });
 
+test('staff snapshots preserve a blank workbook Maps URL instead of the coordinate-derived helper URL', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const location = record({
+        id: 'LEGACY_0001',
+        name: 'Công an tỉnh Phú Thọ',
+        unitCode: 'CA_TINH_PHU_THO',
+        coordinates: '21.327883,105.403052',
+        googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=21.327883,105.403052',
+        sourceGoogleMapsUrl: '',
+    });
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async () => ({ units: [{ unitCode: 'CA_TINH_PHU_THO', unitName: 'Công an tỉnh Phú Thọ' }] }),
+        getLocations: async () => ({ locations: [location] }),
+    });
+    const res = response();
+    await api.locations(request('GET', null, { cookie: `staff_session=${encodeURIComponent(session)}` }), res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.data.locations[0].record.google_maps_url, '');
+    assert.equal(res.body.data.locations[0].record.coordinates, '21.327883,105.403052');
+});
+
+test('name-only UPDATE with a blank workbook Maps URL never sends the derived helper URL to the Gateway', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const location = record({
+        id: 'LEGACY_0001', unitCode: 'CA_TINH_PHU_THO', coordinates: '21.327883,105.403052',
+        googleMapsUrl: 'https://www.google.com/maps/search/?api=1&query=21.327883,105.403052', sourceGoogleMapsUrl: '',
+    });
+    const calls = [];
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async (action, payload) => {
+            calls.push({ action, payload });
+            if (action === 'resolveUnits') return { units: [{ unitCode: 'CA_TINH_PHU_THO', unitName: 'Công an tỉnh Phú Thọ' }] };
+            return { status: 'PENDING' };
+        },
+        getLocations: async () => ({ locations: [location] }),
+    });
+    const currentHash = snapshotHash(require('../lib/staff-location-contract').toPublicSnapshot(location));
+    const res = response();
+    await api.requests(request('POST', {
+        operationId: 'op_maps_noop', requestType: 'Cập nhật địa điểm đang có', targetRecordId: 'LEGACY_0001',
+        snapshotHash: currentHash, locationName: 'Công an tỉnh Phú Thọ (Khu A)',
+    }, { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` }), res);
+    assert.equal(res.statusCode, 200);
+    const submit = calls.find(call => call.action === 'submitRequest');
+    assert.equal('maps_url_original' in submit.payload, false);
+    assert.equal('maps_url_resolved' in submit.payload, false);
+});
+
 test('the location list DTO never leaks private/internal fields even if the source object carries them', async () => {
     const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
     const withPrivateFields = record({

@@ -40,6 +40,15 @@ test('target DTO omits an absent replacement image but keeps a selected image', 
     assert.deepEqual(withImage.image, { base64: 'aGVsbG8=' });
 });
 
+test('target DTO treats a blank Maps URL as an unchanged field and keeps an explicit URL', () => {
+    const record = { record_id: 'LEGACY_0001', snapshotHash: 'e'.repeat(64) };
+    const unchanged = client.buildTargetPayload({ locationName: 'Khu A', mapsUrl: '', coordinates: '21.327883,105.403052' }, 'Cập nhật địa điểm đang có', record);
+    assert.equal('mapsUrl' in unchanged, false);
+
+    const explicit = client.buildTargetPayload({ locationName: 'Khu A', mapsUrl: 'https://maps.google.com/?q=21.328,105.404' }, 'Cập nhật địa điểm đang có', record);
+    assert.equal(explicit.mapsUrl, 'https://maps.google.com/?q=21.328,105.404');
+});
+
 test('portal renders API text with safe DOM APIs and does not decode or persist Google credentials', () => {
     assert.match(portalSource, /textContent/);
     assert.doesNotMatch(portalSource, /innerHTML|insertAdjacentHTML/);

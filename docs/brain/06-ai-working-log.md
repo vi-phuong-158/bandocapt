@@ -3225,3 +3225,15 @@
   quyền của môi trường sandbox cục bộ, không tái hiện trên CI và không liên quan Staff Portal.
   Không đụng Production, không đổi auth/CSRF/origin/HMAC/DTO/workbook boundary,
   không rebase hay merge PR #48, `OLD_IMAGE_REPLACEMENT_REVOCATION_FOLLOWUP` giữ nguyên.
+## [2026-08-23] Staff UPDATE Maps URL no-op preservation fix
+- **Agent:** Codex
+- **Thay đổi:** Giữ nguyên raw `Published_Locations.google_maps_url` trong Staff snapshots bằng cách mang theo
+  `sourceGoogleMapsUrl` bên cạnh URL Maps dẫn xuất dành cho chatbot. Snapshot contract ưu tiên raw value,
+  kể cả chuỗi rỗng; không đổi Gateway, Apps Script, approval schema hay semantics CREATE.
+- **Lý do:** `lib/published-locations.js:getGoogleMapsUrl()` đã biến tọa độ thành URL Maps rồi ghi đè
+  giá trị rỗng, khiến UPDATE/CORRECT chỉ đổi tên gửi nhầm URL dẫn xuất vào staging.
+- **Kiểm tra:** focused 141/141 PASS; `npm test` 559/559 PASS; `npm run build` PASS; `npm run ci` PASS;
+  `npm audit --omit=dev --audit-level=high` không có high/critical (9 moderate `uuid`, không có fix);
+  Staff Portal E2E 28/28 PASS. Full E2E 50/53 PASS; 3 failure hiện hữu ở `location-image.spec.js`
+  do `ERR_CONNECTION_REFUSED` resource console errors, không liên quan Staff fix. Production workbook và
+  pending request không bị chạm.
