@@ -3237,3 +3237,13 @@
   Staff Portal E2E 28/28 PASS. Full E2E 50/53 PASS; 3 failure hiện hữu ở `location-image.spec.js`
   do `ERR_CONNECTION_REFUSED` resource console errors, không liên quan Staff fix. Production workbook và
   pending request không bị chạm.
+
+## [2026-08-23] Production admin-review container source integration
+- **Agent:** Codex
+- **Thay đổi:** Thêm artifact Apps Script container-bound riêng (`setup/location-admin-review/`), builder
+  tái lập, guard kiểm tra active workbook/Private workbook, manifest không có Web App và hướng dẫn vận hành.
+  `build` nay xây cả Gateway bundle hiện hữu lẫn admin-review bundle; không đổi Gateway/Vercel/OAuth/CSP.
+- **Kiểm tra:** focused admin 10/10, `npm test` 569/569, `npm run build`, `npm run ci` đều PASS.
+  Audit high gate PASS (chỉ còn 9 moderate `uuid`, không có fix). Không chạy E2E vì không đổi browser flow.
+- **Ranh giới:** Không push Apps Script, không đổi Script Properties, không chạy action review và không đổi
+  workbook/Production/pending request; Gateway v9 không bị thay đổi.
