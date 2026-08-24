@@ -154,6 +154,28 @@ test('resolveUnits returns only permitted DTOs and cannot enumerate private rows
     assert.deepEqual(gateway.resolveUnits({ email: 'unknown@example.gov.vn' }), { units: [] });
 });
 
+test('request-status projection is pending-only, unit-scoped, and strips private staging metadata', () => {
+    const store = makeStore({ stagingRows: [
+        { request_id: 'REQ_A', target_record_id: 'LOC_A', unit_code: 'CA_A', request_type: pipeline.REQUEST_TYPES.update, status: 'PENDING', submitted_at: '2026-08-23T01:02:03.000Z', submitter_email: 'private@example.test', image_file_id: 'private-file', review_note: 'private note' },
+        { request_id: 'REQ_CREATE', target_record_id: '', unit_code: 'CA_A', request_type: pipeline.REQUEST_TYPES.create, status: 'PENDING', submitted_at: '2026-08-23T01:02:03.000Z', image_drive_url: 'https://drive.google.com/private' },
+        { request_id: 'REQ_B', target_record_id: 'LOC_B', unit_code: 'CA_B', request_type: pipeline.REQUEST_TYPES.stop, status: 'PENDING', submitted_at: '2026-08-23T01:02:03.000Z' },
+        { request_id: 'REQ_DONE', target_record_id: 'LOC_A', unit_code: 'CA_A', request_type: pipeline.REQUEST_TYPES.update, status: 'APPROVED', submitted_at: '2026-08-23T01:02:03.000Z' },
+        { request_id: '', target_record_id: 'LOC_A', unit_code: 'CA_A', request_type: pipeline.REQUEST_TYPES.update, status: 'PENDING' },
+    ] });
+    const gateway = makeGateway(store);
+    const request = rawRequest('listStaffRequestStatuses', 'READ_STATUS', { email: 'canbo@example.gov.vn' });
+    const result = gateway.handleRawRequest(request.raw, request.metadata);
+    assert.deepEqual(result, { requests: [
+        { locationId: 'LOC_A', unitCode: 'CA_A', type: pipeline.REQUEST_TYPES.update, status: 'PENDING', submittedAt: '2026-08-23T01:02:03.000Z' },
+        { locationId: '', unitCode: 'CA_A', type: pipeline.REQUEST_TYPES.create, status: 'PENDING', submittedAt: '2026-08-23T01:02:03.000Z' },
+    ] });
+    assert.equal(JSON.stringify(result).includes('private-file'), false);
+    assert.equal(JSON.stringify(result).includes('private@example.test'), false);
+    assert.deepEqual(gateway.listStaffRequestStatuses({ email: 'other@example.gov.vn' }), { requests: [
+        { locationId: 'LOC_B', unitCode: 'CA_B', type: pipeline.REQUEST_TYPES.stop, status: 'PENDING', submittedAt: '2026-08-23T01:02:03.000Z' },
+    ] });
+});
+
 test('submitRequest authorizes unit, writes private staging once, and replay is idempotent', () => {
     const store = makeStore();
     const gateway = makeGateway(store);
@@ -165,6 +187,21 @@ test('submitRequest authorizes unit, writes private staging once, and replay is 
     assert.deepEqual(store.counts(), { ledgers: 1, staging: 1, approvalAudit: 1, verificationAudit: 0, imageCreates: 1 });
     assert.equal(store.rows().staging[0].record_id, first.recordId);
     assert.equal(store.rows().staging[0].status, 'PENDING');
+});
+
+test('submitRequest rejects a distinct pending request for the same target under the Gateway lock', () => {
+    const target = { record_id: 'CA_A_OLD', unit_code: 'CA_A', name: 'A', location_name: 'A', coordinates: '21.3,105.4' };
+    const store = makeStore({
+        operationalRecords: [target],
+        stagingRows: [{ request_id: 'REQ_EXISTING', target_record_id: target.record_id, unit_code: 'CA_A', request_type: pipeline.REQUEST_TYPES.update, status: 'PENDING' }],
+    });
+    const gateway = makeGateway(store);
+    const payload = basePayload({ request_type: pipeline.REQUEST_TYPES.stop, target_record_id: target.record_id });
+    delete payload.image;
+    const request = rawRequest('submitRequest', 'REQ_CONFLICT', payload);
+    assert.throws(() => gateway.handleRawRequest(request.raw, request.metadata), /PENDING_REQUEST_CONFLICT/);
+    assert.equal(store.counts().staging, 1);
+    assert.equal(store.counts().imageCreates, 0);
 });
 
 test('a migrated operational baseline permits update, legacy correct, and stop without a replacement image', () => {

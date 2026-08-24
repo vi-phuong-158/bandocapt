@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-08-23] Staff Location request status and approved image visibility
+- **Agent:** Codex
+- **Thay đổi:** Added a read-only, unit-authorized pending-request projection through Gateway and the Staff API; rendered request state, pending CREATE cards, conflict-disabled actions and public approved images in `/can-bo`; refetches authoritative state after a successful submission.
+- **File đã sửa:** `setup/staff-gateway.js`, `lib/staff-api.js`, `js/staff-portal.js`, `styles/staff-portal.css`, Staff API/portal and architecture/decision docs, and Staff Gateway/API/portal tests.
+- **Lý do:** Cán bộ need to see requests awaiting review across page refreshes without exposing private staging or Drive fields; approved images use the existing public contract only.
+- **Kiểm tra:** Focused Gateway/Admin Review/image/portal tests; full `npm test`, build, audit and diff check are run for the feature worktree.
+
 ## [2026-08-22] Legacy Staff Portal operational baseline gap — dry-run remediation only
 - **Agent:** Codex
 - **Thay đổi:** Added a private `Operational_Baseline` schema and pure reconciliation module, a local
@@ -3247,3 +3254,25 @@
   Audit high gate PASS (chỉ còn 9 moderate `uuid`, không có fix). Không chạy E2E vì không đổi browser flow.
 - **Ranh giới:** Không push Apps Script, không đổi Script Properties, không chạy action review và không đổi
   workbook/Production/pending request; Gateway v9 không bị thay đổi.
+
+## [2026-08-23] Staff Portal pending request status and approved-image visibility
+
+- **Agent:** Codex
+- **Thay đổi:** `GET /api/staff/locations` ghép public locations với Gateway projection chỉ-PENDING,
+  re-authorize theo unit và không trả opaque request ID, email, review/audit hay private image/Drive fields.
+  Portal hiển thị loại yêu cầu/timestamp thân thiện, tách CREATE pending, refetch source of truth sau submit,
+  và khóa các action của target đang chờ duyệt. Gateway reject cạnh tranh pending cùng target trong Script
+  Lock; CREATE vẫn độc lập. Card chỉ render `Published_Locations.image_url` public, lazy-load và tự bỏ ảnh
+  lỗi; URL Drive public legacy được chuẩn hóa vào host CSP hiện hữu.
+- **File đã sửa:** `setup/staff-gateway.js`, `lib/staff-api.js`, `lib/staff-api-errors.js`,
+  `js/staff-portal.js`, `styles/staff-portal.css`, Staff API/Portal docs và tests unit/E2E liên quan.
+- **Kiểm tra:** `npm run ci` PASS (573/573 unit tests, build, audit high; còn 6 moderate `uuid`, không
+  chạy breaking `audit fix`); Staff Portal Playwright 32/32 PASS. Full E2E 52/55 PASS; ba fail còn lại là
+  `location-image` có sẵn do `ERR_CONNECTION_REFUSED`, không thuộc Staff Portal. Không gọi Gateway live,
+  không push Apps Script, không thay workbook/Production/pending request.
+## [2026-08-24] Staff approved-image display reliability
+- **Agent:** Codex
+- **Thay đổi:** Hoàn thiện pipeline ảnh đã duyệt cho Staff Portal: chuẩn hóa URL Drive/public Google, hiển thị ảnh ngay trên card, dùng cùng nguồn cho modal, placeholder ổn định khi thiếu/lỗi và giữ pending replacement ở private boundary.
+- **File đã sửa:** `js/staff-image.js`, `js/staff-portal.js`, `styles/staff-portal.css`, `test/staff-approved-image.test.js`, `test/staff-portal-client.test.js`, `test/staff-api.test.js`, `test/e2e/staff-portal-modal.spec.js`, `docs/location-intake/STAFF_API.md`, `docs/brain/01-architecture.md`.
+- **Lý do:** `Published_Locations.image_url` của Production tồn tại nhưng raw Drive `/file/d/.../view` trả HTML; delivery URL `lh3.googleusercontent.com` mới trả ảnh. PR #56 chưa có trên Production nên card chưa có ảnh và modal cũ dùng raw URL.
+- **Kiểm tra:** focused unit/API 41/41; focused Staff Portal E2E 6/6; toàn bộ Node test 578/578; build/CI pass; full Playwright 56/59, ba failure pre-existing ở public-map `location-image` do `ERR_CONNECTION_REFUSED`; production read-only xác nhận public record có ảnh, raw URL 200 HTML và normalized URL 206 `image/jpeg`; không mutate Production.

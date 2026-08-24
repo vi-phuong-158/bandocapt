@@ -64,7 +64,7 @@ test('image compression target stays below the Vercel 3 MiB decoded limit', () =
 });
 
 test('portal unifies existing-location edits and only requires an image for create', () => {
-    assert.match(portalSource, /button\('Chỉnh sửa thông tin', 'staff-button', \(\) => openModal\('update', item\)\)/);
+    assert.match(portalSource, /button\(pendingLabel \|\| 'Chỉnh sửa thông tin', 'staff-button', \(\) => openModal\('update', item\), Boolean\(pending\.length\)\)/);
     assert.doesNotMatch(portalSource, /button\('Báo địa chỉ\/vị trí sai'/);
     assert.match(portalSource, /update: 'Chỉnh sửa thông tin'/);
     assert.match(portalSource, /const requiresLocationFields = \['create', 'update'\]\.includes\(modal\.mode\)/);
@@ -115,9 +115,30 @@ test('processing timer starts on submit and is stopped on every exit path (no or
     assert.match(portalSource, /clearInterval\(state\.processing\.intervalId\)/);
     assert.match(portalSource, /startProcessingTimer\(seconds => \{/);
     // Stopped on the success path, before the modal closes.
-    assert.match(portalSource, /stopProcessingTimer\(\);\s*\n\s*state\.modal = null;\s*\n\s*state\.busy = false;\s*\n\s*renderAuthorized\(\);\s*\n\s*\} catch/);
+    assert.match(portalSource, /stopProcessingTimer\(\);\s*\n\s*state\.modal = null;\s*\n\s*state\.busy = false;\s*\n\s*await loadLocations\(\);\s*\n\s*\} catch/);
     // Stopped as the very first statement of the catch block, covering every error exit (revoked, stale snapshot, generic).
     assert.match(portalSource, /\} catch \(error\) \{\s*\n\s*stopProcessingTimer\(\);\s*\n\s*state\.busy = false;/);
+});
+
+test('portal renders only public-approved images and authoritative pending request state', () => {
+    assert.match(portalSource, /function publicImageUrl\(value\) \{ return root\.StaffImage\.normalizeApprovedImageUrl\(value\); \}/);
+    assert.match(portalSource, /function approvedImageView\(value/);
+    assert.match(portalSource, /StaffImage\.normalizeApprovedImageUrl/);
+    assert.match(portalSource, /image\.loading = 'lazy'/);
+    assert.match(portalSource, /image\.replaceWith\(imagePlaceholder\(failedText, className\)\)/);
+    assert.match(portalSource, /imagePlaceholder\(emptyText, className\)/);
+    assert.match(portalSource, /state\.pendingRequests = Array\.isArray\(data\.pendingRequests\) \? data\.pendingRequests : \[\]/);
+    assert.match(portalSource, /pendingCreates\.forEach\(request => list\.appendChild\(renderPendingRequest\(request\)\)\)/);
+    assert.match(portalSource, /Boolean\(pending\.length\)/);
+    assert.doesNotMatch(portalSource, /image_file_id|image_drive_url|submitter_email/);
+});
+
+test('card and update modal share the approved-image normalizer and keep an intentional image area', () => {
+    assert.match(portalSource, /className: 'staff-location-image'/);
+    assert.match(portalSource, /className: 'staff-current-image'/);
+    assert.match(portalSource, /staff-image-placeholder/);
+    assert.match(portalSource, /Ảnh hiện tại sẽ được giữ nguyên/);
+    assert.doesNotMatch(portalSource, /image\.src\s*=\s*recordValue/);
 });
 
 test('processing overlay is an accessible live region with a decorative, non-spammy spinner and timer', () => {

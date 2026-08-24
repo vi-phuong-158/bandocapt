@@ -177,7 +177,9 @@ test('locations are filtered by current unit and snapshot hashes are determinist
     const locations = [record(), record({ id: 'R_B', unitCode: 'UNIT_B', name: 'Điểm B' })];
     const api = createStaffApi({
         env: ENV,
-        gatewayCall: async () => ({ units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] }),
+        gatewayCall: async action => action === 'resolveUnits'
+            ? { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] }
+            : { requests: [{ locationId: 'R_A', unitCode: 'UNIT_A', type: 'Cập nhật địa điểm đang có', status: 'PENDING', submittedAt: '2026-08-23T01:02:03.000Z' }] },
         getLocations: async () => ({ locations }),
     });
     const res = response();
@@ -187,6 +189,54 @@ test('locations are filtered by current unit and snapshot hashes are determinist
     const item = res.body.data.locations[0];
     assert.equal(item.record.record_id, 'R_A');
     assert.equal(item.snapshotHash, snapshotHash(item.record));
+    assert.deepEqual(res.body.data.pendingRequests, [{ locationId: 'R_A', unitCode: 'UNIT_A', type: 'Cập nhật địa điểm đang có', status: 'PENDING', submittedAt: '2026-08-23T01:02:03.000Z' }]);
+});
+
+test('staff locations expose the approved public image URL only, never private image pointers', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => action === 'resolveUnits'
+            ? { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] }
+            : { requests: [] },
+        getLocations: async () => ({ locations: [record({
+            imageUrl: 'https://drive.google.com/uc?export=view&id=AbC_123-xyz',
+            image_file_id: 'private-staging-id',
+            published_image_file_id: 'private-published-id',
+            image_drive_url: 'https://drive.google.com/file/d/private-staging-id/view',
+            image_public_url: 'https://drive.google.com/uc?export=view&id=private-staging-id',
+            submitter_email: 'private@example.test',
+        })] }),
+    });
+    const res = response();
+    await api.locations(request('GET', null, { cookie: `staff_session=${encodeURIComponent(session)}` }), res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.data.locations[0].record.image_url, 'https://drive.google.com/uc?export=view&id=AbC_123-xyz');
+    const serialized = JSON.stringify(res.body.data);
+    for (const privateValue of ['private-staging-id', 'private-published-id', 'private@example.test']) {
+        assert.equal(serialized.includes(privateValue), false, `private value leaked: ${privateValue}`);
+    }
+});
+
+test('location status DTO rejects malformed and cross-unit request rows without leaking private metadata', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => action === 'resolveUnits'
+            ? { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] }
+            : { requests: [
+                { locationId: '', unitCode: 'UNIT_A', type: 'Thêm địa điểm mới', status: 'PENDING', submittedAt: '2026-08-23T01:02:03.000Z', image_file_id: 'private-file', submitter_email: 'private@example.test' },
+                { locationId: 'R_B', unitCode: 'UNIT_B', type: 'Báo địa điểm ngừng hoạt động', status: 'PENDING' },
+                { unitCode: 'UNIT_A', type: 'not-a-request', status: 'PENDING' },
+            ] },
+        getLocations: async () => ({ locations: [record()] }),
+    });
+    const res = response();
+    await api.locations(request('GET', null, { cookie: `staff_session=${encodeURIComponent(session)}` }), res);
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body.data.pendingRequests, [{ locationId: '', unitCode: 'UNIT_A', type: 'Thêm địa điểm mới', status: 'PENDING', submittedAt: '2026-08-23T01:02:03.000Z' }]);
+    assert.equal(JSON.stringify(res.body.data).includes('private-file'), false);
+    assert.equal(JSON.stringify(res.body.data).includes('private@example.test'), false);
 });
 
 test('staff snapshots preserve a blank workbook Maps URL instead of the coordinate-derived helper URL', async () => {
@@ -282,6 +332,7 @@ test('authoritative mutation bypasses fresh cache and never accepts stale fallba
         env: ENV,
         gatewayCall: async action => {
             if (action === 'resolveUnits') return { units: [{ unitCode: 'UNIT_A', unitName: 'ÄÆ¡n vá»‹ A' }] };
+            if (action === 'listStaffRequestStatuses') return { requests: [] };
             mutationCalls += 1;
             return { eventType: 'CONFIRM' };
         },

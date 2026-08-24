@@ -1670,3 +1670,17 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - **Lý do:** Source Node đã cho phép UPDATE không có ảnh nhưng Apps Script TEST version cũ vẫn áp dụng rule ảnh cho mọi request, tạo lỗi runtime `IMAGE_REQUIRED`. Parity test giữ helper CREATE-only trong source và bundle.
 - **Phạm vi:** chỉ TEST Gateway; giữ nguyên HMAC, allowlist, snapshot, image preservation và Production.
 
+## [2026-08-23] Staff Portal pending status is a Gateway-safe projection
+
+- **Quyết định:** Use `listStaffRequestStatuses` in the private Gateway rather than granting Vercel or the
+  browser direct staging access. It reauthorizes the email against the unit allowlist and emits only PENDING
+  `{locationId, unitCode, type, status, submittedAt}` records; opaque server-derived request IDs remain
+  private. Vercel filters that additive DTO again against current authorized units and fails closed if the
+  read cannot complete. CREATE has no target `locationId` and is rendered separately; existing-location
+  actions are disabled while a pending staging request targets that location. Gateway also rejects a distinct
+  pending request for the same target inside its Script Lock, covering a second-tab race. CONFIRM stays outside
+  this display because it is a completed verification audit event, not an Admin Review state machine.
+- **Ảnh:** Approved image rendering remains tied solely to public `Published_Locations.image_url`. The portal
+  may normalize a public legacy Drive URL to Google content delivery to satisfy its narrow CSP, but never
+  asks for or returns the private staging file ID. A pending replacement is not previewed.
+

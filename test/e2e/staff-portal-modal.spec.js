@@ -23,19 +23,19 @@ const locationItem = {
         service_schedule: '',
         served_units: '',
         search_aliases: '',
-        image_url: 'https://images.example.test/current-location.jpg',
+        image_url: 'https://lh3.googleusercontent.com/d/public-location-image=w1000',
     },
     snapshotHash: 'a'.repeat(64),
 };
 
 const DEFAULT_UNITS = [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }];
 
-async function mockStaffApi(page, mutations, { units = DEFAULT_UNITS, userName = '', mapsResolve } = {}) {
+async function mockStaffApi(page, mutations, { units = DEFAULT_UNITS, userName = '', mapsResolve, location = locationItem, pendingRequests = [] } = {}) {
     await page.route('**/api/staff/auth/csrf', route => route.fulfill({ json: { ok: true, data: { csrfToken: 'csrf-test' } } }));
     await page.route('**/api/staff/session', route => route.fulfill({
         json: { ok: true, data: { user: { email: 'staff@example.test', name: userName }, units } },
     }));
-    await page.route('**/api/staff/locations', route => route.fulfill({ json: { ok: true, data: { locations: [locationItem] } } }));
+    await page.route('**/api/staff/locations', route => route.fulfill({ json: { ok: true, data: { locations: [location], pendingRequests } } }));
     await page.route('**/api/staff/requests', async route => {
         mutations.push({ path: '/api/staff/requests', body: route.request().postDataJSON() });
         await route.fulfill({ json: { ok: true, data: {} } });
@@ -232,6 +232,99 @@ test.describe('staff portal modal submit regression', () => {
         await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0);
         expect(mutations.map(mutation => mutation.path)).toEqual(['/api/staff/requests']);
         expect(requestAttempts).toBe(2);
+    });
+});
+
+test.describe('staff portal pending status and public images', () => {
+    test('refetches authoritative pending status after submit and blocks competing card actions', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        let locationReads = 0;
+        await page.unroute('**/api/staff/locations');
+        await page.route('**/api/staff/locations', route => {
+            locationReads += 1;
+            const pendingRequests = locationReads > 1
+                ? [{ locationId: 'RECORD-1', unitCode: 'UNIT_A', type: 'Cập nhật địa điểm đang có', status: 'PENDING', submittedAt: '2026-08-23T01:02:03.000Z' }]
+                : [];
+            return route.fulfill({ json: { ok: true, data: { locations: [locationItem], pendingRequests } } });
+        });
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-image')).toHaveAttribute('src', 'https://lh3.googleusercontent.com/d/public-location-image=w1000');
+
+        const backdrop = await openMode(page, 'stop');
+        await backdrop.locator('button.staff-button-primary').click();
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0);
+        await expect(page.getByText('Đang chờ duyệt')).toHaveCount(5);
+        await expect(page.getByText('Yêu cầu chỉnh sửa thông tin đã được gửi.')).toBeVisible();
+        await expect(page.getByText(/Đã gửi.*2026/)).toBeVisible();
+        await expect(page.locator('.staff-card-actions button')).toHaveText(['Đang chờ duyệt', 'Đang chờ duyệt', 'Đang chờ duyệt']);
+        await expect.poll(() => page.locator('.staff-card-actions button').evaluateAll(buttons => buttons.map(button => button.disabled))).toEqual([true, true, true]);
+        expect(mutations.map(mutation => mutation.path)).toEqual(['/api/staff/requests']);
+        expect(locationReads).toBeGreaterThanOrEqual(2);
+    });
+
+    test('falls back from an unavailable public image without breaking the location card', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        await page.route('https://lh3.googleusercontent.com/d/public-location-image=w1000', route => route.abort());
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+        await expect(page.locator('.staff-location-image.staff-image-placeholder')).toContainText('Không thể tải ảnh đã duyệt');
+        await expect(page.getByRole('heading', { name: 'Công an phường Tiên Cát' })).toBeVisible();
+    });
+
+    test('keeps the approved image in the card and modal when a private replacement is pending', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations, {
+            pendingRequests: [{
+                locationId: 'RECORD-1', unitCode: 'UNIT_A', type: 'Cập nhật địa điểm đang có', status: 'PENDING',
+                submittedAt: '2026-08-23T01:02:03.000Z', image_file_id: 'private-replacement-id', image_public_url: 'https://drive.google.com/uc?export=view&id=private-replacement-id',
+            }],
+        });
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-image')).toHaveAttribute('src', 'https://lh3.googleusercontent.com/d/public-location-image=w1000');
+        await expect(page.locator('.staff-pending-request strong')).toContainText('Đang chờ duyệt');
+        await expect(page.getByRole('button', { name: 'Đang chờ duyệt' })).toHaveCount(3);
+        await expect(page.locator('body')).not.toContainText('private-replacement-id');
+        await expect(page.locator('.staff-location-image')).toHaveAttribute('src', /public-location-image/);
+    });
+
+    test('shows the same clean fallback in the update modal when the approved image request fails', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations);
+        await page.route('https://lh3.googleusercontent.com/d/public-location-image=w1000', route => route.abort());
+        await page.goto('/can-bo');
+        await openMode(page, 'update');
+        await expect(page.locator('.staff-current-image.staff-image-placeholder')).toContainText('Không thể tải ảnh đã duyệt hiện tại');
+        await expect(page.getByText('Ảnh hiện tại sẽ được giữ nguyên')).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Chỉnh sửa thông tin' })).toBeVisible();
+    });
+
+    test('uses a stable placeholder for a location with no approved image', async ({ page }) => {
+        const mutations = [];
+        await mockStaffApi(page, mutations, { location: { ...locationItem, record: { ...locationItem.record, image_url: '' } } });
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-image.staff-image-placeholder')).toContainText('Chưa có ảnh đã duyệt');
+        await openMode(page, 'update');
+        await expect(page.locator('.staff-current-image.staff-image-placeholder')).toContainText('Địa điểm hiện chưa có ảnh đã duyệt');
+    });
+
+    test('mobile card and update modal keep the approved image inside the viewport', async ({ page }) => {
+        const mutations = [];
+        await page.setViewportSize({ width: 390, height: 844 });
+        await mockStaffApi(page, mutations);
+        await page.goto('/can-bo');
+        const layout = await page.locator('.staff-location-card').evaluate(card => {
+            const image = card.querySelector('.staff-location-image').getBoundingClientRect();
+            const cardBox = card.getBoundingClientRect();
+            return { imageRight: image.right, cardRight: cardBox.right, viewport: window.innerWidth };
+        });
+        expect(layout.imageRight).toBeLessThanOrEqual(layout.cardRight + 1);
+        expect(layout.cardRight).toBeLessThanOrEqual(layout.viewport + 1);
+        await openMode(page, 'update');
+        await expect(page.locator('.staff-modal-card')).toBeVisible();
+        await expect(page.locator('.staff-modal-card')).toHaveCSS('overflow-y', 'auto');
+        await expect(page.locator('.staff-current-image')).toHaveAttribute('src', /public-location-image/);
     });
 });
 

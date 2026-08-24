@@ -27,6 +27,9 @@ test('portal CSP is route-specific and the generic CSP excludes /can-bo', () => 
     const csp = portalHeaders.find(header => header.key === 'Content-Security-Policy').value;
     assert.match(csp, /accounts\.google\.com\/gsi\/client/);
     assert.match(csp, /frame-src https:\/\/accounts\.google\.com\/gsi\//);
+    assert.match(csp, /img-src 'self' data: https:\/\/\*\.googleusercontent\.com/);
+    assert.doesNotMatch(csp, /img-src[^;]*https:\/\/drive\.google\.com/);
+    assert.doesNotMatch(csp, /img-src \*/);
     assert.match(csp, /frame-ancestors 'none'/);
     assert.equal(portalHeaders.find(header => header.key === 'Cross-Origin-Opener-Policy').value, 'same-origin-allow-popups');
     const generic = config.headers.find(rule => rule.source.startsWith('/((?!'));

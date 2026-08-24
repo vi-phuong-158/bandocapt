@@ -7,6 +7,32 @@
 
     const TARGET_BYTES = 2.5 * 1024 * 1024;
     const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    const DRIVE_HOST = 'drive.google.com';
+    const GOOGLEUSERCONTENT_SUFFIX = '.googleusercontent.com';
+    const DRIVE_FILE_ID_PATTERN = /^[A-Za-z0-9_-]{1,200}$/;
+
+    function driveFileId(url) {
+        const filePath = url.pathname.match(/^\/file\/d\/([^/]+)(?:\/.*)?$/);
+        if (filePath) return filePath[1];
+        if (url.pathname === '/open' || url.pathname === '/uc') return url.searchParams.get('id') || '';
+        return '';
+    }
+
+    // `Published_Locations.image_url` is the only browser-visible image contract. Admin Review
+    // currently writes Drive view/uc URLs; convert those approved public URLs to the deterministic
+    // Google image delivery form used by the map and the staff portal. Never accept a URL merely
+    // because its hostname contains a trusted string (e.g. `googleusercontent.com.attacker.test`).
+    function normalizeApprovedImageUrl(value) {
+        try {
+            const url = new URL(String(value || ''));
+            if (url.protocol !== 'https:' || url.username || url.password || url.port || url.hash) return '';
+            if (url.hostname === DRIVE_HOST) {
+                const id = driveFileId(url);
+                return DRIVE_FILE_ID_PATTERN.test(id) ? `https://lh3.googleusercontent.com/d/${id}=w1000` : '';
+            }
+            return url.hostname.endsWith(GOOGLEUSERCONTENT_SUFFIX) ? url.toString() : '';
+        } catch (_) { return ''; }
+    }
 
     function blobToBase64(blob) {
         return new Promise((resolve, reject) => {
@@ -56,5 +82,5 @@
         return { base64: await blobToBase64(result.blob), mimeType: result.mimeType, size: result.size };
     }
 
-    return { TARGET_BYTES, ACCEPTED_TYPES, blobToBase64, compressImage, prepareImage };
+    return { TARGET_BYTES, ACCEPTED_TYPES, blobToBase64, compressImage, prepareImage, normalizeApprovedImageUrl };
 });

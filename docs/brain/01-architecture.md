@@ -781,3 +781,17 @@ api/staff/{session,locations,requests,verification}.js
                       ├─> published-locations.js -> public Published_Locations
                       └─> staff-location-contract.js -> same contract in Gateway bundle
 ```
+
+## Staff pending-request visibility and approved images (2026-08-23)
+
+`GET /api/staff/locations` now composes the public `Published_Locations` projection with the Gateway's
+private, unit-authorized `listStaffRequestStatuses` projection. The latter returns only pending safe DTOs
+without opaque request IDs or private staging/image/audit fields. `js/staff-portal.js` associates a target
+request to its card, renders CREATE requests separately, disables conflicting location actions, and refetches
+after submit. Gateway enforces the same one-pending-request-per-target rule under its Script Lock, so stale
+tabs cannot bypass the presentation guard.
+Cards and the update modal consume only public `image_url`; `js/staff-image.js` normalizes legacy public
+Drive file/open/uc links to the existing allowed Google content host, while pending replacement images
+remain private. Missing or failed images use stable placeholders without removing the card content. This
+source change requires a Gateway bundle release together with Vercel deployment, but no workbook schema
+migration.
