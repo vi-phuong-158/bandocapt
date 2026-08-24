@@ -157,6 +157,7 @@
 .staff-location-list { display: grid; gap: var(--space-4); }
 .staff-location-card { padding: var(--space-5); }
 .staff-location-image { display: block; width: 100%; aspect-ratio: 16 / 9; margin-bottom: var(--space-4); object-fit: cover; border-radius: var(--radius-md); background: var(--surface-sunken); }
+.staff-image-placeholder { display: grid; place-items: center; padding: var(--space-4); box-sizing: border-box; color: var(--text-muted); font-size: var(--text-sm); text-align: center; }
 .staff-location-card h3 { margin: 0; color: var(--text-strong); font-size: var(--text-md); }
 .staff-location-card dl { display: grid; gap: var(--space-3); margin: var(--space-4) 0; }
 .staff-location-card dt { color: var(--text-muted); font-size: var(--text-xs); font-weight: var(--weight-semibold); }
@@ -188,6 +189,7 @@
 .staff-field small { color: var(--text-muted); font-size: var(--text-xs); }
 .staff-image-note { margin: 0; color: var(--text-muted); font-size: var(--text-sm); }
 .staff-current-image { width: min(100%, calc(var(--space-8) * 8)); height: calc(var(--space-8) * 5); object-fit: cover; border: 1px solid var(--border-hairline); border-radius: var(--radius-md); background: var(--surface-sunken); }
+.staff-current-image.staff-image-placeholder { width: min(100%, calc(var(--space-8) * 8)); }
 .staff-checkbox-grid { display: grid; gap: var(--space-2); padding: var(--space-2) 0; }
 .staff-checkbox { display: flex; align-items: center; gap: var(--space-2); min-height: var(--hit-min); }
 .staff-checkbox input { width: var(--space-4); height: var(--space-4); accent-color: var(--color-primary); }

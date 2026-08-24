@@ -83,18 +83,31 @@
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? '' : `Đã gửi ${new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }).format(date)}`;
     }
-    // `image_url` is the existing public contract. Legacy Google Drive view URLs are converted
-    // only to their Google content representation so the portal CSP remains narrowly scoped.
-    function publicImageUrl(value) {
-        try {
-            const url = new URL(String(value || ''));
-            if (url.protocol !== 'https:') return '';
-            if (url.hostname === 'drive.google.com') {
-                const id = url.searchParams.get('id') || (url.pathname.match(/\/d\/([^/]+)/) || [])[1];
-                return /^[A-Za-z0-9_-]{10,}$/.test(id || '') ? `https://lh3.googleusercontent.com/d/${id}=w1000` : '';
-            }
-            return url.hostname.endsWith('.googleusercontent.com') ? url.toString() : '';
-        } catch (_) { return ''; }
+    function publicImageUrl(value) { return root.StaffImage.normalizeApprovedImageUrl(value); }
+    function imagePlaceholder(text, className) {
+        const placeholder = el('div', `${className} staff-image-placeholder`, text);
+        placeholder.setAttribute('role', 'img');
+        placeholder.setAttribute('aria-label', text);
+        return placeholder;
+    }
+    function warnImageFailure(locationName) {
+        if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+            console.warn('Staff approved image failed to load', { locationName: String(locationName || 'địa điểm') });
+        }
+    }
+    function approvedImageView(value, { alt, locationName, className, emptyText = 'Chưa có ảnh đã duyệt', failedText = 'Không thể tải ảnh đã duyệt' }) {
+        const imageUrl = publicImageUrl(value);
+        if (!imageUrl) return imagePlaceholder(emptyText, className);
+        const image = el('img', className);
+        image.src = imageUrl;
+        image.loading = 'lazy';
+        image.decoding = 'async';
+        image.alt = alt;
+        image.addEventListener('error', () => {
+            warnImageFailure(locationName);
+            image.replaceWith(imagePlaceholder(failedText, className));
+        }, { once: true });
+        return image;
     }
     function clearPortal() { while (portal.firstChild) portal.removeChild(portal.firstChild); }
 
@@ -254,13 +267,11 @@
             button(pendingLabel || 'Xác nhận thông tin đúng', 'staff-button-soft', () => openModal('confirm', item), Boolean(pending.length)),
             button(pendingLabel || 'Chỉnh sửa thông tin', 'staff-button', () => openModal('update', item), Boolean(pending.length)),
             button(pendingLabel || 'Báo ngừng hoạt động', 'staff-button-danger', () => openModal('stop', item), Boolean(pending.length)));
-        const imageUrl = publicImageUrl(recordValue(record, 'image_url', 'imageUrl'));
-        if (imageUrl) {
-            const image = el('img', 'staff-location-image');
-            image.src = imageUrl; image.loading = 'lazy'; image.alt = `Ảnh địa điểm ${recordValue(record, 'name', 'name', 'địa điểm')}`;
-            image.addEventListener('error', () => image.remove());
-            card.appendChild(image);
-        }
+        card.appendChild(approvedImageView(recordValue(record, 'image_url', 'imageUrl'), {
+            alt: `Ảnh địa điểm ${recordValue(record, 'name', 'name', 'địa điểm')}`,
+            locationName: recordValue(record, 'name', 'name', 'địa điểm'),
+            className: 'staff-location-image',
+        }));
         append(card, title, dl, status, ...pending.map(renderPendingRequest), actions);
         return card;
     }
@@ -602,17 +613,14 @@
             field(form, 'reviewNote', 'Ghi chú gửi duyệt', kept('reviewNote', ''), 'textarea');
             const image = document.createElement('div');
             image.className = 'staff-field';
-            const currentImageUrl = publicImageUrl(recordValue(record, 'image_url', 'imageUrl'));
             if (modal.mode === 'update') {
-                if (currentImageUrl) {
-                    const preview = document.createElement('img');
-                    preview.className = 'staff-current-image';
-                    preview.src = currentImageUrl;
-                    preview.alt = `Ảnh hiện tại của ${source.locationName || 'địa điểm'}`;
-                    append(image, el('p', 'staff-image-note', 'Ảnh hiện tại sẽ được giữ nguyên. Chỉ chọn ảnh mới nếu muốn thay đổi ảnh.'), preview);
-                } else {
-                    image.appendChild(el('p', 'staff-image-note', 'Địa điểm hiện chưa có ảnh. Bạn có thể bổ sung ảnh mới.'));
-                }
+                append(image, el('p', 'staff-image-note', 'Ảnh hiện tại sẽ được giữ nguyên. Chỉ chọn ảnh mới nếu muốn thay đổi ảnh.'), approvedImageView(recordValue(record, 'image_url', 'imageUrl'), {
+                    alt: `Ảnh hiện tại của ${source.locationName || 'địa điểm'}`,
+                    locationName: source.locationName,
+                    className: 'staff-current-image',
+                    emptyText: 'Địa điểm hiện chưa có ảnh đã duyệt',
+                    failedText: 'Không thể tải ảnh đã duyệt hiện tại',
+                }));
             }
             const imageLabel = el('label', '', modal.mode === 'update' ? 'Thay ảnh địa điểm (không bắt buộc)' : 'Ảnh địa điểm (bắt buộc)');
             const imageInput = document.createElement('input');

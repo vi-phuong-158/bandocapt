@@ -192,6 +192,32 @@ test('locations are filtered by current unit and snapshot hashes are determinist
     assert.deepEqual(res.body.data.pendingRequests, [{ locationId: 'R_A', unitCode: 'UNIT_A', type: 'Cập nhật địa điểm đang có', status: 'PENDING', submittedAt: '2026-08-23T01:02:03.000Z' }]);
 });
 
+test('staff locations expose the approved public image URL only, never private image pointers', async () => {
+    const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
+    const api = createStaffApi({
+        env: ENV,
+        gatewayCall: async action => action === 'resolveUnits'
+            ? { units: [{ unitCode: 'UNIT_A', unitName: 'Đơn vị A' }] }
+            : { requests: [] },
+        getLocations: async () => ({ locations: [record({
+            imageUrl: 'https://drive.google.com/uc?export=view&id=AbC_123-xyz',
+            image_file_id: 'private-staging-id',
+            published_image_file_id: 'private-published-id',
+            image_drive_url: 'https://drive.google.com/file/d/private-staging-id/view',
+            image_public_url: 'https://drive.google.com/uc?export=view&id=private-staging-id',
+            submitter_email: 'private@example.test',
+        })] }),
+    });
+    const res = response();
+    await api.locations(request('GET', null, { cookie: `staff_session=${encodeURIComponent(session)}` }), res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.body.data.locations[0].record.image_url, 'https://drive.google.com/uc?export=view&id=AbC_123-xyz');
+    const serialized = JSON.stringify(res.body.data);
+    for (const privateValue of ['private-staging-id', 'private-published-id', 'private@example.test']) {
+        assert.equal(serialized.includes(privateValue), false, `private value leaked: ${privateValue}`);
+    }
+});
+
 test('location status DTO rejects malformed and cross-unit request rows without leaking private metadata', async () => {
     const session = createStaffSession({ sub: 'sub-a', email: 'staff@example.test', now: Date.now() }, SECRET);
     const api = createStaffApi({

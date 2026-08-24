@@ -121,14 +121,24 @@ test('processing timer starts on submit and is stopped on every exit path (no or
 });
 
 test('portal renders only public-approved images and authoritative pending request state', () => {
-    assert.match(portalSource, /function publicImageUrl\(value\)/);
-    assert.match(portalSource, /https:\/\/lh3\.googleusercontent\.com\/d\/\$\{id\}=w1000/);
+    assert.match(portalSource, /function publicImageUrl\(value\) \{ return root\.StaffImage\.normalizeApprovedImageUrl\(value\); \}/);
+    assert.match(portalSource, /function approvedImageView\(value/);
+    assert.match(portalSource, /StaffImage\.normalizeApprovedImageUrl/);
     assert.match(portalSource, /image\.loading = 'lazy'/);
-    assert.match(portalSource, /image\.addEventListener\('error', \(\) => image\.remove\(\)\)/);
+    assert.match(portalSource, /image\.replaceWith\(imagePlaceholder\(failedText, className\)\)/);
+    assert.match(portalSource, /imagePlaceholder\(emptyText, className\)/);
     assert.match(portalSource, /state\.pendingRequests = Array\.isArray\(data\.pendingRequests\) \? data\.pendingRequests : \[\]/);
     assert.match(portalSource, /pendingCreates\.forEach\(request => list\.appendChild\(renderPendingRequest\(request\)\)\)/);
     assert.match(portalSource, /Boolean\(pending\.length\)/);
     assert.doesNotMatch(portalSource, /image_file_id|image_drive_url|submitter_email/);
+});
+
+test('card and update modal share the approved-image normalizer and keep an intentional image area', () => {
+    assert.match(portalSource, /className: 'staff-location-image'/);
+    assert.match(portalSource, /className: 'staff-current-image'/);
+    assert.match(portalSource, /staff-image-placeholder/);
+    assert.match(portalSource, /Ảnh hiện tại sẽ được giữ nguyên/);
+    assert.doesNotMatch(portalSource, /image\.src\s*=\s*recordValue/);
 });
 
 test('processing overlay is an accessible live region with a decorative, non-spammy spinner and timer', () => {

@@ -3270,3 +3270,9 @@
   chạy breaking `audit fix`); Staff Portal Playwright 32/32 PASS. Full E2E 52/55 PASS; ba fail còn lại là
   `location-image` có sẵn do `ERR_CONNECTION_REFUSED`, không thuộc Staff Portal. Không gọi Gateway live,
   không push Apps Script, không thay workbook/Production/pending request.
+## [2026-08-24] Staff approved-image display reliability
+- **Agent:** Codex
+- **Thay đổi:** Hoàn thiện pipeline ảnh đã duyệt cho Staff Portal: chuẩn hóa URL Drive/public Google, hiển thị ảnh ngay trên card, dùng cùng nguồn cho modal, placeholder ổn định khi thiếu/lỗi và giữ pending replacement ở private boundary.
+- **File đã sửa:** `js/staff-image.js`, `js/staff-portal.js`, `styles/staff-portal.css`, `test/staff-approved-image.test.js`, `test/staff-portal-client.test.js`, `test/staff-api.test.js`, `test/e2e/staff-portal-modal.spec.js`, `docs/location-intake/STAFF_API.md`, `docs/brain/01-architecture.md`.
+- **Lý do:** `Published_Locations.image_url` của Production tồn tại nhưng raw Drive `/file/d/.../view` trả HTML; delivery URL `lh3.googleusercontent.com` mới trả ảnh. PR #56 chưa có trên Production nên card chưa có ảnh và modal cũ dùng raw URL.
+- **Kiểm tra:** focused unit/API 41/41; focused Staff Portal E2E 6/6; toàn bộ Node test 578/578; build/CI pass; full Playwright 56/59, ba failure pre-existing ở public-map `location-image` do `ERR_CONNECTION_REFUSED`; production read-only xác nhận public record có ảnh, raw URL 200 HTML và normalized URL 206 `image/jpeg`; không mutate Production.

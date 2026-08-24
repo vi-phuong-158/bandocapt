@@ -790,6 +790,8 @@ without opaque request IDs or private staging/image/audit fields. `js/staff-port
 request to its card, renders CREATE requests separately, disables conflicting location actions, and refetches
 after submit. Gateway enforces the same one-pending-request-per-target rule under its Script Lock, so stale
 tabs cannot bypass the presentation guard.
-Cards consume only public `image_url`; legacy public Drive links are normalized to the existing allowed
-Google content host, while pending replacement images remain private. This source change requires a
-Gateway bundle release together with Vercel deployment, but no workbook schema migration.
+Cards and the update modal consume only public `image_url`; `js/staff-image.js` normalizes legacy public
+Drive file/open/uc links to the existing allowed Google content host, while pending replacement images
+remain private. Missing or failed images use stable placeholders without removing the card content. This
+source change requires a Gateway bundle release together with Vercel deployment, but no workbook schema
+migration.

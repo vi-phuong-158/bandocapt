@@ -104,11 +104,12 @@ CREATE must include a replacement image at both Vercel and Gateway. UPDATE and l
 the server preserves the current public `image_url` and recovers the latest approved private file ID when
 available. No browser value is authoritative for either retained value.
 
-The staff card renders only this existing public `image_url` contract. A legacy public Drive view URL is
-converted in-browser to its `lh3.googleusercontent.com` content form for the route's narrow image CSP;
-this does not read or expose a private staging file ID. Missing, malformed or failed images are removed
-without breaking the card. A pending replacement image remains private; the card continues to show only
-the currently published image.
+The staff card and update modal render only this existing public `image_url` contract. The shared browser
+helper in `js/staff-image.js` converts a legacy public Drive file/open/uc URL to its
+`lh3.googleusercontent.com` content form for the route's narrow image CSP; it does not read or expose a
+private staging file ID. Missing images and failed loads use stable placeholders, and failed loads emit
+only a safe diagnostic warning. A pending replacement image remains private; the card and modal continue
+to show only the currently published image.
 
 ## Browser portal additions (PR #48)
 
