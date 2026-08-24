@@ -85,17 +85,19 @@ because it needs PR #48's staging/Gateway contract; not merged into `main` yet.
   instead calls `pipeline.buildPublishedRecord`/`pipeline.sameUnitCode`/`pipeline.buildAuditEntry`
   directly and does its own idempotent upsert/remove + dedup-by-`request_id`+`action` audit append +
   status-if-changed staging write — see `docs/brain/03-decisions.md` for why.
-- `setup/location-intake/Code.gs` adds the GAS adapter: `adminPublicSpreadsheet_()` (new, mirrors
-  the existing `gatewayPrivateSpreadsheet_()`), `requireLocationApprover_()` (Script Property
-  `LOCATION_APPROVER_EMAILS` + `Session.getEffectiveUser().getEmail()`, fail closed), surgical
-  single-row read/update/delete helpers (`adminFindRowNumber_`/`adminUpdateRow_`), and a second
-  `SpreadsheetApp.getUi().createMenu('Bản đồ CA - Duyệt địa điểm')` appended inside the existing
-  `onOpen()`. Every menu action first asserts the active spreadsheet is the private workbook.
-  `onLocationStagingEdit` (legacy single-workbook trigger) gained a guard that no-ops if it ever
-  fires against `PRIVATE_LOCATION_SPREADSHEET_ID`, since `writeLocationState_`'s `clearContents()`
-  would corrupt the dual-workbook private sheets if that trigger were ever misinstalled there.
-- `scripts/build-location-intake-apps-script.js` bundles `setup/location-admin-review.js` into
-  `setup/location-intake/dist/Code.gs` alongside the existing pipeline/workbook-config/gateway files.
+- The Production runtime is now the dedicated container-bound bundle under
+  `setup/location-admin-review/`; it is not the Staff Gateway or legacy intake container.
+  `setup/location-admin-review/Code.gs` resolves `LOCATION_APPROVER_EMAILS` from that project's
+  Script Properties and authorizes `Session.getEffectiveUser().getEmail()` fail-closed. Every
+  review action asserts the active spreadsheet is the configured private workbook.
+- The menu action **Kiểm tra cấu hình duyệt** is read-only and does not require approver access.
+  It reports active/private workbook match, private/public resolver status and boundary, allowlist
+  presence, effective and active user emails, both allowlist matches, and required sheet/schema
+  status. This separates identity/configuration/container failures from the final authorization
+  decision without exposing the allowlist value, Gateway secrets, tokens, or staging payloads.
+- `scripts/build-location-admin-review-apps-script.js` builds the dedicated artifact from the
+  shared workbook resolver, pipeline rules, review engine, container guard, and `Code.gs`. Its
+  manifest includes `userinfo.email`, has no `webapp`, and the bundle guard rejects Gateway code.
 
 ## Public location image display (2026-08-17)
 

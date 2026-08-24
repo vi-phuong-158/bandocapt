@@ -3290,3 +3290,19 @@
 - **File đã sửa:** `js/staff-image.js`, `js/staff-portal.js`, `styles/staff-portal.css`, `test/staff-approved-image.test.js`, `test/staff-portal-client.test.js`, `test/staff-api.test.js`, `test/e2e/staff-portal-modal.spec.js`, `docs/location-intake/STAFF_API.md`, `docs/brain/01-architecture.md`.
 - **Lý do:** `Published_Locations.image_url` của Production tồn tại nhưng raw Drive `/file/d/.../view` trả HTML; delivery URL `lh3.googleusercontent.com` mới trả ảnh. PR #56 chưa có trên Production nên card chưa có ảnh và modal cũ dùng raw URL.
 - **Kiểm tra:** focused unit/API 41/41; focused Staff Portal E2E 6/6; toàn bộ Node test 578/578; build/CI pass; full Playwright 56/59, ba failure pre-existing ở public-map `location-image` do `ERR_CONNECTION_REFUSED`; production read-only xác nhận public record có ảnh, raw URL 200 HTML và normalized URL 206 `image/jpeg`; không mutate Production.
+
+## [2026-08-24] Admin Review approver authorization diagnostics
+- **Agent:** Codex
+- **Thay đổi:** Giữ authorization bằng `Session.getEffectiveUser()` fail-closed, thêm diagnostic read-only
+  hiển thị active/private workbook, resolver/boundary, allowlist presence, effective/active user và match
+  từng identity; bổ sung parser/identity regression và static guard không cho diagnostic chạm mutation.
+- **File đã sửa:** `setup/location-admin-review.js`, `setup/location-admin-review/Code.gs`,
+  `test/location-admin-review.test.js`, `test/location-admin-review-container.test.js`,
+  `docs/location-intake/ADMIN_REVIEW_CONTAINER.md`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Lỗi `LOCATION_APPROVER_NOT_AUTHORIZED` trước đây không phân biệt được sai property,
+  sai container/workbook, blank/mismatch session identity, thiếu OAuth scope hay stale artifact.
+  Diagnostic không hiển thị allowlist value, secret, token hay staging payload.
+- **Kiểm tra:** focused Admin Review 45/45; `npm test` 573/573; `npm run build` PASS; `npm run ci` PASS;
+  `git diff --check` PASS. Chưa đọc/sửa Production Script Properties, workbook, Apps Script deployment
+  hoặc pending request vì môi trường không có Google owner session.

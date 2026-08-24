@@ -3,7 +3,7 @@ const test = require('node:test');
 
 const pipeline = require('../setup/apps-script');
 const workbookConfig = require('../lib/location-workbooks');
-const { createLocationAdminReview, isApprover, canonicalPublishedEqual, deterministicImageUrl } = require('../setup/location-admin-review');
+const { createLocationAdminReview, isApprover, buildApproverDiagnostic, canonicalPublishedEqual, deterministicImageUrl } = require('../setup/location-admin-review');
 
 const ALLOWLIST = [{ unit_code: 'CA_A', unit_name: 'Công an phường A', allowed_emails: 'canbo@example.gov.vn', active: true }];
 const APPROVER = 'admin@example.gov.vn';
@@ -423,6 +423,29 @@ test('S1/S2 isApprover fails closed on empty/missing allowlist and rejects an un
     assert.equal(isApprover('a@example.gov.vn', undefined), false);
     assert.equal(isApprover('a@example.gov.vn', 'b@example.gov.vn'), false);
     assert.equal(isApprover('a@example.gov.vn', 'A@Example.gov.vn, b@example.gov.vn'), true);
+});
+
+test('approver authorization normalizes case and whitespace across supported allowlist separators', () => {
+    const expected = 'anmphongandn@gmail.com';
+    for (const email of [expected, 'ANMPHONGANDN@GMAIL.COM', ` ${expected} `]) {
+        assert.equal(isApprover(email, 'admin1@gmail.com,anmphongandn@gmail.com'), true);
+        assert.equal(isApprover(email, 'admin1@gmail.com; anmphongandn@gmail.com'), true);
+        assert.equal(isApprover(email, `admin1@gmail.com\n${expected}`), true);
+    }
+});
+
+test('approver authorization fails closed for empty effective identity and empty configuration', () => {
+    assert.equal(isApprover('', 'anmphongandn@gmail.com'), false);
+    assert.equal(isApprover('anmphongandn@gmail.com', ''), false);
+    assert.deepEqual(buildApproverDiagnostic({
+        effectiveUserEmail: '', activeUserEmail: 'anmphongandn@gmail.com', approverEmailsCsv: '',
+    }), {
+        effectiveUserEmail: '',
+        activeUserEmail: 'anmphongandn@gmail.com',
+        allowlistConfigured: false,
+        effectiveApproverMatch: false,
+        activeApproverMatch: false,
+    });
 });
 
 test('S4/S5 a public store failure (missing sheet / schema mismatch) propagates and blocks approval', () => {
