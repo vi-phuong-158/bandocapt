@@ -3306,3 +3306,12 @@
 - **Kiểm tra:** focused Admin Review 45/45; `npm test` 573/573; `npm run build` PASS; `npm run ci` PASS;
   `git diff --check` PASS. Chưa đọc/sửa Production Script Properties, workbook, Apps Script deployment
   hoặc pending request vì môi trường không có Google owner session.
+
+## [2026-08-24] Production admin-review approver authorization root cause verified
+- **Agent:** Codex
+- **Thay đổi:** Xác nhận runtime Production sau khi sửa `LOCATION_APPROVER_EMAILS` trong đúng Apps Script
+  container-bound của Private Workbook; giữ nguyên commit diagnostic `e476884`, không thay đổi authorization logic.
+- **Root cause:** Allowlist `LOCATION_APPROVER_EMAILS` trong Production container bị sai một ký tự. `Session.getEffectiveUser()`
+  trả về đúng tài khoản approver nhưng email không match allowlist nên authorization fail-closed.
+- **Kiểm tra:** Sau khi sửa Script Property, Production approve thành công. Diagnostic đã giúp xác nhận đúng
+  account/container/property; không đổi workbook ngoài request duyệt hợp lệ và không tạo fake pending.
