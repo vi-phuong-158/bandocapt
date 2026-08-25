@@ -59,6 +59,16 @@ validator/timeout. Khong wire `BufferSink` vao handler — do la viec cua PR-4.
 - **Consequence:** Production Script Properties, workbook data, Apps Script project identity, and
   deployment are unchanged by this code task. A live run is still required to identify whether the
   incident is configuration, stale artifact, wrong container, or Google session authorization.
+## [2026-08-25] Public Turnstile sitekey is environment-aware without a new function
+
+- **Decision:** serve only `{ turnstileSiteKey }` from the existing
+  `/api/location-contributions?config=public` GET path, selecting `TURNSTILE_SITE_KEY` when
+  configured and retaining the existing public sitekey as a safe fallback.
+- **Why:** Preview needs a dedicated TEST/hostname-authorized sitekey, while adding another Vercel
+  function would exceed the Hobby function-count limit already addressed by this branch.
+- **Security boundary:** `TURNSTILE_SECRET_KEY` remains server-only; the public configuration DTO
+  contains no secret, workbook identifier, Gateway URL, or private metadata. No CAPTCHA bypass is
+  introduced.
 
 ## [2026-08-22] Legacy published records use a separate private operational baseline
 

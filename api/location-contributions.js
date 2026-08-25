@@ -12,6 +12,7 @@ const { callGateway, DEFAULT_TIMEOUT_MS, MUTATION_TIMEOUT_MS, MUTATION_MAX_ATTEM
 const MAX_REQUEST_BYTES = 4.5 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
 const DEFAULT_DAILY_IP_LIMIT = 10;
+const DEFAULT_PUBLIC_TURNSTILE_SITE_KEY = '0x4AAAAAACxYIuZq7j7f9a7N';
 const OPERATION_ID_PATTERN = /^[A-Za-z0-9_-]{1,120}$/;
 const TEXT_LIMITS = Object.freeze({
     operationId: 120, unitCode: 160, locationName: 200, address: 500, mapsUrl: 2000,
@@ -41,6 +42,23 @@ function isProtectedDeployment(env = process.env) {
 function getPositiveEnvInt(name, fallback, env = process.env) {
     const value = Number.parseInt(env[name], 10);
     return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function getQueryParam(req, name) {
+    try {
+        return new URL(String(req?.url || ''), 'http://localhost').searchParams.get(name) || '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function publicConfig(env = process.env) {
+    const configuredSiteKey = String(env.TURNSTILE_SITE_KEY || '').trim();
+    return {
+        turnstileSiteKey: /^0x[A-Za-z0-9_-]{8,200}$/.test(configuredSiteKey)
+            ? configuredSiteKey
+            : DEFAULT_PUBLIC_TURNSTILE_SITE_KEY,
+    };
 }
 
 function getVnDateKey(now = new Date()) {
@@ -212,6 +230,9 @@ async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Request-Token, X-Request-Time');
     if (req.method === 'OPTIONS') return res.status(200).end();
     if (req.method === 'GET') {
+        if (getQueryParam(req, 'config') === 'public') {
+            return res.status(200).json({ ok: true, data: publicConfig() });
+        }
         try {
             const units = await callGateway('listPublicContributionUnits', {}, {
                 timeoutMs: DEFAULT_TIMEOUT_MS, maxAttempts: 1,
@@ -266,6 +287,7 @@ module.exports.MAX_IMAGE_BYTES = MAX_IMAGE_BYTES;
 module.exports.deriveGatewayRequestId = deriveGatewayRequestId;
 module.exports.validateBody = validateBody;
 module.exports.toSafeUnits = toSafeUnits;
+module.exports.publicConfig = publicConfig;
 module.exports.verifyTurnstile = verifyTurnstile;
 module.exports.reserveRateLimitQuota = reserveRateLimitQuota;
 module.exports.hashForLog = hashForLog;

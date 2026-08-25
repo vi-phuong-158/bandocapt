@@ -51,7 +51,7 @@
     }
 
     function renderCaptcha() {
-        if (!root.turnstile || !elements.captcha || captchaWidgetId !== null) return;
+        if (!root.turnstile || !elements.captcha || captchaWidgetId !== null || !elements.captcha.dataset.sitekey) return;
         captchaWidgetId = root.turnstile.render(elements.captcha, {
             sitekey: elements.captcha.dataset.sitekey,
             callback: token => { captchaToken = token; refreshSubmitState(); },
@@ -60,6 +60,20 @@
         });
     }
     root.onPublicTurnstileLoad = renderCaptcha;
+
+    async function loadPublicConfig() {
+        try {
+            const response = await fetch(`${apiUrl()}?config=public`, { headers: { Accept: 'application/json' } });
+            if (!response.ok) throw new Error('PUBLIC_CONFIG_UNAVAILABLE');
+            const payload = await response.json();
+            const sitekey = typeof payload?.data?.turnstileSiteKey === 'string' ? payload.data.turnstileSiteKey.trim() : '';
+            if (!sitekey || sitekey.length > 200) throw new Error('PUBLIC_CONFIG_INVALID');
+            elements.captcha.dataset.sitekey = sitekey;
+            renderCaptcha();
+        } catch (_) {
+            setStatus('Không tải được cấu hình xác minh bảo mật. Vui lòng thử lại sau.', 'error');
+        }
+    }
 
     async function loadUnits() {
         try {
@@ -150,6 +164,7 @@
     form.addEventListener('input', refreshSubmitState);
     form.addEventListener('change', refreshSubmitState);
     form.addEventListener('submit', submit);
+    loadPublicConfig();
     loadUnits();
     if (root.turnstile) renderCaptcha();
 })(window);

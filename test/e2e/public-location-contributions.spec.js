@@ -15,8 +15,11 @@ async function mockTurnstile(page) {
 
 async function mockContributionApi(page, submissions, { failFirst = false } = {}) {
     let postCount = 0;
-    await page.route('**/api/location-contributions', async route => {
+    await page.route('**/api/location-contributions**', async route => {
         if (route.request().method() === 'GET') {
+            if (new URL(route.request().url()).searchParams.get('config') === 'public') {
+                return route.fulfill({ json: { ok: true, data: { turnstileSiteKey: '0xTEST_PUBLIC_SITE_KEY' } } });
+            }
             return route.fulfill({ json: { ok: true, data: { units: [{ unitCode: 'UNIT_NEW', label: 'Đơn vị mới chưa có địa điểm' }] } } });
         }
         postCount += 1;

@@ -13,6 +13,18 @@
 - **KNOWN GATES:** Golden đã phủ 9 nhánh, gồm cả `DETERMINISTIC_PROCEDURE_GAP` và nhánh lỗi provider `sink.fail(status, …)` (bổ sung sau vòng đầu). Còn 3 nhánh chưa khoá byte tự động vì cần state/dữ liệu ngoài mà mock tất định không dựng được: FAQ cache hit (`writeHead` 3 header — cache là state nội bộ module), `RAG_CONFLICT` và `DETERMINISTIC_BARE_PLACE` (đều cần match Pinecone/trụ sở thật). Ba nhánh này dùng đúng phép biến đổi cơ học như 9 nhánh đã khoá và đã đối chiếu bằng đọc diff.
 - **MANUAL STEPS:** đã hoàn tất — (1) regression grader chạy với credential thật (xem trên); (2) Vercel Preview READY, `GET /api/chat` → `405` xác nhận cold-load + bundle đúng; (3) owner review diff.
 - **VERDICT:** `MESSENGER_PR1_SINK_INVERSION_PRODUCTION_OK_REGRESSION_HARNESS_FIX_REQUIRED` — sẵn sàng chuyển Ready for review + merge. **DỪNG sau merge + hậu kiểm, không tự bắt đầu PR-2.**
+## [2026-08-25] Environment-aware public Turnstile configuration for Preview
+- **Agent:** Codex
+- **Thay đổi:** Replaced the public contribution page's embedded Turnstile sitekey with a same-origin
+  read from the existing contribution API; `TURNSTILE_SITE_KEY` selects the public value per environment
+  while `TURNSTILE_SECRET_KEY` remains server-only. Added regression coverage and updated architecture/
+  decision records.
+- **File đã sửa:** `api/location-contributions.js`, `js/public-location-contribution.js`,
+  `dong-gop/index.html`, `test/public-location-contributions.test.js`, and relevant brain docs.
+- **Lý do:** Preview needs a dedicated hostname-authorized TEST sitekey without adding a Vercel function
+  or exposing a CAPTCHA secret; the branch already uses the Hobby function-count limit.
+- **Kiểm tra:** Focused public contribution tests, full test/build/CI gates and exact-head Preview redeploy
+  are required after this source change; no contribution submission or approval is permitted.
 
 ## [2026-08-23] Staff Location request status and approved image visibility
 - **Agent:** Codex

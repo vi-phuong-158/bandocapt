@@ -99,6 +99,15 @@ because it needs PR #48's staging/Gateway contract; not merged into `main` yet.
   shared workbook resolver, pipeline rules, review engine, container guard, and `Code.gs`. Its
   manifest includes `userinfo.email`, has no `webapp`, and the bundle guard rejects Gateway code.
 
+## Public contribution CAPTCHA configuration (2026-08-25)
+
+- `/api/location-contributions?config=public` is the same-origin public configuration read used by
+  `/dong-gop` to obtain `{ turnstileSiteKey }`. It returns only the public sitekey selected by
+  `TURNSTILE_SITE_KEY`, with the existing public key as the production-safe fallback.
+- `TURNSTILE_SECRET_KEY` remains server-only and is used only by `verifyTurnstile()` for the protected
+  POST path. The public page no longer embeds a sitekey value in static HTML, which allows a dedicated
+  Preview/TEST sitekey without adding a Vercel function or exposing a secret.
+
 ## Public location image display (2026-08-17)
 
 Hiển thị ảnh địa điểm đã duyệt ngay trong phần thông tin chi tiết trên bản đồ công khai. **Không

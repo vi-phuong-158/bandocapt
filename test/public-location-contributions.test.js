@@ -99,8 +99,8 @@ function response(status, body, headers = {}) {
     };
 }
 
-function apiRequest(method, body, headers = {}) {
-    return { method, body, headers: { origin: 'https://bandocapt.vercel.app', 'user-agent': 'Mozilla/5.0 test', ...headers } };
+function apiRequest(method, body, headers = {}, url = '/api/location-contributions') {
+    return { method, url, body, headers: { origin: 'https://bandocapt.vercel.app', 'user-agent': 'Mozilla/5.0 test', ...headers } };
 }
 
 function apiResponse() {
@@ -213,6 +213,17 @@ test('public API DTO exposes only safe unit fields and deterministic request IDs
     assert.notEqual(publicApi.deriveGatewayRequestId('operation-1'), publicApi.deriveGatewayRequestId('operation-2'));
     assert.throws(() => publicApi.validateBody({ operationId: 'x', unitCode: 'CA_A', locationName: 'A', address: 'B', mapsUrl: 'https://maps.google.com', image: { base64: JPEG }, email: 'staff@example.gov.vn' }), /UNKNOWN_FIELD/);
     assert.throws(() => publicApi.validateBody({ operationId: 'x', requestType: pipeline.REQUEST_TYPES.update, unitCode: 'CA_A', locationName: 'A', address: 'B', mapsUrl: 'https://maps.google.com', image: { base64: JPEG } }), /PUBLIC_REQUEST_TYPE_NOT_ALLOWED/);
+});
+
+test('public config exposes only the public Turnstile sitekey and supports Preview overrides', async () => {
+    process.env.TURNSTILE_SITE_KEY = '0xTEST_PUBLIC_SITE_KEY';
+    const result = apiResponse();
+    await publicApi(apiRequest('GET', undefined, {}, '/api/location-contributions?config=public'), result);
+    assert.equal(result.statusCode, 200);
+    assert.deepEqual(result.body, { ok: true, data: { turnstileSiteKey: '0xTEST_PUBLIC_SITE_KEY' } });
+    assert.equal(JSON.stringify(result.body).includes('TURNSTILE_SECRET_KEY'), false);
+    assert.equal(JSON.stringify(result.body).includes('turnstile-secret'), false);
+    assert.match(publicApi.publicConfig({ TURNSTILE_SITE_KEY: 'turnstile-secret' }).turnstileSiteKey, /^0x/);
 });
 
 test('public API denies origin/signature/CAPTCHA failures and returns only safe PENDING data on success', async () => {
@@ -351,5 +362,7 @@ test('public static entry contains required fields and no staff login surface', 
     assert.match(html, /name="mapsUrl"[^>]+required/);
     assert.match(html, /name="image"[^>]+required/);
     assert.match(html, /public-turnstile-widget/);
+    assert.match(html, /data-sitekey=""/);
+    assert.doesNotMatch(html, /data-sitekey="0x/);
     assert.doesNotMatch(html, /Google Sign-In|google-client-id|staff-session/i);
 });
