@@ -1744,3 +1744,28 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
   may normalize a public legacy Drive URL to Google content delivery to satisfy its narrow CSP, but never
   asks for or returns the private staging file ID. A pending replacement is not previewed.
 
+## [2026-08-25] Anonymous public location contribution is CREATE-only
+
+- **Decision:** Add `/dong-gop` and `POST /api/location-contributions` for anonymous public intake. The
+  browser may only propose a new location; it cannot update, correct, stop, confirm, read private sheets,
+  call Apps Script, or receive Staff/Gateway credentials.
+- **Trust boundary:** Vercel validates Origin, explicit DTOs, HMAC, Turnstile, image bytes, Maps URL/
+  coordinates, and a pseudonymous IP/day quota before signing `submitPublicContribution` to the private
+  Gateway. The Gateway independently validates the exact active `Unit_Allowlist` unit and never trusts
+  the public dropdown.
+- **Provenance:** Public submissions use the non-person system principal
+  `public-web@bandocapt.invalid`, `auth_status=PUBLIC_CAPTCHA`, and audit action `PUBLIC_SUBMIT`; this
+  value must never be replaced with a staff email. The submitted image is private until the existing Admin
+  Review approves the staging row.
+- **Idempotency:** Vercel derives the Gateway `request_id` from
+  `sha256("public-location-v1|" + operationId)`, excluding IP/contact/name. The Gateway ledger compares
+  the complete signed payload hash, reuses a deterministic private image resource, and rejects payload drift.
+- **Unit directory:** Public GET calls the authenticated Gateway's `listPublicContributionUnits`, which
+  reads the private active `Unit_Allowlist` and projects only `{ unitCode, unitName }`. It does not derive
+  eligibility from `Published_Locations`, so an active unit can receive its first location contribution.
+- **Privacy:** Public GET returns only `{ unitCode, label }`; successful POST returns only `PENDING` and a
+  safe receipt. No staging row, private workbook/file ID, audit content, reviewer, allowlist email or
+  Gateway URL crosses the public response.
+- **Scope:** This decision adds source/tests/build/docs only. It does not deploy Gateway, mutate any
+  workbook, change Script Properties/Vercel Production env, or publish a location.
+

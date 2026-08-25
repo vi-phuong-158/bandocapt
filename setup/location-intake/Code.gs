@@ -270,7 +270,8 @@ function gatewayStore_(spreadsheet, runtime) {
         getOperationalRecords: publishedRecords,
         findStagingByRequestId: requestId => gatewayRows_(spreadsheet, pipeline.SHEETS.staging, stagingHeaders).find(row => String(row.request_id || '') === String(requestId || '')) || null,
         appendStaging: record => gatewayAppend_(spreadsheet, pipeline.SHEETS.staging, stagingHeaders, record),
-        hasApprovalAudit: requestId => gatewayRows_(spreadsheet, pipeline.SHEETS.audit, auditHeaders).some(row => String(row.request_id || '') === String(requestId || '') && String(row.action || '') === 'FORM_SUBMIT'),
+        hasApprovalAudit: (requestId, action = 'FORM_SUBMIT') => gatewayRows_(spreadsheet, pipeline.SHEETS.audit, auditHeaders)
+            .some(row => String(row.request_id || '') === String(requestId || '') && String(row.action || '') === String(action)),
         appendApprovalAudit: record => gatewayAppend_(spreadsheet, pipeline.SHEETS.audit, auditHeaders, record),
         findVerificationEvent: operationId => gatewayRows_(spreadsheet, pipeline.SHEETS.verificationAudit, verificationHeaders).find(row => String(row.operation_id || '') === String(operationId || '')) || null,
         appendVerificationAudit: record => gatewayAppend_(spreadsheet, pipeline.SHEETS.verificationAudit, verificationHeaders, record),

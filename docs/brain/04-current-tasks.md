@@ -1,5 +1,18 @@
 # 04 — Current Tasks
 
+## [SOURCE ACCEPTANCE 2026-08-25] Public anonymous location contributions
+
+- Source branch `feat/public-location-contributions` adds `/dong-gop`, a safe public units DTO projected
+  through the authenticated Gateway from active private `Unit_Allowlist`, and a
+  Vercel-only POST boundary for CREATE proposals. The private Gateway action is separate from staff
+  `submitRequest` and ends at `Location_Staging/PENDING` plus `PUBLIC_SUBMIT` audit.
+- Required end state remains `PUBLIC_LOCATION_CONTRIBUTION_READY_FOR_LIVE_REHEARSAL`; no production
+  Gateway deploy, workbook mutation, clasp push, Vercel env change, merge, or alias promotion is allowed
+  in this task.
+- Current validation: source audit PASS; locked `npm ci`, `npm run build`, `npm run ci`, focused public
+  E2E 2/2 PASS. Full E2E has 57/61 PASS with four unrelated existing image-loading failures under
+  `location-image`/staff image fixture; no public contribution E2E failure remains.
+
 ## [OWNER APPROVAL REQUIRED 2026-08-22] Production operational baseline reconciliation
 
 - The controlled Production rehearsal found that all 142 `LEGACY_*` public rows have no private operational

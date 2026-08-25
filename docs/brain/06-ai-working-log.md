@@ -3329,3 +3329,32 @@
 - **Kiểm tra:** focused Admin Review 46/46; focused Staff Portal E2E 34/34 sau build; `npm test` 600/600;
   build/CI PASS. Full E2E branch 56/59 chỉ còn ba `location-image` lỗi `ERR_CONNECTION_REFUSED`;
   exact `origin/main` control 55/59 tái hiện cùng ba lỗi đó và thêm external image fixture lỗi lịch sử.
+## [2026-08-25] Public anonymous location contributions
+- **Agent:** Codex
+- **Thay đổi:** Thêm `/dong-gop`, public safe-unit GET/CREATE POST boundary, Turnstile + Origin/HMAC +
+  pseudonymous IP/day limit + server Maps resolution; thêm Gateway action `submitPublicContribution`
+  tách khỏi staff `submitRequest`, với active-unit validation, private image/idempotency, `PENDING`,
+  `PUBLIC_CAPTCHA` provenance và `PUBLIC_SUBMIT` audit. Cập nhật static builder, syntax checks, Vercel
+  no-store/function config, architecture/decisions/current task/runbook và focused tests.
+- **File đã sửa:** `api/location-contributions.js`, `setup/apps-script.js`, `setup/staff-gateway.js`,
+  `setup/location-intake/Code.gs`, `lib/staff-gateway-client.js`, `dong-gop/`, `js/public-location-contribution.js`,
+  `styles/public-location-contribution.css`, `scripts/build-static.js`, `package.json`, `vercel.json`,
+  `index.html`, docs và `test/public-location-contributions.test.js`.
+- **Lý do:** Cho phép người dân đề xuất địa điểm mới không cần đăng nhập nhưng giữ nguyên public/private
+  boundary và chỉ cho publish qua Admin Review hiện hữu.
+- **Kiểm tra:** focused public tests 6/6 PASS; `node --check`/JSON checks PASS. `npm run build` bị BLOCKED
+  trong worktree sạch vì chưa có `node_modules/tailwindcss/lib/cli.js`; không cài dependency theo yêu cầu,
+  không deploy, không clasp push, không mutate workbook/Script Properties/Vercel Production env.
+
+## [2026-08-25] Public contribution complete acceptance audit
+- **Thay đổi:** Re-audit toàn bộ public flow và chuyển safe unit GET từ `Published_Locations` sang
+  authenticated Gateway action `listPublicContributionUnits`, chiếu từ private ACTIVE `Unit_Allowlist`
+  thành `unitCode/unitName` chỉ; thêm guard Maps ở Gateway, requestType CREATE bắt buộc ở API, approval
+  regression cho system principal, API security cases và Playwright coverage cho mobile/desktop/retry.
+- **Kiểm tra:** `npm ci` PASS, không đổi `package.json`/`package-lock.json` do dependency drift; `npm test`
+  587/587 PASS; `npm run build` PASS; `npm run ci` PASS (audit high gate PASS, còn 9 moderate `uuid`,
+  không có fix); focused public E2E 2/2 PASS; full E2E 57/61 PASS với 4 failure pre-existing do
+  `ERR_CONNECTION_REFUSED`/ảnh fixture ở `location-image` và một staff image test; artifact `dist/dong-gop/index.html`
+  tồn tại và không chứa tên secret/private fields. `git diff --check` PASS.
+- **Ranh giới:** Không deploy, không clasp push, không đổi Script Properties/Vercel env, không mutate
+  workbook, không live submit/approve. Draft PR/push chỉ thực hiện trên branch feature, không merge.

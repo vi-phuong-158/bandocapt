@@ -375,6 +375,8 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 | `lib/regression-metrics.js` | Dem tu Unicode-safe va giu ngan sach verbosity 120/250 dong bo voi prompt answer-first | `scripts/run-regression.js`, test | `Intl.Segmenter` Node 20 |
 | `lib/regression-grader.js` | Bo cham regression 2 lop (T1.4 deterministic: required/forbidden facts, ngon ngu, verbosity; T1.5 grounding: Recall@4/MRR/source recall + fact-in-docs) doc tu `test/regression-expectations.json`; verdict PASS/HARD_FAIL/DEFERRED_FAIL, F01 deferred khong chan gate. Fact co the khai `grounding_patterns` rieng cho tai lieu va `grounding_exempt_patterns` cho loi tu choi do thieu bang chung, tranh bat cau abstention phai co trong corpus. T1.11: `detectLanguage` chi do mat do dau tren tu khong viet hoa dau | `scripts/run-regression.js`, test | `test/regression-expectations.json`, eval trace tu `api/chat.js` |
 | `api/feedback.js` | Serverless nhan bao cao/phan hoi nguoi dung ve cau tra loi chatbot; tai dung CORS/HMAC/sanitize tu helper chung; rate limit best-effort IP/ngay + ghi `chat_feedback/<date_key>` tren RTDB voi TTL | `js/gemini.js` | `lib/request-security.js`, Firebase RTDB |
+| `dong-gop/index.html` + `js/public-location-contribution.js` | Public anonymous CREATE-only form; loads safe unit DTOs, prepares one image, Turnstile and reuses one operation ID for a retry | Browser | `styles/public-location-contribution.css`, `js/staff-image.js`, `/api/location-contributions` |
+| `api/location-contributions.js` | Public boundary: same-origin Origin/HMAC, explicit DTO/body/image limits, Turnstile, pseudonymous IP/day quota, server Maps resolution and safe response | `dong-gop/index.html` | `lib/request-security.js`, `lib/published-locations.js`, `lib/staff-maps-resolver.js`, `lib/staff-gateway-client.js` |
 | `scripts/read-feedback.js` | Doc `chat_feedback/<date_key>` tu RTDB, in bao cao theo ngay (loc `--down`) de admin ra soat | Developer / cron | Firebase RTDB, `.env` |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
 | `scripts/dual-workbook-dry-run.js` | Read-only JSON-export inventory and cutover comparison; validates P0 schema/coordinates and detects missing, unexpected or duplicate record IDs | Operator / test | `lib/location-workbooks.js`, `js/location-data.js` |
@@ -392,9 +394,10 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 | `data/tthc-phutho-high-review.csv` | Bang ghep an toan theo title + cap cho 39 record HIGH; `review_suggestion` van bat buoc kiem tay | T3.3 reviewer | snapshot nguon + governance draft |
 | `scripts/apply-phutho-tthc-approvals.js` | T3.4 chi merge 17 doi chieu da duyet va KBTT giu nguyen; backup pre/post, verify metadata va bat bien text/vector | Developer duoc uy quyen | Pinecone, snapshot + manifest duyet |
 | `scripts/patch-matt26265-mau-don.js` | Script mot-muc de xoa gia tri `mau_don` loi thoi cua `tthc_matt26265`; mac dinh dry-run, chi backup + upsert khi co `--apply`, giu nguyen vector/text/content_hash | Developer duoc uy quyen | Pinecone, `.env`, `data/pinecone-backups/` |
-| `setup/apps-script.js` | Pipeline private allowlist/staging/audit -> public published approval. Phan quyen hai chieu: `authorizeSubmission` (unitName+email -> authorized?) va `resolveUnitsByEmail` (email -> units[], chua co caller runtime, prerequisite Staff Portal) | Google Apps Script, `test/location-pipeline.test.js` | SpreadsheetApp; `PRIVATE_LOCATION_SPREADSHEET_ID`, `PUBLIC_LOCATION_SPREADSHEET_ID` |
+| `setup/apps-script.js` | Pipeline private allowlist/staging/audit -> public published approval. Phan quyen hai chieu: `authorizeSubmission` (unitName+email -> authorized?) va `resolveUnitsByEmail` (email -> units[], chua co caller runtime, prerequisite Staff Portal); `resolveActiveUnits` la projection chi `unitCode/unitName` cho public contribution directory | Google Apps Script, `test/location-pipeline.test.js` | SpreadsheetApp; `PRIVATE_LOCATION_SPREADSHEET_ID`, `PUBLIC_LOCATION_SPREADSHEET_ID` |
 | `scripts/dev-server.js` | Local static server delegates `/api/google-sheet` to the production handler; never fetches or returns raw GViz directly | Developer | `api/google-sheet.js`, public workbook resolver/schema guard |
-| `setup/staff-gateway.js` | Pure HMAC/freshness/action/idempotency/image/DTO gateway core for three private actions | `setup/location-intake/Code.gs`, Node security tests | `setup/apps-script.js`, `lib/location-workbooks.js` |
+| `setup/staff-gateway.js` | Pure HMAC/freshness/action/idempotency/image/DTO gateway core for staff actions plus separate public contribution actions: `listPublicContributionUnits` safe active-unit projection and `submitPublicContribution` CREATE intake | `setup/location-intake/Code.gs`, Node security tests | `setup/apps-script.js`, `lib/location-workbooks.js` |
+| `setup/staff-gateway.js` | Adds separate `submitPublicContribution` trust level; validates active private unit, CREATE-only payload, image bytes, private staging/audit/ledger idempotency, and `PUBLIC_CAPTCHA` provenance without changing `submitRequest` | `api/location-contributions.js`, `setup/location-intake/Code.gs` | `setup/apps-script.js`, `lib/location-workbooks.js` |
 | `setup/location-admin-review.js` | Pure(-ish) dual-workbook admin review/reconciliation engine: `reviewRequest` (gated, PENDING only) + `reconcileRequest` (ungated repair); idempotent public upsert/remove, dedup-by-request_id+action audit, image-share-before-finalize ordering | `setup/location-intake/Code.gs` menu handlers, `test/location-admin-review.test.js` | `setup/apps-script.js` (`buildPublishedRecord`/`sameUnitCode`/`buildAuditEntry`, not `applyApproval` directly — see 03-decisions.md) |
 | `scripts/preview-server.js` | Preview HTTP server dùng chung bởi Playwright global setup/teardown; tự đóng keep-alive connections | `test/e2e/global-setup.js`, `npm run preview` | Node `http` |
 | `scripts/run-regression.js` | Runner regression API that, loc theo ID (ca ID hoi thoai H16/H17); gui `evalDebug:true`, cham 30 ca va bao cao latency tong cung p50/p95 theo tung stage eval-only, provider/fallback. `--strict-gate` chan hard fail/provider error; `--majority`/`--runs N` tong hop hard fail da so va flaky advisory | CLI / agent | `api/chat.js`, `lib/regression-grader.js`, `lib/regression-metrics.js`, expectations/conversations va `test/results/` |
@@ -425,6 +428,26 @@ Google Form submit
 -> admin approve/reject/revoke
 -> Published_Locations update
 ```
+
+### Luong dong gop dia diem cong khai
+
+```text
+dong-gop/index.html
+-> GET /api/location-contributions -> authenticated Gateway listPublicContributionUnits
+   -> private active Unit_Allowlist -> safe { unitCode, label } only
+-> POST /api/location-contributions
+   -> Origin + explicit DTO/body/image validation + HMAC + Turnstile + IP/day quota
+   -> server resolves Google Maps coordinates
+   -> derives sha256("public-location-v1|operationId")
+   -> HMAC POST submitPublicContribution -> private Apps Script Gateway
+   -> private Unit_Allowlist active-unit check + private image + Location_Staging PENDING
+   -> Approval_Audit_Log PUBLIC_SUBMIT + Idempotency_Ledger
+-> existing Admin Review APPROVE
+-> only then Published_Locations/image_url becomes public
+```
+
+Public submission is not publication. The public browser never reads private sheets, calls Apps Script,
+receives the Gateway secret, or performs UPDATE/CORRECT/STOP/CONFIRM.
 
 ### Luong chatbot RAG
 
