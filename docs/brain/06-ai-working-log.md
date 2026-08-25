@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-08-25] Review kiến trúc: tích hợp Facebook Messenger với RAG
+- **Agent:** Claude Code
+- **Thay đổi:** Thêm `docs/brain/09-review-messenger-rag-2026-08-25.md` — review độc lập bản đề xuất tích hợp Messenger, đối chiếu với source thực tế. Verdict `APPROVE_WITH_CHANGES`: 5 vấn đề blocking (RAG core hợp nhất với SSE nên không bóc `ask()` được; `waitUntil` không miễn `maxDuration` → mất tin nhắn im lặng; ký webhook trên body đã parse sẽ hỏng với tiếng Việt; router denylist fail-open nên phải allowlist-first; `message_echoes` bị xếp nhầm vào sự kiện bỏ qua) và 3 vấn đề High. Trả lời đủ 37 câu hỏi ở §29 của brief.
+- **File đã sửa:** `docs/brain/09-review-messenger-rag-2026-08-25.md`, `docs/brain/06-ai-working-log.md`. Không sửa code.
+- **Lý do:** Brief yêu cầu review kiến trúc/bảo mật/phạm vi trước khi giao AGENTS viết code, và cấm triển khai code ngay (§30).
+- **Kiểm tra:** Xác minh baseline `origin/main` = `c6e9fa5d972280e32e0564371a4a14b45ac9dd9a` (đúng như brief nêu). Đọc trực tiếp `api/chat.js` (3200 dòng), `vercel.json`, `lib/*`, `.github/workflows/ci.yml`, `docs/brain/01,04`. Kiểm chứng ngữ nghĩa `waitUntil`/`maxDuration` qua tài liệu Vercel. `developers.facebook.com` bị egress proxy chặn → các mục Meta F20–F25 ghi rõ là CHƯA xác minh từ nguồn gốc, không suy đoán.
+
 ## [2026-08-23] Staff Location request status and approved image visibility
 - **Agent:** Codex
 - **Thay đổi:** Added a read-only, unit-authorized pending-request projection through Gateway and the Staff API; rendered request state, pending CREATE cards, conflict-disabled actions and public approved images in `/can-bo`; refetches authoritative state after a successful submission.
