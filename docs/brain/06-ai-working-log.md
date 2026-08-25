@@ -1,5 +1,18 @@
 # 06 — AI Working Log
 
+## [2026-08-25] PR-1 — Sink inversion cho `/api/chat` (không có code Messenger)
+- **Agent:** Claude Code
+- **BASELINE:** `origin/main` = `c6e9fa5d972280e32e0564371a4a14b45ac9dd9a` (đã fetch xác nhận). Baseline CI trước khi sửa: `npm test` 586/586 PASS.
+- **SCOPE:** Thêm `lib/response-sink.js` (`createSseSink` / `createBufferSink` / `startSseHeartbeat`). Chuyển 41 call-site `res.*` trong phần điều phối của `api/chat.js` (từ `isClearlyOutOfScope` trở đi) sang sink. Chuyển `startSseHeartbeat` sang lib, vẫn re-export từ `api/chat.js`.
+- **OUT_OF_SCOPE:** Không có code Messenger. Không đổi provider/retrieval/grounding/validator/timeout/prompt. Không đổi phần CORS/method/HMAC/Turnstile/rate-limit (transport riêng của kênh website — giữ nguyên trên `res`). Không wire `BufferSink` vào handler (việc của PR-4). Đã revert `output.css` và `package-lock.json` do build/`npm install` sinh ra — không liên quan PR-1.
+- **File đã sửa:** `lib/response-sink.js` (mới), `api/chat.js`, `test/chat-sse-golden.test.js` (mới) + `test/golden/*.json` (7 fixture), `test/response-sink.test.js` (mới), `package.json` (thêm `lib/response-sink.js` vào `check:syntax`), `docs/brain/01-architecture.md` (Code Graph), `docs/brain/03-decisions.md`.
+- **SECURITY DECISIONS:** Sink không định dạng, không diễn giải, không quyết định nội dung — chỉ là nơi byte đi ra. Ranh giới đặt sau toàn bộ xác thực nên không có đường nào bỏ qua CORS/HMAC/Turnstile/rate-limit. Không thêm dependency, không thêm biến môi trường, không chạm secret.
+- **TEST RESULTS:** `npm test` 592/592 PASS (586 baseline + 6 test sink mới; 8 golden đã nằm trong 586 vì commit trước khi đo). `npm run ci` EXIT 0 (test + build + `npm audit --omit=dev --audit-level=high`). Golden SSE **byte-identical 7/7**.
+- **REGRESSION RESULTS:** **CHƯA CHẠY ĐƯỢC** — `scripts/run-regression.js` cần Pinecone + provider key thật (`.env` không có, `PINECONE_API_KEY`/`GEMINI_API_KEY`/`DEEPSEEK_API_KEY` đều unset trong môi trường này). Đây là gate H3 bắt buộc và **vẫn còn treo**; chủ dự án phải chạy trong môi trường có credential trước khi merge.
+- **KNOWN GATES:** Golden chưa phủ 4 nhánh thoát: FAQ cache hit (`writeHead` 3 header), `RAG_CONFLICT`, `DETERMINISTIC_BARE_PLACE`, `DETERMINISTIC_PROCEDURE_GAP`, và nhánh lỗi provider `sink.fail(status, …)`. Bốn nhánh này đã được đối chiếu bằng đọc diff (cùng một phép biến đổi cơ học) nhưng chưa có khoá byte tự động.
+- **MANUAL STEPS:** (1) chạy regression grader có credential; (2) deploy Preview và bấm thử giao diện chat website thật; (3) owner review diff.
+- **VERDICT:** `MESSENGER_PR1_SINK_INVERSION_READY_FOR_OWNER_REVIEW` — **DỪNG tại đây, không tự bắt đầu PR-2.**
+
 ## [2026-08-25] Review vòng 2: Kế hoạch thực thi V2 — Messenger × RAG
 - **Agent:** Claude Code
 - **Thay đổi:** Thêm `docs/brain/10-review-messenger-rag-v2-2026-08-25.md`. Verdict `MESSENGER_EXECUTION_PLAN_V2_APPROVED_WITH_CHANGES` — **PR-1 được phép bắt đầu ngay**. Closure: C1/C3/C5 + H1/H2/H3 CLOSED; C2 và C4 PARTIAL. 7 issue mới: N1 ACK-first không có đường khôi phục (outbox phát hiện được nhưng không khôi phục được, sweeper/queue đều bị defer); N2 `hasObviousPii` sai cả hai chiều — đã chạy thử, chặn nhầm câu hỏi địa chỉ gõ không dấu và không bắt tố giác; N3 đầu ra router nhị phân ép chọn giữa khoá hội thoại vĩnh viễn và rò ctx; N4 đường rò external LLM là ctx/history qua `summarizeHistory`/`rewriteFollowUpQuery`, không phải tin nhắn hiện tại; N5 heartbeat/`headersSent`/`err.message` phải nằm trong thiết kế PR-1; N6 dedup cần ngữ nghĩa lỗi khác rate limit; N7 Gate D3 phải chặn Page thật. Trả lời đủ 52 câu ở §26.
