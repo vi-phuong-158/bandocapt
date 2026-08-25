@@ -1,0 +1,48 @@
+{
+  "note": "Địa danh thuần, không tra được trụ sở → SSE tất định DETERMINISTIC_NO_MATCH",
+  "ops": [
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Methods",
+      "value": "POST,OPTIONS"
+    },
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Headers",
+      "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Request-Token, X-Request-Time"
+    },
+    {
+      "op": "writeHead",
+      "code": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Connection",
+          "keep-alive"
+        ],
+        [
+          "X-Accel-Buffering",
+          "no"
+        ]
+      ]
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"text\":\"Mình chưa có dữ liệu trụ sở được xác minh cho địa danh này. Vui lòng cung cấp thêm thông tin hoặc kiểm tra lại tên địa danh (xã/phường) nhé.\"}\n\n"
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"done\":true,\"fullText\":\"Mình chưa có dữ liệu trụ sở được xác minh cho địa danh này. Vui lòng cung cấp thêm thông tin hoặc kiểm tra lại tên địa danh (xã/phường) nhé.\",\"history\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Xã Hy Cương\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"Mình chưa có dữ liệu trụ sở được xác minh cho địa danh này. Vui lòng cung cấp thêm thông tin hoặc kiểm tra lại tên địa danh (xã/phường) nhé.\"}]}],\"sources\":[],\"finishReason\":\"DETERMINISTIC_NO_MATCH\"}\n\n"
+    },
+    {
+      "op": "end"
+    }
+  ]
+}

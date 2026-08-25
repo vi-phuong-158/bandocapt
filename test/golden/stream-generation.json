@@ -1,0 +1,56 @@
+{
+  "note": "Luồng generation đầy đủ: writeHead → status:generating → segment đã validate → done",
+  "ops": [
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Methods",
+      "value": "POST,OPTIONS"
+    },
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Headers",
+      "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Request-Token, X-Request-Time"
+    },
+    {
+      "op": "writeHead",
+      "code": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Connection",
+          "keep-alive"
+        ],
+        [
+          "X-Accel-Buffering",
+          "no"
+        ]
+      ]
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"status\":\"generating\"}\n\n"
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"text\":\"Anh chị vui lòng liên hệ trực tiếp cơ quan có thẩm quyền để được hướng dẫn.\"}\n\n"
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"text\":\" Cán bộ tiếp nhận sẽ hướng dẫn hồ sơ cụ thể theo từng trường hợp.\"}\n\n"
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"done\":true,\"fullText\":\"Anh chị vui lòng liên hệ trực tiếp cơ quan có thẩm quyền để được hướng dẫn. Cán bộ tiếp nhận sẽ hướng dẫn hồ sơ cụ thể theo từng trường hợp.\",\"history\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Cho hỏi thủ tục gia hạn tạm trú cho người nước ngoài làm thế nào?\\n\\n[[[LỆNH KHÓA NGÔN NGỮ]]]\\nNgười dùng đang hỏi bằng TIẾNG VIỆT. Bạn PHẢI trả lời 100% bằng TIẾNG VIỆT, kể cả khi trong câu hỏi có nhắc đến quốc tịch nước ngoài (như Trung Quốc, Hàn Quốc, Nhật Bản...). TUYỆT ĐỐI CẤM tự ý chuyển sang tiếng Trung, tiếng Hàn, tiếng Nhật hay tiếng Anh.\\n\\n(IMPORTANT: This is about a foreign national. Do not introduce, compare with, or cite Vietnamese-citizen residence procedures such as đăng ký tạm trú, VNeID, or Luật Cư trú. If the retrieved material concerns a different document than the visa asked about, say there is not enough basis for that visa and do not state its fine amount or money range.)\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"Anh chị vui lòng liên hệ trực tiếp cơ quan có thẩm quyền để được hướng dẫn. Cán bộ tiếp nhận sẽ hướng dẫn hồ sơ cụ thể theo từng trường hợp.\"}]}],\"sources\":[],\"verifiedLocations\":[],\"truncated\":false,\"finishReason\":\"STOP\"}\n\n"
+    },
+    {
+      "op": "end"
+    }
+  ]
+}
