@@ -1684,6 +1684,10 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
   Identity Services rendered button without One Tap, JWT decoding, credential persistence, or OAuth revoke.
 - **Decision:** Add `GET /api/staff/auth/config` as a no-store public config endpoint returning only
   `GOOGLE_CLIENT_ID`; missing configuration fails closed with `STAFF_AUTH_CONFIG_INVALID`/503.
+- **Decision (2026-08-25):** Keep the public config URL but rewrite it to the existing CSRF function
+  with an internal marker. This keeps the Vercel Hobby deployment at or below its 12-function limit
+  after adding public location contributions, without merging auth handlers or changing their security
+  contracts.
 - **Decision:** Use explicit client DTO builders and in-memory operation-id reuse for retries. Image input
   is compressed toward 2.5 MiB before the existing Vercel 3 MiB decoded limit; mutations never update a
   public card optimistically and stale snapshots are refreshed without silent retry.

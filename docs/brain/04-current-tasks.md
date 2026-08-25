@@ -6,7 +6,9 @@
   through the authenticated Gateway from active private `Unit_Allowlist`, and a
   Vercel-only POST boundary for CREATE proposals. The private Gateway action is separate from staff
   `submitRequest` and ends at `Location_Staging/PENDING` plus `PUBLIC_SUBMIT` audit.
-- Required end state remains `PUBLIC_LOCATION_CONTRIBUTION_READY_FOR_LIVE_REHEARSAL`; no production
+- Stage A Preview recovery found the original deployment failed on Vercel Hobby's 12-function limit;
+  the feature branch now co-hosts the existing public auth-config route on the CSRF function through a
+  same-origin internal rewrite. Required end state remains `PUBLIC_LOCATION_CONTRIBUTION_READY_FOR_LIVE_REHEARSAL`; no production
   Gateway deploy, workbook mutation, clasp push, Vercel env change, merge, or alias promotion is allowed
   in this task.
 - Current validation: source audit PASS; locked `npm ci`, `npm run build`, `npm run ci`, focused public

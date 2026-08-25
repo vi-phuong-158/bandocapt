@@ -2,6 +2,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "devCommand": "node scripts/vercel-dev-fallback.js",
+  "rewrites": [
+    {
+      "source": "/api/staff/auth/config",
+      "destination": "/api/staff/auth/csrf?__staff_auth_route=config"
+    }
+  ],
   "functions": {
     "api/chat.js": {
       "maxDuration": 60

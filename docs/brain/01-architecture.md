@@ -771,7 +771,9 @@ Biến mới (2026-07-13):
 ## Vercel Staff API Gate (PR #47, 2026-08-11)
 
 - **Auth boundary:** `api/staff/auth/{csrf,google,logout}.js` and `api/staff/{session,locations,requests,verification}.js`
-  are thin route adapters over `lib/staff-api.js`. `lib/staff-auth.js` verifies Google ID tokens with
+  are thin route adapters over `lib/staff-api.js`. The public `GET /api/staff/auth/config` URL rewrites to
+  the CSRF function with an internal route marker so the Hobby-plan function budget is not exceeded;
+  `lib/staff-auth.js` verifies Google ID tokens with
   `google-auth-library`; `lib/staff-session.js`, `lib/staff-csrf.js`, and `lib/staff-origin.js` own the
   cookie, double-submit token, and exact Origin policy.
 - **Authorization boundary:** `lib/staff-api.js` calls `lib/staff-gateway-client.js` `resolveUnits` for

@@ -3358,3 +3358,14 @@
   tồn tại và không chứa tên secret/private fields. `git diff --check` PASS.
 - **Ranh giới:** Không deploy, không clasp push, không đổi Script Properties/Vercel env, không mutate
   workbook, không live submit/approve. Draft PR/push chỉ thực hiện trên branch feature, không merge.
+
+## [2026-08-25] Public contribution Preview function-budget recovery
+- **Agent:** Codex
+- **Thay đổi:** Chẩn đoán deployment `dpl_6dhQx7RULQU3xqcjFFntFfiQRwuo` ở đúng SHA `92f7c1c`;
+  Vercel trả `exceeded_serverless_functions_per_deployment` vì 13 API entry files vượt giới hạn 12
+  của Hobby plan. Giữ nguyên `/api/staff/auth/config` nhưng rewrite vào `api/staff/auth/csrf.js` với
+  marker nội bộ; xóa route file riêng và cập nhật syntax check/docs. Không đổi handler security contract.
+- **Kiểm tra:** Route marker/config smoke PASS; `git diff --check` PASS; `npm test` 587/587 PASS;
+  `npm run build` PASS. Chưa redeploy Preview hoặc chạy live rehearsal tại thời điểm ghi log này.
+- **Ranh giới:** Không sửa Vercel env, không đổi Script Properties, không đụng TEST/Production workbook,
+  không merge PR và không gửi public contribution.
