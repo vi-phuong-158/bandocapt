@@ -1,0 +1,48 @@
+{
+  "note": "RAG_FAIL_CLOSED=1, không có ngữ cảnh grounded → SSE tất định RAG_ABSTAINED",
+  "ops": [
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Methods",
+      "value": "POST,OPTIONS"
+    },
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Headers",
+      "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Request-Token, X-Request-Time"
+    },
+    {
+      "op": "writeHead",
+      "code": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Connection",
+          "keep-alive"
+        ],
+        [
+          "X-Accel-Buffering",
+          "no"
+        ]
+      ]
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"text\":\"Mình chưa tìm thấy tài liệu hoặc căn cứ phù hợp trong kho dữ liệu để trả lời chính xác câu hỏi này. Bạn vui lòng mở mục \\\"Danh mục thủ tục hành chính\\\" để tra cứu, hoặc liên hệ Công an phường/xã nơi cư trú để được hướng dẫn trực tiếp.\"}\n\n"
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"done\":true,\"fullText\":\"Mình chưa tìm thấy tài liệu hoặc căn cứ phù hợp trong kho dữ liệu để trả lời chính xác câu hỏi này. Bạn vui lòng mở mục \\\"Danh mục thủ tục hành chính\\\" để tra cứu, hoặc liên hệ Công an phường/xã nơi cư trú để được hướng dẫn trực tiếp.\",\"history\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Thủ tục đăng ký thường trú cần giấy tờ gì?\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"Mình chưa tìm thấy tài liệu hoặc căn cứ phù hợp trong kho dữ liệu để trả lời chính xác câu hỏi này. Bạn vui lòng mở mục \\\"Danh mục thủ tục hành chính\\\" để tra cứu, hoặc liên hệ Công an phường/xã nơi cư trú để được hướng dẫn trực tiếp.\"}]}],\"sources\":[],\"finishReason\":\"RAG_ABSTAINED\",\"abstentionReason\":\"no_pinecone_config\"}\n\n"
+    },
+    {
+      "op": "end"
+    }
+  ]
+}

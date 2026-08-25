@@ -1,0 +1,48 @@
+{
+  "note": "Provider không sinh chữ nào → event error, không có done",
+  "ops": [
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Methods",
+      "value": "POST,OPTIONS"
+    },
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Headers",
+      "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Request-Token, X-Request-Time"
+    },
+    {
+      "op": "writeHead",
+      "code": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Connection",
+          "keep-alive"
+        ],
+        [
+          "X-Accel-Buffering",
+          "no"
+        ]
+      ]
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"status\":\"generating\"}\n\n"
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"error\":\"BLOCKED_CONTENT\"}\n\n"
+    },
+    {
+      "op": "end"
+    }
+  ]
+}
