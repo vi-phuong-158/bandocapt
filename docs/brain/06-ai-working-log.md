@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-08-25] Review vòng 2: Kế hoạch thực thi V2 — Messenger × RAG
+- **Agent:** Claude Code
+- **Thay đổi:** Thêm `docs/brain/10-review-messenger-rag-v2-2026-08-25.md`. Verdict `MESSENGER_EXECUTION_PLAN_V2_APPROVED_WITH_CHANGES` — **PR-1 được phép bắt đầu ngay**. Closure: C1/C3/C5 + H1/H2/H3 CLOSED; C2 và C4 PARTIAL. 7 issue mới: N1 ACK-first không có đường khôi phục (outbox phát hiện được nhưng không khôi phục được, sweeper/queue đều bị defer); N2 `hasObviousPii` sai cả hai chiều — đã chạy thử, chặn nhầm câu hỏi địa chỉ gõ không dấu và không bắt tố giác; N3 đầu ra router nhị phân ép chọn giữa khoá hội thoại vĩnh viễn và rò ctx; N4 đường rò external LLM là ctx/history qua `summarizeHistory`/`rewriteFollowUpQuery`, không phải tin nhắn hiện tại; N5 heartbeat/`headersSent`/`err.message` phải nằm trong thiết kế PR-1; N6 dedup cần ngữ nghĩa lỗi khác rate limit; N7 Gate D3 phải chặn Page thật. Trả lời đủ 52 câu ở §26.
+- **File đã sửa:** `docs/brain/10-review-messenger-rag-v2-2026-08-25.md`, `docs/brain/06-ai-working-log.md`. Không sửa code.
+- **Lý do:** V2 §28 yêu cầu review vòng 2, xác nhận từng C1–C5/H1–H3 CLOSED/PARTIAL/OPEN, không code.
+- **Kiểm tra:** Fetch lại `origin/main` — vẫn `c6e9fa5d972280e32e0564371a4a14b45ac9dd9a`, không đổi so với vòng 1, golden PR-1 sinh được trên đúng SHA này. Chạy `hasObviousPii`/`normalizeFaqQuestion` nguyên văn từ `api/chat.js:681-698` trên 13 ca thật (bằng chứng ở N2). Trace thứ tự external call trong handler: `summarizeHistory:2110` → `rewriteFollowUpQuery:2152` → `translateQueryForRetrieval:2174` → embedding → Pinecone `:2283` → `rerankWithProvider:2379`. Đọc `startSseHeartbeat:1824`, nhánh lỗi `:3136`, CAS helper `:339-361`. `developers.facebook.com` vẫn bị egress chặn → giữ `META_CONTRACT_VERIFICATION_BLOCKED`, không suy đoán.
+
 ## [2026-08-25] Review kiến trúc: tích hợp Facebook Messenger với RAG
 - **Agent:** Claude Code
 - **Thay đổi:** Thêm `docs/brain/09-review-messenger-rag-2026-08-25.md` — review độc lập bản đề xuất tích hợp Messenger, đối chiếu với source thực tế. Verdict `APPROVE_WITH_CHANGES`: 5 vấn đề blocking (RAG core hợp nhất với SSE nên không bóc `ask()` được; `waitUntil` không miễn `maxDuration` → mất tin nhắn im lặng; ký webhook trên body đã parse sẽ hỏng với tiếng Việt; router denylist fail-open nên phải allowlist-first; `message_echoes` bị xếp nhầm vào sự kiện bỏ qua) và 3 vấn đề High. Trả lời đủ 37 câu hỏi ở §29 của brief.
