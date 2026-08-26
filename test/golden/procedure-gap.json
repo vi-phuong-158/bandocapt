@@ -1,0 +1,48 @@
+{
+  "note": "Hỏi cấp lại thẻ tạm trú bị mất nhưng không có đúng biến thể tài liệu → SSE tất định DETERMINISTIC_PROCEDURE_GAP",
+  "ops": [
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Methods",
+      "value": "POST,OPTIONS"
+    },
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Headers",
+      "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Request-Token, X-Request-Time"
+    },
+    {
+      "op": "writeHead",
+      "code": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Connection",
+          "keep-alive"
+        ],
+        [
+          "X-Accel-Buffering",
+          "no"
+        ]
+      ]
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"text\":\"**Việc cấp lại thẻ tạm trú do mất thuộc thẩm quyền Phòng Quản lý xuất nhập cảnh Công an tỉnh Phú Thọ.** Dữ liệu hiện tại chưa có hướng dẫn riêng cho trường hợp mất, vì vậy bạn vui lòng liên hệ trực tiếp điểm tiếp dân theo địa bàn:\\n\\n- **Vĩnh Phúc cũ:** Thôn Vị Trù, phường Vĩnh Yên, tỉnh Phú Thọ — ☎️ 0211.3.558.668\\n- **Phú Thọ cũ:** Khu E, Công an tỉnh Phú Thọ, khu 7, phường Việt Trì, tỉnh Phú Thọ — ☎️ 069.2.645.166\\n- **Hòa Bình cũ:** Đại lộ Thịnh Lang, phường Hòa Bình, tỉnh Phú Thọ — ☎️ 0218.3.855.311\\n\\nBạn thuộc khu vực Phú Thọ cũ, Vĩnh Phúc cũ hay Hòa Bình cũ để mình chỉ đúng điểm?\"}\n\n"
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"done\":true,\"fullText\":\"**Việc cấp lại thẻ tạm trú do mất thuộc thẩm quyền Phòng Quản lý xuất nhập cảnh Công an tỉnh Phú Thọ.** Dữ liệu hiện tại chưa có hướng dẫn riêng cho trường hợp mất, vì vậy bạn vui lòng liên hệ trực tiếp điểm tiếp dân theo địa bàn:\\n\\n- **Vĩnh Phúc cũ:** Thôn Vị Trù, phường Vĩnh Yên, tỉnh Phú Thọ — ☎️ 0211.3.558.668\\n- **Phú Thọ cũ:** Khu E, Công an tỉnh Phú Thọ, khu 7, phường Việt Trì, tỉnh Phú Thọ — ☎️ 069.2.645.166\\n- **Hòa Bình cũ:** Đại lộ Thịnh Lang, phường Hòa Bình, tỉnh Phú Thọ — ☎️ 0218.3.855.311\\n\\nBạn thuộc khu vực Phú Thọ cũ, Vĩnh Phúc cũ hay Hòa Bình cũ để mình chỉ đúng điểm?\",\"history\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Tôi bị mất thẻ tạm trú thì làm lại thế nào?\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"**Việc cấp lại thẻ tạm trú do mất thuộc thẩm quyền Phòng Quản lý xuất nhập cảnh Công an tỉnh Phú Thọ.** Dữ liệu hiện tại chưa có hướng dẫn riêng cho trường hợp mất, vì vậy bạn vui lòng liên hệ trực tiếp điểm tiếp dân theo địa bàn:\\n\\n- **Vĩnh Phúc cũ:** Thôn Vị Trù, phường Vĩnh Yên, tỉnh Phú Thọ — ☎️ 0211.3.558.668\\n- **Phú Thọ cũ:** Khu E, Công an tỉnh Phú Thọ, khu 7, phường Việt Trì, tỉnh Phú Thọ — ☎️ 069.2.645.166\\n- **Hòa Bình cũ:** Đại lộ Thịnh Lang, phường Hòa Bình, tỉnh Phú Thọ — ☎️ 0218.3.855.311\\n\\nBạn thuộc khu vực Phú Thọ cũ, Vĩnh Phúc cũ hay Hòa Bình cũ để mình chỉ đúng điểm?\"}]}],\"sources\":[],\"finishReason\":\"DETERMINISTIC_PROCEDURE_GAP\",\"abstentionReason\":\"missing_exact_procedure_variant\"}\n\n"
+    },
+    {
+      "op": "end"
+    }
+  ]
+}

@@ -1,5 +1,48 @@
 # 03 — Technical Decisions
 
+## [2026-08-25] PR-1: sink inversion thay vi boc `ask()` khoi `api/chat.js`
+
+**Boi canh.** De tai dung RAG cho kenh thu hai (Messenger), can mot ranh gioi giua dieu phoi
+va transport. De xuat ban dau la boc mot ham `ask()` tra ve `{ answer, sources, ... }`.
+
+**Van de.** Khong ton tai ham nhu vay de boc. Handler dai ~1.295 dong voi 12 diem thoat ghi
+thang vao `res` nam rai rac trong pipeline, va `emitValidatedSegments` chay validator grounding
+TANG DAN roi `res.write()` ngay ben trong vong kiem. Cau tra loi chi ton tai nhu bien tich luy
+cua vong stream. Boc `ask()` = viet lai duong tra loi cua website dang chay.
+
+**Quyet dinh.** Dao nguoc huong: chen mot lop sink thay vi boc ham ra.
+
+    res.writeHead(200, H)     -> sink.open(H)
+    res.write(`data: ...`)    -> sink.event(payload)
+    res.end()                 -> sink.close()
+    res.status(n).json(p)     -> sink.fail(n, p)
+    res.headersSent           -> sink.isOpen
+    startSseHeartbeat(res)    -> sink.startHeartbeat()
+
+- `SseSink` tai tao dung tung byte hien tai -> website khong doi hanh vi.
+- `BufferSink` nhan cung chuoi su kien trong bo nho -> kenh khac dung lai DUNG pipeline
+  grounding/validator cua website, khong phai mot ban sao long hon.
+- `ask()` neu can sau nay chi la wrapper mong tren core + `BufferSink`.
+
+**Ranh gioi da chot.** Sink bat dau tu `isClearlyOutOfScope` (diem thoat SSE dau tien). Moi thu
+phia tren — CORS, method, validate body, HMAC, Turnstile, rate limit theo IP — GIU NGUYEN tren
+`res`: theo kien truc muc tieu day la transport rieng cua kenh website, khong dung chung voi
+kenh khac, nen chuyen chung sang sink chi tao churn ma khong co loi ich.
+
+**Heartbeat chuyen vao sink.** `startSseHeartbeat` phu thuoc `res.writableEnded`/`destroyed` va
+event `close`/`finish` — vong doi stream Node ma sink trong bo nho khong co. De no o tang dieu
+phoi thi interface sink buoc phai mo phong vong doi stream va abstraction hong ngay. Ham duoc
+chuyen sang `lib/response-sink.js` va van re-export tu `api/chat.js` de test hien co khong doi.
+
+**Cong kiem chung.** Golden SSE byte-identical 7 kich ban, sinh TREN baseline truoc khi sua
+(commit rieng), phu: writeHead 4-header va 3-header, text/done event, end, `status().json()`
+giua orchestration, vong stream day du voi validator tang dan, nhanh empty-generation, va ca
+hai nhanh cua `headersSent` trong catch.
+
+**Khong lam trong PR-1.** Khong co code Messenger. Khong doi provider/retrieval/grounding/
+validator/timeout. Khong wire `BufferSink` vao handler — do la viec cua PR-4.
+
+
 ## [2026-08-22] Legacy published records use a separate private operational baseline
 
 - **Decision:** choose Option A: a provenance-marked private `Operational_Baseline` read model seeded

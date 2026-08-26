@@ -1,0 +1,48 @@
+{
+  "note": "Câu ngoài phạm vi → SSE tất định, 4 header, finishReason OUT_OF_SCOPE",
+  "ops": [
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Methods",
+      "value": "POST,OPTIONS"
+    },
+    {
+      "op": "setHeader",
+      "name": "Access-Control-Allow-Headers",
+      "value": "X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, X-Request-Token, X-Request-Time"
+    },
+    {
+      "op": "writeHead",
+      "code": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Connection",
+          "keep-alive"
+        ],
+        [
+          "X-Accel-Buffering",
+          "no"
+        ]
+      ]
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"text\":\"Tôi chưa tìm thấy thông tin chính xác cho câu hỏi này. Vui lòng liên hệ Công an địa phương (Công an phường/xã) nơi bạn cư trú để được tư vấn trực tiếp.\"}\n\n"
+    },
+    {
+      "op": "write",
+      "chunk": "data: {\"done\":true,\"fullText\":\"Tôi chưa tìm thấy thông tin chính xác cho câu hỏi này. Vui lòng liên hệ Công an địa phương (Công an phường/xã) nơi bạn cư trú để được tư vấn trực tiếp.\",\"history\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Giá bitcoin hôm nay bao nhiêu?\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"Tôi chưa tìm thấy thông tin chính xác cho câu hỏi này. Vui lòng liên hệ Công an địa phương (Công an phường/xã) nơi bạn cư trú để được tư vấn trực tiếp.\"}]}],\"sources\":[],\"outOfScope\":true,\"finishReason\":\"OUT_OF_SCOPE\"}\n\n"
+    },
+    {
+      "op": "end"
+    }
+  ]
+}
