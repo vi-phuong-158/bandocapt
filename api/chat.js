@@ -2213,6 +2213,7 @@ module.exports = async function handler(req, res) {
     let matchedSources = []; // UI-05: citation chips
     let matchedRagMetadata = [];
     let pineconeErrored = false; // T2A: phân biệt lý do abstain (pinecone_error vs no_relevant_match)
+    let pineconeErrorDetail = null; // eval-only: message gốc để regression runner phân loại infra failure (vd PINECONE_QUERY_TIMEOUT)
     let governanceConflict = null;
     // Hoisted vì buildVerifiedFactsLine/header vai trò/ragSafetyNotice bên dưới đều cần biết
     // cờ này — production chưa có source_priority nên các nhánh governance-only PHẢI tắt khi flag off.
@@ -2417,6 +2418,7 @@ module.exports = async function handler(req, res) {
             }
         } catch (e) {
             pineconeErrored = true;
+            pineconeErrorDetail = String((e && e.message) || e);
             console.error('[api/chat] Lỗi tìm kiếm Pinecone:', e);
             // Tiếp tục cho bot dẫu Pinecone lỗi để bot có thể báo lỗi lịch sự
         }
@@ -3025,6 +3027,11 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             evalTrace.timings = { ...stageTimings };
             evalTrace.provider = provider;
             evalTrace.fallback_used = fallbackUsed;
+            // Regression runner reliability: câu trả lời vẫn sinh được dù Pinecone lỗi/timeout
+            // (catch ở trên nuốt lỗi để bot trả lời lịch sự) — phải lộ ra đây để runner phân
+            // biệt INFRA/PROVIDER failure khỏi content/code regression thật (xem lib/regression-grader.js).
+            evalTrace.pineconeErrored = pineconeErrored;
+            evalTrace.pineconeErrorDetail = pineconeErrorDetail;
         }
         stopHeartbeat?.();
         sink.event({

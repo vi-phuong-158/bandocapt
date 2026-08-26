@@ -605,3 +605,73 @@ test('T1.11 H16: câu hedging "chưa có dữ liệu trụ sở xác minh của 
     });
     assert.equal(deterministic.verdict, 'HARD_FAIL');
 });
+
+// --------------------------------------------------------------------
+// Runner-reliability fix: false-green khi thiếu credential / lỗi hạ tầng
+// (phát hiện sau live regression của PR #59 — không dùng credential/network thật).
+// --------------------------------------------------------------------
+const { classifyInfraErrorCode } = require('../lib/regression-grader');
+
+test('T1: SERVER_CONFIG_ERROR + câu trả lời rỗng → verdict INFRA_FAIL, KHÔNG BAO GIỜ PASS', () => {
+    const graded = gradeCase(EXPECTATIONS.cases.TR01, {
+        text: '', wordCount: 0, truncated: false, error: 'SERVER_CONFIG_ERROR', eval: null,
+    });
+    assert.equal(graded.verdict, 'INFRA_FAIL', `verdict thực tế: ${graded.verdict} — SERVER_CONFIG_ERROR không được PASS`);
+    assert.equal(graded.providerError, 'SERVER_CONFIG_ERROR');
+    assert.equal(graded.infraErrorCode, 'SERVER_CONFIG_ERROR');
+});
+
+test('T2: mọi providerError khiến response rỗng đều không bao giờ được chấm PASS', () => {
+    for (const errorCode of ['SERVER_CONFIG_ERROR', 'RATE_LIMIT', 'SERVICE_UNAVAILABLE', 'UNKNOWN_ERROR', 'STREAM_ERROR', 'BAD_REQUEST']) {
+        const graded = gradeCase(EXPECTATIONS.cases.TR01, {
+            text: '', wordCount: 0, truncated: false, error: errorCode, eval: null,
+        });
+        assert.notEqual(graded.verdict, 'PASS', `${errorCode} không được chấm PASS`);
+        assert.equal(graded.verdict, 'INFRA_FAIL', `${errorCode} phải là INFRA_FAIL, không phải ${graded.verdict}`);
+    }
+});
+
+test('classifyInfraErrorCode: Pinecone timeout bị api/chat.js nuốt (model vẫn sinh nội dung) vẫn lộ ra được', () => {
+    const result = {
+        text: 'Câu trả lời vẫn sinh được dù Pinecone lỗi.',
+        error: null,
+        eval: { pineconeErrored: true, pineconeErrorDetail: 'PINECONE_QUERY_TIMEOUT' },
+    };
+    assert.equal(classifyInfraErrorCode(result), 'PINECONE_QUERY_TIMEOUT');
+});
+
+test('classifyInfraErrorCode: lỗi tường minh (result.error) được ưu tiên hơn cờ Pinecone nội bộ', () => {
+    const result = { text: '', error: 'RATE_LIMIT', eval: { pineconeErrored: true, pineconeErrorDetail: 'PINECONE_QUERY_TIMEOUT' } };
+    assert.equal(classifyInfraErrorCode(result), 'RATE_LIMIT');
+});
+
+test('classifyInfraErrorCode: không có lỗi hạ tầng nào thì trả null', () => {
+    assert.equal(classifyInfraErrorCode({ text: 'ok', error: null, eval: null }), null);
+    assert.equal(classifyInfraErrorCode({ text: 'ok', error: null, eval: { pineconeErrored: false } }), null);
+});
+
+test('T3/Phase3: HARD_FAIL thật kèm Pinecone timeout vẫn giữ HARD_FAIL (không che) nhưng gắn infraErrorCode để report phân biệt khỏi content regression', () => {
+    // Mô phỏng đúng case thật đã điều tra sau PR #59: retrieval timeout bị nuốt, model vẫn
+    // sinh câu trả lời — nhưng câu trả lời này CỐ TÌNH thiếu required fact để có 1 HARD_FAIL
+    // thật, xác nhận infraErrorCode không xoá mất bằng chứng content fail.
+    const graded = gradeCase(EXPECTATIONS.cases.TR01, {
+        text: 'Bạn không cần làm gì cả.',
+        wordCount: 6, truncated: false, error: null,
+        eval: { pineconeErrored: true, pineconeErrorDetail: 'PINECONE_QUERY_TIMEOUT' },
+    });
+    assert.equal(graded.verdict, 'HARD_FAIL', graded.failures.join('; '));
+    assert.ok(graded.failures.includes('missing_required_fact:must_declare'), graded.failures.join('; '));
+    assert.equal(graded.infraErrorCode, 'PINECONE_QUERY_TIMEOUT');
+});
+
+test('T6: DEFERRED_FAIL không do infra vẫn giữ nguyên hành vi cũ (không bị gắn nhầm INFRA_FAIL)', () => {
+    const f01 = EXPECTATIONS.cases.F01;
+    assert.equal(f01.status, 'DEFERRED_SOURCE_GOVERNANCE');
+    const graded = gradeCase(f01, {
+        text: 'Bạn cần khai báo tạm trú bằng cách nộp trực tiếp tại xã/phường nơi cư trú.',
+        wordCount: 13, truncated: false, error: null, eval: null,
+    });
+    assert.equal(graded.verdict, 'DEFERRED_FAIL', graded.failures.join('; '));
+    assert.equal(graded.isDeferred, true);
+    assert.equal(graded.infraErrorCode, null, 'Không có lỗi hạ tầng thì infraErrorCode phải null');
+});
