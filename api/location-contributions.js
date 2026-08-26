@@ -8,6 +8,7 @@ const {
 } = require('../lib/request-security');
 const { resolveMapsCoordinates } = require('../lib/staff-maps-resolver');
 const { callGateway, DEFAULT_TIMEOUT_MS, MUTATION_TIMEOUT_MS, MUTATION_MAX_ATTEMPTS } = require('../lib/staff-gateway-client');
+const { checkAndIncrement } = require('../lib/rate-limit-store');
 
 const MAX_REQUEST_BYTES = 4.5 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024;
@@ -22,7 +23,6 @@ const BODY_FIELDS = new Set([
     'operationId', 'requestType', 'unitCode', 'targetRecordId', 'locationName', 'address', 'mapsUrl',
     'publicPhone', 'submitterName', 'submitterPhone', 'note', 'image', 'captchaToken',
 ]);
-const LOCAL_RATE_LIMITS = new Map();
 
 function apiError(code, status = 400) {
     const error = new Error(code);
@@ -61,9 +61,16 @@ function publicConfig(env = process.env) {
     };
 }
 
-function getVnDateKey(now = new Date()) {
-    const vn = new Date(now.getTime() + 7 * 60 * 60 * 1000);
-    return `${vn.getUTCFullYear()}_${String(vn.getUTCMonth() + 1).padStart(2, '0')}_${String(vn.getUTCDate()).padStart(2, '0')}`;
+function getVnDayWindow(now = new Date()) {
+    const timestamp = now.getTime();
+    const vn = new Date(timestamp + 7 * 60 * 60 * 1000);
+    const dateKey = `${vn.getUTCFullYear()}_${String(vn.getUTCMonth() + 1).padStart(2, '0')}_${String(vn.getUTCDate()).padStart(2, '0')}`;
+    const nextMidnight = Date.UTC(vn.getUTCFullYear(), vn.getUTCMonth(), vn.getUTCDate() + 1) - 7 * 60 * 60 * 1000;
+    return {
+        dateKey,
+        windowSeconds: Math.max(1, Math.ceil((nextMidnight - timestamp) / 1000)),
+        resetAt: new Date(nextMidnight).toISOString(),
+    };
 }
 
 function hashForLog(value, env = process.env) {
@@ -164,31 +171,22 @@ async function verifyTurnstile(token, clientIp, env = process.env, fetchImpl = f
     } catch (_) { return false; }
 }
 
-async function reserveRateLimitQuota({ dbUrl, auth = '', dateKey, ipBucket, limit, fetchImpl = fetch }) {
-    if (!dbUrl) {
-        const key = `${dateKey}/${ipBucket}`;
-        const current = LOCAL_RATE_LIMITS.get(key) || 0;
-        if (current >= limit) return { ok: false, reason: 'limit_exceeded' };
-        LOCAL_RATE_LIMITS.set(key, current + 1);
-        return { ok: true };
-    }
-    const url = `${dbUrl.replace(/\/$/, '')}/public_location_contributions/${dateKey}/${ipBucket}.json${auth}`;
-    for (let attempt = 0; attempt < 12; attempt += 1) {
-        const currentResponse = await fetchImpl(url, { headers: { 'X-Firebase-ETag': 'true' } });
-        if (!currentResponse.ok) return { ok: false, reason: 'unavailable' };
-        const current = await currentResponse.json().catch(() => null);
-        const count = typeof current === 'number' ? current : Number(current?.count) || 0;
-        if (count >= limit) return { ok: false, reason: 'limit_exceeded' };
-        const etag = currentResponse.headers?.get?.('etag') || '*';
-        const next = typeof current === 'number' ? count + 1 : { count: count + 1, updated_at: Date.now() };
-        const update = await fetchImpl(url, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json', 'if-match': etag }, body: JSON.stringify(next),
-        });
-        if (update.status === 412) continue;
-        if (update.ok) return { ok: true };
-        return { ok: false, reason: 'unavailable' };
-    }
-    return { ok: false, reason: 'unavailable' };
+async function reserveRateLimitQuota({ redisUrl, redisToken, dateKey, ipBucket, limit, windowSeconds, resetAt, fetchImpl = fetch, allowInMemoryFallback = false }) {
+    const result = await checkAndIncrement({
+        redisUrl,
+        redisToken,
+        namespace: 'bandocapt:public-location:v1',
+        key: ipBucket,
+        window: dateKey,
+        limit,
+        windowSeconds,
+        resetAt,
+        allowInMemoryFallback,
+        fetchImpl,
+    });
+    return result.allowed
+        ? { ok: true, ...result }
+        : { ok: false, reason: result.reason, ...result };
 }
 
 function publicError(error) {
@@ -258,13 +256,15 @@ async function handler(req, res) {
     const clientIp = resolveClientIp(req);
     if (!await verifyTurnstile(value.captchaToken, clientIp)) return res.status(403).json({ error: 'CAPTCHA_FAILED' });
     const env = process.env;
-    const dbUrl = env.FIREBASE_DB_URL || '';
-    const auth = env.FIREBASE_DB_SECRET ? `?auth=${env.FIREBASE_DB_SECRET}` : '';
-    if (isProtectedDeployment(env) && (!dbUrl || !String(env.CHAT_LOG_HASH_SALT || '').trim())) {
+    const redisUrl = env.KV_REST_API_URL || '';
+    const redisToken = env.KV_REST_API_TOKEN || '';
+    if (isProtectedDeployment(env) && (!redisUrl || !redisToken || !String(env.CHAT_LOG_HASH_SALT || '').trim())) {
         return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
     }
+    const window = getVnDayWindow();
     const quota = await reserveRateLimitQuota({
-        dbUrl, auth, dateKey: getVnDateKey(), ipBucket: hashForLog(`rate-limit:${clientIp}`),
+        redisUrl, redisToken, dateKey: window.dateKey, windowSeconds: window.windowSeconds, resetAt: window.resetAt,
+        ipBucket: hashForLog(`rate-limit:${clientIp}`), allowInMemoryFallback: !isProtectedDeployment(env),
         limit: getPositiveEnvInt('PUBLIC_LOCATION_DAILY_IP_LIMIT', DEFAULT_DAILY_IP_LIMIT),
     });
     if (!quota.ok) return res.status(quota.reason === 'limit_exceeded' ? 429 : 503).json({ error: quota.reason === 'limit_exceeded' ? 'RATE_LIMIT_EXCEEDED' : 'SERVICE_UNAVAILABLE' });
@@ -291,3 +291,4 @@ module.exports.publicConfig = publicConfig;
 module.exports.verifyTurnstile = verifyTurnstile;
 module.exports.reserveRateLimitQuota = reserveRateLimitQuota;
 module.exports.hashForLog = hashForLog;
+module.exports.getVnDayWindow = getVnDayWindow;

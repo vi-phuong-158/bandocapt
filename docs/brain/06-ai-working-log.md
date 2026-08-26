@@ -3381,3 +3381,19 @@
   `npm run build` PASS. Chưa redeploy Preview hoặc chạy live rehearsal tại thời điểm ghi log này.
 - **Ranh giới:** Không sửa Vercel env, không đổi Script Properties, không đụng TEST/Production workbook,
   không merge PR và không gửi public contribution.
+## [2026-08-26] Migrate public contribution rate limiting from Firebase RTDB to Upstash Redis
+- **Agent:** Codex
+- **Thay đổi:** Thêm `lib/rate-limit-store.js` với Redis Lua `EVAL` atomic check/increment/TTL; chuyển
+  `/api/location-contributions` từ Firebase RTDB sang Preview-only Vercel Marketplace Upstash resource
+  sử dụng `KV_REST_API_URL`/`KV_REST_API_TOKEN`. Giữ HMAC IP bucket, daily Vietnam-time window, CREATE-only
+  flow, safe errors và local-only fallback.
+- **File đã sửa:** `lib/rate-limit-store.js`, `api/location-contributions.js`,
+  `test/rate-limit-store.test.js`, `test/public-location-contributions.test.js`, `package.json`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`,
+  `docs/location-intake/PUBLIC_CONTRIBUTIONS.md`.
+- **Lý do:** Firebase project quota không cho tạo TEST RTDB an toàn; Upstash là Vercel-native key/value
+  storage phù hợp cho counter atomic và không thay đổi Google Sheets/Drive business-data path.
+- **Kiểm tra:** Focused adapter/public tests 17/17 PASS; `npm test` 597/597 PASS; `npm run build` và
+  `npm run ci` PASS; feature E2E 2/2 PASS; full E2E 61/61 PASS; TEST Preview Redis preflight ghi/đọc
+  count 1→2 PASS; secret/client leak audit PASS. Exact-head Preview redeploy vẫn phải kiểm tra sau
+  commit/push. Production chưa được connect hoặc mutate.

@@ -108,6 +108,24 @@ because it needs PR #48's staging/Gateway contract; not merged into `main` yet.
   POST path. The public page no longer embeds a sitekey value in static HTML, which allows a dedicated
   Preview/TEST sitekey without adding a Vercel function or exposing a secret.
 
+## Public contribution rate-limit storage (2026-08-26)
+
+- Anonymous `POST /api/location-contributions` keeps the existing `CHAT_LOG_HASH_SALT` HMAC-SHA256
+  pseudonymization and daily Vietnam-time window, but persists only the counter through the Vercel
+  Marketplace Upstash Redis resource.
+- The Preview integration provisions the actual server-only variables `KV_REST_API_URL` and
+  `KV_REST_API_TOKEN`. The route never sends either value to the browser and no `FIREBASE_DB_URL` or
+  `FIREBASE_DB_SECRET` is read on this public contribution path.
+- `lib/rate-limit-store.js` uses one Redis Lua `EVAL` command per reservation: the current counter is
+  checked, the increment is applied only below the configured limit, and a TTL is initialized/repaired
+  atomically. A request at the configured limit remains allowed; the next request receives the existing
+  safe `429 RATE_LIMIT_EXCEEDED` contract. Redis failure or malformed responses fail closed with `503`.
+- The key contains only `bandocapt:public-location:v1:<date_window>:<hmac_ip_bucket>`. Values are numeric
+  counters; names, phones, addresses, unit codes, Maps URLs, images, raw IPs and salts are not stored.
+- Firebase remains intentionally configured for unrelated chatbot/feedback telemetry paths; this decision
+  removes Firebase only from anonymous public contribution rate limiting. Google Sheets/Drive remain the
+  authoritative location and image storage.
+
 ## Public location image display (2026-08-17)
 
 Hiển thị ảnh địa điểm đã duyệt ngay trong phần thông tin chi tiết trên bản đồ công khai. **Không
@@ -385,7 +403,7 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 | `lib/regression-grader.js` | Bo cham regression 2 lop (T1.4 deterministic: required/forbidden facts, ngon ngu, verbosity; T1.5 grounding: Recall@4/MRR/source recall + fact-in-docs) doc tu `test/regression-expectations.json`; verdict PASS/HARD_FAIL/DEFERRED_FAIL, F01 deferred khong chan gate. Fact co the khai `grounding_patterns` rieng cho tai lieu va `grounding_exempt_patterns` cho loi tu choi do thieu bang chung, tranh bat cau abstention phai co trong corpus. T1.11: `detectLanguage` chi do mat do dau tren tu khong viet hoa dau | `scripts/run-regression.js`, test | `test/regression-expectations.json`, eval trace tu `api/chat.js` |
 | `api/feedback.js` | Serverless nhan bao cao/phan hoi nguoi dung ve cau tra loi chatbot; tai dung CORS/HMAC/sanitize tu helper chung; rate limit best-effort IP/ngay + ghi `chat_feedback/<date_key>` tren RTDB voi TTL | `js/gemini.js` | `lib/request-security.js`, Firebase RTDB |
 | `dong-gop/index.html` + `js/public-location-contribution.js` | Public anonymous CREATE-only form; loads safe unit DTOs, prepares one image, Turnstile and reuses one operation ID for a retry | Browser | `styles/public-location-contribution.css`, `js/staff-image.js`, `/api/location-contributions` |
-| `api/location-contributions.js` | Public boundary: same-origin Origin/HMAC, explicit DTO/body/image limits, Turnstile, pseudonymous IP/day quota, server Maps resolution and safe response | `dong-gop/index.html` | `lib/request-security.js`, `lib/published-locations.js`, `lib/staff-maps-resolver.js`, `lib/staff-gateway-client.js` |
+| `api/location-contributions.js` | Public boundary: same-origin Origin/HMAC, explicit DTO/body/image limits, Turnstile, pseudonymous IP/day quota, server Maps resolution and safe response | `dong-gop/index.html` | `lib/request-security.js`, `lib/rate-limit-store.js`, `lib/staff-maps-resolver.js`, `lib/staff-gateway-client.js` |
 | `scripts/read-feedback.js` | Doc `chat_feedback/<date_key>` tu RTDB, in bao cao theo ngay (loc `--down`) de admin ra soat | Developer / cron | Firebase RTDB, `.env` |
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
 | `scripts/dual-workbook-dry-run.js` | Read-only JSON-export inventory and cutover comparison; validates P0 schema/coordinates and detects missing, unexpected or duplicate record IDs | Operator / test | `lib/location-workbooks.js`, `js/location-data.js` |
@@ -636,6 +654,8 @@ FIREBASE_CLIENT_EMAIL
 FIREBASE_PRIVATE_KEY
 FIREBASE_DB_URL
 FIREBASE_DB_SECRET
+KV_REST_API_URL
+KV_REST_API_TOKEN
 FIRESTORE_CHAT_COLLECTION
 FIRESTORE_DIAGNOSTIC_COLLECTION
 CHAT_LOG_HASH_SALT
@@ -653,6 +673,7 @@ EVAL_BYPASS_TOKEN
 GOOGLE_SHEET_ID
 CHAT_DAILY_IP_LIMIT
 FEEDBACK_DAILY_IP_LIMIT
+PUBLIC_LOCATION_DAILY_IP_LIMIT
 FEEDBACK_RETENTION_DAYS
 EMBED_TASK_TYPE
 RAG_FAIL_CLOSED

@@ -1783,3 +1783,21 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - **Scope:** This decision adds source/tests/build/docs only. It does not deploy Gateway, mutate any
   workbook, change Script Properties/Vercel Production env, or publish a location.
 
+## [2026-08-26] Public contribution rate limiting moves from Firebase RTDB to Upstash Redis
+
+- **Decision:** Replace Firebase RTDB persistence only in `/api/location-contributions` with the
+  Vercel Marketplace Upstash for Redis TEST resource. The Preview integration uses its actual
+  server-only `KV_REST_API_URL` and `KV_REST_API_TOKEN` variables; Production is not connected.
+- **Semantics:** Preserve `PUBLIC_LOCATION_DAILY_IP_LIMIT` (default 10), the Vietnam-time daily window,
+  `CHAT_LOG_HASH_SALT` HMAC pseudonymization and `429 RATE_LIMIT_EXCEEDED`/`503 SERVICE_UNAVAILABLE`
+  behavior. A single Lua `EVAL` performs the check, increment and TTL initialization atomically, so
+  concurrent requests cannot race a GET-then-SET sequence and the configured Nth request remains allowed.
+- **Privacy:** Redis keys contain only an explicit public-location namespace, date window and HMAC IP
+  bucket. Redis values are numeric counters with TTL; raw IP, salt and contribution PII are never sent
+  to or stored by the rate-limit adapter.
+- **Boundary:** Firebase remains for unrelated chatbot/feedback/telemetry paths. Google Sheets and
+  Drive remain authoritative for location and image business data; no business-data storage changes.
+- **Reason:** Firebase project quota blocked a safe dedicated TEST RTDB, while Upstash provides a
+  Vercel-native atomic key/value resource with a TEST-only Preview binding and no architecture change
+  to the contribution workflow.
+

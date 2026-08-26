@@ -251,7 +251,8 @@ test('public API denies origin/signature/CAPTCHA failures and returns only safe 
 
     process.env.NODE_ENV = 'production';
     process.env.TURNSTILE_SECRET_KEY = 'turnstile-secret';
-    process.env.FIREBASE_DB_URL = 'https://quota.example.test';
+    process.env.KV_REST_API_URL = 'https://redis.example.test';
+    process.env.KV_REST_API_TOKEN = 'test-redis-token';
     process.env.LOCATION_GATEWAY_SECRET = SECRET;
     process.env.STAFF_GATEWAY_URL = 'https://gateway.example.test/exec';
     delete process.env.CHAT_LOG_HASH_SALT;
@@ -268,8 +269,8 @@ test('public API denies origin/signature/CAPTCHA failures and returns only safe 
     const success = apiResponse();
     global.fetch = async (url, options = {}) => {
         if (String(url).includes('siteverify')) return response(200, { success: true });
-        if (options.method === 'PUT') return response(200, { count: 1 });
-        if (String(url).includes('public_location_contributions')) return response(200, 0, { etag: '"v0"' });
+        const body = typeof options.body === 'string' ? JSON.parse(options.body) : null;
+        if (Array.isArray(body) && body[0] === 'EVAL') return response(200, { result: 1 });
         return response(200, { ok: true, data: { status: 'PENDING', requestId: 'private-not-public' } });
     };
     const body = { operationId: 'op-success', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_A', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG, mimeType: 'image/png' }, captchaToken: 'token' };

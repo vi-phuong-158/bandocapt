@@ -24,6 +24,11 @@ private workbook/file ID, Gateway URL or `LOCATION_GATEWAY_SECRET`, and never ca
   (`PUBLIC_LOCATION_DAILY_IP_LIMIT`, default `10`).
 - The Vercel server derives `sha256("public-location-v1|operationId")` as the Gateway request ID. IP,
   name and phone are never part of that ID.
+- Rate limiting uses the Preview/TEST Upstash Redis resource through server-only `KV_REST_API_URL` and
+  `KV_REST_API_TOKEN`. `lib/rate-limit-store.js` sends one atomic Lua command per request, keyed by
+  `bandocapt:public-location:v1:<date_window>:<hmac_ip_bucket>`, and initializes a TTL through the next
+  Vietnam-time daily reset. Redis contains only the pseudonymous bucket and numeric counter; Firebase is
+  not required by this public contribution path. Missing/unavailable Redis fails closed with `503`.
 - Apps Script `submitPublicContribution` rechecks the active private `Unit_Allowlist`, forces request
   type CREATE, rejects target IDs, sniffs image bytes, stores the image privately, and writes one staging
   row plus one `PUBLIC_SUBMIT` audit under the idempotency ledger and Script Lock.
