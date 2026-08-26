@@ -118,7 +118,7 @@ function geminiChunk(text, finishReason) {
     return `data: ${JSON.stringify({ candidates: [candidate] })}\n\n`;
 }
 
-function installFetch({ streamChunks = null, throwAfter = null } = {}) {
+function installFetch({ streamChunks = null, throwAfter = null, generationError = null } = {}) {
     global.fetch = async (url) => {
         const target = String(url);
         // Embedding: trả lỗi có kiểm soát → embedVector rỗng, không có RAG. Không gọi Pinecone.
@@ -127,6 +127,12 @@ function installFetch({ streamChunks = null, throwAfter = null } = {}) {
         }
         // Generation stream.
         if (target.includes('streamGenerateContent')) {
+            if (generationError) {
+                return new Response(JSON.stringify({ error: { message: generationError.message } }), {
+                    status: generationError.status,
+                    headers: { 'content-type': 'application/json' },
+                });
+            }
             if (!streamChunks) throw new Error('golden: generation not expected in this scenario');
             return { ok: true, status: 200, body: geminiStreamBody(streamChunks, throwAfter) };
         }
@@ -196,6 +202,20 @@ const SCENARIOS = [
             streamChunks: [geminiChunk('Anh chị vui lòng liên hệ cơ quan có thẩm quyền để được hướng dẫn. ')],
             throwAfter: 1,
         },
+    },
+    {
+        name: 'procedure-gap',
+        note: 'Hỏi cấp lại thẻ tạm trú bị mất nhưng không có đúng biến thể tài liệu → SSE tất định DETERMINISTIC_PROCEDURE_GAP',
+        env: { GEMINI_API_KEY: 'golden-key' },
+        message: 'Tôi bị mất thẻ tạm trú thì làm lại thế nào?',
+        fetch: {},
+    },
+    {
+        name: 'provider-http-error',
+        note: 'Provider trả HTTP 400 → sink.fail(status, …) giữa orchestration, không mở stream',
+        env: { GEMINI_API_KEY: 'golden-key' },
+        message: 'Cho hỏi thủ tục gia hạn tạm trú cho người nước ngoài làm thế nào?',
+        fetch: { generationError: { status: 400, message: 'golden-forced-bad-request' } },
     },
 ];
 
