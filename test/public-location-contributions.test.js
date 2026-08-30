@@ -226,6 +226,39 @@ test('public config exposes only the public Turnstile sitekey and supports Previ
     assert.match(publicApi.publicConfig({ TURNSTILE_SITE_KEY: 'turnstile-secret' }).turnstileSiteKey, /^0x/);
 });
 
+test('public GET accepts native same-origin browser metadata but keeps raw missing-Origin requests fail-closed', async () => {
+    process.env.TURNSTILE_SITE_KEY = '0xTEST_PUBLIC_SITE_KEY';
+    const rawMissingOrigin = apiResponse();
+    await publicApi({ method: 'GET', url: '/api/location-contributions?config=public', headers: {} }, rawMissingOrigin);
+    assert.equal(rawMissingOrigin.statusCode, 403);
+    assert.equal(rawMissingOrigin.headers['Cache-Control'], 'no-store, no-cache, must-revalidate');
+
+    const browserGet = apiResponse();
+    await publicApi({
+        method: 'GET', url: '/api/location-contributions?config=public',
+        headers: {
+            host: 'bandocapt-rehearsal.example.vercel.app',
+            'x-forwarded-proto': 'https',
+            'sec-fetch-site': 'same-origin',
+            referer: 'https://bandocapt-rehearsal.example.vercel.app/dong-gop',
+        },
+    }, browserGet);
+    assert.equal(browserGet.statusCode, 200);
+    assert.deepEqual(browserGet.body, { ok: true, data: { turnstileSiteKey: '0xTEST_PUBLIC_SITE_KEY' } });
+
+    const crossOriginBrowserGet = apiResponse();
+    await publicApi({
+        method: 'GET', url: '/api/location-contributions?config=public',
+        headers: {
+            host: 'bandocapt-rehearsal.example.vercel.app',
+            'x-forwarded-proto': 'https',
+            'sec-fetch-site': 'cross-site',
+            referer: 'https://evil.example/dong-gop',
+        },
+    }, crossOriginBrowserGet);
+    assert.equal(crossOriginBrowserGet.statusCode, 403);
+});
+
 test('public API denies origin/signature/CAPTCHA failures and returns only safe PENDING data on success', async () => {
     const deniedOrigin = apiResponse();
     await publicApi(apiRequest('GET', undefined, { origin: 'https://evil.example' }), deniedOrigin);

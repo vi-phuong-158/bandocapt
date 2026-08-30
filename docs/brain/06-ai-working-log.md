@@ -3397,3 +3397,14 @@
   `npm run ci` PASS; feature E2E 2/2 PASS; full E2E 61/61 PASS; TEST Preview Redis preflight ghi/đọc
   count 1→2 PASS; secret/client leak audit PASS. Exact-head Preview redeploy vẫn phải kiểm tra sau
   commit/push. Production chưa được connect hoặc mutate.
+
+## [2026-08-30] PR #58 rehearsal browser GET origin repair
+- **Agent:** Codex
+- **Thay đổi:** Browser runtime trên exact rehearsal deployment `538bf3c` chứng minh `/dong-gop` nhận
+  `403 FORBIDDEN` cho cả config và safe-unit GET vì Chromium không gửi `Origin` cho same-origin GET.
+  Chỉ public GET được thêm exception hẹp: bắt buộc `Sec-Fetch-Site: same-origin` và `Referer` cùng origin
+  với request host; POST, raw missing-Origin và cross-site vẫn fail-closed.
+- **Kiểm tra:** regression test public boundary 10/10 PASS. Rehearsal không được mutation tiếp cho tới khi
+  exact HEAD mới deploy và TEST resource identities của Gateway, Turnstile và KV được xác minh độc lập.
+- **Ranh giới:** Không đọc/in secret, không đổi Vercel env, không sửa Script Properties/workbook, không
+  gửi contribution hoặc dùng Production resource.

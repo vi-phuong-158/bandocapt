@@ -107,6 +107,9 @@ because it needs PR #48's staging/Gateway contract; not merged into `main` yet.
 - `TURNSTILE_SECRET_KEY` remains server-only and is used only by `verifyTurnstile()` for the protected
   POST path. The public page no longer embeds a sitekey value in static HTML, which allows a dedicated
   Preview/TEST sitekey without adding a Vercel function or exposing a secret.
+- Browser same-origin GET requests may omit `Origin`. The public GET path accepts that browser form only
+  when both `Sec-Fetch-Site: same-origin` and a same-origin `Referer` match the request host; missing
+  Origin without those two signals, cross-site GETs, and every POST remain fail-closed.
 
 ## Public contribution rate-limit storage (2026-08-26)
 

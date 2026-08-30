@@ -52,6 +52,25 @@ function getQueryParam(req, name) {
     }
 }
 
+function sameOriginBrowserGet(headers, req) {
+    if (req.method !== 'GET' || headers['sec-fetch-site'] !== 'same-origin') return '';
+    const requestHost = headers['x-forwarded-host'] || headers.host;
+    const requestProtocol = headers['x-forwarded-proto'] || 'https';
+    const referer = headers.referer || headers.referrer || '';
+    try {
+        const refererUrl = new URL(referer);
+        return requestHost && refererUrl.origin === `${requestProtocol}://${requestHost}` ? refererUrl.origin : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function allowedRequestOrigin(headers, req) {
+    const origin = headers.origin || '';
+    if (origin && isAllowedOrigin(origin, req)) return origin;
+    return origin ? '' : sameOriginBrowserGet(headers, req);
+}
+
 function publicConfig(env = process.env) {
     const configuredSiteKey = String(env.TURNSTILE_SITE_KEY || '').trim();
     return {
@@ -220,9 +239,9 @@ function contributionPayload(value, requestId, coordinates) {
 
 async function handler(req, res) {
     const headers = req.headers || {};
-    const origin = headers.origin;
+    const origin = allowedRequestOrigin(headers, req);
     setNoStore(res);
-    if (!origin || !isAllowedOrigin(origin, req)) return res.status(403).json({ error: 'FORBIDDEN' });
+    if (!origin) return res.status(403).json({ error: 'FORBIDDEN' });
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Request-Token, X-Request-Time');
@@ -288,6 +307,7 @@ module.exports.deriveGatewayRequestId = deriveGatewayRequestId;
 module.exports.validateBody = validateBody;
 module.exports.toSafeUnits = toSafeUnits;
 module.exports.publicConfig = publicConfig;
+module.exports.sameOriginBrowserGet = sameOriginBrowserGet;
 module.exports.verifyTurnstile = verifyTurnstile;
 module.exports.reserveRateLimitQuota = reserveRateLimitQuota;
 module.exports.hashForLog = hashForLog;

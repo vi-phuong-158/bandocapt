@@ -18,6 +18,9 @@ private workbook/file ID, Gateway URL or `LOCATION_GATEWAY_SECRET`, and never ca
   The Gateway reads private active `Unit_Allowlist` rows and returns only `{ unitCode, unitName }`, which
   Vercel projects to `{ unitCode, label }`; it is not derived from `Published_Locations`, so an active
   unit without a published location can receive its first contribution.
+- A GET with `Origin` uses the normal allowlist. Native same-origin browser GETs that omit `Origin` are
+  accepted only with matching `Sec-Fetch-Site: same-origin` and same-origin `Referer`; raw missing-Origin
+  and cross-site requests fail closed. POST never uses this exception.
 - `POST /api/location-contributions` requires an approved Origin, the shared request signature, Turnstile
   in protected deployments, `CHAT_LOG_HASH_SALT` for pseudonymous IP buckets, valid Google Maps
   coordinates inside Phú Thọ, one JPEG/PNG/WebP image and the daily pseudonymous IP limit

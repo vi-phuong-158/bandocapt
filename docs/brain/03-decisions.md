@@ -70,6 +70,17 @@ validator/timeout. Khong wire `BufferSink` vao handler — do la viec cua PR-4.
   contains no secret, workbook identifier, Gateway URL, or private metadata. No CAPTCHA bypass is
   introduced.
 
+## [2026-08-30] Public contribution GET accepts native same-origin browser metadata without weakening POST origin checks
+
+- **Decision:** Keep explicit `Origin` validation for all requests when it is present. For anonymous
+  `GET /api/location-contributions` only, accept an absent `Origin` solely when the browser supplies
+  `Sec-Fetch-Site: same-origin` and a `Referer` whose origin exactly matches the forwarded request host.
+- **Why:** Chromium omits `Origin` on the page's own same-origin GETs, which otherwise makes both
+  Turnstile configuration and the safe unit list unreachable. Browser JavaScript cannot set `Origin`.
+- **Security boundary:** A raw missing-Origin request, mismatched Referer, cross-site Fetch Metadata,
+  and every POST still return `403`. POST keeps the existing Origin, request-signature, CAPTCHA,
+  rate-limit, Gateway, and private-workbook gates.
+
 ## [2026-08-22] Legacy published records use a separate private operational baseline
 
 - **Decision:** choose Option A: a provenance-marked private `Operational_Baseline` read model seeded
