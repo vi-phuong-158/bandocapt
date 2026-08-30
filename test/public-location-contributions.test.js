@@ -224,6 +224,7 @@ test('public config exposes only the public Turnstile sitekey and supports Previ
     assert.equal(JSON.stringify(result.body).includes('TURNSTILE_SECRET_KEY'), false);
     assert.equal(JSON.stringify(result.body).includes('turnstile-secret'), false);
     assert.match(publicApi.publicConfig({ TURNSTILE_SITE_KEY: 'turnstile-secret' }).turnstileSiteKey, /^0x/);
+    assert.equal(publicApi.publicConfig({ TURNSTILE_SITE_KEY: '1x00000000000000000000AA' }).turnstileSiteKey, '1x00000000000000000000AA');
 });
 
 test('public GET accepts native same-origin browser metadata but keeps raw missing-Origin requests fail-closed', async () => {

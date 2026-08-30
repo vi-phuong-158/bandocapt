@@ -74,7 +74,7 @@ function allowedRequestOrigin(headers, req) {
 function publicConfig(env = process.env) {
     const configuredSiteKey = String(env.TURNSTILE_SITE_KEY || '').trim();
     return {
-        turnstileSiteKey: /^0x[A-Za-z0-9_-]{8,200}$/.test(configuredSiteKey)
+        turnstileSiteKey: /^(?:0x|[1-3]x)[A-Za-z0-9_-]{8,200}$/.test(configuredSiteKey)
             ? configuredSiteKey
             : DEFAULT_PUBLIC_TURNSTILE_SITE_KEY,
     };
