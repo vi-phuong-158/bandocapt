@@ -1,5 +1,41 @@
 # 06 — AI Working Log
 
+## [2026-08-26] Regression runner reliability — fail-closed thiếu credential + phân loại infra/provider failure
+- **Agent:** Claude Code
+- **Thay đổi:** (1) `lib/regression-grader.js`: `classifyVerdict()` không còn cho `PASS` khi
+  `providerError` set và không có failure nào (content check bị bỏ qua vì response rỗng) —
+  verdict mới là `INFRA_FAIL`. Thêm `classifyInfraErrorCode()` + trường `infraErrorCode` trên
+  `gradeCase()`, đọc từ `result.error` hoặc `eval.pineconeErrored`/`pineconeErrorDetail`. (2)
+  `api/chat.js`: thêm biến `pineconeErrorDetail` cạnh `pineconeErrored` có sẵn, lộ cả hai vào
+  `evalTrace` ở done-event thành công (chỉ khi `evalMode`) — trước đây cờ này bị tính rồi bỏ,
+  regression runner không có cách nào biết Pinecone đã lỗi/timeout khi model vẫn sinh câu trả
+  lời. (3) `scripts/run-regression.js`: thêm `checkRequiredCredentials()` preflight (chỉ chặn
+  cứng `GEMINI_API_KEY`, báo SET/UNSET tham khảo cho Pinecone/DeepSeek), `computeTotals()` thêm
+  `totalInfraFail`, `aggregateMajority()` thêm `infraRuns`/`infraFailRuns`/`majorityInfraFails`/
+  `flakyInfraFails`, report (`buildReportMd` + majority markdown) thêm dòng `INFRA_FAIL` và gắn
+  nhãn `INFRA_FAILURE: <code>` lên HARD_FAIL có bằng chứng hạ tầng đi kèm. (4) `package.json`:
+  thêm npm script `regression:live` = `node scripts/run-regression.js --strict-gate --majority
+  --runs 3` — canonical command cho live merge gate; single-run không cờ giữ nguyên cho debug.
+- **File đã sửa:** `lib/regression-grader.js`, `api/chat.js`, `scripts/run-regression.js`,
+  `package.json`, `test/regression-grader.test.js`, `test/regression-runner.test.js`,
+  `docs/brain/03-decisions.md`.
+- **Lý do:** Live regression cho PR #59 phát hiện 3 vấn đề của chính bộ regression (không phải
+  RAG code): (a) thiếu credential từng cho `exit 0` + `Grade: PASS` giả dù `SERVER_CONFIG_ERROR`
+  — vì `classifyVerdict()` không hề tham chiếu `providerError`; (b) một cửa sổ Pinecone timeout
+  thật làm 5 case hiện `HARD_FAIL: ungrounded_fact` trên single-run gate, control re-run cùng
+  điều kiện hội tụ về PASS — chứng minh single-run dễ đọc nhầm biến động hạ tầng thoáng qua
+  thành code regression; (c) report không phân biệt được INFRA/PROVIDER failure khỏi CODE/
+  CONTENT regression thật (cả hai đều hiện `HARD_FAIL: ungrounded_fact` giống hệt nhau).
+- **Kiểm tra:** `npm test` 612/612 PASS (76 test mới, gồm T1/T2/T3/T4/T5/T5b/T6/T7/T8/T9 +
+  `classifyInfraErrorCode` — tất định, không cần network/credential thật). `npm run ci` EXIT 0.
+  Focused live smoke thật (`--strict-gate --ids TR01,TR03,EV04`, credential thật): preflight in
+  đúng `GEMINI_API_KEY: SET · PINECONE_API_KEY: SET · DEEPSEEK_API_KEY: SET` (không lộ giá trị),
+  không `SERVER_CONFIG_ERROR`, response thật (721–782 ký tự), TR01/TR03 PASS, EV04 giữ nguyên
+  `HARD_FAIL` baseline debt đã biết (không kèm infra lần này — báo `INFRA_FAIL: 0` đúng thực
+  tế). Không sửa `EV04`/`EV01`/`F01`/`TYPO01`. Golden SSE và `test/response-sink.test.js` chạy
+  lại xác nhận không bị ảnh hưởng bởi 2 dòng thêm vào `api/chat.js` (evalMode luôn tắt trong
+  golden). `.env` copy tạm cho smoke test đã xoá trước khi kết thúc phiên.
+
 ## [2026-08-25] PR-1 — Sink inversion cho `/api/chat` (không có code Messenger)
 - **Agent:** Claude Code
 - **BASELINE:** `origin/main` = `c6e9fa5d972280e32e0564371a4a14b45ac9dd9a` (đã fetch xác nhận). Baseline CI trước khi sửa: `npm test` 586/586 PASS.
@@ -3290,3 +3326,10 @@
 - **File đã sửa:** `js/staff-image.js`, `js/staff-portal.js`, `styles/staff-portal.css`, `test/staff-approved-image.test.js`, `test/staff-portal-client.test.js`, `test/staff-api.test.js`, `test/e2e/staff-portal-modal.spec.js`, `docs/location-intake/STAFF_API.md`, `docs/brain/01-architecture.md`.
 - **Lý do:** `Published_Locations.image_url` của Production tồn tại nhưng raw Drive `/file/d/.../view` trả HTML; delivery URL `lh3.googleusercontent.com` mới trả ảnh. PR #56 chưa có trên Production nên card chưa có ảnh và modal cũ dùng raw URL.
 - **Kiểm tra:** focused unit/API 41/41; focused Staff Portal E2E 6/6; toàn bộ Node test 578/578; build/CI pass; full Playwright 56/59, ba failure pre-existing ở public-map `location-image` do `ERR_CONNECTION_REFUSED`; production read-only xác nhận public record có ảnh, raw URL 200 HTML và normalized URL 206 `image/jpeg`; không mutate Production.
+
+## [2026-08-30] PR #60 — deterministic approved-image fixture for CI E2E
+
+- **Agent:** Codex
+- **Thay đổi:** `test/e2e/staff-portal-modal.spec.js` routes the successful public-image fixture to an in-memory PNG. The two explicit image-failure tests still register a later abort route and continue to verify the placeholder path.
+- **Lý do:** PR #60's prior exact-head CI ran 59 Playwright tests with 57 passing and two failures in this spec. Both failures expected a successful remote `lh3.googleusercontent.com` fixture image but GitHub Actions received an image load error and correctly rendered the existing safe placeholder. The regression runner changes do not touch the Staff Portal; this removes the pre-existing external-network fixture dependency without relaxing an assertion or changing product behavior.
+- **Kiểm tra:** focused reproduction on the unmodified harness passed locally only because the host was reachable; the full Staff Portal modal spec validates successful fixture loading and the intentional fallback cases without external image access. Full repository gates are recorded with the PR #60 handoff.
