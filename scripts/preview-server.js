@@ -61,6 +61,8 @@ const server = http.createServer((req, res) => {
         ? 'index.html'
         : requestUrl.pathname === '/can-bo' || requestUrl.pathname === '/can-bo/'
             ? 'can-bo/index.html'
+            : requestUrl.pathname === '/dong-gop' || requestUrl.pathname === '/dong-gop/'
+                ? 'dong-gop/index.html'
             : requestUrl.pathname.slice(1);
     const filePath = path.resolve(root, relativePath);
     if (!filePath.startsWith(root + path.sep) || !fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {

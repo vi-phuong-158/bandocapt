@@ -27,8 +27,8 @@ function stagingInput(overrides = {}) {
     };
 }
 
-function buildStaging(overrides = {}, publishedRecords = []) {
-    return pipeline.buildStagingRecord(stagingInput(overrides), ALLOWLIST, new Date('2026-08-15T00:00:00.000Z'), { publishedRecords });
+function buildStaging(overrides = {}, publishedRecords = [], options = {}) {
+    return pipeline.buildStagingRecord(stagingInput(overrides), ALLOWLIST, new Date('2026-08-15T00:00:00.000Z'), { publishedRecords, ...options });
 }
 
 // Mirrors what a real prior CREATE approval would have produced (image_public_url set
@@ -121,6 +121,19 @@ test('A1 CREATE approval publishes exactly one public record and finalizes priva
     assert.equal(stores.state.audit.filter(row => row.action === 'APPROVE').length, 1);
     assert.equal(stores.state.staging[0].status, pipeline.STATUSES.approved);
     assert.deepEqual(runtimeWrap.calls.setImagePublic, ['file-1']);
+});
+
+test('A1b public system principal can be approved without Unit_Allowlist email authorization', () => {
+    const staging = buildStaging({
+        requestId: 'REQ_PUBLIC_APPROVAL', submitterEmail: 'public-web@bandocapt.invalid', submitterName: 'Người dân',
+    }, [], { authorizedUnit: { unitCode: 'CA_A', unitName: 'Công an phường A' }, authStatus: 'PUBLIC_CAPTCHA' });
+    assert.equal(staging.validation_errors, '');
+    assert.equal(staging.auth_status, 'PUBLIC_CAPTCHA');
+    const stores = makeStores({ staging: [staging] });
+    const result = makeEngine(stores, makeRuntime()).reviewRequest({ requestId: staging.request_id, action: 'APPROVE', actorEmail: APPROVER });
+    assert.equal(result.status, pipeline.STATUSES.approved);
+    assert.equal(stores.state.published.length, 1);
+    assert.equal(stores.state.staging[0].submitter_email, 'public-web@bandocapt.invalid');
 });
 
 test('A2 CREATE retry with public already matching expected does not duplicate, finalizes private', () => {

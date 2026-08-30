@@ -2,6 +2,12 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "devCommand": "node scripts/vercel-dev-fallback.js",
+  "rewrites": [
+    {
+      "source": "/api/staff/auth/config",
+      "destination": "/api/staff/auth/csrf?__staff_auth_route=config"
+    }
+  ],
   "functions": {
     "api/chat.js": {
       "maxDuration": 60
@@ -10,6 +16,9 @@
       "maxDuration": 60
     },
     "api/staff/verification.js": {
+      "maxDuration": 60
+    },
+    "api/location-contributions.js": {
       "maxDuration": 60
     }
   },
@@ -25,6 +34,15 @@
     },
     {
       "source": "/api/feedback",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/api/location-contributions",
       "headers": [
         {
           "key": "Cache-Control",
@@ -117,6 +135,40 @@
         {
           "key": "X-Robots-Tag",
           "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/dong-gop",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    },
+    {
+      "source": "/dong-gop/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
         }
       ]
     },

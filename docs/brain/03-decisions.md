@@ -59,6 +59,27 @@ validator/timeout. Khong wire `BufferSink` vao handler — do la viec cua PR-4.
 - **Consequence:** Production Script Properties, workbook data, Apps Script project identity, and
   deployment are unchanged by this code task. A live run is still required to identify whether the
   incident is configuration, stale artifact, wrong container, or Google session authorization.
+## [2026-08-25] Public Turnstile sitekey is environment-aware without a new function
+
+- **Decision:** serve only `{ turnstileSiteKey }` from the existing
+  `/api/location-contributions?config=public` GET path, selecting `TURNSTILE_SITE_KEY` when
+  configured and retaining the existing public sitekey as a safe fallback.
+- **Why:** Preview needs a dedicated TEST/hostname-authorized sitekey, while adding another Vercel
+  function would exceed the Hobby function-count limit already addressed by this branch.
+- **Security boundary:** `TURNSTILE_SECRET_KEY` remains server-only; the public configuration DTO
+  contains no secret, workbook identifier, Gateway URL, or private metadata. No CAPTCHA bypass is
+  introduced.
+
+## [2026-08-30] Public contribution GET accepts native same-origin browser metadata without weakening POST origin checks
+
+- **Decision:** Keep explicit `Origin` validation for all requests when it is present. For anonymous
+  `GET /api/location-contributions` only, accept an absent `Origin` solely when the browser supplies
+  `Sec-Fetch-Site: same-origin` and a `Referer` whose origin exactly matches the forwarded request host.
+- **Why:** Chromium omits `Origin` on the page's own same-origin GETs, which otherwise makes both
+  Turnstile configuration and the safe unit list unreachable. Browser JavaScript cannot set `Origin`.
+- **Security boundary:** A raw missing-Origin request, mismatched Referer, cross-site Fetch Metadata,
+  and every POST still return `403`. POST keeps the existing Origin, request-signature, CAPTCHA,
+  rate-limit, Gateway, and private-workbook gates.
 
 ## [2026-08-22] Legacy published records use a separate private operational baseline
 
@@ -1684,6 +1705,10 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
   Identity Services rendered button without One Tap, JWT decoding, credential persistence, or OAuth revoke.
 - **Decision:** Add `GET /api/staff/auth/config` as a no-store public config endpoint returning only
   `GOOGLE_CLIENT_ID`; missing configuration fails closed with `STAFF_AUTH_CONFIG_INVALID`/503.
+- **Decision (2026-08-25):** Keep the public config URL but rewrite it to the existing CSRF function
+  with an internal marker. This keeps the Vercel Hobby deployment at or below its 12-function limit
+  after adding public location contributions, without merging auth handlers or changing their security
+  contracts.
 - **Decision:** Use explicit client DTO builders and in-memory operation-id reuse for retries. Image input
   is compressed toward 2.5 MiB before the existing Vercel 3 MiB decoded limit; mutations never update a
   public card optimistically and stale snapshots are refreshed without silent retry.
@@ -1743,4 +1768,47 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - **Ảnh:** Approved image rendering remains tied solely to public `Published_Locations.image_url`. The portal
   may normalize a public legacy Drive URL to Google content delivery to satisfy its narrow CSP, but never
   asks for or returns the private staging file ID. A pending replacement is not previewed.
+
+## [2026-08-25] Anonymous public location contribution is CREATE-only
+
+- **Decision:** Add `/dong-gop` and `POST /api/location-contributions` for anonymous public intake. The
+  browser may only propose a new location; it cannot update, correct, stop, confirm, read private sheets,
+  call Apps Script, or receive Staff/Gateway credentials.
+- **Trust boundary:** Vercel validates Origin, explicit DTOs, HMAC, Turnstile, image bytes, Maps URL/
+  coordinates, and a pseudonymous IP/day quota before signing `submitPublicContribution` to the private
+  Gateway. The Gateway independently validates the exact active `Unit_Allowlist` unit and never trusts
+  the public dropdown.
+- **Provenance:** Public submissions use the non-person system principal
+  `public-web@bandocapt.invalid`, `auth_status=PUBLIC_CAPTCHA`, and audit action `PUBLIC_SUBMIT`; this
+  value must never be replaced with a staff email. The submitted image is private until the existing Admin
+  Review approves the staging row.
+- **Idempotency:** Vercel derives the Gateway `request_id` from
+  `sha256("public-location-v1|" + operationId)`, excluding IP/contact/name. The Gateway ledger compares
+  the complete signed payload hash, reuses a deterministic private image resource, and rejects payload drift.
+- **Unit directory:** Public GET calls the authenticated Gateway's `listPublicContributionUnits`, which
+  reads the private active `Unit_Allowlist` and projects only `{ unitCode, unitName }`. It does not derive
+  eligibility from `Published_Locations`, so an active unit can receive its first location contribution.
+- **Privacy:** Public GET returns only `{ unitCode, label }`; successful POST returns only `PENDING` and a
+  safe receipt. No staging row, private workbook/file ID, audit content, reviewer, allowlist email or
+  Gateway URL crosses the public response.
+- **Scope:** This decision adds source/tests/build/docs only. It does not deploy Gateway, mutate any
+  workbook, change Script Properties/Vercel Production env, or publish a location.
+
+## [2026-08-26] Public contribution rate limiting moves from Firebase RTDB to Upstash Redis
+
+- **Decision:** Replace Firebase RTDB persistence only in `/api/location-contributions` with the
+  Vercel Marketplace Upstash for Redis TEST resource. The Preview integration uses its actual
+  server-only `KV_REST_API_URL` and `KV_REST_API_TOKEN` variables; Production is not connected.
+- **Semantics:** Preserve `PUBLIC_LOCATION_DAILY_IP_LIMIT` (default 10), the Vietnam-time daily window,
+  `CHAT_LOG_HASH_SALT` HMAC pseudonymization and `429 RATE_LIMIT_EXCEEDED`/`503 SERVICE_UNAVAILABLE`
+  behavior. A single Lua `EVAL` performs the check, increment and TTL initialization atomically, so
+  concurrent requests cannot race a GET-then-SET sequence and the configured Nth request remains allowed.
+- **Privacy:** Redis keys contain only an explicit public-location namespace, date window and HMAC IP
+  bucket. Redis values are numeric counters with TTL; raw IP, salt and contribution PII are never sent
+  to or stored by the rate-limit adapter.
+- **Boundary:** Firebase remains for unrelated chatbot/feedback/telemetry paths. Google Sheets and
+  Drive remain authoritative for location and image business data; no business-data storage changes.
+- **Reason:** Firebase project quota blocked a safe dedicated TEST RTDB, while Upstash provides a
+  Vercel-native atomic key/value resource with a TEST-only Preview binding and no architecture change
+  to the contribution workflow.
 

@@ -1,5 +1,22 @@
 # 06 — AI Working Log
 
+## [2026-08-30] PR #58 Phase 3A Controlled End-to-End Acceptance Pass
+- **Agent:** Antigravity
+- **EXACT HEAD:** `d673e382a5514d16a146da62338200d16ad28f77` (`feat/public-location-contributions`)
+- **SCOPE:** PR #58 Phase 3A controlled end-to-end rehearsal acceptance.
+  1. Configured Preview-scoped environment variables on `bandocapt-rehearsal` (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `CHAT_LOG_HASH_SALT`).
+  2. Fixed `publicConfig` regex in `api/location-contributions.js` to recognize official Cloudflare Turnstile test keys (`1x...` - `3x...`) in addition to `0x...` keys.
+  3. Deployed and verified live Vercel Preview runtime (`bandocapt-rehearsal-6bzfapbtk-vi-phuong-158s-projects.vercel.app`).
+  4. Executed live browser submission for synthetic unit `TEST_CA_TEST` via `/dong-gop/` with real Turnstile test solve.
+  5. Verified TEST private staging row (`fe7da75f95d194247b69...`), `Idempotency_Ledger`, and private-only Drive image permissions (`1u8khZZ-q5bsiNAxlObpAf1yHce54BCU5`).
+  6. Executed TEST Admin Review `APPROVE` action on isolated TEST Apps Script Web App (Version 13).
+  7. Verified `Location_Staging` transitioned to `APPROVED`, `Approval_Audit_Log` entry generated, record published to TEST `Published_Locations` (`1hNZNMh6XHb6LNyFkf2NKv60j5PHt0KuIICMF3_jhekM`), and Drive image transitioned to public reader (`anyone: reader`).
+  8. Verified public GViz readback exposes only canonical public schema with 0 private field leaks.
+  9. Verified 6 bounded negative security failure paths (Origin, missing token, unsupported request type, missing field, invalid image encoding).
+- **PRODUCTION BOUNDARY:** Zero Production workbooks, Script Properties, environment variables, or images touched.
+- **TEST RESULTS:** `npm test` 621/621 PASS, `npm run build` PASS, full `npm run ci` PASS.
+- **VERDICT:** `PR58_PHASE3A_ACCEPTANCE_PASS_READY_FOR_MERGE_REVIEW`
+
 ## [2026-08-25] PR-1 — Sink inversion cho `/api/chat` (không có code Messenger)
 - **Agent:** Claude Code
 - **BASELINE:** `origin/main` = `c6e9fa5d972280e32e0564371a4a14b45ac9dd9a` (đã fetch xác nhận). Baseline CI trước khi sửa: `npm test` 586/586 PASS.
@@ -13,6 +30,18 @@
 - **KNOWN GATES:** Golden đã phủ 9 nhánh, gồm cả `DETERMINISTIC_PROCEDURE_GAP` và nhánh lỗi provider `sink.fail(status, …)` (bổ sung sau vòng đầu). Còn 3 nhánh chưa khoá byte tự động vì cần state/dữ liệu ngoài mà mock tất định không dựng được: FAQ cache hit (`writeHead` 3 header — cache là state nội bộ module), `RAG_CONFLICT` và `DETERMINISTIC_BARE_PLACE` (đều cần match Pinecone/trụ sở thật). Ba nhánh này dùng đúng phép biến đổi cơ học như 9 nhánh đã khoá và đã đối chiếu bằng đọc diff.
 - **MANUAL STEPS:** đã hoàn tất — (1) regression grader chạy với credential thật (xem trên); (2) Vercel Preview READY, `GET /api/chat` → `405` xác nhận cold-load + bundle đúng; (3) owner review diff.
 - **VERDICT:** `MESSENGER_PR1_SINK_INVERSION_PRODUCTION_OK_REGRESSION_HARNESS_FIX_REQUIRED` — sẵn sàng chuyển Ready for review + merge. **DỪNG sau merge + hậu kiểm, không tự bắt đầu PR-2.**
+## [2026-08-25] Environment-aware public Turnstile configuration for Preview
+- **Agent:** Codex
+- **Thay đổi:** Replaced the public contribution page's embedded Turnstile sitekey with a same-origin
+  read from the existing contribution API; `TURNSTILE_SITE_KEY` selects the public value per environment
+  while `TURNSTILE_SECRET_KEY` remains server-only. Added regression coverage and updated architecture/
+  decision records.
+- **File đã sửa:** `api/location-contributions.js`, `js/public-location-contribution.js`,
+  `dong-gop/index.html`, `test/public-location-contributions.test.js`, and relevant brain docs.
+- **Lý do:** Preview needs a dedicated hostname-authorized TEST sitekey without adding a Vercel function
+  or exposing a CAPTCHA secret; the branch already uses the Hobby function-count limit.
+- **Kiểm tra:** Focused public contribution tests, full test/build/CI gates and exact-head Preview redeploy
+  are required after this source change; no contribution submission or approval is permitted.
 
 ## [2026-08-23] Staff Location request status and approved image visibility
 - **Agent:** Codex
@@ -3329,3 +3358,79 @@
 - **Kiểm tra:** focused Admin Review 46/46; focused Staff Portal E2E 34/34 sau build; `npm test` 600/600;
   build/CI PASS. Full E2E branch 56/59 chỉ còn ba `location-image` lỗi `ERR_CONNECTION_REFUSED`;
   exact `origin/main` control 55/59 tái hiện cùng ba lỗi đó và thêm external image fixture lỗi lịch sử.
+## [2026-08-25] Public anonymous location contributions
+- **Agent:** Codex
+- **Thay đổi:** Thêm `/dong-gop`, public safe-unit GET/CREATE POST boundary, Turnstile + Origin/HMAC +
+  pseudonymous IP/day limit + server Maps resolution; thêm Gateway action `submitPublicContribution`
+  tách khỏi staff `submitRequest`, với active-unit validation, private image/idempotency, `PENDING`,
+  `PUBLIC_CAPTCHA` provenance và `PUBLIC_SUBMIT` audit. Cập nhật static builder, syntax checks, Vercel
+  no-store/function config, architecture/decisions/current task/runbook và focused tests.
+- **File đã sửa:** `api/location-contributions.js`, `setup/apps-script.js`, `setup/staff-gateway.js`,
+  `setup/location-intake/Code.gs`, `lib/staff-gateway-client.js`, `dong-gop/`, `js/public-location-contribution.js`,
+  `styles/public-location-contribution.css`, `scripts/build-static.js`, `package.json`, `vercel.json`,
+  `index.html`, docs và `test/public-location-contributions.test.js`.
+- **Lý do:** Cho phép người dân đề xuất địa điểm mới không cần đăng nhập nhưng giữ nguyên public/private
+  boundary và chỉ cho publish qua Admin Review hiện hữu.
+- **Kiểm tra:** focused public tests 6/6 PASS; `node --check`/JSON checks PASS. `npm run build` bị BLOCKED
+  trong worktree sạch vì chưa có `node_modules/tailwindcss/lib/cli.js`; không cài dependency theo yêu cầu,
+  không deploy, không clasp push, không mutate workbook/Script Properties/Vercel Production env.
+
+## [2026-08-25] Public contribution complete acceptance audit
+- **Thay đổi:** Re-audit toàn bộ public flow và chuyển safe unit GET từ `Published_Locations` sang
+  authenticated Gateway action `listPublicContributionUnits`, chiếu từ private ACTIVE `Unit_Allowlist`
+  thành `unitCode/unitName` chỉ; thêm guard Maps ở Gateway, requestType CREATE bắt buộc ở API, approval
+  regression cho system principal, API security cases và Playwright coverage cho mobile/desktop/retry.
+- **Kiểm tra:** `npm ci` PASS, không đổi `package.json`/`package-lock.json` do dependency drift; `npm test`
+  587/587 PASS; `npm run build` PASS; `npm run ci` PASS (audit high gate PASS, còn 9 moderate `uuid`,
+  không có fix); focused public E2E 2/2 PASS; full E2E 57/61 PASS với 4 failure pre-existing do
+  `ERR_CONNECTION_REFUSED`/ảnh fixture ở `location-image` và một staff image test; artifact `dist/dong-gop/index.html`
+  tồn tại và không chứa tên secret/private fields. `git diff --check` PASS.
+- **Ranh giới:** Không deploy, không clasp push, không đổi Script Properties/Vercel env, không mutate
+  workbook, không live submit/approve. Draft PR/push chỉ thực hiện trên branch feature, không merge.
+
+## [2026-08-25] Public contribution Preview function-budget recovery
+- **Agent:** Codex
+- **Thay đổi:** Chẩn đoán deployment `dpl_6dhQx7RULQU3xqcjFFntFfiQRwuo` ở đúng SHA `92f7c1c`;
+  Vercel trả `exceeded_serverless_functions_per_deployment` vì 13 API entry files vượt giới hạn 12
+  của Hobby plan. Giữ nguyên `/api/staff/auth/config` nhưng rewrite vào `api/staff/auth/csrf.js` với
+  marker nội bộ; xóa route file riêng và cập nhật syntax check/docs. Không đổi handler security contract.
+- **Kiểm tra:** Route marker/config smoke PASS; `git diff --check` PASS; `npm test` 587/587 PASS;
+  `npm run build` PASS. Chưa redeploy Preview hoặc chạy live rehearsal tại thời điểm ghi log này.
+- **Ranh giới:** Không sửa Vercel env, không đổi Script Properties, không đụng TEST/Production workbook,
+  không merge PR và không gửi public contribution.
+## [2026-08-26] Migrate public contribution rate limiting from Firebase RTDB to Upstash Redis
+- **Agent:** Codex
+- **Thay đổi:** Thêm `lib/rate-limit-store.js` với Redis Lua `EVAL` atomic check/increment/TTL; chuyển
+  `/api/location-contributions` từ Firebase RTDB sang Preview-only Vercel Marketplace Upstash resource
+  sử dụng `KV_REST_API_URL`/`KV_REST_API_TOKEN`. Giữ HMAC IP bucket, daily Vietnam-time window, CREATE-only
+  flow, safe errors và local-only fallback.
+- **File đã sửa:** `lib/rate-limit-store.js`, `api/location-contributions.js`,
+  `test/rate-limit-store.test.js`, `test/public-location-contributions.test.js`, `package.json`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`,
+  `docs/location-intake/PUBLIC_CONTRIBUTIONS.md`.
+- **Lý do:** Firebase project quota không cho tạo TEST RTDB an toàn; Upstash là Vercel-native key/value
+  storage phù hợp cho counter atomic và không thay đổi Google Sheets/Drive business-data path.
+- **Kiểm tra:** Focused adapter/public tests 17/17 PASS; `npm test` 597/597 PASS; `npm run build` và
+  `npm run ci` PASS; feature E2E 2/2 PASS; full E2E 61/61 PASS; TEST Preview Redis preflight ghi/đọc
+  count 1→2 PASS; secret/client leak audit PASS. Exact-head Preview redeploy vẫn phải kiểm tra sau
+  commit/push. Production chưa được connect hoặc mutate.
+
+## [2026-08-30] PR #58 rehearsal browser GET origin repair
+- **Agent:** Codex
+- **Thay đổi:** Browser runtime trên exact rehearsal deployment `538bf3c` chứng minh `/dong-gop` nhận
+  `403 FORBIDDEN` cho cả config và safe-unit GET vì Chromium không gửi `Origin` cho same-origin GET.
+  Chỉ public GET được thêm exception hẹp: bắt buộc `Sec-Fetch-Site: same-origin` và `Referer` cùng origin
+  với request host; POST, raw missing-Origin và cross-site vẫn fail-closed.
+- **Kiểm tra:** regression test public boundary 10/10 PASS. Rehearsal không được mutation tiếp cho tới khi
+  exact HEAD mới deploy và TEST resource identities của Gateway, Turnstile và KV được xác minh độc lập.
+- **Ranh giới:** Không đọc/in secret, không đổi Vercel env, không sửa Script Properties/workbook, không
+  gửi contribution hoặc dùng Production resource.
+
+## [2026-08-30] PR #58 safe unit Gateway failure telemetry
+- **Agent:** Codex
+- **Thay đổi:** Khi Gateway `listPublicContributionUnits` thất bại, API vẫn chỉ trả
+  `SERVICE_UNAVAILABLE` cho browser nhưng ghi một mã Gateway dạng `UPPER_SNAKE_CASE` đã được giới hạn vào
+  private Vercel runtime logs. Điều này giữ nguyên public error boundary và cho phép phân biệt HMAC,
+  action, workbook hoặc allowlist failure mà không log secret hay resource ID.
+- **Kiểm tra:** focused public contribution tests 11/11 PASS; chưa có POST/mutation, Apps Script change,
+  Vercel env change hoặc Production access.

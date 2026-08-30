@@ -6,7 +6,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function (staffLocationContract, defaultPipeline, defaultWorkbookConfig) {
     'use strict';
 
-    const ACTIONS = Object.freeze(['resolveUnits', 'listStaffRequestStatuses', 'submitRequest', 'writeVerificationEvent']);
+    const ACTIONS = Object.freeze(['resolveUnits', 'listPublicContributionUnits', 'listStaffRequestStatuses', 'submitRequest', 'submitPublicContribution', 'writeVerificationEvent']);
     const STATE = Object.freeze({ CLAIMED: 'CLAIMED', UPLOAD_PERSISTED: 'UPLOAD_PERSISTED', COMPLETED: 'COMPLETED', FAILED: 'FAILED' });
     const PRIVATE_SHEETS = Object.freeze({
         allowlist: 'Unit_Allowlist', staging: 'Location_Staging', audit: 'Approval_Audit_Log',
@@ -18,6 +18,12 @@
     if (!staffLocationContract) throw gatewayError('GATEWAY_RUNTIME_NOT_CONFIGURED');
     const { SNAPSHOT_FIELDS, stableStringify } = staffLocationContract;
     const VERIFICATION_EVENTS = Object.freeze(['CONFIRM']);
+    const PUBLIC_SYSTEM_PRINCIPAL = 'public-web@bandocapt.invalid';
+    const PUBLIC_ALLOWED_FIELDS = Object.freeze([
+        'request_id', 'operation_id', 'request_type', 'target_record_id', 'unit_code', 'location_name',
+        'site_type', 'services', 'address', 'public_phone', 'maps_url_original', 'maps_url_resolved',
+        'coordinates', 'submitter_name', 'submitter_phone', 'review_note', 'image',
+    ]);
 
     function gatewayError(code, details = {}) {
         const error = new Error(code);
@@ -205,14 +211,14 @@
             return { email, unit };
         }
 
-        function imageResourceKey(requestId, imageHash) { return `staff-request-${requestId}-${imageHash.slice(0, 24)}`; }
+        function imageResourceKey(requestId, imageHash, prefix = 'staff-request') { return `${prefix}-${requestId}-${imageHash.slice(0, 24)}`; }
 
-        function persistImage(payload, requestId, existingLedger) {
+        function persistImage(payload, requestId, existingLedger, resourcePrefix = 'staff-request') {
             if (!payload.image) return { pointer: null, validation: null };
             const validation = validateImageBase64(payload.image, runtime);
             if (!validation.ok) throw gatewayError(validation.error);
             const imageHash = sha256Hex(validation.bytes, runtime);
-            const resourceKey = imageResourceKey(requestId, imageHash);
+            const resourceKey = imageResourceKey(requestId, imageHash, resourcePrefix);
             let file = existingLedger && text(existingLedger.image_file_id)
                 ? { fileId: text(existingLedger.image_file_id), driveUrl: text(existingLedger.image_drive_url), mimeType: text(existingLedger.image_mime_type) }
                 : null;
@@ -344,6 +350,110 @@
             });
         }
 
+        function validatePublicPayload(payload) {
+            if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw gatewayError('PUBLIC_DTO_INVALID');
+            const unknownFields = Object.keys(payload).filter(key => !PUBLIC_ALLOWED_FIELDS.includes(key));
+            if (unknownFields.length) throw gatewayError('PUBLIC_FIELD_NOT_ALLOWED');
+            const requestType = text(payload.request_type);
+            if (requestType !== pipeline.REQUEST_TYPES.create) throw gatewayError('PUBLIC_REQUEST_TYPE_NOT_ALLOWED');
+            if (text(payload.target_record_id)) throw gatewayError('CREATE_TARGET_RECORD_ID_NOT_ALLOWED');
+            if (!text(payload.unit_code)) throw gatewayError('UNIT_CODE_REQUIRED');
+            if (!text(payload.location_name)) throw gatewayError('LOCATION_NAME_MISSING');
+            if (!text(payload.address)) throw gatewayError('ADDRESS_MISSING');
+            if (!text(payload.maps_url_original)) throw gatewayError('COORDINATE_INVALID_LINK');
+            if (typeof pipeline.isGoogleMapsUrl !== 'function' || !pipeline.isGoogleMapsUrl(payload.maps_url_original)) {
+                throw gatewayError('COORDINATE_INVALID_LINK');
+            }
+            for (const [field, limit] of [
+                ['unit_code', 160], ['location_name', 200], ['address', 500], ['public_phone', 80],
+                ['maps_url_original', 2000], ['maps_url_resolved', 2000], ['coordinates', 200],
+                ['submitter_name', 200], ['submitter_phone', 80], ['review_note', 2000],
+            ]) {
+                if (payload[field] !== undefined && typeof payload[field] !== 'string') throw gatewayError('PUBLIC_DTO_INVALID');
+                if (text(payload[field]).length > limit) throw gatewayError('PUBLIC_DTO_INVALID');
+            }
+            if (payload.services !== undefined && (!Array.isArray(payload.services) || payload.services.some(item => typeof item !== 'string'))) {
+                throw gatewayError('PUBLIC_DTO_INVALID');
+            }
+            if (typeof pipeline.parseCoordinates !== 'function') throw gatewayError('COORDINATE_NEEDS_REVIEW');
+            const coordinate = pipeline.parseCoordinates(payload.coordinates || payload.maps_url_resolved || payload.maps_url_original);
+            if (!coordinate.ok) {
+                throw gatewayError(coordinate.error === 'COORDINATES_OUTSIDE_SERVICE_AREA'
+                    ? 'COORDINATE_OUTSIDE_PHU_THO' : 'COORDINATE_NEEDS_REVIEW');
+            }
+            if (!payload.image || typeof payload.image !== 'object' || Array.isArray(payload.image)) throw gatewayError('IMAGE_REQUIRED');
+            if (Object.keys(payload.image).some(key => !['base64', 'mimeType', 'filename', 'size'].includes(key))) throw gatewayError('PUBLIC_FIELD_NOT_ALLOWED');
+            return requestType;
+        }
+
+        function submitPublicContribution(payload) {
+            const requestId = requireRequestId(payload, 'submitPublicContribution');
+            const bodyHash = sha256Hex(stableStringify({ action: 'submitPublicContribution', payload }), runtime);
+            return withLock(() => {
+                const previous = ledgerFor(requestId);
+                if (previous && text(previous.body_hash) !== bodyHash) throw gatewayError('IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD');
+                if (previous && text(previous.state) === STATE.COMPLETED) return { ...resultFromLedger(previous), idempotent: true };
+                const createdAt = previous && text(previous.created_at) ? previous.created_at : nowIso(runtime);
+                ledgerClaim('submitPublicContribution', requestId, bodyHash, createdAt);
+                try {
+                    validatePublicPayload(payload);
+                    resolvePrivateConfig();
+                    const allowlistRows = rows(PRIVATE_SHEETS.allowlist);
+                    const unit = pipeline.resolveActiveUnitByCode(payload.unit_code, allowlistRows);
+                    if (!unit) throw gatewayError('PUBLIC_UNIT_NOT_ALLOWED');
+                    const image = persistImage(payload, requestId, previous, 'public-contribution');
+                    const provenance = 'PUBLIC_CAPTCHA; anonymous public web contribution; awaiting admin review.';
+                    const record = pipeline.buildStagingRecord({
+                        requestId,
+                        requestType: pipeline.REQUEST_TYPES.create,
+                        targetRecordId: '',
+                        locationName: payload.location_name,
+                        siteType: 'HEADQUARTERS',
+                        services: ['POLICE_OFFICE'],
+                        address: payload.address,
+                        publicPhone: payload.public_phone,
+                        mapsUrlOriginal: payload.maps_url_original,
+                        mapsUrlResolved: payload.maps_url_resolved,
+                        coordinates: payload.coordinates,
+                        submitterName: payload.submitter_name,
+                        submitterPhone: payload.submitter_phone,
+                        submitterEmail: PUBLIC_SYSTEM_PRINCIPAL,
+                        reviewNote: [provenance, text(payload.review_note)].filter(Boolean).join(' '),
+                        unitCode: unit.unitCode,
+                        unitName: unit.unitName,
+                        imageFileId: image.pointer.fileId,
+                        imageDriveUrl: image.pointer.driveUrl,
+                        imageMimeType: image.pointer.mimeType,
+                    }, allowlistRows, new Date(createdAt), {
+                        authorizedUnit: unit,
+                        authStatus: 'PUBLIC_CAPTCHA',
+                        publishedRecords: [],
+                    });
+                    if (record.validation_errors) throw gatewayError(record.validation_errors.split('|')[0] || 'SUBMISSION_INVALID');
+                    let staging = store.findStagingByRequestId && store.findStagingByRequestId(requestId);
+                    if (!staging) {
+                        if (!store.appendStaging) throw gatewayError('PRIVATE_STAGING_UNAVAILABLE');
+                        store.appendStaging(record);
+                        staging = record;
+                    }
+                    if (store.appendApprovalAudit && !(store.hasApprovalAudit && store.hasApprovalAudit(requestId, 'PUBLIC_SUBMIT'))) {
+                        store.appendApprovalAudit(pipeline.buildAuditEntry('PUBLIC_SUBMIT', {
+                            timestamp: record.updated_at, recordId: record.record_id, requestId,
+                            unitCode: record.unit_code, actorEmail: PUBLIC_SYSTEM_PRINCIPAL,
+                            submitterEmail: PUBLIC_SYSTEM_PRINCIPAL, nextStatus: record.status,
+                            note: record.review_note, snapshot: record,
+                        }));
+                    }
+                    const result = { requestId, status: staging.status };
+                    updateLedger(requestId, { state: STATE.COMPLETED, result_json: JSON.stringify(result), last_error: '', updated_at: nowIso(runtime) });
+                    return result;
+                } catch (error) {
+                    try { updateLedger(requestId, { state: STATE.FAILED, last_error: error.code || 'PUBLIC_SUBMIT_FAILED', updated_at: nowIso(runtime) }); } catch (_) {}
+                    throw error.code ? error : gatewayError('PUBLIC_SUBMIT_FAILED');
+                }
+            });
+        }
+
         function writeVerificationEvent(payload) {
             const requestId = requireRequestId(payload, 'writeVerificationEvent');
             const bodyHash = sha256Hex(stableStringify({ action: 'writeVerificationEvent', payload }), runtime);
@@ -397,6 +507,12 @@
             return { units: pipeline.resolveUnitsByEmail(email, rows(PRIVATE_SHEETS.allowlist)) };
         }
 
+        function listPublicContributionUnits() {
+            resolvePrivateConfig();
+            if (typeof pipeline.resolveActiveUnits !== 'function') throw gatewayError('PUBLIC_UNIT_DIRECTORY_UNAVAILABLE');
+            return { units: pipeline.resolveActiveUnits(rows(PRIVATE_SHEETS.allowlist)) };
+        }
+
         // Projection only: never return private staging fields such as submitter, review, audit,
         // or Drive metadata to the browser.
         function listStaffRequestStatuses(payload) {
@@ -433,8 +549,10 @@
                 ? { ...body.payload, request_id: envelopeRequestId || payloadRequestId }
                 : body;
             if (action === 'resolveUnits') return resolveUnits(payload || {});
+            if (action === 'listPublicContributionUnits') return listPublicContributionUnits();
             if (action === 'listStaffRequestStatuses') return listStaffRequestStatuses(payload || {});
             if (action === 'submitRequest') return submitRequest(payload || {});
+            if (action === 'submitPublicContribution') return submitPublicContribution(payload || {});
             return writeVerificationEvent(payload || {});
         }
 
@@ -466,7 +584,7 @@
             });
         }
 
-        return Object.freeze({ assertAction, dispatch, handleRawRequest, verifyRequest, resolvePrivateConfig, submitRequest, writeVerificationEvent, resolveUnits, listStaffRequestStatuses });
+        return Object.freeze({ assertAction, dispatch, handleRawRequest, verifyRequest, resolvePrivateConfig, submitRequest, submitPublicContribution, writeVerificationEvent, resolveUnits, listPublicContributionUnits, listStaffRequestStatuses });
     }
 
     createStaffGateway.ACTIONS = ACTIONS;
@@ -474,6 +592,7 @@
     createStaffGateway.PRIVATE_SHEETS = PRIVATE_SHEETS;
     createStaffGateway.MAX_IMAGE_BYTES = MAX_IMAGE_BYTES;
     createStaffGateway.FRESHNESS_WINDOW_MS = FRESHNESS_WINDOW_MS;
+    createStaffGateway.PUBLIC_SYSTEM_PRINCIPAL = PUBLIC_SYSTEM_PRINCIPAL;
     createStaffGateway.constantTimeEqual = constantTimeEqual;
     createStaffGateway.detectImageType = detectImageType;
     createStaffGateway.validateImageBase64 = validateImageBase64;

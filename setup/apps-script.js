@@ -290,6 +290,36 @@
         return { byUnitName };
     }
 
+    // Public intake is authorized by the server-side Vercel trust boundary, not by an
+    // allowlisted staff email. Keep the unit lookup here so the Gateway and staging builder
+    // still share the exact active-unit semantics used by the staff pipeline.
+    function resolveActiveUnitByCode(unitCode, allowlistRows) {
+        const normalizedCode = String(unitCode || '').trim().toLowerCase();
+        if (!normalizedCode) return null;
+        for (const entry of buildAllowlistMap(allowlistRows).byUnitName.values()) {
+            if (String(entry.unitCode || '').trim().toLowerCase() === normalizedCode) {
+                return { unitCode: entry.unitCode, unitName: entry.unitName };
+            }
+        }
+        return null;
+    }
+
+    // Safe server-side projection for the anonymous contribution form. This is intentionally
+    // sourced from the private active allowlist, not from Published_Locations, so an active unit
+    // can receive its first contribution. Never add allowedEmails or notes to this projection.
+    function resolveActiveUnits(allowlistRows) {
+        const seen = new Set();
+        const units = [];
+        buildAllowlistMap(allowlistRows).byUnitName.forEach(entry => {
+            const unitCode = String(entry.unitCode || '').trim();
+            const key = unitCode.toLowerCase();
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            units.push({ unitCode, unitName: entry.unitName });
+        });
+        return units.sort((left, right) => left.unitName.localeCompare(right.unitName, 'vi'));
+    }
+
     // Chiều NGƯỢC của authorizeSubmission: từ email suy ra tập đơn vị được phép, thay vì kiểm tra
     // một đơn vị người gửi tự khai. Staff Portal cần chiều này vì client không được quyết định
     // `unit_code` (xem docs/location-intake/STAFF_PORTAL_PLAN.md, INV-02/INV-03). Một email có thể
@@ -420,7 +450,9 @@
     function buildStagingRecord(input, allowlistRows, now = new Date(), options = {}) {
         const submission = normalizeSubmission(input, now);
         const publishedRecords = options.publishedRecords || [];
-        const authorization = authorizeSubmission(submission.unitName, submission.submitterEmail, allowlistRows);
+        const authorization = options.authorizedUnit
+            ? { authorized: true, unitCode: options.authorizedUnit.unitCode, unitName: options.authorizedUnit.unitName, error: '' }
+            : authorizeSubmission(submission.unitName, submission.submitterEmail, allowlistRows);
         const errors = [];
         if (!submission.submitterEmail) errors.push('SUBMITTER_EMAIL_MISSING');
         if (!submission.unitName) errors.push('UNIT_NAME_MISSING');
@@ -484,7 +516,7 @@
             submitter_name: submission.submitterName,
             submitter_phone: submission.submitterPhone,
             submitter_email: submission.submitterEmail,
-            auth_status: authorization.authorized ? 'AUTHORIZED' : 'UNAUTHORIZED',
+            auth_status: options.authStatus || (authorization.authorized ? 'AUTHORIZED' : 'UNAUTHORIZED'),
             validation_errors: unique(errors).join('|'),
             warnings: warnings.join('|'),
             status: errors.length ? STATUSES.blocked : STATUSES.pending,
@@ -644,7 +676,7 @@
         normalizeLabel, normalizeBoolean, slugify, normalizeEmail, splitEmails, sanitizeSheetCell, sanitizeUserFields, normalizeServices,
         normalizeLocationType, deriveLegacyType, isGoogleMapsUrl, parseCoordinates, classifyCoordinateStatus,
         COORDINATE_SOURCE_PRIORITY, extractCoordinateCandidates, selectBestCoordinate,
-        validateImageMimeType, validateImageSubmission, buildAllowlistMap, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
+        validateImageMimeType, validateImageSubmission, buildAllowlistMap, resolveActiveUnitByCode, resolveActiveUnits, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
         buildRecordId, haversineMeters, detectDuplicateWarnings, sameUnitCode, requiresNewImage, buildStagingRecord, buildPublishedRecord,
         buildAuditEntry, applyApproval, applyReviewAction, applyRevocation, migrateLegacyLocations,
     };
