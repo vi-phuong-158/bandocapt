@@ -20,7 +20,7 @@ const ORIGINAL_FETCH = global.fetch;
 
 function allowlist() {
     return [
-        { unit_code: 'CA_A', unit_name: 'Công an phường A', allowed_emails: 'staff@example.gov.vn', active: true },
+        { unit_code: 'CA_XA_HY_CUONG', unit_name: 'Công an phường A', allowed_emails: 'staff@example.gov.vn', active: true },
         { unit_code: 'CA_OFF', unit_name: 'Công an phường đã tắt', allowed_emails: '', active: false },
     ];
 }
@@ -28,7 +28,7 @@ function allowlist() {
 function publicPayload(overrides = {}) {
     return {
         request_id: 'public-request-1', operation_id: 'public-operation-1', request_type: pipeline.REQUEST_TYPES.create,
-        unit_code: 'CA_A', location_name: 'Điểm tiếp dân A', address: 'Địa chỉ A',
+        unit_code: 'CA_XA_HY_CUONG', location_name: 'Điểm tiếp dân A', address: 'Địa chỉ A',
         maps_url_original: 'https://www.google.com/maps/@21.3225,105.4027,16z', maps_url_resolved: 'https://www.google.com/maps/@21.3225,105.4027,16z',
         coordinates: '21.3225,105.4027', submitter_name: 'Người dân', submitter_phone: '0210000000', review_note: 'Ghi chú',
         image: { base64: JPEG, mimeType: 'image/png', filename: 'spoof.png', size: 1 }, ...overrides,
@@ -143,9 +143,10 @@ test('public Gateway CREATE is PENDING, private, provenance-marked, and has no s
     assert.equal(JSON.stringify(result).includes('recordId'), false);
 });
 
-test('public unit directory is projected from active private allowlist, including units with no published location', () => {
+test('public unit directory contains all 148 canonical units, including units with no published location', () => {
     const result = gateway(makeStore()).listPublicContributionUnits();
-    assert.deepEqual(result, { units: [{ unitCode: 'CA_A', unitName: 'Công an phường A' }] });
+    assert.equal(result.units.length, 148);
+    assert.equal(result.units.some(u => u.unitCode === 'CA_XA_VINH_PHU'), true);
     assert.equal(JSON.stringify(result).includes('allowed_emails'), false);
     assert.equal(JSON.stringify(result).includes('notes'), false);
 });
@@ -211,8 +212,8 @@ test('public API DTO exposes only safe unit fields and deterministic request IDs
     ] }), [{ unitCode: 'CA_NEW', label: 'Công an đơn vị mới' }]);
     assert.equal(publicApi.deriveGatewayRequestId('operation-1'), publicApi.deriveGatewayRequestId('operation-1'));
     assert.notEqual(publicApi.deriveGatewayRequestId('operation-1'), publicApi.deriveGatewayRequestId('operation-2'));
-    assert.throws(() => publicApi.validateBody({ operationId: 'x', unitCode: 'CA_A', locationName: 'A', address: 'B', mapsUrl: 'https://maps.google.com', image: { base64: JPEG }, email: 'staff@example.gov.vn' }), /UNKNOWN_FIELD/);
-    assert.throws(() => publicApi.validateBody({ operationId: 'x', requestType: pipeline.REQUEST_TYPES.update, unitCode: 'CA_A', locationName: 'A', address: 'B', mapsUrl: 'https://maps.google.com', image: { base64: JPEG } }), /PUBLIC_REQUEST_TYPE_NOT_ALLOWED/);
+    assert.throws(() => publicApi.validateBody({ operationId: 'x', unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://maps.google.com', image: { base64: JPEG }, email: 'staff@example.gov.vn' }), /UNKNOWN_FIELD/);
+    assert.throws(() => publicApi.validateBody({ operationId: 'x', requestType: pipeline.REQUEST_TYPES.update, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://maps.google.com', image: { base64: JPEG } }), /PUBLIC_REQUEST_TYPE_NOT_ALLOWED/);
 });
 
 test('public config exposes only the public Turnstile sitekey and supports Preview overrides', async () => {
@@ -265,22 +266,16 @@ test('public API denies origin/signature/CAPTCHA failures and returns only safe 
     await publicApi(apiRequest('GET', undefined, { origin: 'https://evil.example' }), deniedOrigin);
     assert.equal(deniedOrigin.statusCode, 403);
 
-    process.env.STAFF_GATEWAY_URL = 'https://gateway.example.test/exec';
-    process.env.LOCATION_GATEWAY_SECRET = SECRET;
-    global.fetch = async (url, options = {}) => {
-        assert.equal(new URL(String(url)).pathname, '/exec');
-        const request = JSON.parse(options.body);
-        assert.equal(request.action, 'listPublicContributionUnits');
-        return response(200, { ok: true, data: { units: [{ unitCode: 'CA_NEW', unitName: 'Công an đơn vị mới', allowed_emails: 'private' }] } });
-    };
     const safeUnitList = apiResponse();
     await publicApi(apiRequest('GET'), safeUnitList);
     assert.equal(safeUnitList.statusCode, 200);
-    assert.deepEqual(safeUnitList.body, { ok: true, data: { units: [{ unitCode: 'CA_NEW', label: 'Công an đơn vị mới' }] } });
+    assert.equal(safeUnitList.body.data.units.length, 148);
+    assert.equal(safeUnitList.body.data.units.some(u => u.unitCode === 'CA_XA_VINH_PHU'), true);
+    assert.equal(safeUnitList.body.data.units.some(u => u.unitCode === 'TEST_CA_TEST'), false);
     assert.equal(JSON.stringify(safeUnitList.body).includes('allowed_emails'), false);
 
     const missingSignature = apiResponse();
-    await publicApi(apiRequest('POST', { operationId: 'op-missing', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_A', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }), missingSignature);
+    await publicApi(apiRequest('POST', { operationId: 'op-missing', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }), missingSignature);
     assert.equal(missingSignature.statusCode, 403);
 
     process.env.NODE_ENV = 'production';
@@ -292,12 +287,12 @@ test('public API denies origin/signature/CAPTCHA failures and returns only safe 
     delete process.env.CHAT_LOG_HASH_SALT;
     const missingSalt = apiResponse();
     global.fetch = async url => String(url).includes('siteverify') ? response(200, { success: true }) : response(500, {});
-    await publicApi(apiRequest('POST', { operationId: 'op-missing-salt', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_A', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }, signedHeaders('op-missing-salt')), missingSalt);
+    await publicApi(apiRequest('POST', { operationId: 'op-missing-salt', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }, signedHeaders('op-missing-salt')), missingSalt);
     assert.equal(missingSalt.statusCode, 503);
     process.env.CHAT_LOG_HASH_SALT = 'test-only-hash-salt';
     const invalidCaptcha = apiResponse();
     global.fetch = async url => String(url).includes('siteverify') ? response(200, { success: false }) : response(500, {});
-    await publicApi(apiRequest('POST', { operationId: 'op-captcha', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_A', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }, signedHeaders('op-captcha')), invalidCaptcha);
+    await publicApi(apiRequest('POST', { operationId: 'op-captcha', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }, signedHeaders('op-captcha')), invalidCaptcha);
     assert.equal(invalidCaptcha.statusCode, 403);
 
     const success = apiResponse();
@@ -307,7 +302,7 @@ test('public API denies origin/signature/CAPTCHA failures and returns only safe 
         if (Array.isArray(body) && body[0] === 'EVAL') return response(200, { result: 1 });
         return response(200, { ok: true, data: { status: 'PENDING', requestId: 'private-not-public' } });
     };
-    const body = { operationId: 'op-success', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_A', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG, mimeType: 'image/png' }, captchaToken: 'token' };
+    const body = { operationId: 'op-success', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG, mimeType: 'image/png' }, captchaToken: 'token' };
     await publicApi(apiRequest('POST', body, signedHeaders('op-success')), success);
     assert.equal(success.statusCode, 200);
     assert.deepEqual(success.body.data.status, 'PENDING');
@@ -315,28 +310,15 @@ test('public API denies origin/signature/CAPTCHA failures and returns only safe 
     assert.equal(JSON.stringify(success.body).includes('gateway.example.test'), false);
 });
 
-test('public unit directory logs a bounded Gateway classification without exposing it to browsers', async () => {
-    process.env.STAFF_GATEWAY_URL = 'https://gateway.example.test/exec';
-    process.env.LOCATION_GATEWAY_SECRET = SECRET;
-    global.fetch = async () => response(200, { ok: false, error: { code: 'PRIVATE_LOCATION_SPREADSHEET_ID_MISSING' } });
-    const messages = [];
-    const originalConsoleError = console.error;
-    console.error = message => messages.push(String(message));
-    try {
-        const result = apiResponse();
-        await publicApi(apiRequest('GET'), result);
-        assert.equal(result.statusCode, 503);
-        assert.deepEqual(result.body, { error: 'SERVICE_UNAVAILABLE' });
-    } finally {
-        console.error = originalConsoleError;
-    }
-    assert.deepEqual(messages, ['[location-contributions] public-unit-directory-failed code=PRIVATE_LOCATION_SPREADSHEET_ID_MISSING']);
+test('public error and diagnostic code utilities map safe error codes', () => {
+    assert.equal(publicApi.safeGatewayDiagnosticCode({ gatewayCode: 'PRIVATE_LOCATION_SPREADSHEET_ID_MISSING' }), 'PRIVATE_LOCATION_SPREADSHEET_ID_MISSING');
     assert.equal(publicApi.safeGatewayDiagnosticCode({ gatewayCode: 'private-sheet-id' }), 'UNKNOWN');
+    assert.equal(publicApi.safeGatewayDiagnosticCode({}), 'UNKNOWN');
 });
 
 test('public API boundary rejects malformed, stale, oversized, invalid-map, gateway, and rate-limit cases safely', async () => {
     const validBody = (operationId, overrides = {}) => ({
-        operationId, requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_A', locationName: 'A', address: 'B',
+        operationId, requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B',
         mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'captcha', ...overrides,
     });
 
@@ -419,4 +401,181 @@ test('public static entry contains required fields and no staff login surface', 
     assert.match(html, /data-sitekey=""/);
     assert.doesNotMatch(html, /data-sitekey="0x/);
     assert.doesNotMatch(html, /Google Sign-In|google-client-id|staff-session/i);
+});
+test('Phase 5 Regression: 148 canonical units public directory, missing location submission, unknown unit rejection, and staff auth isolation', async () => {
+    // 1. GET returns all 148 units
+    const listRes = apiResponse();
+    await publicApi(apiRequest('GET'), listRes);
+    assert.equal(listRes.statusCode, 200);
+    assert.equal(listRes.body.ok, true);
+    assert.equal(listRes.body.data.units.length, 148);
+
+    // 2. 7 units without existing location/staff email are present
+    const missing7 = [
+        'CA_XA_VINH_PHU', 'CA_XA_NHAN_NGHIA', 'CA_XA_YEN_PHU',
+        'CA_XA_AN_NGHIA', 'CA_XA_CAO_DUONG', 'CA_XA_MUONG_HOA',
+        'CA_PHUONG_TAN_HOA',
+    ];
+    missing7.forEach(code => {
+        const found = listRes.body.data.units.find(u => u.unitCode === code);
+        assert.ok(found, `Missing unit ${code} must appear in public directory`);
+        assert.ok(found.label.startsWith('Công an '));
+    });
+
+    // 3. Synthetic TEST unit is strictly absent
+    assert.equal(listRes.body.data.units.some(u => u.unitCode === 'TEST_CA_TEST'), false);
+    assert.equal(listRes.body.data.units.some(u => u.label.includes('TEST')), false);
+
+    // 4. Unknown or synthetic unitCode in submit is rejected with 400 UNIT_NOT_ALLOWED
+    process.env.NODE_ENV = 'development';
+    process.env.EVAL_BYPASS_TOKEN = 'captcha';
+    for (const badCode of ['TEST_CA_TEST', 'CA_UNKNOWN', 'CA_INVALID']) {
+        const badRes = apiResponse();
+        const badPayload = {
+            operationId: 'op-bad-unit-' + badCode,
+            requestType: pipeline.REQUEST_TYPES.create,
+            unitCode: badCode,
+            locationName: 'Điểm kiểm thử',
+            address: 'Địa chỉ kiểm thử',
+            mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z',
+            image: { base64: JPEG, mimeType: 'image/jpeg' },
+            captchaToken: 'captcha',
+        };
+        await publicApi(apiRequest('POST', badPayload, signedHeaders(badPayload.operationId)), badRes);
+        assert.equal(badRes.statusCode, 400);
+        assert.equal(badRes.body.error, 'UNIT_NOT_ALLOWED');
+    }
+
+    // 5. Canonical unit without existing location (e.g. CA_XA_VINH_PHU) submits successfully
+    process.env.STAFF_GATEWAY_URL = 'https://gateway.example.test/exec';
+    process.env.LOCATION_GATEWAY_SECRET = SECRET;
+    global.fetch = async (url, options = {}) => {
+        if (String(url).includes('siteverify')) return response(200, { success: true });
+        return response(200, { ok: true, data: { status: 'PENDING', requestId: 'staged-req-vinh-phu' } });
+    };
+    const submitVinhPhuRes = apiResponse();
+    const vinhPhuPayload = {
+        operationId: 'op-submit-vinh-phu',
+        requestType: pipeline.REQUEST_TYPES.create,
+        unitCode: 'CA_XA_VINH_PHU',
+        locationName: 'Trụ sở Công an xã Vĩnh Phú',
+        address: 'Xã Vĩnh Phú, huyện Phù Ninh, Phú Thọ',
+        mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z',
+        image: { base64: JPEG, mimeType: 'image/jpeg' },
+        captchaToken: 'captcha',
+    };
+    await publicApi(apiRequest('POST', vinhPhuPayload, signedHeaders(vinhPhuPayload.operationId)), submitVinhPhuRes);
+    assert.equal(submitVinhPhuRes.statusCode, 200);
+    assert.equal(submitVinhPhuRes.body.ok, true);
+    assert.equal(submitVinhPhuRes.body.data.status, 'PENDING');
+
+    // 6. Staff Authorization remains strictly bound to Unit_Allowlist
+    const privateAllowlistRows = [
+        { unit_code: 'CA_XA_HY_CUONG', unit_name: 'Công an xã Hy Cương', allowed_emails: 'staff.hycuong@phutho.gov.vn', active: true },
+    ];
+    // Email for Hy Cuong only resolves Hy Cuong
+    const hyCuongUnits = pipeline.resolveUnitsByEmail('staff.hycuong@phutho.gov.vn', privateAllowlistRows);
+    assert.deepEqual(hyCuongUnits, [{ unitCode: 'CA_XA_HY_CUONG', unitName: 'Công an xã Hy Cương' }]);
+
+    // Email not in allowlist cannot access any unit, even if the unit is in canonical directory
+    const unassignedUnits = pipeline.resolveUnitsByEmail('unknown.staff@phutho.gov.vn', privateAllowlistRows);
+    assert.deepEqual(unassignedUnits, []);
+
+    // Canonical unit without staff email (e.g. CA_XA_VINH_PHU) cannot be authorized for staff portal
+    const vinhPhuStaffUnits = pipeline.resolveUnitsByEmail('someone@phutho.gov.vn', privateAllowlistRows);
+    assert.deepEqual(vinhPhuStaffUnits, []);
+});
+
+// ==================================================
+// Acceptance Gate: Canonical unit without Unit_Allowlist entry
+// ==================================================
+// Proves end-to-end that a unit belonging to the 148 canonical directory
+// but having NO entry in Unit_Allowlist (no staff email, no active row)
+// can still complete the full public contribution pipeline.
+// ==================================================
+
+test('Gateway submitPublicContribution ACCEPTS canonical unit with NO Unit_Allowlist entry and REJECTS non-canonical', () => {
+    // Allowlist deliberately does NOT contain CA_XA_VINH_PHU, CA_XA_NHAN_NGHIA, etc.
+    const store = makeStore();
+    const gw = gateway(store);
+
+    // --- ACCEPT: canonical unit absent from allowlist ---
+    const missingUnitPayload = publicPayload({
+        request_id: 'acceptance-vinh-phu-1',
+        operation_id: 'acceptance-vinh-phu-1',
+        unit_code: 'CA_XA_VINH_PHU',
+        location_name: 'Trụ sở Công an xã Vĩnh Phú',
+        address: 'Xã Vĩnh Phú, huyện Phù Ninh, Phú Thọ',
+    });
+    const result = gw.submitPublicContribution(missingUnitPayload);
+    assert.equal(result.status, 'PENDING', 'canonical unit without allowlist entry must be accepted');
+    assert.equal(result.requestId, 'acceptance-vinh-phu-1');
+
+    // Staging record must have correct canonical unit identity
+    const staged = store.rows().staging.find(r => r.request_id === 'acceptance-vinh-phu-1');
+    assert.ok(staged, 'staging record must exist');
+    assert.equal(staged.unit_code, 'CA_XA_VINH_PHU');
+    assert.equal(staged.unit_name, 'Công an xã Vĩnh Phú');
+    assert.equal(staged.status, pipeline.STATUSES.pending);
+    assert.equal(staged.auth_status, 'PUBLIC_CAPTCHA');
+    assert.equal(staged.submitter_email, 'public-web@bandocapt.invalid');
+    // Must NOT have validation errors (no SUBMITTER_EMAIL_MISSING, no UNIT_NAME_MISSING, no auth error)
+    assert.equal(staged.validation_errors, '');
+
+    // Audit trail must exist
+    const audit = store.rows().audits.find(a => a.request_id === 'acceptance-vinh-phu-1');
+    assert.ok(audit, 'audit entry must exist');
+    assert.equal(audit.action, 'PUBLIC_SUBMIT');
+
+    // --- ACCEPT: second canonical unit absent from allowlist ---
+    const store2 = makeStore();
+    const result2 = gateway(store2).submitPublicContribution(publicPayload({
+        request_id: 'acceptance-nhan-nghia-1',
+        operation_id: 'acceptance-nhan-nghia-1',
+        unit_code: 'CA_XA_NHAN_NGHIA',
+        location_name: 'Trụ sở Công an xã Nhân Nghĩa',
+        address: 'Xã Nhân Nghĩa, huyện Cẩm Khê, Phú Thọ',
+    }));
+    assert.equal(result2.status, 'PENDING', 'CA_XA_NHAN_NGHIA (no allowlist) must be accepted');
+
+    // --- REJECT: non-canonical unit code ---
+    assert.throws(
+        () => gateway(makeStore()).submitPublicContribution(publicPayload({
+            request_id: 'reject-fake-1',
+            operation_id: 'reject-fake-1',
+            unit_code: 'CA_XA_FAKE_UNIT',
+        })),
+        /PUBLIC_UNIT_NOT_ALLOWED/,
+        'non-canonical unit must be rejected by Gateway'
+    );
+
+    // --- REJECT: synthetic test unit code ---
+    assert.throws(
+        () => gateway(makeStore()).submitPublicContribution(publicPayload({
+            request_id: 'reject-test-1',
+            operation_id: 'reject-test-1',
+            unit_code: 'TEST_CA_TEST',
+        })),
+        /PUBLIC_UNIT_NOT_ALLOWED/,
+        'synthetic test unit must be rejected by Gateway'
+    );
+
+    // --- Staff Authorization remains FAIL-CLOSED ---
+    const staffAllowlist = allowlist(); // only CA_XA_HY_CUONG and CA_OFF
+    // Canonical unit without allowlist email → staff resolveUnitsByEmail returns empty
+    const noStaffAccess = pipeline.resolveUnitsByEmail('random.person@phutho.gov.vn', staffAllowlist);
+    assert.deepEqual(noStaffAccess, [], 'staff auth must not grant access for email not in allowlist');
+
+    // Canonical unit present in directory does NOT auto-grant staff access
+    const vinhPhuStaff = pipeline.resolveUnitsByEmail('vinhphu.staff@phutho.gov.vn', staffAllowlist);
+    assert.deepEqual(vinhPhuStaff, [], 'canonical unit without staff email must not grant staff access');
+
+    // Only allowlisted email gets access, and only to its specific unit
+    const authorizedStaff = pipeline.resolveUnitsByEmail('staff@example.gov.vn', staffAllowlist);
+    assert.equal(authorizedStaff.length, 1);
+    assert.equal(authorizedStaff[0].unitCode, 'CA_XA_HY_CUONG');
+
+    // authorizeSubmission must reject canonical unit without staff email
+    const authResult = pipeline.authorizeSubmission('Công an xã Vĩnh Phú', 'random@phutho.gov.vn', staffAllowlist);
+    assert.equal(authResult.authorized, false, 'authorizeSubmission must reject canonical unit without staff email');
 });
