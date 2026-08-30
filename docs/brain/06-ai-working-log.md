@@ -3315,3 +3315,17 @@
   trả về đúng tài khoản approver nhưng email không match allowlist nên authorization fail-closed.
 - **Kiểm tra:** Sau khi sửa Script Property, Production approve thành công. Diagnostic đã giúp xác nhận đúng
   account/container/property; không đổi workbook ngoài request duyệt hợp lệ và không tạo fake pending.
+
+## [2026-08-30] PR #57 closure — current-main rebase and hermetic E2E fixture
+- **Agent:** Codex
+- **Thay đổi:** Rebase `fix/admin-review-approver-auth` lên `origin/main` `b6df797`; hợp nhất chronology
+  của decision/working log, không thay authorization hay Production behavior. Sửa test-only Staff Portal
+  public-image fixture để trả PNG in-memory; các test placeholder vẫn đăng ký abort route sau fixture.
+- **Root cause Production đã xác nhận:** Owner đã sửa một ký tự sai trong `LOCATION_APPROVER_EMAILS` của
+  đúng dedicated Production Admin Review container và approve Production đã thành công. Closure này không
+  đọc/sửa Script Properties, workbook, deployment hay approval Production.
+- **Bảo mật:** `Session.getEffectiveUser()` vẫn là authorization source fail-closed. `getActiveUser()` chỉ
+  là diagnostic; diagnostic không lộ allowlist/secret và không gọi mutation helper.
+- **Kiểm tra:** focused Admin Review 46/46; focused Staff Portal E2E 34/34 sau build; `npm test` 600/600;
+  build/CI PASS. Full E2E branch 56/59 chỉ còn ba `location-image` lỗi `ERR_CONNECTION_REFUSED`;
+  exact `origin/main` control 55/59 tái hiện cùng ba lỗi đó và thêm external image fixture lỗi lịch sử.
