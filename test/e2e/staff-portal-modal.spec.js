@@ -48,6 +48,12 @@ async function mockStaffApi(page, mutations, { units = DEFAULT_UNITS, userName =
         if (mapsResolve) return mapsResolve(route);
         return route.fulfill({ json: { ok: true, data: { coordinates: { lat: 21.3225, lng: 105.4027 } } } });
     });
+    // Keep successful-image assertions hermetic. The placeholder-specific tests below register
+    // a later abort route for this same URL, which deliberately takes precedence.
+    await page.route('https://lh3.googleusercontent.com/d/public-location-image=w1000', route => route.fulfill({
+        contentType: imageFile.mimeType,
+        body: imageFile.buffer,
+    }));
     await page.route('https://accounts.google.com/**', route => route.abort());
 }
 

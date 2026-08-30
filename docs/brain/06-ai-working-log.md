@@ -3326,3 +3326,10 @@
 - **File đã sửa:** `js/staff-image.js`, `js/staff-portal.js`, `styles/staff-portal.css`, `test/staff-approved-image.test.js`, `test/staff-portal-client.test.js`, `test/staff-api.test.js`, `test/e2e/staff-portal-modal.spec.js`, `docs/location-intake/STAFF_API.md`, `docs/brain/01-architecture.md`.
 - **Lý do:** `Published_Locations.image_url` của Production tồn tại nhưng raw Drive `/file/d/.../view` trả HTML; delivery URL `lh3.googleusercontent.com` mới trả ảnh. PR #56 chưa có trên Production nên card chưa có ảnh và modal cũ dùng raw URL.
 - **Kiểm tra:** focused unit/API 41/41; focused Staff Portal E2E 6/6; toàn bộ Node test 578/578; build/CI pass; full Playwright 56/59, ba failure pre-existing ở public-map `location-image` do `ERR_CONNECTION_REFUSED`; production read-only xác nhận public record có ảnh, raw URL 200 HTML và normalized URL 206 `image/jpeg`; không mutate Production.
+
+## [2026-08-30] PR #60 — deterministic approved-image fixture for CI E2E
+
+- **Agent:** Codex
+- **Thay đổi:** `test/e2e/staff-portal-modal.spec.js` routes the successful public-image fixture to an in-memory PNG. The two explicit image-failure tests still register a later abort route and continue to verify the placeholder path.
+- **Lý do:** PR #60's prior exact-head CI ran 59 Playwright tests with 57 passing and two failures in this spec. Both failures expected a successful remote `lh3.googleusercontent.com` fixture image but GitHub Actions received an image load error and correctly rendered the existing safe placeholder. The regression runner changes do not touch the Staff Portal; this removes the pre-existing external-network fixture dependency without relaxing an assertion or changing product behavior.
+- **Kiểm tra:** focused reproduction on the unmodified harness passed locally only because the host was reachable; the full Staff Portal modal spec validates successful fixture loading and the intentional fallback cases without external image access. Full repository gates are recorded with the PR #60 handoff.
