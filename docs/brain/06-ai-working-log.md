@@ -1,5 +1,22 @@
 # 06 — AI Working Log
 
+## [2026-08-30] PR #58 Phase 3A Controlled End-to-End Acceptance Pass
+- **Agent:** Antigravity
+- **EXACT HEAD:** `d673e382a5514d16a146da62338200d16ad28f77` (`feat/public-location-contributions`)
+- **SCOPE:** PR #58 Phase 3A controlled end-to-end rehearsal acceptance.
+  1. Configured Preview-scoped environment variables on `bandocapt-rehearsal` (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `CHAT_LOG_HASH_SALT`).
+  2. Fixed `publicConfig` regex in `api/location-contributions.js` to recognize official Cloudflare Turnstile test keys (`1x...` - `3x...`) in addition to `0x...` keys.
+  3. Deployed and verified live Vercel Preview runtime (`bandocapt-rehearsal-6bzfapbtk-vi-phuong-158s-projects.vercel.app`).
+  4. Executed live browser submission for synthetic unit `TEST_CA_TEST` via `/dong-gop/` with real Turnstile test solve.
+  5. Verified TEST private staging row (`fe7da75f95d194247b69...`), `Idempotency_Ledger`, and private-only Drive image permissions (`1u8khZZ-q5bsiNAxlObpAf1yHce54BCU5`).
+  6. Executed TEST Admin Review `APPROVE` action on isolated TEST Apps Script Web App (Version 13).
+  7. Verified `Location_Staging` transitioned to `APPROVED`, `Approval_Audit_Log` entry generated, record published to TEST `Published_Locations` (`1hNZNMh6XHb6LNyFkf2NKv60j5PHt0KuIICMF3_jhekM`), and Drive image transitioned to public reader (`anyone: reader`).
+  8. Verified public GViz readback exposes only canonical public schema with 0 private field leaks.
+  9. Verified 6 bounded negative security failure paths (Origin, missing token, unsupported request type, missing field, invalid image encoding).
+- **PRODUCTION BOUNDARY:** Zero Production workbooks, Script Properties, environment variables, or images touched.
+- **TEST RESULTS:** `npm test` 621/621 PASS, `npm run build` PASS, full `npm run ci` PASS.
+- **VERDICT:** `PR58_PHASE3A_ACCEPTANCE_PASS_READY_FOR_MERGE_REVIEW`
+
 ## [2026-08-25] PR-1 — Sink inversion cho `/api/chat` (không có code Messenger)
 - **Agent:** Claude Code
 - **BASELINE:** `origin/main` = `c6e9fa5d972280e32e0564371a4a14b45ac9dd9a` (đã fetch xác nhận). Baseline CI trước khi sửa: `npm test` 586/586 PASS.
