@@ -3290,3 +3290,42 @@
 - **File đã sửa:** `js/staff-image.js`, `js/staff-portal.js`, `styles/staff-portal.css`, `test/staff-approved-image.test.js`, `test/staff-portal-client.test.js`, `test/staff-api.test.js`, `test/e2e/staff-portal-modal.spec.js`, `docs/location-intake/STAFF_API.md`, `docs/brain/01-architecture.md`.
 - **Lý do:** `Published_Locations.image_url` của Production tồn tại nhưng raw Drive `/file/d/.../view` trả HTML; delivery URL `lh3.googleusercontent.com` mới trả ảnh. PR #56 chưa có trên Production nên card chưa có ảnh và modal cũ dùng raw URL.
 - **Kiểm tra:** focused unit/API 41/41; focused Staff Portal E2E 6/6; toàn bộ Node test 578/578; build/CI pass; full Playwright 56/59, ba failure pre-existing ở public-map `location-image` do `ERR_CONNECTION_REFUSED`; production read-only xác nhận public record có ảnh, raw URL 200 HTML và normalized URL 206 `image/jpeg`; không mutate Production.
+
+## [2026-08-24] Admin Review approver authorization diagnostics
+- **Agent:** Codex
+- **Thay đổi:** Giữ authorization bằng `Session.getEffectiveUser()` fail-closed, thêm diagnostic read-only
+  hiển thị active/private workbook, resolver/boundary, allowlist presence, effective/active user và match
+  từng identity; bổ sung parser/identity regression và static guard không cho diagnostic chạm mutation.
+- **File đã sửa:** `setup/location-admin-review.js`, `setup/location-admin-review/Code.gs`,
+  `test/location-admin-review.test.js`, `test/location-admin-review-container.test.js`,
+  `docs/location-intake/ADMIN_REVIEW_CONTAINER.md`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Lỗi `LOCATION_APPROVER_NOT_AUTHORIZED` trước đây không phân biệt được sai property,
+  sai container/workbook, blank/mismatch session identity, thiếu OAuth scope hay stale artifact.
+  Diagnostic không hiển thị allowlist value, secret, token hay staging payload.
+- **Kiểm tra:** focused Admin Review 45/45; `npm test` 573/573; `npm run build` PASS; `npm run ci` PASS;
+  `git diff --check` PASS. Chưa đọc/sửa Production Script Properties, workbook, Apps Script deployment
+  hoặc pending request vì môi trường không có Google owner session.
+
+## [2026-08-24] Production admin-review approver authorization root cause verified
+- **Agent:** Codex
+- **Thay đổi:** Xác nhận runtime Production sau khi sửa `LOCATION_APPROVER_EMAILS` trong đúng Apps Script
+  container-bound của Private Workbook; giữ nguyên commit diagnostic `e476884`, không thay đổi authorization logic.
+- **Root cause:** Allowlist `LOCATION_APPROVER_EMAILS` trong Production container bị sai một ký tự. `Session.getEffectiveUser()`
+  trả về đúng tài khoản approver nhưng email không match allowlist nên authorization fail-closed.
+- **Kiểm tra:** Sau khi sửa Script Property, Production approve thành công. Diagnostic đã giúp xác nhận đúng
+  account/container/property; không đổi workbook ngoài request duyệt hợp lệ và không tạo fake pending.
+
+## [2026-08-30] PR #57 closure — current-main rebase and hermetic E2E fixture
+- **Agent:** Codex
+- **Thay đổi:** Rebase `fix/admin-review-approver-auth` lên `origin/main` `b6df797`; hợp nhất chronology
+  của decision/working log, không thay authorization hay Production behavior. Sửa test-only Staff Portal
+  public-image fixture để trả PNG in-memory; các test placeholder vẫn đăng ký abort route sau fixture.
+- **Root cause Production đã xác nhận:** Owner đã sửa một ký tự sai trong `LOCATION_APPROVER_EMAILS` của
+  đúng dedicated Production Admin Review container và approve Production đã thành công. Closure này không
+  đọc/sửa Script Properties, workbook, deployment hay approval Production.
+- **Bảo mật:** `Session.getEffectiveUser()` vẫn là authorization source fail-closed. `getActiveUser()` chỉ
+  là diagnostic; diagnostic không lộ allowlist/secret và không gọi mutation helper.
+- **Kiểm tra:** focused Admin Review 46/46; focused Staff Portal E2E 34/34 sau build; `npm test` 600/600;
+  build/CI PASS. Full E2E branch 56/59 chỉ còn ba `location-image` lỗi `ERR_CONNECTION_REFUSED`;
+  exact `origin/main` control 55/59 tái hiện cùng ba lỗi đó và thêm external image fixture lỗi lịch sử.

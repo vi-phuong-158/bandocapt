@@ -15,6 +15,30 @@ function adminProperties_() {
     return PropertiesService.getScriptProperties();
 }
 
+function adminSessionUser_(getUser) {
+    try {
+        const user = getUser();
+        return { email: String(user && user.getEmail ? user.getEmail() || '' : '').trim().toLowerCase(), error: '' };
+    } catch (error) {
+        return { email: '', error: String(error && (error.code || error.message) || 'SESSION_IDENTITY_UNAVAILABLE') };
+    }
+}
+
+function adminReviewIdentity_() {
+    if (!globalThis.LocationAdminReview) throw new Error('ADMIN_REVIEW_RUNTIME_NOT_CONFIGURED');
+    const effective = adminSessionUser_(() => Session.getEffectiveUser());
+    const active = adminSessionUser_(() => Session.getActiveUser());
+    const diagnostic = globalThis.LocationAdminReview.buildApproverDiagnostic({
+        effectiveUserEmail: effective.email,
+        activeUserEmail: active.email,
+        approverEmailsCsv: adminProperties_().getProperty('LOCATION_APPROVER_EMAILS'),
+    });
+    return Object.assign({}, diagnostic, {
+        effectiveUserError: effective.error,
+        activeUserError: active.error,
+    });
+}
+
 function adminPrivateSpreadsheet_() {
     if (!globalThis.LocationWorkbookConfig) throw new Error('LOCATION_WORKBOOK_CONFIG_UNAVAILABLE');
     const props = adminProperties_();
@@ -38,14 +62,12 @@ function adminPublicSpreadsheet_() {
 }
 
 function requireLocationApprover_() {
-    if (!globalThis.LocationAdminReview) throw new Error('ADMIN_REVIEW_RUNTIME_NOT_CONFIGURED');
-    const csv = adminProperties_().getProperty('LOCATION_APPROVER_EMAILS');
-    if (!csv) throw new Error('LOCATION_APPROVER_CONFIG_MISSING');
-    const email = String(Session.getEffectiveUser().getEmail() || '').trim().toLowerCase();
-    if (!email || !globalThis.LocationAdminReview.isApprover(email, csv)) {
+    const identity = adminReviewIdentity_();
+    if (!identity.allowlistConfigured) throw new Error('LOCATION_APPROVER_CONFIG_MISSING');
+    if (!identity.effectiveUserEmail || !identity.effectiveApproverMatch) {
         throw new Error('LOCATION_APPROVER_NOT_AUTHORIZED');
     }
-    return email;
+    return identity.effectiveUserEmail;
 }
 
 function adminHeaders_(sheet) {
@@ -244,18 +266,104 @@ function reconcileSelectedAdminRequest() {
     } catch (error) { ui.alert(adminErrorMessage_(error)); }
 }
 
+function adminDiagnosticCode_(error) {
+    return String(error && (error.code || error.message) || 'UNKNOWN');
+}
+
+function adminResolveWorkbookDiagnostic_(resolver, properties) {
+    try {
+        return { status: 'OK', spreadsheetId: resolver(properties).spreadsheetId, code: '' };
+    } catch (error) {
+        return { status: 'ERROR', spreadsheetId: '', code: adminDiagnosticCode_(error) };
+    }
+}
+
+function adminReviewDiagnostic_() {
+    const properties = adminProperties_();
+    const propertyValues = {
+        PRIVATE_LOCATION_SPREADSHEET_ID: properties.getProperty('PRIVATE_LOCATION_SPREADSHEET_ID'),
+        PUBLIC_LOCATION_SPREADSHEET_ID: properties.getProperty('PUBLIC_LOCATION_SPREADSHEET_ID'),
+        GOOGLE_SHEET_ID: properties.getProperty('GOOGLE_SHEET_ID'),
+    };
+    const identity = adminReviewIdentity_();
+    const privateWorkbook = adminResolveWorkbookDiagnostic_(
+        globalThis.LocationWorkbookConfig.resolvePrivateLocationWorkbook,
+        propertyValues,
+    );
+    const publicWorkbook = adminResolveWorkbookDiagnostic_(
+        globalThis.LocationWorkbookConfig.resolvePublicLocationWorkbook,
+        propertyValues,
+    );
+    let activeWorkbookStatus = 'UNKNOWN';
+    try {
+        const activeSpreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+        const activeId = activeSpreadsheet && activeSpreadsheet.getId();
+        if (activeId && privateWorkbook.spreadsheetId) {
+            activeWorkbookStatus = activeId === privateWorkbook.spreadsheetId ? 'MATCH' : 'MISMATCH';
+        }
+    } catch (error) {
+        activeWorkbookStatus = `ERROR (${adminDiagnosticCode_(error)})`;
+    }
+
+    const boundaryStatus = privateWorkbook.status === 'OK' && publicWorkbook.status === 'OK'
+        ? privateWorkbook.spreadsheetId !== publicWorkbook.spreadsheetId ? 'PASS' : 'ERROR'
+        : 'ERROR';
+    let schemaStatus = { status: 'ERROR', code: 'CONFIGURATION_UNAVAILABLE' };
+    if (privateWorkbook.status === 'OK' && publicWorkbook.status === 'OK') {
+        try {
+            const privateSpreadsheet = SpreadsheetApp.openById(privateWorkbook.spreadsheetId);
+            const publicSpreadsheet = SpreadsheetApp.openById(publicWorkbook.spreadsheetId);
+            const pipeline = locationPipeline_();
+            adminRequireSheet_(privateSpreadsheet, pipeline.SHEETS.staging, pipeline.HEADERS.staging);
+            adminRequireSheet_(privateSpreadsheet, pipeline.SHEETS.audit, pipeline.HEADERS.audit);
+            adminRequireSheet_(publicSpreadsheet, pipeline.SHEETS.published, pipeline.HEADERS.published);
+            schemaStatus = { status: 'PASS', code: '' };
+        } catch (error) {
+            schemaStatus = { status: 'ERROR', code: adminDiagnosticCode_(error) };
+        }
+    }
+
+    return {
+        activeWorkbookStatus,
+        privateWorkbookStatus: privateWorkbook.status,
+        privateWorkbookError: privateWorkbook.code,
+        publicWorkbookStatus: publicWorkbook.status,
+        publicWorkbookError: publicWorkbook.code,
+        boundaryStatus,
+        schemaStatus: schemaStatus.status,
+        schemaError: schemaStatus.code,
+        approverConfigStatus: identity.allowlistConfigured ? 'CONFIGURED' : 'MISSING',
+        effectiveUserEmail: identity.effectiveUserEmail || '(blank)',
+        activeUserEmail: identity.activeUserEmail || '(blank)',
+        effectiveUserError: identity.effectiveUserError,
+        activeUserError: identity.activeUserError,
+        effectiveApproverMatch: identity.effectiveApproverMatch ? 'YES' : 'NO',
+        activeApproverMatch: identity.activeApproverMatch ? 'YES' : 'NO',
+    };
+}
+
+function adminReviewDiagnosticReport_(diagnostic) {
+    const suffix = (status, code) => code ? `${status} (${code})` : status;
+    const identitySuffix = (email, error) => error ? `${email} [${error}]` : email;
+    return [
+        'Admin Review diagnostic (read-only)',
+        `Active workbook: ${diagnostic.activeWorkbookStatus}`,
+        `Private workbook config: ${suffix(diagnostic.privateWorkbookStatus, diagnostic.privateWorkbookError)}`,
+        `Public workbook config: ${suffix(diagnostic.publicWorkbookStatus, diagnostic.publicWorkbookError)}`,
+        `Public/private boundary: ${diagnostic.boundaryStatus}`,
+        `LOCATION_APPROVER_EMAILS: ${diagnostic.approverConfigStatus}`,
+        `Effective user email: ${identitySuffix(diagnostic.effectiveUserEmail, diagnostic.effectiveUserError)}`,
+        `Active user email: ${identitySuffix(diagnostic.activeUserEmail, diagnostic.activeUserError)}`,
+        `Approver match (effective): ${diagnostic.effectiveApproverMatch}`,
+        `Approver match (active): ${diagnostic.activeApproverMatch}`,
+        `Required sheets/schema: ${suffix(diagnostic.schemaStatus, diagnostic.schemaError)}`,
+    ].join('\n');
+}
+
 function healthCheckAdminReview() {
     const ui = SpreadsheetApp.getUi();
     try {
-        const privateSpreadsheet = adminPrivateSpreadsheet_();
-        const publicSpreadsheet = adminPublicSpreadsheet_();
-        requireLocationApprover_();
-        const pipeline = locationPipeline_();
-        adminRequireSheet_(privateSpreadsheet, pipeline.SHEETS.staging, pipeline.HEADERS.staging);
-        adminRequireSheet_(privateSpreadsheet, pipeline.SHEETS.audit, pipeline.HEADERS.audit);
-        adminRequireSheet_(publicSpreadsheet, pipeline.SHEETS.published, pipeline.HEADERS.published);
-        if (privateSpreadsheet.getId() === publicSpreadsheet.getId()) throw new Error('LOCATION_WORKBOOK_BOUNDARY_VIOLATION');
-        ui.alert('✓ Admin authorized\n✓ Private/Public workbook boundary\n✓ Required review sheets and schema');
+        ui.alert(adminReviewDiagnosticReport_(adminReviewDiagnostic_()));
     } catch (error) { ui.alert(adminErrorMessage_(error)); }
 }
 

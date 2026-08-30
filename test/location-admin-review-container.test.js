@@ -4,10 +4,11 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 
 const { requireActivePrivateWorkbook } = require('../setup/location-admin-review-container');
 const { resolvePrivateLocationWorkbook, resolvePublicLocationWorkbook } = require('../lib/location-workbooks');
-const { createLocationAdminReview, isApprover } = require('../setup/location-admin-review');
+const { createLocationAdminReview, isApprover, buildApproverDiagnostic } = require('../setup/location-admin-review');
 const { buildLocationAdminReviewAppsScript } = require('../scripts/build-location-admin-review-apps-script');
 
 const root = path.resolve(__dirname, '..');
@@ -48,6 +49,87 @@ test('approver allowlist remains fail-closed without any Gateway secret dependen
     assert.equal(isApprover('approver@example.gov.vn', ''), false);
     assert.equal(isApprover('approver@example.gov.vn', 'other@example.gov.vn'), false);
     assert.equal(isApprover('approver@example.gov.vn', 'approver@example.gov.vn'), true);
+});
+
+test('approver diagnostic reports effective/active identity separately without exposing the allowlist', () => {
+    const diagnostic = buildApproverDiagnostic({
+        effectiveUserEmail: 'ANMPHONGANDN@GMAIL.COM',
+        activeUserEmail: 'operator@example.com',
+        approverEmailsCsv: 'anmphongandn@gmail.com',
+    });
+    assert.deepEqual(diagnostic, {
+        effectiveUserEmail: 'anmphongandn@gmail.com',
+        activeUserEmail: 'operator@example.com',
+        allowlistConfigured: true,
+        effectiveApproverMatch: true,
+        activeApproverMatch: false,
+    });
+    assert.equal(Object.hasOwn(diagnostic, 'approverEmailsCsv'), false);
+});
+
+test('admin diagnostic source is read-only and does not invoke review or Drive mutation helpers', () => {
+    const source = fs.readFileSync(runtimePath, 'utf8');
+    const start = source.indexOf('function adminReviewDiagnostic_()');
+    const end = source.indexOf('function adminReviewDiagnosticReport_(');
+    assert.ok(start >= 0 && end > start);
+    const diagnosticSource = source.slice(start, end);
+    assert.doesNotMatch(diagnosticSource, /adminReviewEngine_|setImagePublic_|revokeImagePublic_|setValues\(|deleteRow\(|setSharing\(/);
+});
+
+test('admin diagnostic runtime reports identity, workbook, boundary and schema status without writes', () => {
+    const values = {
+        PRIVATE_LOCATION_SPREADSHEET_ID: 'private-production',
+        PUBLIC_LOCATION_SPREADSHEET_ID: 'public-production',
+        GOOGLE_SHEET_ID: 'public-production',
+        LOCATION_APPROVER_EMAILS: 'anmphongandn@gmail.com',
+    };
+    const headers = {
+        Location_Staging: ['request_id'],
+        Approval_Audit_Log: ['request_id'],
+        Published_Locations: ['record_id'],
+    };
+    const sheet = name => ({
+        getLastColumn: () => headers[name].length,
+        getRange: () => ({ getDisplayValues: () => [headers[name]] }),
+    });
+    const workbook = id => ({
+        getId: () => id,
+        getSheetByName: name => headers[name] ? sheet(name) : null,
+    });
+    const alerts = [];
+    const context = {
+        PropertiesService: { getScriptProperties: () => ({ getProperty: key => values[key] || '' }) },
+        Session: {
+            getEffectiveUser: () => ({ getEmail: () => 'ANMPHONGANDN@GMAIL.COM' }),
+            getActiveUser: () => ({ getEmail: () => 'operator@example.com' }),
+        },
+        SpreadsheetApp: {
+            getActiveSpreadsheet: () => workbook('private-production'),
+            openById: id => workbook(id),
+            getUi: () => ({ alert: message => alerts.push(message) }),
+        },
+        LocationApprovalPipeline: {
+            SHEETS: { staging: 'Location_Staging', audit: 'Approval_Audit_Log', published: 'Published_Locations' },
+            HEADERS: { staging: ['request_id'], audit: ['request_id'], published: ['record_id'] },
+        },
+        LocationWorkbookConfig: {
+            resolvePrivateLocationWorkbook: env => ({ spreadsheetId: env.PRIVATE_LOCATION_SPREADSHEET_ID }),
+            resolvePublicLocationWorkbook: env => ({ spreadsheetId: env.PUBLIC_LOCATION_SPREADSHEET_ID }),
+        },
+        LocationAdminReview: { buildApproverDiagnostic },
+    };
+    context.globalThis = context;
+    vm.runInNewContext(fs.readFileSync(runtimePath, 'utf8'), context);
+    context.healthCheckAdminReview();
+    assert.equal(alerts.length, 1);
+    assert.match(alerts[0], /Active workbook: MATCH/);
+    assert.match(alerts[0], /Private workbook config: OK/);
+    assert.match(alerts[0], /Public\/private boundary: PASS/);
+    assert.match(alerts[0], /Effective user email: anmphongandn@gmail\.com/);
+    assert.match(alerts[0], /Approver match \(effective\): YES/);
+    assert.match(alerts[0], /Approver match \(active\): NO/);
+    assert.match(alerts[0], /Required sheets\/schema: PASS/);
+    assert.doesNotMatch(alerts[0], /LOCATION_APPROVER_EMAILS:.*@/);
 });
 
 test('dedicated admin source exposes only the review menu and no legacy intake or Web App entrypoint', () => {

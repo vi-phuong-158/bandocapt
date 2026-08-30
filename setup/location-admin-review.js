@@ -37,6 +37,18 @@
         return normalizeEmailList(approverEmailsCsv).includes(normalized);
     }
 
+    function buildApproverDiagnostic({ effectiveUserEmail = '', activeUserEmail = '', approverEmailsCsv = '' } = {}) {
+        const effectiveEmail = text(effectiveUserEmail).toLowerCase();
+        const activeEmail = text(activeUserEmail).toLowerCase();
+        return Object.freeze({
+            effectiveUserEmail: effectiveEmail,
+            activeUserEmail: activeEmail,
+            allowlistConfigured: Boolean(text(approverEmailsCsv)),
+            effectiveApproverMatch: isApprover(effectiveEmail, approverEmailsCsv),
+            activeApproverMatch: isApprover(activeEmail, approverEmailsCsv),
+        });
+    }
+
     function deterministicImageUrl(fileId) {
         return fileId ? `https://drive.google.com/uc?export=view&id=${encodeURIComponent(fileId)}` : '';
     }
@@ -389,6 +401,7 @@
     return {
         REVIEW_ACTIONS,
         isApprover,
+        buildApproverDiagnostic,
         deterministicImageUrl,
         driveFileIdFromUrl,
         canonicalPublishedEqual,

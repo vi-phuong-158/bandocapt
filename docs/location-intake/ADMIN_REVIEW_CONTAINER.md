@@ -45,6 +45,33 @@ npx --yes @google/clasp@3.3.0 -P setup/location-admin-review push --force
 
 8. Reload the private workbook, run **Kiểm tra cấu hình duyệt**, then verify the dedicated menu.
 
+## Authorization diagnostic and troubleshooting
+
+**Kiểm tra cấu hình duyệt** is read-only and is intentionally available before authorization.
+It reports:
+
+- active workbook match against the configured private workbook;
+- private/public workbook resolver status and boundary;
+- whether `LOCATION_APPROVER_EMAILS` exists (the allowlist value is not shown);
+- the effective and active user email seen by Apps Script, plus each allowlist match;
+- required `Location_Staging`, `Approval_Audit_Log`, and `Published_Locations` schema status.
+
+When the menu reports **Tài khoản hiện tại không được phép duyệt**, check in this order:
+
+1. Sign into Google as the intended approver and confirm the diagnostic's effective email.
+2. Confirm the active workbook is the Production Private Workbook.
+3. Confirm the menu came from this dedicated container-bound project, not Staff Gateway,
+   Location Intake, a TEST project, or a legacy copied workbook.
+4. Confirm `LOCATION_APPROVER_EMAILS` is configured in this project's Script Properties.
+5. Compare effective and active emails; a blank or mismatch identifies a Google session/authorization
+   issue rather than an allowlist parser issue.
+6. Confirm the deployed manifest includes `https://www.googleapis.com/auth/userinfo.email`,
+   then re-authorize the dedicated project if the scope was added after first use.
+7. Rebuild and push the exact reviewed artifact if the runtime source is stale.
+
+`LOCATION_APPROVER_EMAILS` belongs to the **dedicated Admin Review container-bound Apps Script
+project**. It is not read from Staff Gateway, Location Intake, Apps Script TEST, or Vercel.
+
 Do not use a stale workbook/container for Production review. Do not copy `Location_Staging` rows
 between workbooks: the private staging/audit history and the public record transition must remain in
 the configured workbook pair.

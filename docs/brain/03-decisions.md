@@ -42,6 +42,23 @@ hai nhanh cua `headersSent` trong catch.
 **Khong lam trong PR-1.** Khong co code Messenger. Khong doi provider/retrieval/grounding/
 validator/timeout. Khong wire `BufferSink` vao handler — do la viec cua PR-4.
 
+## [2026-08-24] Admin Review authorization remains effective-user fail-closed, with read-only diagnostics
+
+- **Decision:** Keep `Session.getEffectiveUser().getEmail()` as the authorization identity for the
+  human menu action, normalized through the shared allowlist parser. An empty identity or missing
+  `LOCATION_APPROVER_EMAILS` remains a hard deny; the active-user email is diagnostic evidence only
+  and is not used as a privilege-escalation fallback.
+- **Why:** Apps Script distinguishes the current active user from the account under whose authority
+  execution runs. Without Production session evidence, silently switching identities would hide a
+  container/authorization problem and could authorize the wrong account. The new read-only diagnostic
+  reports both values and both allowlist matches so the next runtime rehearsal can classify the cause.
+- **Diagnostic contract:** `Kiểm tra cấu hình duyệt` does not call `requireLocationApprover_()` and
+  does not mutate Sheets, Drive, staging, audit, or public records. It reports workbook resolver and
+  boundary status, allowlist presence (not its value), both session emails, match results, and required
+  sheet/schema status. The diagnostic is implemented in the dedicated container-bound bundle only.
+- **Consequence:** Production Script Properties, workbook data, Apps Script project identity, and
+  deployment are unchanged by this code task. A live run is still required to identify whether the
+  incident is configuration, stale artifact, wrong container, or Google session authorization.
 
 ## [2026-08-22] Legacy published records use a separate private operational baseline
 
