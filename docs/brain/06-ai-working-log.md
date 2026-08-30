@@ -3408,3 +3408,12 @@
   exact HEAD mới deploy và TEST resource identities của Gateway, Turnstile và KV được xác minh độc lập.
 - **Ranh giới:** Không đọc/in secret, không đổi Vercel env, không sửa Script Properties/workbook, không
   gửi contribution hoặc dùng Production resource.
+
+## [2026-08-30] PR #58 safe unit Gateway failure telemetry
+- **Agent:** Codex
+- **Thay đổi:** Khi Gateway `listPublicContributionUnits` thất bại, API vẫn chỉ trả
+  `SERVICE_UNAVAILABLE` cho browser nhưng ghi một mã Gateway dạng `UPPER_SNAKE_CASE` đã được giới hạn vào
+  private Vercel runtime logs. Điều này giữ nguyên public error boundary và cho phép phân biệt HMAC,
+  action, workbook hoặc allowlist failure mà không log secret hay resource ID.
+- **Kiểm tra:** focused public contribution tests 11/11 PASS; chưa có POST/mutation, Apps Script change,
+  Vercel env change hoặc Production access.

@@ -218,6 +218,11 @@ function publicError(error) {
     return apiError('SERVICE_UNAVAILABLE', 503);
 }
 
+function safeGatewayDiagnosticCode(error) {
+    const code = String(error?.gatewayCode || error?.code || 'UNKNOWN');
+    return /^[A-Z][A-Z0-9_]{0,127}$/.test(code) ? code : 'UNKNOWN';
+}
+
 function contributionPayload(value, requestId, coordinates) {
     return {
         request_id: requestId,
@@ -255,7 +260,11 @@ async function handler(req, res) {
                 timeoutMs: DEFAULT_TIMEOUT_MS, maxAttempts: 1,
             });
             return res.status(200).json({ ok: true, data: { units: toSafeUnits(units) } });
-        } catch (_) { return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' }); }
+        } catch (error) {
+            // Preserve a bounded classification in private runtime logs while keeping browser errors generic.
+            console.error(`[location-contributions] public-unit-directory-failed code=${safeGatewayDiagnosticCode(error)}`);
+            return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
+        }
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
     const declaredLength = Number(headers['content-length']);
@@ -312,3 +321,4 @@ module.exports.verifyTurnstile = verifyTurnstile;
 module.exports.reserveRateLimitQuota = reserveRateLimitQuota;
 module.exports.hashForLog = hashForLog;
 module.exports.getVnDayWindow = getVnDayWindow;
+module.exports.safeGatewayDiagnosticCode = safeGatewayDiagnosticCode;

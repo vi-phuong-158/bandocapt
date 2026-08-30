@@ -314,6 +314,25 @@ test('public API denies origin/signature/CAPTCHA failures and returns only safe 
     assert.equal(JSON.stringify(success.body).includes('gateway.example.test'), false);
 });
 
+test('public unit directory logs a bounded Gateway classification without exposing it to browsers', async () => {
+    process.env.STAFF_GATEWAY_URL = 'https://gateway.example.test/exec';
+    process.env.LOCATION_GATEWAY_SECRET = SECRET;
+    global.fetch = async () => response(200, { ok: false, error: { code: 'PRIVATE_LOCATION_SPREADSHEET_ID_MISSING' } });
+    const messages = [];
+    const originalConsoleError = console.error;
+    console.error = message => messages.push(String(message));
+    try {
+        const result = apiResponse();
+        await publicApi(apiRequest('GET'), result);
+        assert.equal(result.statusCode, 503);
+        assert.deepEqual(result.body, { error: 'SERVICE_UNAVAILABLE' });
+    } finally {
+        console.error = originalConsoleError;
+    }
+    assert.deepEqual(messages, ['[location-contributions] public-unit-directory-failed code=PRIVATE_LOCATION_SPREADSHEET_ID_MISSING']);
+    assert.equal(publicApi.safeGatewayDiagnosticCode({ gatewayCode: 'private-sheet-id' }), 'UNKNOWN');
+});
+
 test('public API boundary rejects malformed, stale, oversized, invalid-map, gateway, and rate-limit cases safely', async () => {
     const validBody = (operationId, overrides = {}) => ({
         operationId, requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_A', locationName: 'A', address: 'B',
