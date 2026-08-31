@@ -115,7 +115,7 @@ test('desktop: a location without a public image still renders and exposes no im
     await expect(page.locator('#detail-image-button')).toBeDisabled();
     await expect(page.locator('#detail-image')).toHaveAttribute('alt', 'Biểu trưng Công an nhân dân');
 
-    await page.locator('#detail-image-button').click({ force: true });
+    await page.locator('#detail-image-button').evaluate(button => button.click());
     await expect(page.locator('#image-lightbox')).toBeHidden();
 
     expect(errors).toEqual([]);
@@ -135,7 +135,7 @@ test('desktop: an unreachable public image falls back to the logo without breaki
     // Không còn ảnh hỏng: rơi về logo và tắt luôn lối mở lightbox.
     await expect(page.locator('#detail-image')).toHaveAttribute('alt', 'Biểu trưng Công an nhân dân');
     await expect(page.locator('#detail-image-button')).toBeDisabled();
-    await page.locator('#detail-image-button').click({ force: true });
+    await page.locator('#detail-image-button').evaluate(button => button.click());
     await expect(page.locator('#image-lightbox')).toBeHidden();
 
     // Lỗi tải ảnh chỉ được cảnh báo, không phải lỗi trang.

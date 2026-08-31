@@ -3450,3 +3450,15 @@
   action, workbook hoặc allowlist failure mà không log secret hay resource ID.
 - **Kiểm tra:** focused public contribution tests 11/11 PASS; chưa có POST/mutation, Apps Script change,
   Vercel env change hoặc Production access.
+
+## [2026-08-31] PR #61 disabled image-control E2E harness correction
+- **Agent:** Codex
+- **Thay đổi:** Chỉ sửa hai assertion E2E cùng mẫu trong `test/e2e/location-image.spec.js`: sau khi xác nhận
+  control ảnh đã `disabled`, dùng native `button.click()` thay cho Playwright force-click pointer. Assertion
+  fallback logo và lightbox vẫn hidden được giữ nguyên; không đổi production image/lightbox code.
+- **Root cause:** Force-click vào button disabled/off-viewport không mô phỏng thao tác người dùng và có thể
+  fail actionability với `Element is outside of the viewport`. Exact base `1939576` và PR HEAD `35becd0`
+  đều pass focused unreachable-image 10/10; file E2E và production image/lightbox files không thay đổi trong PR #61.
+- **Kiểm tra:** focused unreachable-image sau patch 10/10 PASS; `npm run ci` PASS (629 tests + build + audit high gate).
+  Full E2E local 57/61: target case PASS; ba lỗi `location-image` còn lại là `ERR_CONNECTION_REFUSED` đã tái hiện
+  y hệt trên base, cộng một catalog timing failure không liên quan. Không deploy, clasp push, merge hoặc mutate Production.
