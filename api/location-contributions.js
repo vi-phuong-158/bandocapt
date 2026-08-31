@@ -6,6 +6,7 @@ const {
     resolveClientIp,
     verifyRequestSignature,
 } = require('../lib/request-security');
+const { getCanonicalUnits, isCanonicalUnitCode } = require('../lib/canonical-units');
 const { resolveMapsCoordinates } = require('../lib/staff-maps-resolver');
 const { callGateway, DEFAULT_TIMEOUT_MS, MUTATION_TIMEOUT_MS, MUTATION_MAX_ATTEMPTS } = require('../lib/staff-gateway-client');
 const { checkAndIncrement } = require('../lib/rate-limit-store');
@@ -146,7 +147,11 @@ function validateBody(body) {
     return {
         operationId,
         requestType,
-        unitCode: normalizeText(body.unitCode, 'unitCode', true),
+        unitCode: (() => {
+            const code = normalizeText(body.unitCode, 'unitCode', true);
+            if (!isCanonicalUnitCode(code)) throw apiError('UNIT_NOT_ALLOWED');
+            return code;
+        })(),
         locationName: normalizeText(body.locationName, 'locationName', true),
         address: normalizeText(body.address, 'address', true),
         mapsUrl: normalizeText(body.mapsUrl, 'mapsUrl', true),
@@ -255,16 +260,7 @@ async function handler(req, res) {
         if (getQueryParam(req, 'config') === 'public') {
             return res.status(200).json({ ok: true, data: publicConfig() });
         }
-        try {
-            const units = await callGateway('listPublicContributionUnits', {}, {
-                timeoutMs: DEFAULT_TIMEOUT_MS, maxAttempts: 1,
-            });
-            return res.status(200).json({ ok: true, data: { units: toSafeUnits(units) } });
-        } catch (error) {
-            // Preserve a bounded classification in private runtime logs while keeping browser errors generic.
-            console.error(`[location-contributions] public-unit-directory-failed code=${safeGatewayDiagnosticCode(error)}`);
-            return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
-        }
+        return res.status(200).json({ ok: true, data: { units: getCanonicalUnits() } });
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
     const declaredLength = Number(headers['content-length']);

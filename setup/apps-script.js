@@ -290,10 +290,620 @@
         return { byUnitName };
     }
 
-    // Public intake is authorized by the server-side Vercel trust boundary, not by an
-    // allowlisted staff email. Keep the unit lookup here so the Gateway and staging builder
-    // still share the exact active-unit semantics used by the staff pipeline.
+    const CANONICAL_UNITS = Object.freeze(    [
+            {
+                    "unitCode": "CA_PHUONG_AU_CO",
+                    "unitName": "Công an phường Âu Cơ"
+            },
+            {
+                    "unitCode": "CA_PHUONG_HOA_BINH",
+                    "unitName": "Công an phường Hòa Bình"
+            },
+            {
+                    "unitCode": "CA_PHUONG_KY_SON",
+                    "unitName": "Công an phường Kỳ Sơn"
+            },
+            {
+                    "unitCode": "CA_PHUONG_NONG_TRANG",
+                    "unitName": "Công an phường Nông Trang"
+            },
+            {
+                    "unitCode": "CA_PHUONG_PHONG_CHAU",
+                    "unitName": "Công an phường Phong Châu"
+            },
+            {
+                    "unitCode": "CA_PHUONG_PHU_THO",
+                    "unitName": "Công an phường Phú Thọ"
+            },
+            {
+                    "unitCode": "CA_PHUONG_PHUC_YEN",
+                    "unitName": "Công an phường Phúc Yên"
+            },
+            {
+                    "unitCode": "CA_PHUONG_TAN_HOA",
+                    "unitName": "Công an phường Tân Hòa"
+            },
+            {
+                    "unitCode": "CA_PHUONG_THANH_MIEU",
+                    "unitName": "Công an phường Thanh Miếu"
+            },
+            {
+                    "unitCode": "CA_PHUONG_THONG_NHAT",
+                    "unitName": "Công an phường Thống Nhất"
+            },
+            {
+                    "unitCode": "CA_PHUONG_VAN_PHU",
+                    "unitName": "Công an phường Vân Phú"
+            },
+            {
+                    "unitCode": "CA_PHUONG_VIET_TRI",
+                    "unitName": "Công an phường Việt Trì"
+            },
+            {
+                    "unitCode": "CA_PHUONG_VINH_PHUC",
+                    "unitName": "Công an phường Vĩnh Phúc"
+            },
+            {
+                    "unitCode": "CA_PHUONG_VINH_YEN",
+                    "unitName": "Công an phường Vĩnh Yên"
+            },
+            {
+                    "unitCode": "CA_PHUONG_XUAN_HOA",
+                    "unitName": "Công an phường Xuân Hòa"
+            },
+            {
+                    "unitCode": "CA_XA_AN_BINH",
+                    "unitName": "Công an xã An Bình"
+            },
+            {
+                    "unitCode": "CA_XA_AN_NGHIA",
+                    "unitName": "Công an xã An Nghĩa"
+            },
+            {
+                    "unitCode": "CA_XA_BAN_NGUYEN",
+                    "unitName": "Công an xã Bản Nguyên"
+            },
+            {
+                    "unitCode": "CA_XA_BAO_LA",
+                    "unitName": "Công an xã Bao La"
+            },
+            {
+                    "unitCode": "CA_XA_BANG_LUAN",
+                    "unitName": "Công an xã Bằng Luân"
+            },
+            {
+                    "unitCode": "CA_XA_BINH_NGUYEN",
+                    "unitName": "Công an xã Bình Nguyên"
+            },
+            {
+                    "unitCode": "CA_XA_BINH_PHU",
+                    "unitName": "Công an xã Bình Phú"
+            },
+            {
+                    "unitCode": "CA_XA_BINH_TUYEN",
+                    "unitName": "Công an xã Bình Tuyền"
+            },
+            {
+                    "unitCode": "CA_XA_BINH_XUYEN",
+                    "unitName": "Công an xã Bình Xuyên"
+            },
+            {
+                    "unitCode": "CA_XA_CAO_DUONG",
+                    "unitName": "Công an xã Cao Dương"
+            },
+            {
+                    "unitCode": "CA_XA_CAO_PHONG",
+                    "unitName": "Công an xã Cao Phong"
+            },
+            {
+                    "unitCode": "CA_XA_CAO_SON",
+                    "unitName": "Công an xã Cao Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_CAM_KHE",
+                    "unitName": "Công an xã Cẩm Khê"
+            },
+            {
+                    "unitCode": "CA_XA_CHAN_MONG",
+                    "unitName": "Công an xã Chân Mộng"
+            },
+            {
+                    "unitCode": "CA_XA_CHI_DAM",
+                    "unitName": "Công an xã Chí Đám"
+            },
+            {
+                    "unitCode": "CA_XA_CHI_TIEN",
+                    "unitName": "Công an xã Chí Tiên"
+            },
+            {
+                    "unitCode": "CA_XA_CU_DONG",
+                    "unitName": "Công an xã Cự Đồng"
+            },
+            {
+                    "unitCode": "CA_XA_DAN_CHU",
+                    "unitName": "Công an xã Dân Chủ"
+            },
+            {
+                    "unitCode": "CA_XA_DUNG_TIEN",
+                    "unitName": "Công an xã Dũng Tiến"
+            },
+            {
+                    "unitCode": "CA_XA_DA_BAC",
+                    "unitName": "Công an xã Đà Bắc"
+            },
+            {
+                    "unitCode": "CA_XA_DAI_DINH",
+                    "unitName": "Công an xã Đại Đình"
+            },
+            {
+                    "unitCode": "CA_XA_DAI_DONG",
+                    "unitName": "Công an xã Đại Đồng"
+            },
+            {
+                    "unitCode": "CA_XA_DAN_THUONG",
+                    "unitName": "Công an xã Đan Thượng"
+            },
+            {
+                    "unitCode": "CA_XA_DAO_TRU",
+                    "unitName": "Công an xã Đạo Trù"
+            },
+            {
+                    "unitCode": "CA_XA_DAO_XA",
+                    "unitName": "Công an xã Đào Xá"
+            },
+            {
+                    "unitCode": "CA_XA_DOAN_HUNG",
+                    "unitName": "Công an xã Đoan Hùng"
+            },
+            {
+                    "unitCode": "CA_XA_DONG_LUONG",
+                    "unitName": "Công an xã Đồng Lương"
+            },
+            {
+                    "unitCode": "CA_XA_DONG_THANH",
+                    "unitName": "Công an xã Đông Thành"
+            },
+            {
+                    "unitCode": "CA_XA_DUC_NHAN",
+                    "unitName": "Công an xã Đức Nhàn"
+            },
+            {
+                    "unitCode": "CA_XA_HA_HOA",
+                    "unitName": "Công an xã Hạ Hòa"
+            },
+            {
+                    "unitCode": "CA_XA_HAI_LUU",
+                    "unitName": "Công an xã Hải Lựu"
+            },
+            {
+                    "unitCode": "CA_XA_HIEN_LUONG",
+                    "unitName": "Công an xã Hiền Lương"
+            },
+            {
+                    "unitCode": "CA_XA_HIEN_QUAN",
+                    "unitName": "Công an xã Hiền Quan"
+            },
+            {
+                    "unitCode": "CA_XA_HOANG_AN",
+                    "unitName": "Công an xã Hoàng An"
+            },
+            {
+                    "unitCode": "CA_XA_HOANG_CUONG",
+                    "unitName": "Công an xã Hoàng Cương"
+            },
+            {
+                    "unitCode": "CA_XA_HOI_THINH",
+                    "unitName": "Công an xã Hội Thịnh"
+            },
+            {
+                    "unitCode": "CA_XA_HOP_KIM",
+                    "unitName": "Công an xã Hợp Kim"
+            },
+            {
+                    "unitCode": "CA_XA_HOP_LY",
+                    "unitName": "Công an xã Hợp Lý"
+            },
+            {
+                    "unitCode": "CA_XA_HUNG_VIET",
+                    "unitName": "Công an xã Hùng Việt"
+            },
+            {
+                    "unitCode": "CA_XA_HUONG_CAN",
+                    "unitName": "Công an xã Hương Cần"
+            },
+            {
+                    "unitCode": "CA_XA_HY_CUONG",
+                    "unitName": "Công an xã Hy Cương"
+            },
+            {
+                    "unitCode": "CA_XA_KHA_CUU",
+                    "unitName": "Công an xã Khả Cửu"
+            },
+            {
+                    "unitCode": "CA_XA_KIM_BOI",
+                    "unitName": "Công an xã Kim Bôi"
+            },
+            {
+                    "unitCode": "CA_XA_LAC_LUONG",
+                    "unitName": "Công an xã Lạc Lương"
+            },
+            {
+                    "unitCode": "CA_XA_LAC_SON",
+                    "unitName": "Công an xã Lạc Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_LAC_THUY",
+                    "unitName": "Công an xã Lạc Thủy"
+            },
+            {
+                    "unitCode": "CA_XA_LAI_DONG",
+                    "unitName": "Công an xã Lai Đồng"
+            },
+            {
+                    "unitCode": "CA_XA_LAM_THAO",
+                    "unitName": "Công an xã Lâm Thao"
+            },
+            {
+                    "unitCode": "CA_XA_LAP_THACH",
+                    "unitName": "Công an xã Lập Thạch"
+            },
+            {
+                    "unitCode": "CA_XA_LIEN_CHAU",
+                    "unitName": "Công an xã Liên Châu"
+            },
+            {
+                    "unitCode": "CA_XA_LIEN_HOA",
+                    "unitName": "Công an xã Liên Hòa"
+            },
+            {
+                    "unitCode": "CA_XA_LIEN_MINH",
+                    "unitName": "Công an xã Liên Minh"
+            },
+            {
+                    "unitCode": "CA_XA_LIEN_SON",
+                    "unitName": "Công an xã Liên Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_LONG_COC",
+                    "unitName": "Công an xã Long Cốc"
+            },
+            {
+                    "unitCode": "CA_XA_LUONG_SON",
+                    "unitName": "Công an xã Lương Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_MAI_CHAU",
+                    "unitName": "Công an xã Mai Châu"
+            },
+            {
+                    "unitCode": "CA_XA_MAI_HA",
+                    "unitName": "Công an xã Mai Hạ"
+            },
+            {
+                    "unitCode": "CA_XA_MINH_DAI",
+                    "unitName": "Công an xã Minh Đài"
+            },
+            {
+                    "unitCode": "CA_XA_MINH_HOA",
+                    "unitName": "Công an xã Minh Hòa"
+            },
+            {
+                    "unitCode": "CA_XA_MUONG_BI",
+                    "unitName": "Công an xã Mường Bi"
+            },
+            {
+                    "unitCode": "CA_XA_MUONG_DONG",
+                    "unitName": "Công an xã Mường Động"
+            },
+            {
+                    "unitCode": "CA_XA_MUONG_HOA",
+                    "unitName": "Công an xã Mường Hoa"
+            },
+            {
+                    "unitCode": "CA_XA_MUONG_THANG",
+                    "unitName": "Công an xã Mường Thàng"
+            },
+            {
+                    "unitCode": "CA_XA_MUONG_VANG",
+                    "unitName": "Công an xã Mường Vang"
+            },
+            {
+                    "unitCode": "CA_XA_NAT_SON",
+                    "unitName": "Công an xã Nật Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_NGOC_SON",
+                    "unitName": "Công an xã Ngọc Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_NGUYET_DUC",
+                    "unitName": "Công an xã Nguyệt Đức"
+            },
+            {
+                    "unitCode": "CA_XA_NHAN_NGHIA",
+                    "unitName": "Công an xã Nhân Nghĩa"
+            },
+            {
+                    "unitCode": "CA_XA_PA_CO",
+                    "unitName": "Công an xã Pà Cò"
+            },
+            {
+                    "unitCode": "CA_XA_PHU_KHE",
+                    "unitName": "Công an xã Phú Khê"
+            },
+            {
+                    "unitCode": "CA_XA_PHU_MY",
+                    "unitName": "Công an xã Phú Mỹ"
+            },
+            {
+                    "unitCode": "CA_XA_PHU_NINH",
+                    "unitName": "Công an xã Phù Ninh"
+            },
+            {
+                    "unitCode": "CA_XA_PHUNG_NGUYEN",
+                    "unitName": "Công an xã Phùng Nguyên"
+            },
+            {
+                    "unitCode": "CA_XA_QUANG_YEN",
+                    "unitName": "Công an xã Quảng Yên"
+            },
+            {
+                    "unitCode": "CA_XA_QUY_DUC",
+                    "unitName": "Công an xã Quy Đức"
+            },
+            {
+                    "unitCode": "CA_XA_QUYET_THANG",
+                    "unitName": "Công an xã Quyết Thắng"
+            },
+            {
+                    "unitCode": "CA_XA_SONG_LO",
+                    "unitName": "Công an xã Sông Lô"
+            },
+            {
+                    "unitCode": "CA_XA_SON_DONG",
+                    "unitName": "Công an xã Sơn Đông"
+            },
+            {
+                    "unitCode": "CA_XA_SON_LUONG",
+                    "unitName": "Công an xã Sơn Lương"
+            },
+            {
+                    "unitCode": "CA_XA_TAM_DUONG",
+                    "unitName": "Công an xã Tam Dương"
+            },
+            {
+                    "unitCode": "CA_XA_TAM_DUONG_BAC",
+                    "unitName": "Công an xã Tam Dương Bắc"
+            },
+            {
+                    "unitCode": "CA_XA_TAM_DAO",
+                    "unitName": "Công an xã Tam Đảo"
+            },
+            {
+                    "unitCode": "CA_XA_TAM_HONG",
+                    "unitName": "Công an xã Tam Hồng"
+            },
+            {
+                    "unitCode": "CA_XA_TAM_NONG",
+                    "unitName": "Công an xã Tam Nông"
+            },
+            {
+                    "unitCode": "CA_XA_TAM_SON",
+                    "unitName": "Công an xã Tam Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_TAN_LAC",
+                    "unitName": "Công an xã Tân Lạc"
+            },
+            {
+                    "unitCode": "CA_XA_TAN_MAI",
+                    "unitName": "Công an xã Tân Mai"
+            },
+            {
+                    "unitCode": "CA_XA_TAN_PHEO",
+                    "unitName": "Công an xã Tân Pheo"
+            },
+            {
+                    "unitCode": "CA_XA_TAN_SON",
+                    "unitName": "Công an xã Tân Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_TAY_COC",
+                    "unitName": "Công an xã Tây Cốc"
+            },
+            {
+                    "unitCode": "CA_XA_TE_LO",
+                    "unitName": "Công an xã Tề Lỗ"
+            },
+            {
+                    "unitCode": "CA_XA_THAI_HOA",
+                    "unitName": "Công an xã Thái Hòa"
+            },
+            {
+                    "unitCode": "CA_XA_THANH_BA",
+                    "unitName": "Công an xã Thanh Ba"
+            },
+            {
+                    "unitCode": "CA_XA_THANH_SON",
+                    "unitName": "Công an xã Thanh Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_THANH_THUY",
+                    "unitName": "Công an xã Thanh Thủy"
+            },
+            {
+                    "unitCode": "CA_XA_THINH_MINH",
+                    "unitName": "Công an xã Thịnh Minh"
+            },
+            {
+                    "unitCode": "CA_XA_THO_VAN",
+                    "unitName": "Công an xã Thọ Văn"
+            },
+            {
+                    "unitCode": "CA_XA_THO_TANG",
+                    "unitName": "Công an xã Thổ Tang"
+            },
+            {
+                    "unitCode": "CA_XA_THU_CUC",
+                    "unitName": "Công an xã Thu Cúc"
+            },
+            {
+                    "unitCode": "CA_XA_THUNG_NAI",
+                    "unitName": "Công an xã Thung Nai"
+            },
+            {
+                    "unitCode": "CA_XA_THUONG_COC",
+                    "unitName": "Công an xã Thượng Cốc"
+            },
+            {
+                    "unitCode": "CA_XA_THUONG_LONG",
+                    "unitName": "Công an xã Thượng Long"
+            },
+            {
+                    "unitCode": "CA_XA_TIEN_LU",
+                    "unitName": "Công an xã Tiên Lữ"
+            },
+            {
+                    "unitCode": "CA_XA_TIEN_LUONG",
+                    "unitName": "Công an xã Tiên Lương"
+            },
+            {
+                    "unitCode": "CA_XA_TIEN_PHONG",
+                    "unitName": "Công an xã Tiền Phong"
+            },
+            {
+                    "unitCode": "CA_XA_TOAN_THANG",
+                    "unitName": "Công an xã Toàn Thắng"
+            },
+            {
+                    "unitCode": "CA_XA_TRAM_THAN",
+                    "unitName": "Công an xã Trạm Thản"
+            },
+            {
+                    "unitCode": "CA_XA_TRUNG_SON",
+                    "unitName": "Công an xã Trung Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_TU_VU",
+                    "unitName": "Công an xã Tu Vũ"
+            },
+            {
+                    "unitCode": "CA_XA_VAN_XUAN",
+                    "unitName": "Công an xã Vạn Xuân"
+            },
+            {
+                    "unitCode": "CA_XA_VAN_LANG",
+                    "unitName": "Công an xã Văn Lang"
+            },
+            {
+                    "unitCode": "CA_XA_VAN_MIEU",
+                    "unitName": "Công an xã Văn Miếu"
+            },
+            {
+                    "unitCode": "CA_XA_VAN_BAN",
+                    "unitName": "Công an xã Vân Bán"
+            },
+            {
+                    "unitCode": "CA_XA_VAN_SON",
+                    "unitName": "Công an xã Vân Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_VINH_AN",
+                    "unitName": "Công an xã Vĩnh An"
+            },
+            {
+                    "unitCode": "CA_XA_VINH_CHAN",
+                    "unitName": "Công an xã Vĩnh Chân"
+            },
+            {
+                    "unitCode": "CA_XA_VINH_HUNG",
+                    "unitName": "Công an xã Vĩnh Hưng"
+            },
+            {
+                    "unitCode": "CA_XA_VINH_PHU",
+                    "unitName": "Công an xã Vĩnh Phú"
+            },
+            {
+                    "unitCode": "CA_XA_VINH_THANH",
+                    "unitName": "Công an xã Vĩnh Thành"
+            },
+            {
+                    "unitCode": "CA_XA_VINH_TUONG",
+                    "unitName": "Công an xã Vĩnh Tường"
+            },
+            {
+                    "unitCode": "CA_XA_VO_MIEU",
+                    "unitName": "Công an xã Võ Miếu"
+            },
+            {
+                    "unitCode": "CA_XA_XUAN_DAI",
+                    "unitName": "Công an xã Xuân Đài"
+            },
+            {
+                    "unitCode": "CA_XA_XUAN_LANG",
+                    "unitName": "Công an xã Xuân Lãng"
+            },
+            {
+                    "unitCode": "CA_XA_XUAN_LUNG",
+                    "unitName": "Công an xã Xuân Lũng"
+            },
+            {
+                    "unitCode": "CA_XA_XUAN_VIEN",
+                    "unitName": "Công an xã Xuân Viên"
+            },
+            {
+                    "unitCode": "CA_XA_YEN_KY",
+                    "unitName": "Công an xã Yên Kỳ"
+            },
+            {
+                    "unitCode": "CA_XA_YEN_LAC",
+                    "unitName": "Công an xã Yên Lạc"
+            },
+            {
+                    "unitCode": "CA_XA_YEN_LANG",
+                    "unitName": "Công an xã Yên Lãng"
+            },
+            {
+                    "unitCode": "CA_XA_YEN_LAP",
+                    "unitName": "Công an xã Yên Lập"
+            },
+            {
+                    "unitCode": "CA_XA_YEN_PHU",
+                    "unitName": "Công an xã Yên Phú"
+            },
+            {
+                    "unitCode": "CA_XA_YEN_SON",
+                    "unitName": "Công an xã Yên Sơn"
+            },
+            {
+                    "unitCode": "CA_XA_YEN_THUY",
+                    "unitName": "Công an xã Yên Thủy"
+            },
+            {
+                    "unitCode": "CA_XA_YEN_TRI",
+                    "unitName": "Công an xã Yên Trị"
+            }
+    ]);
+
+    function listCanonicalUnits() {
+        return CANONICAL_UNITS.map(u => ({ unitCode: u.unitCode, unitName: u.unitName }))
+            .sort((left, right) => left.unitName.localeCompare(right.unitName, 'vi'));
+    }
+
+    function resolveCanonicalUnitByCode(unitCode) {
+        const normalizedCode = String(unitCode || '').trim().toLowerCase();
+        if (!normalizedCode) return null;
+        for (const entry of CANONICAL_UNITS) {
+            if (String(entry.unitCode || '').trim().toLowerCase() === normalizedCode) {
+                return { unitCode: entry.unitCode, unitName: entry.unitName };
+            }
+        }
+        return null;
+    }
+
     function resolveActiveUnitByCode(unitCode, allowlistRows) {
+        const canonical = resolveCanonicalUnitByCode(unitCode);
+        if (canonical) return canonical;
         const normalizedCode = String(unitCode || '').trim().toLowerCase();
         if (!normalizedCode) return null;
         for (const entry of buildAllowlistMap(allowlistRows).byUnitName.values()) {
@@ -304,32 +914,10 @@
         return null;
     }
 
-    // Safe server-side projection for the anonymous contribution form. This is intentionally
-    // sourced from the private active allowlist, not from Published_Locations, so an active unit
-    // can receive its first contribution. Never add allowedEmails or notes to this projection.
-    function resolveActiveUnits(allowlistRows) {
-        const seen = new Set();
-        const units = [];
-        buildAllowlistMap(allowlistRows).byUnitName.forEach(entry => {
-            const unitCode = String(entry.unitCode || '').trim();
-            const key = unitCode.toLowerCase();
-            if (!key || seen.has(key)) return;
-            seen.add(key);
-            units.push({ unitCode, unitName: entry.unitName });
-        });
-        return units.sort((left, right) => left.unitName.localeCompare(right.unitName, 'vi'));
+    function resolveActiveUnits() {
+        return listCanonicalUnits();
     }
 
-    // Chiều NGƯỢC của authorizeSubmission: từ email suy ra tập đơn vị được phép, thay vì kiểm tra
-    // một đơn vị người gửi tự khai. Staff Portal cần chiều này vì client không được quyết định
-    // `unit_code` (xem docs/location-intake/STAFF_PORTAL_PLAN.md, INV-02/INV-03). Một email có thể
-    // thuộc NHIỀU đơn vị, nên trả mảng chứ không trả một giá trị.
-    //
-    // Dựng trên buildAllowlistMap để tập đơn vị trả ra luôn khớp đúng tập mà authorizeSubmission
-    // chấp nhận: cùng bộ lọc `active`, cùng cách bỏ dòng thiếu unit_name, cùng cách gộp dòng trùng
-    // tên. Nếu tự duyệt rows riêng thì Portal có thể chào một đơn vị mà khâu nhận lại từ chối.
-    // Fail closed: email rỗng/không khớp trả mảng rỗng, và chỉ trả unitCode/unitName —
-    // KHÔNG trả allowed_emails hay notes ra ngoài.
     function resolveUnitsByEmail(email, allowlistRows) {
         const normalized = normalizeEmail(email);
         if (!normalized) return [];
@@ -676,7 +1264,7 @@
         normalizeLabel, normalizeBoolean, slugify, normalizeEmail, splitEmails, sanitizeSheetCell, sanitizeUserFields, normalizeServices,
         normalizeLocationType, deriveLegacyType, isGoogleMapsUrl, parseCoordinates, classifyCoordinateStatus,
         COORDINATE_SOURCE_PRIORITY, extractCoordinateCandidates, selectBestCoordinate,
-        validateImageMimeType, validateImageSubmission, buildAllowlistMap, resolveActiveUnitByCode, resolveActiveUnits, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
+        validateImageMimeType, validateImageSubmission, buildAllowlistMap, CANONICAL_UNITS, listCanonicalUnits, resolveCanonicalUnitByCode, resolveActiveUnitByCode, resolveActiveUnits, resolveUnitsByEmail, authorizeSubmission, normalizeSubmission,
         buildRecordId, haversineMeters, detectDuplicateWarnings, sameUnitCode, requiresNewImage, buildStagingRecord, buildPublishedRecord,
         buildAuditEntry, applyApproval, applyReviewAction, applyRevocation, migrateLegacyLocations,
     };
