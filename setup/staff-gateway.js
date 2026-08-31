@@ -22,7 +22,7 @@
     const PUBLIC_ALLOWED_FIELDS = Object.freeze([
         'request_id', 'operation_id', 'request_type', 'target_record_id', 'unit_code', 'location_name',
         'site_type', 'services', 'address', 'public_phone', 'maps_url_original', 'maps_url_resolved',
-        'coordinates', 'submitter_name', 'submitter_phone', 'review_note', 'image',
+        'coordinates', 'service_schedule', 'served_units', 'submitter_name', 'submitter_phone', 'review_note', 'image',
     ]);
 
     function gatewayError(code, details = {}) {
@@ -355,18 +355,21 @@
             const unknownFields = Object.keys(payload).filter(key => !PUBLIC_ALLOWED_FIELDS.includes(key));
             if (unknownFields.length) throw gatewayError('PUBLIC_FIELD_NOT_ALLOWED');
             const requestType = text(payload.request_type);
-            if (requestType !== pipeline.REQUEST_TYPES.create) throw gatewayError('PUBLIC_REQUEST_TYPE_NOT_ALLOWED');
-            if (text(payload.target_record_id)) throw gatewayError('CREATE_TARGET_RECORD_ID_NOT_ALLOWED');
+            if (![pipeline.REQUEST_TYPES.create, pipeline.REQUEST_TYPES.update, pipeline.REQUEST_TYPES.stop].includes(requestType)) throw gatewayError('PUBLIC_REQUEST_TYPE_NOT_ALLOWED');
+            const isCreate = requestType === pipeline.REQUEST_TYPES.create;
+            const isStop = requestType === pipeline.REQUEST_TYPES.stop;
+            if (isCreate && text(payload.target_record_id)) throw gatewayError('CREATE_TARGET_RECORD_ID_NOT_ALLOWED');
+            if (!isCreate && !text(payload.target_record_id)) throw gatewayError('TARGET_RECORD_ID_REQUIRED');
             if (!text(payload.unit_code)) throw gatewayError('UNIT_CODE_REQUIRED');
-            if (!text(payload.location_name)) throw gatewayError('LOCATION_NAME_MISSING');
-            if (!text(payload.address)) throw gatewayError('ADDRESS_MISSING');
-            if (!text(payload.maps_url_original)) throw gatewayError('COORDINATE_INVALID_LINK');
-            if (typeof pipeline.isGoogleMapsUrl !== 'function' || !pipeline.isGoogleMapsUrl(payload.maps_url_original)) {
+            if (!isStop && !text(payload.location_name)) throw gatewayError('LOCATION_NAME_MISSING');
+            if (!isStop && !text(payload.address)) throw gatewayError('ADDRESS_MISSING');
+            if (!isStop && !text(payload.maps_url_original)) throw gatewayError('COORDINATE_INVALID_LINK');
+            if (!isStop && (typeof pipeline.isGoogleMapsUrl !== 'function' || !pipeline.isGoogleMapsUrl(payload.maps_url_original))) {
                 throw gatewayError('COORDINATE_INVALID_LINK');
             }
             for (const [field, limit] of [
                 ['unit_code', 160], ['location_name', 200], ['address', 500], ['public_phone', 80],
-                ['maps_url_original', 2000], ['maps_url_resolved', 2000], ['coordinates', 200],
+                ['maps_url_original', 2000], ['maps_url_resolved', 2000], ['coordinates', 200], ['service_schedule', 1000], ['served_units', 1000],
                 ['submitter_name', 200], ['submitter_phone', 80], ['review_note', 2000],
             ]) {
                 if (payload[field] !== undefined && typeof payload[field] !== 'string') throw gatewayError('PUBLIC_DTO_INVALID');
@@ -375,14 +378,16 @@
             if (payload.services !== undefined && (!Array.isArray(payload.services) || payload.services.some(item => typeof item !== 'string'))) {
                 throw gatewayError('PUBLIC_DTO_INVALID');
             }
-            if (typeof pipeline.parseCoordinates !== 'function') throw gatewayError('COORDINATE_NEEDS_REVIEW');
-            const coordinate = pipeline.parseCoordinates(payload.coordinates || payload.maps_url_resolved || payload.maps_url_original);
-            if (!coordinate.ok) {
-                throw gatewayError(coordinate.error === 'COORDINATES_OUTSIDE_SERVICE_AREA'
-                    ? 'COORDINATE_OUTSIDE_PHU_THO' : 'COORDINATE_NEEDS_REVIEW');
+            if (!isStop) {
+                if (typeof pipeline.parseCoordinates !== 'function') throw gatewayError('COORDINATE_NEEDS_REVIEW');
+                const coordinate = pipeline.parseCoordinates(payload.coordinates || payload.maps_url_resolved || payload.maps_url_original);
+                if (!coordinate.ok) {
+                    throw gatewayError(coordinate.error === 'COORDINATES_OUTSIDE_SERVICE_AREA'
+                        ? 'COORDINATE_OUTSIDE_PHU_THO' : 'COORDINATE_NEEDS_REVIEW');
+                }
             }
-            if (!payload.image || typeof payload.image !== 'object' || Array.isArray(payload.image)) throw gatewayError('IMAGE_REQUIRED');
-            if (Object.keys(payload.image).some(key => !['base64', 'mimeType', 'filename', 'size'].includes(key))) throw gatewayError('PUBLIC_FIELD_NOT_ALLOWED');
+            if (isCreate && (!payload.image || typeof payload.image !== 'object' || Array.isArray(payload.image))) throw gatewayError('IMAGE_REQUIRED');
+            if (payload.image && Object.keys(payload.image).some(key => !['base64', 'mimeType', 'filename', 'size'].includes(key))) throw gatewayError('PUBLIC_FIELD_NOT_ALLOWED');
             return requestType;
         }
 
@@ -396,38 +401,45 @@
                 const createdAt = previous && text(previous.created_at) ? previous.created_at : nowIso(runtime);
                 ledgerClaim('submitPublicContribution', requestId, bodyHash, createdAt);
                 try {
-                    validatePublicPayload(payload);
+                    const requestType = validatePublicPayload(payload);
                     resolvePrivateConfig();
                     const allowlistRows = rows(PRIVATE_SHEETS.allowlist);
                     const unit = pipeline.resolveActiveUnitByCode(payload.unit_code, allowlistRows);
                     if (!unit) throw gatewayError('PUBLIC_UNIT_NOT_ALLOWED');
+                    const operationalRecords = requestType === pipeline.REQUEST_TYPES.create
+                        ? [] : (store.getOperationalRecords ? store.getOperationalRecords() : []);
+                    preflightTarget(payload, unit, operationalRecords);
+                    assertNoPendingTargetConflict(requestId, payload, unit);
                     const image = persistImage(payload, requestId, previous, 'public-contribution');
                     const provenance = 'PUBLIC_CAPTCHA; anonymous public web contribution; awaiting admin review.';
                     const record = pipeline.buildStagingRecord({
                         requestId,
-                        requestType: pipeline.REQUEST_TYPES.create,
-                        targetRecordId: '',
+                        requestType,
+                        targetRecordId: payload.target_record_id,
                         locationName: payload.location_name,
-                        siteType: 'HEADQUARTERS',
-                        services: ['POLICE_OFFICE'],
+                        siteType: payload.site_type,
+                        services: payload.services,
                         address: payload.address,
                         publicPhone: payload.public_phone,
                         mapsUrlOriginal: payload.maps_url_original,
                         mapsUrlResolved: payload.maps_url_resolved,
                         coordinates: payload.coordinates,
+                        serviceSchedule: payload.service_schedule,
+                        servedUnits: payload.served_units,
                         submitterName: payload.submitter_name,
                         submitterPhone: payload.submitter_phone,
                         submitterEmail: PUBLIC_SYSTEM_PRINCIPAL,
                         reviewNote: [provenance, text(payload.review_note)].filter(Boolean).join(' '),
                         unitCode: unit.unitCode,
                         unitName: unit.unitName,
-                        imageFileId: image.pointer.fileId,
-                        imageDriveUrl: image.pointer.driveUrl,
-                        imageMimeType: image.pointer.mimeType,
+                        publishedImageFileId: image.pointer ? '' : findPriorPublishedImageFileId(text(payload.target_record_id)),
+                        imageFileId: image.pointer ? image.pointer.fileId : '',
+                        imageDriveUrl: image.pointer ? image.pointer.driveUrl : '',
+                        imageMimeType: image.pointer ? image.pointer.mimeType : '',
                     }, allowlistRows, new Date(createdAt), {
                         authorizedUnit: unit,
                         authStatus: 'PUBLIC_CAPTCHA',
-                        publishedRecords: [],
+                        publishedRecords: operationalRecords,
                     });
                     if (record.validation_errors) throw gatewayError(record.validation_errors.split('|')[0] || 'SUBMISSION_INVALID');
                     let staging = store.findStagingByRequestId && store.findStagingByRequestId(requestId);

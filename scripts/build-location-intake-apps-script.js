@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
+const taxonomyPath = path.join(root, 'lib', 'location-taxonomy.js');
 const logicPath = path.join(root, 'setup', 'apps-script.js');
 const workbookConfigPath = path.join(root, 'lib', 'location-workbooks.js');
 const staffLocationContractPath = path.join(root, 'lib', 'staff-location-contract.js');
@@ -33,6 +34,7 @@ function assertManifestKeepsWebapp_(manifestText) {
 }
 
 function buildLocationIntakeAppsScript() {
+    const taxonomy = fs.readFileSync(taxonomyPath, 'utf8').replace(/^#!.*\r?\n/, '');
     const logic = fs.readFileSync(logicPath, 'utf8').replace(/^#!.*\r?\n/, '');
     const workbookConfig = fs.readFileSync(workbookConfigPath, 'utf8').replace(/^#!.*\r?\n/, '');
     const staffLocationContract = fs.readFileSync(staffLocationContractPath, 'utf8').replace(/^#!.*\r?\n/, '');
@@ -40,7 +42,7 @@ function buildLocationIntakeAppsScript() {
     const gateway = fs.readFileSync(gatewayPath, 'utf8').replace(/^#!.*\r?\n/, '');
     const adminReview = fs.readFileSync(adminReviewPath, 'utf8').replace(/^#!.*\r?\n/, '');
     const runtime = fs.readFileSync(runtimePath, 'utf8').replace(/^#!.*\r?\n/, '');
-    const bundle = `${banner}${staffLocationContract}\n\n${operationalBaseline}\n\n${workbookConfig}\n\n${logic}\n\n${gateway}\n\n${adminReview}\n\n${runtime}\n`;
+    const bundle = `${banner}${taxonomy}\n\n${staffLocationContract}\n\n${operationalBaseline}\n\n${workbookConfig}\n\n${logic}\n\n${gateway}\n\n${adminReview}\n\n${runtime}\n`;
     // Syntax only: Apps Script globals are intentionally resolved when deployed.
     new Function(bundle); // eslint-disable-line no-new-func
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });

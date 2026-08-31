@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-08-31] Unified location service form
+- **Agent:** Codex
+- **Thay đổi:** Thêm `lib/location-taxonomy.js` làm registry chung cho site type, services, legacy mapping và generated display name; dùng nó ở `/dong-gop/`, `/can-bo/`, map labels và Apps Script build. Public form nay hỗ trợ CREATE/UPDATE/STOP, lookup public-safe theo canonical unit, prefill target, multi-service và giữ ảnh khi UPDATE. Gateway rechecks target/unit under the existing lock and all requests remain PENDING.
+- **File đã sửa:** taxonomy, public/staff browser/API/Gateway/build assets, tests and location documentation.
+- **Lý do:** Chuẩn hóa one-location-to-many-services without duplicate markers while preserving public/private and staff authorization boundaries.
+- **Kiểm tra:** `npm run ci` PASS; `npm run test:e2e` 62/62 PASS. Không clasp push, deploy, merge, workbook mutation hay migration Production.
+
 ## [2026-08-31] Fix Public Location Contribution with Canonical 148 Phu Tho Unit Directory
 - **Agent:** Antigravity (Gemini 2.5 Flash / Claude 3.7 Sonnet)
 - **EXACT HEAD:** PR #61 (`fix/public-contribution-canonical-units`)

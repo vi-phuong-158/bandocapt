@@ -2,14 +2,20 @@
     'use strict';
 
     const API_PATH = '/api/location-contributions';
+    const taxonomy = root.LocationTaxonomy;
     const form = document.getElementById('public-contribution-form');
-    if (!form) return;
+    if (!form || !taxonomy) return;
     const elements = {
         unit: document.getElementById('unit-code'), name: document.getElementById('location-name'), address: document.getElementById('address'),
         maps: document.getElementById('maps-url'), image: document.getElementById('location-image'), publicPhone: document.getElementById('public-phone'),
         submitterName: document.getElementById('submitter-name'), submitterPhone: document.getElementById('submitter-phone'), note: document.getElementById('note'),
+        requestType: document.getElementById('request-type'), target: document.getElementById('target-record-id'), targetField: document.getElementById('target-location-field'),
+        siteType: document.getElementById('site-type'), services: document.getElementById('services-field'), locationFields: document.getElementById('location-fields'),
+        serviceSchedule: document.getElementById('service-schedule'), servedUnits: document.getElementById('served-units'), imageField: document.getElementById('location-image-field'),
         captcha: document.getElementById('public-turnstile-widget'), status: document.getElementById('public-contribution-status'), submit: document.getElementById('public-contribution-submit'),
     };
+    let units = [];
+    let targets = [];
     let unitsReady = false;
     let captchaToken = '';
     let captchaWidgetId = null;
@@ -47,7 +53,68 @@
     }
 
     function refreshSubmitState() {
-        elements.submit.disabled = !unitsReady || !captchaToken || !form.checkValidity();
+        const kind = taxonomy.requestKind(elements.requestType.value);
+        const selectedServices = Array.from(elements.services.querySelectorAll('input:checked'));
+        elements.submit.disabled = !unitsReady || !captchaToken || !form.checkValidity() ||
+            (kind !== 'CREATE' && !elements.target.value) || (kind !== 'STOP' && !selectedServices.length);
+    }
+
+    function renderTaxonomy() {
+        elements.siteType.replaceChildren(new Option('Chọn loại địa điểm', ''));
+        taxonomy.SITE_TYPES.forEach(item => elements.siteType.add(new Option(item.label, item.code)));
+        elements.services.replaceChildren();
+        taxonomy.SERVICES.forEach(item => {
+            const label = document.createElement('label');
+            label.className = 'public-contribution-service';
+            const input = document.createElement('input');
+            input.type = 'checkbox'; input.name = 'services'; input.value = item.code;
+            const text = document.createElement('span'); text.textContent = item.label;
+            label.append(input, text); elements.services.appendChild(label);
+        });
+    }
+
+    function updateRequestMode() {
+        const kind = taxonomy.requestKind(elements.requestType.value);
+        const stop = kind === 'STOP';
+        elements.targetField.hidden = kind === 'CREATE';
+        elements.target.disabled = kind === 'CREATE' || !elements.unit.value || !targets.length;
+        elements.locationFields.hidden = stop;
+        elements.siteType.required = !stop;
+        elements.address.required = !stop;
+        elements.maps.required = !stop;
+        elements.image.required = kind === 'CREATE';
+        elements.imageField.hidden = stop;
+        refreshSubmitState();
+    }
+
+    function prefillTarget() {
+        const target = targets.find(item => item.recordId === elements.target.value);
+        if (!target) return;
+        elements.siteType.value = taxonomy.isWritableSiteType(target.siteType) ? target.siteType : '';
+        const services = taxonomy.toCanonicalServices(target.services) || [];
+        elements.services.querySelectorAll('input').forEach(input => { input.checked = services.includes(input.value); });
+        elements.name.value = target.name || '';
+        elements.address.value = target.address || '';
+        elements.maps.value = target.googleMapsUrl || '';
+        elements.publicPhone.value = target.phone || '';
+        elements.serviceSchedule.value = target.serviceSchedule || '';
+        elements.servedUnits.value = target.servedUnits || '';
+        refreshSubmitState();
+    }
+
+    async function loadTargets() {
+        targets = [];
+        elements.target.replaceChildren(new Option(elements.unit.value ? 'Đang tải địa điểm…' : 'Chọn đơn vị trước', ''));
+        if (!elements.unit.value) return updateRequestMode();
+        try {
+            const response = await fetch(`${apiUrl()}?unitCode=${encodeURIComponent(elements.unit.value)}`, { headers: { Accept: 'application/json' } });
+            const payload = await response.json();
+            if (!response.ok) throw new Error('TARGETS_UNAVAILABLE');
+            targets = Array.isArray(payload?.data?.locations) ? payload.data.locations : [];
+            elements.target.replaceChildren(new Option(targets.length ? 'Chọn địa điểm' : 'Chưa có địa điểm công khai', ''));
+            targets.forEach(target => elements.target.add(new Option(`${taxonomy.displaySiteType(target.siteType)} — ${target.address || target.name}`, target.recordId)));
+        } catch (_) { setStatus('Chưa tải được địa điểm hiện có. Vui lòng thử lại sau.', 'error'); }
+        updateRequestMode();
     }
 
     function renderCaptcha() {
@@ -80,7 +147,7 @@
             const response = await fetch(apiUrl(), { headers: { Accept: 'application/json' } });
             if (!response.ok) throw new Error('UNITS_UNAVAILABLE');
             const payload = await response.json();
-            const units = Array.isArray(payload?.data?.units) ? payload.data.units : [];
+            units = Array.isArray(payload?.data?.units) ? payload.data.units : [];
             elements.unit.replaceChildren(new Option('Chọn đơn vị quản lý', ''));
             units.forEach(unit => elements.unit.add(new Option(unit.label, unit.unitCode)));
             elements.unit.disabled = units.length === 0;
@@ -97,7 +164,8 @@
 
     function fingerprint(file) {
         return JSON.stringify({
-            unit: inputValue(elements.unit), name: inputValue(elements.name), address: inputValue(elements.address), maps: inputValue(elements.maps),
+            unit: inputValue(elements.unit), requestType: inputValue(elements.requestType), target: inputValue(elements.target), siteType: inputValue(elements.siteType),
+            services: Array.from(elements.services.querySelectorAll('input:checked')).map(input => input.value), name: inputValue(elements.name), address: inputValue(elements.address), maps: inputValue(elements.maps),
             publicPhone: inputValue(elements.publicPhone), submitterName: inputValue(elements.submitterName), submitterPhone: inputValue(elements.submitterPhone),
             note: inputValue(elements.note), file: file ? [file.name, file.size, file.lastModified, file.type] : [],
         });
@@ -126,6 +194,9 @@
     async function submit(event) {
         event.preventDefault();
         if (!form.checkValidity()) { form.reportValidity(); return; }
+        const requestKind = taxonomy.requestKind(elements.requestType.value);
+        const selectedServices = Array.from(elements.services.querySelectorAll('input:checked')).map(input => input.value);
+        if (requestKind !== 'STOP' && !selectedServices.length) { setStatus('Vui lòng chọn ít nhất một dịch vụ.', 'error'); return; }
         const file = elements.image.files?.[0];
         const nextFingerprint = fingerprint(file);
         if (nextFingerprint !== operationFingerprint) { operationId = createOperationId(); operationFingerprint = nextFingerprint; }
@@ -133,13 +204,15 @@
         elements.submit.setAttribute('aria-busy', 'true');
         setStatus('Đang gửi đóng góp…');
         try {
-            const image = await prepareImage(file);
             const body = {
-                operationId, requestType: 'Thêm địa điểm mới', unitCode: inputValue(elements.unit), locationName: inputValue(elements.name),
+                operationId, requestType: inputValue(elements.requestType), unitCode: inputValue(elements.unit), targetRecordId: inputValue(elements.target),
+                siteType: inputValue(elements.siteType), services: selectedServices, locationName: inputValue(elements.name),
                 address: inputValue(elements.address), mapsUrl: inputValue(elements.maps), publicPhone: inputValue(elements.publicPhone),
+                serviceSchedule: inputValue(elements.serviceSchedule), servedUnits: inputValue(elements.servedUnits),
                 submitterName: inputValue(elements.submitterName), submitterPhone: inputValue(elements.submitterPhone), note: inputValue(elements.note),
-                image, captchaToken,
+                captchaToken,
             };
+            if (requestKind !== 'STOP' && file) body.image = await prepareImage(file);
             const timestamp = Date.now().toString();
             const token = await signRequestToken(operationId, timestamp);
             const response = await fetch(apiUrl(), {
@@ -147,8 +220,11 @@
             });
             const payload = await response.json().catch(() => ({}));
             if (!response.ok) throw new Error(payload.error || 'SUBMISSION_FAILED');
-            setStatus('Đã tiếp nhận đóng góp. Thông tin sẽ chỉ hiển thị trên bản đồ sau khi được kiểm tra và phê duyệt.', 'success');
+            setStatus('Đã tiếp nhận yêu cầu. Thông tin chỉ thay đổi trên bản đồ sau khi được kiểm tra và phê duyệt.', 'success');
             form.reset();
+            renderTaxonomy();
+            targets = [];
+            updateRequestMode();
             operationId = createOperationId();
             operationFingerprint = '';
             captchaToken = '';
@@ -163,7 +239,12 @@
 
     form.addEventListener('input', refreshSubmitState);
     form.addEventListener('change', refreshSubmitState);
+    elements.unit.addEventListener('change', loadTargets);
+    elements.requestType.addEventListener('change', updateRequestMode);
+    elements.target.addEventListener('change', prefillTarget);
     form.addEventListener('submit', submit);
+    renderTaxonomy();
+    updateRequestMode();
     loadPublicConfig();
     loadUnits();
     if (root.turnstile) renderCaptcha();

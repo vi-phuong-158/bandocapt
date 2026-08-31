@@ -33,6 +33,7 @@ const files = [
     'js/gemini.js',
     'js/lazy-features.js',
     'js/location-data.js',
+    'lib/location-taxonomy.js',
     'js/project-info.js',
     'js/tthc-catalog.js',
     'js/staff-api-client.js',

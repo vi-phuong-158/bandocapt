@@ -1,5 +1,12 @@
 # 01 - Architecture
 
+## Unified location form contract (2026-08-31)
+
+- `lib/location-taxonomy.js` is the UMD registry used by Node, static browser pages and the generated Apps Script bundle. It owns canonical site-type/service labels, ordering, write validation, legacy display mapping and deterministic display-name policy.
+- A physical location remains one `record_id`/marker. `site_type` describes its physical form; `services` describes multiple capabilities and is rendered as badges rather than appended to the title.
+- `/dong-gop` reads the canonical 148-unit directory and may CREATE, UPDATE or STOP only through the existing public boundary. UPDATE/STOP first resolve a safe public DTO scoped to the selected unit, then Vercel and the Gateway independently require the exact target/unit; all mutations remain `Location_Staging/PENDING`.
+- `/can-bo` remains session/CSRF/allowlist protected and uses the same taxonomy registry and field ordering. It keeps the existing server-side target/snapshot authorization and approval-only publication path.
+
 ## Cập nhật rollout RAG 2026-07-17
 
 - Namespace ứng viên `chatbot-tthc-xnc-web-rd-20260715` hiện có 503 vector: 157 thủ tục web/KBTT và 346 nguồn đã duyệt (152 `law`, 194 `guide`).
