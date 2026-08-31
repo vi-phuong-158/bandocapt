@@ -1,5 +1,21 @@
 # 06 — AI Working Log
 
+## [2026-08-31] Fix Public Location Contribution with Canonical 148 Phu Tho Unit Directory
+- **Agent:** Antigravity (Gemini 2.5 Flash / Claude 3.7 Sonnet)
+- **EXACT HEAD:** PR #61 (`fix/public-contribution-canonical-units`)
+- **SCOPE:** Fix public location contribution flow on `/dong-gop/` by introducing a static canonical directory of 148 Phu Tho commune/ward police units.
+  1. Root cause: Public GET `/api/location-contributions` was coupled to Apps Script Gateway `listPublicContributionUnits`, which read `Unit_Allowlist` from private workbook. When pointed to TEST workbook, only synthetic test units appeared. Additionally, 7 units without staff email were missing from allowlist.
+  2. Created `data/phutho-canonical-units.json` containing all 148 units (133 xã + 15 phường) derived from `alias_draft.csv` and Production API.
+  3. Created `lib/canonical-units.js` for server-side lookup, validation, and Vietnamese-collation sorting.
+  4. Decoupled GET `/api/location-contributions` from Gateway: returns canonical directory directly (0ms latency, zero workbook/Gateway dependency).
+  5. Updated POST `/api/location-contributions`: validates `unitCode` against canonical 148 units before Gateway invocation.
+  6. Updated Apps Script pipeline (`setup/apps-script.js`): `resolveActiveUnitByCode` checks canonical units first, `resolveActiveUnits` returns canonical directory; `resolveUnitsByEmail` and `authorizeSubmission` remain strictly bound to `Unit_Allowlist` (fail-closed staff auth).
+  7. Rebuilt `setup/location-intake/dist/Code.gs` (195,501 bytes).
+  8. Verified live Preview deployment (`bandocapt-rehearsal-ite4opc1w-vi-phuong-158s-projects.vercel.app`): HTTP 200, exactly 148 units, 148 unique unitCodes, all 7 missing units present, 0 synthetic test units, strict public-safe DTO schema.
+- **TEST RESULTS:** `npm test` 629/629 PASS, `npm run build` PASS, full `npm run ci` PASS.
+- **DEPLOYMENT NOTE:** Production Apps Script Gateway deployment (`clasp push`) is required after merge because `setup/apps-script.js` changed.
+- **VERDICT:** `READY_FOR_MERGE_REVIEW`
+
 ## [2026-08-30] PR #58 Phase 3A Controlled End-to-End Acceptance Pass
 - **Agent:** Antigravity
 - **EXACT HEAD:** `d673e382a5514d16a146da62338200d16ad28f77` (`feat/public-location-contributions`)
