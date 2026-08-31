@@ -361,10 +361,10 @@
             if (isCreate && text(payload.target_record_id)) throw gatewayError('CREATE_TARGET_RECORD_ID_NOT_ALLOWED');
             if (!isCreate && !text(payload.target_record_id)) throw gatewayError('TARGET_RECORD_ID_REQUIRED');
             if (!text(payload.unit_code)) throw gatewayError('UNIT_CODE_REQUIRED');
-            if (!isStop && !text(payload.location_name)) throw gatewayError('LOCATION_NAME_MISSING');
-            if (!isStop && !text(payload.address)) throw gatewayError('ADDRESS_MISSING');
-            if (!isStop && !text(payload.maps_url_original)) throw gatewayError('COORDINATE_INVALID_LINK');
-            if (!isStop && (typeof pipeline.isGoogleMapsUrl !== 'function' || !pipeline.isGoogleMapsUrl(payload.maps_url_original))) {
+            if (isCreate && !text(payload.location_name)) throw gatewayError('LOCATION_NAME_MISSING');
+            if (isCreate && !text(payload.address)) throw gatewayError('ADDRESS_MISSING');
+            if (isCreate && !text(payload.maps_url_original)) throw gatewayError('COORDINATE_INVALID_LINK');
+            if (payload.maps_url_original && (typeof pipeline.isGoogleMapsUrl !== 'function' || !pipeline.isGoogleMapsUrl(payload.maps_url_original))) {
                 throw gatewayError('COORDINATE_INVALID_LINK');
             }
             for (const [field, limit] of [
@@ -378,7 +378,7 @@
             if (payload.services !== undefined && (!Array.isArray(payload.services) || payload.services.some(item => typeof item !== 'string'))) {
                 throw gatewayError('PUBLIC_DTO_INVALID');
             }
-            if (!isStop) {
+            if (payload.coordinates || payload.maps_url_resolved || (isCreate && payload.maps_url_original)) {
                 if (typeof pipeline.parseCoordinates !== 'function') throw gatewayError('COORDINATE_NEEDS_REVIEW');
                 const coordinate = pipeline.parseCoordinates(payload.coordinates || payload.maps_url_resolved || payload.maps_url_original);
                 if (!coordinate.ok) {

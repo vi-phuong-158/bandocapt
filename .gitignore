@@ -2,6 +2,9 @@ node_modules/
 .env
 .vercel/
 dist/
+dist_old/
+test-results/
+test-results_old/
 .env*
 # Backup Pinecone (pre/post dump + manifest) — audit trail giữ trên máy vận hành,
 # không commit vào git để tránh phình repo. Xem docs/brain/03-decisions.md.

@@ -126,6 +126,7 @@
             COORDINATE_NEEDS_REVIEW: 'Vui lòng nhập tọa độ hợp lệ theo dạng vĩ độ, kinh độ.',
             COORDINATE_INVALID_LINK: 'Liên kết Google Maps chưa hợp lệ. Vui lòng kiểm tra lại.',
             COORDINATE_OUTSIDE_PHU_THO: 'Tọa độ nằm ngoài khu vực Phú Thọ được hỗ trợ.',
+            NO_CHANGES: 'Bạn chưa thay đổi thông tin nào của địa điểm.',
         };
         return messages[code] || 'Đã có lỗi xảy ra. Vui lòng thử lại.';
     }
@@ -567,6 +568,7 @@
             // Unit is authoritative server/session data (`resolveUnits` -> `Unit_Allowlist`), never a
             // free-text field. update/stop always target an existing record whose unit is
             // already fixed, so only `create` ever needs to show/choose it.
+            const isCreate = modal.mode === 'create';
             if (modal.mode === 'create') {
                 if (state.units.length > 1) {
                     selectField(form, 'unitCode', 'Đơn vị thực hiện', kept('unitCode', state.selectedUnitCode), state.units.map(unit => [unit.unitCode, unit.unitName]), true);
@@ -577,12 +579,12 @@
                     form.appendChild(hiddenUnit);
                 }
             }
-            selectField(form, 'siteType', 'Loại địa điểm', source.siteType, SITE_TYPES, true);
-            servicesField(form, source.services, requiresLocationFields);
-            field(form, 'locationName', 'Tên địa điểm', source.locationName, 'text', true);
-            field(form, 'address', 'Địa chỉ', source.address, 'text', true);
+            selectField(form, 'siteType', 'Loại địa điểm', source.siteType, SITE_TYPES, isCreate);
+            servicesField(form, source.services, isCreate);
+            field(form, 'locationName', 'Tên địa điểm', source.locationName, 'text', isCreate);
+            field(form, 'address', 'Địa chỉ', source.address, 'text', isCreate);
             wireLocationNameAutofill(form, modal);
-            mapsField(form, modal, requiresLocationFields);
+            mapsField(form, modal, isCreate);
             field(form, 'publicPhone', 'Số điện thoại', source.publicPhone, 'tel');
             selectField(form, 'cccdServiceMode', 'Hình thức dịch vụ căn cước', source.cccdServiceMode, CCCD_MODES);
             field(form, 'serviceSchedule', 'Lịch phục vụ', source.serviceSchedule, 'textarea');
@@ -643,9 +645,8 @@
         }, overlay);
         document.body.appendChild(overlay);
         try {
-            const requiresLocationFields = ['create', 'update'].includes(state.modal.mode);
-            if (requiresLocationFields && !values.services.length) throw clientError('SERVICES_MISSING');
-            if (requiresLocationFields && !values.coordinates) throw clientError('COORDINATE_NEEDS_REVIEW');
+            if (state.modal.mode === 'create' && !values.services.length) throw clientError('SERVICES_MISSING');
+            if (state.modal.mode === 'create' && !values.coordinates) throw clientError('COORDINATE_NEEDS_REVIEW');
             let image = null;
             const file = form.elements.image?.files?.[0];
             if (state.modal.mode === 'create' && !file) throw clientError('IMAGE_REQUIRED');

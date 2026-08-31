@@ -609,3 +609,83 @@ test('Gateway submitPublicContribution ACCEPTS canonical unit with NO Unit_Allow
     const authResult = pipeline.authorizeSubmission('Công an xã Vĩnh Phú', 'random@phutho.gov.vn', staffAllowlist);
     assert.equal(authResult.authorized, false, 'authorizeSubmission must reject canonical unit without staff email');
 });
+
+test('public partial update allows sparse mutable changes, preserves unchanged fields, and rejects no-op changes with NO_CHANGES', async () => {
+    const targetLocation = {
+        id: 'LOC_HY_CUONG_1',
+        unitCode: 'CA_XA_HY_CUONG',
+        name: 'Công an xã Hy Cương',
+        siteType: 'HEADQUARTERS',
+        services: ['IDENTITY'],
+        address: 'Xã Hy Cương, TP Việt Trì, Phú Thọ',
+        phone: '02103846113',
+        googleMapsUrl: 'https://maps.google.com/?q=21.3225,105.4027',
+        coordinates: '21.3225,105.4027',
+        imageUrl: 'https://lh3.googleusercontent.com/d/1old_image',
+    };
+
+    const publishedLocations = require('../lib/published-locations');
+    const originalGetPublishedLocations = publishedLocations.getPublishedLocations;
+    publishedLocations.getPublishedLocations = async () => ({ locations: [targetLocation] });
+
+    try {
+        process.env.NODE_ENV = 'development';
+        process.env.EVAL_BYPASS_TOKEN = 'captcha';
+        process.env.STAFF_GATEWAY_URL = 'https://gateway.example.test/exec';
+        process.env.LOCATION_GATEWAY_SECRET = SECRET;
+
+        let gatewayPayload = null;
+        global.fetch = async (url, options = {}) => {
+            if (String(url).includes('gateway.example.test')) {
+                gatewayPayload = JSON.parse(options.body).payload;
+                return response(200, { ok: true, data: { status: 'PENDING' } });
+            }
+            return response(200, {});
+        };
+
+        // 1. Partial update: only phone changed
+        const phoneOnlyBody = {
+            operationId: 'op_phone_only_123',
+            requestType: pipeline.REQUEST_TYPES.update,
+            unitCode: 'CA_XA_HY_CUONG',
+            targetRecordId: 'LOC_HY_CUONG_1',
+            publicPhone: '0987654321',
+            captchaToken: 'captcha',
+        };
+        const phoneOnlyRes = apiResponse();
+        await publicApi(apiRequest('POST', phoneOnlyBody, signedHeaders('op_phone_only_123')), phoneOnlyRes);
+        assert.equal(phoneOnlyRes.statusCode, 200);
+        assert.equal(gatewayPayload.public_phone, '0987654321');
+        assert.equal(gatewayPayload.coordinates, '21.3225,105.4027');
+
+        // 2. Partial update: only address changed
+        const addressOnlyBody = {
+            operationId: 'op_address_only_123',
+            requestType: pipeline.REQUEST_TYPES.update,
+            unitCode: 'CA_XA_HY_CUONG',
+            targetRecordId: 'LOC_HY_CUONG_1',
+            address: 'Địa chỉ mới xã Hy Cương',
+            captchaToken: 'captcha',
+        };
+        const addressOnlyRes = apiResponse();
+        await publicApi(apiRequest('POST', addressOnlyBody, signedHeaders('op_address_only_123')), addressOnlyRes);
+        assert.equal(addressOnlyRes.statusCode, 200);
+        assert.equal(gatewayPayload.address, 'Địa chỉ mới xã Hy Cương');
+        assert.equal(gatewayPayload.coordinates, '21.3225,105.4027');
+
+        // 3. No-op update (no mutable fields changed): must reject with 400 NO_CHANGES
+        const noChangesBody = {
+            operationId: 'op_no_changes_123',
+            requestType: pipeline.REQUEST_TYPES.update,
+            unitCode: 'CA_XA_HY_CUONG',
+            targetRecordId: 'LOC_HY_CUONG_1',
+            captchaToken: 'captcha',
+        };
+        const noChangesRes = apiResponse();
+        await publicApi(apiRequest('POST', noChangesBody, signedHeaders('op_no_changes_123')), noChangesRes);
+        assert.equal(noChangesRes.statusCode, 400);
+        assert.equal(noChangesRes.body.error, 'NO_CHANGES');
+    } finally {
+        publishedLocations.getPublishedLocations = originalGetPublishedLocations;
+    }
+});

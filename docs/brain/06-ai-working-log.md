@@ -1,5 +1,19 @@
 # 06 — AI Working Log
 
+## [2026-08-31] End-to-End Partial Update for Existing Locations
+- **Agent:** Antigravity (Gemini 2.5 Flash / Claude 3.7 Sonnet)
+- **Branch:** `fix/location-update-partial-patch`
+- **Thay đổi:** Hoàn thiện luồng Cập nhật địa điểm hiện có (UPDATE) theo nguyên tắc: người dùng chỉ cần nhập nội dung thực sự muốn thay đổi, những thông tin không nhập lại được giữ nguyên từ địa điểm hiện có (authoritative target).
+  1. API (`api/location-contributions.js` & `lib/staff-api.js`): Nới lỏng validation UPDATE, cho phép các trường address, mapsUrl, services, siteType, image là tùy chọn. Khi UPDATE, kế thừa giá trị từ target; chỉ re-resolve tọa độ khi mapsUrl thực sự thay đổi; so khớp nếu không có trường nào thay đổi thì reject với lỗi an toàn `NO_CHANGES` (HTTP 400).
+  2. Apps Script Gateway & Pipeline (`setup/staff-gateway.js` & `setup/apps-script.js`): `validatePublicPayload` cho phép trường tùy chọn khi UPDATE; `buildStagingRecord` kế thừa dữ liệu từ target record khi cập nhật, kiểm tra thay đổi thực tế trên các mutable fields và gắn `NO_CHANGES` nếu không có trường nào thay đổi.
+  3. Error mapping (`lib/staff-api-errors.js`): Thêm mã `NO_CHANGES` vào safe client error codes (HTTP 400).
+  4. Frontend UI (`dong-gop/index.html`, `js/public-location-contribution.js`, `js/staff-portal.js`): Cập nhật form, microcopy và validation trạng thái để không bắt buộc điền lại toàn bộ thông tin khi cập nhật; hỗ trợ thông báo lỗi `NO_CHANGES` thân thiện.
+  5. Automated Tests: Bổ sung và cập nhật unit tests, pipeline tests, admin review tests, và Playwright E2E tests kiểm chứng toàn diện luồng partial update trên cả public contribution và staff portal.
+- **File đã sửa:** `api/location-contributions.js`, `dong-gop/index.html`, `js/public-location-contribution.js`, `js/staff-portal.js`, `lib/staff-api-errors.js`, `lib/staff-api.js`, `setup/apps-script.js`, `setup/staff-gateway.js`, `test/public-location-contributions.test.js`, `test/staff-api.test.js`, `test/staff-portal-client.test.js`, `test/location-admin-review.test.js`, `test/location-pipeline.test.js`, `test/e2e/location-image.spec.js`, `test/e2e/public-location-contributions.spec.js`, `test/e2e/staff-portal-modal.spec.js`.
+- **Lý do:** Khắc phục tình trạng người dùng/cán bộ phải nhập lại toàn bộ thông tin (địa chỉ, maps link, upload ảnh mới) khi chỉ muốn sửa số điện thoại hoặc lịch tiếp dân, đồng thời ngăn chặn ghi đè mất dữ liệu.
+- **Kiểm tra:** `npm test` 636/636 PASS, `npm run build` PASS, `npm run ci` PASS, `npm run test:e2e` 64/64 PASS.
+- **VERDICT:** `LOCATION_UPDATE_PARTIAL_PATCH_PRODUCTION_ACCEPTANCE_PASS`
+
 ## [2026-08-31] Production Gateway Cutover & PR #62 Controlled Release
 - **Agent:** Antigravity (Gemini 2.5 Flash / Claude 3.7 Sonnet)
 - **EXACT HEAD:** `1e17b9b080474e2d84b2f8e031008b8109a51f12` (Merge PR #62)

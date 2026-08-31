@@ -784,4 +784,27 @@ test.describe('staff portal retained flows (update/stop/confirm)', () => {
         expect(submitted.body.targetRecordId).toBe(locationItem.record.record_id);
         expect(submitted.body.snapshotHash).toBe(locationItem.snapshotHash);
     });
+
+    test('U3: partial update with only phone changed submits without re-resolving coordinates or uploading image', async ({ page }) => {
+        const mutations = [];
+        let resolveCalls = 0;
+        await mockStaffApi(page, mutations, {
+            mapsResolve: async route => { resolveCalls += 1; return route.fulfill({ json: { ok: true, data: { coordinates: { lat: 0, lng: 0 } } } }); },
+        });
+        await page.goto('/can-bo');
+        await expect(page.locator('.staff-location-list')).toBeVisible();
+
+        const backdrop = await openMode(page, 'update');
+        const form = backdrop.locator('form');
+        await form.locator('[name=publicPhone]').fill('0987654321');
+        await form.locator('button.staff-button-primary').click();
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0);
+
+        const submitted = mutations.find(mutation => mutation.path === '/api/staff/requests');
+        expect(submitted.body.publicPhone).toBe('0987654321');
+        expect(submitted.body.requestType).toBe('Cập nhật địa điểm đang có');
+        expect('image' in submitted.body).toBe(false);
+        expect(submitted.body.targetRecordId).toBe(locationItem.record.record_id);
+        expect(resolveCalls).toBe(0);
+    });
 });

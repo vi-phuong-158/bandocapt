@@ -437,14 +437,14 @@ test('request endpoint ignores client identity and blocks stale/cross-unit/creat
     assert.equal(locationOptions[0].allowStale, false);
 
     const currentHash = snapshotHash(require('../lib/staff-location-contract').toPublicSnapshot(location));
-    for (const [operationId, requestType] of [
-        ['op_correct', 'Báo địa chỉ hoặc vị trí sai'],
-        ['op_stop', 'Báo địa điểm ngừng hoạt động'],
-    ]) {
-        const targetMutation = response();
-        await api.requests(request('POST', { operationId, requestType, targetRecordId: 'R_A', snapshotHash: currentHash }, baseHeaders), targetMutation);
-        assert.equal(targetMutation.statusCode, 200);
-    }
+    const targetMutationCorrect = response();
+    await api.requests(request('POST', { operationId: 'op_correct', requestType: 'Báo địa chỉ hoặc vị trí sai', targetRecordId: 'R_A', snapshotHash: currentHash, address: 'Địa chỉ sửa' }, baseHeaders), targetMutationCorrect);
+    assert.equal(targetMutationCorrect.statusCode, 200);
+
+    const targetMutationStop = response();
+    await api.requests(request('POST', { operationId: 'op_stop', requestType: 'Báo địa điểm ngừng hoạt động', targetRecordId: 'R_A', snapshotHash: currentHash }, baseHeaders), targetMutationStop);
+    assert.equal(targetMutationStop.statusCode, 200);
+
     assert.equal(locationReads, 3);
     assert.equal(locationOptions[1].forceRefresh, true);
     assert.equal(locationOptions[1].allowStale, false);
@@ -472,7 +472,7 @@ test('a current public target missing from the private operational baseline fail
     const res = response();
     await api.requests(request('POST', {
         operationId: 'op_legacy_baseline_missing', requestType: 'Cập nhật địa điểm đang có',
-        targetRecordId: 'LEGACY_0001', snapshotHash: currentHash,
+        targetRecordId: 'LEGACY_0001', snapshotHash: currentHash, address: 'Địa chỉ mới đổi',
     }, { ...csrfHeaders(), cookie: `staff_session=${encodeURIComponent(session)}; staff_csrf=csrf-token` }), res);
     assert.equal(res.statusCode, 503);
     assert.equal(res.body.error.code, 'STAFF_OPERATIONAL_BASELINE_NOT_READY');
@@ -591,12 +591,17 @@ test('staff API requires an image only for create and omits an absent update/cor
         ['op_correct_no_image', 'Báo địa chỉ hoặc vị trí sai'],
     ]) {
         const res = response();
-        await api.requests(request('POST', { operationId, requestType, targetRecordId: 'R_A', snapshotHash: currentHash }, headers), res);
+        await api.requests(request('POST', { operationId, requestType, targetRecordId: 'R_A', snapshotHash: currentHash, address: 'Địa chỉ mới đổi' }, headers), res);
         assert.equal(res.statusCode, 200);
     }
     assert.equal(calls.length, 2);
     assert.equal('image' in calls[0], false);
     assert.equal('image' in calls[1], false);
+
+    const noChangesRes = response();
+    await api.requests(request('POST', { operationId: 'op_no_changes', requestType: 'Cập nhật địa điểm đang có', targetRecordId: 'R_A', snapshotHash: currentHash }, headers), noChangesRes);
+    assert.equal(noChangesRes.statusCode, 400);
+    assert.equal(noChangesRes.body.error.code, 'NO_CHANGES');
 });
 
 test('staff request boundary rejects non-text fields, oversized text and non-array services', () => {

@@ -667,3 +667,67 @@ test('resolveUnitsByEmail khớp đúng tập đơn vị mà authorizeSubmission
             `${unitName} không được resolve nên cũng phải bị authorizeSubmission từ chối`);
     }
 });
+
+test('sparse UPDATE staging record merges on top of target and preserves omitted fields', () => {
+    const published = [{
+        record_id: 'PUB_001',
+        unit_code: 'CA_TIEN_CAT',
+        unit_name: 'Công an phường Tiên Cát',
+        name: 'Công an phường Tiên Cát (Trụ sở chính)',
+        site_type: 'HEADQUARTERS',
+        type: 'police_station',
+        services: 'POLICE_OFFICE|CITIZEN_ID',
+        address: 'Khu 1, Phường Tiên Cát, Phú Thọ',
+        phone: '02103846114',
+        google_maps_url: 'https://maps.google.com/?q=21.3225,105.4027',
+        latitude: '21.3225',
+        longitude: '105.4027',
+        image_url: 'https://lh3.googleusercontent.com/d/pub_image_1',
+        published_image_file_id: 'drive_file_pub_1',
+        cccd_service_mode: 'PERMANENT',
+        service_schedule: 'Thứ 2 - Thứ 6',
+        served_units: 'Toàn phường',
+        search_aliases: 'Tiên Cát',
+    }];
+
+    // 1. Sparse update changing only phone
+    const phoneUpdate = stage({
+        requestId: 'REQ_PHONE_UPDATE',
+        requestType: pipeline.REQUEST_TYPES.update,
+        targetRecordId: 'PUB_001',
+        unitName: 'Công an phường Tiên Cát',
+        submitterEmail: 'tiencat@example.gov.vn',
+        publicPhone: '0912345678',
+    }, published);
+
+    assert.equal(phoneUpdate.validation_errors, '');
+    assert.equal(phoneUpdate.public_phone, '0912345678');
+    assert.equal(phoneUpdate.address, 'Khu 1, Phường Tiên Cát, Phú Thọ');
+    assert.equal(phoneUpdate.services, 'POLICE_OFFICE|CITIZEN_ID');
+    assert.equal(phoneUpdate.site_type, 'HEADQUARTERS');
+    assert.equal(phoneUpdate.coordinates, '21.3225,105.4027');
+    assert.equal(phoneUpdate.image_public_url, 'https://lh3.googleusercontent.com/d/pub_image_1');
+    assert.equal(phoneUpdate.published_image_file_id, 'drive_file_pub_1');
+
+    // Approve the update
+    const state = pipeline.applyApproval(
+        { stagingRecords: [phoneUpdate], publishedRecords: published, auditEntries: [] },
+        phoneUpdate.request_id, 'reviewer@example.gov.vn', 'Đã duyệt cập nhật SĐT', NOW
+    );
+    assert.equal(state.publishedRecords.length, 1);
+    assert.equal(state.publishedRecords[0].phone, '0912345678');
+    assert.equal(state.publishedRecords[0].address, 'Khu 1, Phường Tiên Cát, Phú Thọ');
+    assert.equal(state.publishedRecords[0].services, 'POLICE_OFFICE|CITIZEN_ID');
+    assert.equal(state.publishedRecords[0].image_url, 'https://lh3.googleusercontent.com/d/pub_image_1');
+
+    // 2. Sparse update with NO mutable fields changed: must have validation_error NO_CHANGES
+    const noChangeUpdate = stage({
+        requestId: 'REQ_NO_CHANGE',
+        requestType: pipeline.REQUEST_TYPES.update,
+        targetRecordId: 'PUB_001',
+        unitName: 'Công an phường Tiên Cát',
+        submitterEmail: 'tiencat@example.gov.vn',
+    }, published);
+
+    assert.match(noChangeUpdate.validation_errors, /NO_CHANGES/);
+});

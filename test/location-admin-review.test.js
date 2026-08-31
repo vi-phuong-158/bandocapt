@@ -213,6 +213,7 @@ test('UPDATE without a replacement image keeps a legacy public URL even when pri
     const original = { ...buildApprovedPublished({ requestId: 'REQ_LEGACY_ORIGINAL' }), image_url: 'https://legacy.example.test/old-image.jpg' };
     const edit = buildStaging({
         requestId: 'REQ_LEGACY_KEEP', requestType: pipeline.REQUEST_TYPES.update, targetRecordId: original.record_id,
+        address: 'Địa chỉ cập nhật không đổi ảnh',
         imageFileId: '', imageDriveUrl: '', imagePublicUrl: '', imageMimeType: '',
     }, [original]);
     const stores = makeStores({ staging: [edit], published: [original] });
