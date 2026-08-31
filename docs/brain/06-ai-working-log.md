@@ -1,17 +1,23 @@
 # 06 — AI Working Log
 
-## [2026-08-31] End-to-End Partial Update for Existing Locations
+## [2026-08-31] Production Release — PR #63 Location Update Partial Patch
 - **Agent:** Antigravity (Gemini 2.5 Flash / Claude 3.7 Sonnet)
-- **Branch:** `fix/location-update-partial-patch`
-- **Thay đổi:** Hoàn thiện luồng Cập nhật địa điểm hiện có (UPDATE) theo nguyên tắc: người dùng chỉ cần nhập nội dung thực sự muốn thay đổi, những thông tin không nhập lại được giữ nguyên từ địa điểm hiện có (authoritative target).
-  1. API (`api/location-contributions.js` & `lib/staff-api.js`): Nới lỏng validation UPDATE, cho phép các trường address, mapsUrl, services, siteType, image là tùy chọn. Khi UPDATE, kế thừa giá trị từ target; chỉ re-resolve tọa độ khi mapsUrl thực sự thay đổi; so khớp nếu không có trường nào thay đổi thì reject với lỗi an toàn `NO_CHANGES` (HTTP 400).
-  2. Apps Script Gateway & Pipeline (`setup/staff-gateway.js` & `setup/apps-script.js`): `validatePublicPayload` cho phép trường tùy chọn khi UPDATE; `buildStagingRecord` kế thừa dữ liệu từ target record khi cập nhật, kiểm tra thay đổi thực tế trên các mutable fields và gắn `NO_CHANGES` nếu không có trường nào thay đổi.
-  3. Error mapping (`lib/staff-api-errors.js`): Thêm mã `NO_CHANGES` vào safe client error codes (HTTP 400).
-  4. Frontend UI (`dong-gop/index.html`, `js/public-location-contribution.js`, `js/staff-portal.js`): Cập nhật form, microcopy và validation trạng thái để không bắt buộc điền lại toàn bộ thông tin khi cập nhật; hỗ trợ thông báo lỗi `NO_CHANGES` thân thiện.
-  5. Automated Tests: Bổ sung và cập nhật unit tests, pipeline tests, admin review tests, và Playwright E2E tests kiểm chứng toàn diện luồng partial update trên cả public contribution và staff portal.
-- **File đã sửa:** `api/location-contributions.js`, `dong-gop/index.html`, `js/public-location-contribution.js`, `js/staff-portal.js`, `lib/staff-api-errors.js`, `lib/staff-api.js`, `setup/apps-script.js`, `setup/staff-gateway.js`, `test/public-location-contributions.test.js`, `test/staff-api.test.js`, `test/staff-portal-client.test.js`, `test/location-admin-review.test.js`, `test/location-pipeline.test.js`, `test/e2e/location-image.spec.js`, `test/e2e/public-location-contributions.spec.js`, `test/e2e/staff-portal-modal.spec.js`.
-- **Lý do:** Khắc phục tình trạng người dùng/cán bộ phải nhập lại toàn bộ thông tin (địa chỉ, maps link, upload ảnh mới) khi chỉ muốn sửa số điện thoại hoặc lịch tiếp dân, đồng thời ngăn chặn ghi đè mất dữ liệu.
-- **Kiểm tra:** `npm test` 636/636 PASS, `npm run build` PASS, `npm run ci` PASS, `npm run test:e2e` 64/64 PASS.
+- **PR:** #63 (`fix: preserve unchanged fields on location updates`)
+- **Accepted PR HEAD:** `3a423e7fe37dabfdd25d843d61c29b648f0efdab`
+- **Merge Commit:** `f45f9331034440c98f98f62f3a616788e0dc7eb2`
+- **Main SHA:** `f45f9331034440c98f98f62f3a616788e0dc7eb2`
+- **SCOPE & CHANGES:**
+  1. Hoàn thiện luồng Cập nhật địa điểm hiện có (UPDATE) theo nguyên tắc: người dùng chỉ cần nhập nội dung thực sự muốn thay đổi, những thông tin không nhập lại được giữ nguyên từ địa điểm hiện có (authoritative target).
+  2. API (`api/location-contributions.js` & `lib/staff-api.js`): Nới lỏng validation UPDATE; kế thừa giá trị từ target; chỉ re-resolve tọa độ khi mapsUrl thực sự thay đổi; so khớp nếu không có trường nào thay đổi thì reject với lỗi an toàn `NO_CHANGES` (HTTP 400).
+  3. Apps Script Gateway & Pipeline (`setup/staff-gateway.js` & `setup/apps-script.js`): `validatePublicPayload` cho phép trường tùy chọn khi UPDATE; `buildStagingRecord` kế thừa dữ liệu từ target record khi cập nhật, kiểm tra thay đổi thực tế trên các mutable fields và gắn `NO_CHANGES` nếu không có trường nào thay đổi.
+  4. Error mapping (`lib/staff-api-errors.js`): Thêm mã `NO_CHANGES` vào safe client error codes (HTTP 400).
+  5. Frontend UI (`dong-gop/index.html`, `js/public-location-contribution.js`, `js/staff-portal.js`): Cập nhật form, microcopy và validation trạng thái để không bắt buộc điền lại toàn bộ thông tin khi cập nhật; hỗ trợ thông báo lỗi `NO_CHANGES` thân thiện.
+  6. Automated Verification: `npm test` 636/636 PASS, `npm run build` PASS, `npm run ci` PASS, `npm run test:e2e` 64/64 PASS.
+  7. Production Apps Script Release: Đẩy bundle lên Canonical Production Gateway (`1-rLypdfkEgzGAY01VOOhbc8aCYHgfvqSDwrHrOGQ58Azu0IVyFrZRYD7`), tạo Version 3 (`Production Staff Gateway - Location Partial Update Release`), redeploy Web App Deployment `AKfycbzfabFwP2DlIFObAz5kdX_aGBVY_KEHQIwbcIORrOKK-7J0hzt13YxXCmydGQqBGfH7rg` lên Version 3, giữ nguyên 100% URL `/exec`.
+  8. Vercel Production Release: Auto-deploy merged `main` (`f45f933`), phục vụ bản build mới nhất kèm UI cập nhật.
+  9. Production Smoke & Security Validation: Xác nhận 148 canonical units, Turnstile config, 4 negative rejection gates (`UNIT_NOT_ALLOWED`, `TARGET_RECORD_ID_REQUIRED`, `CREATE_TARGET_RECORD_ID_NOT_ALLOWED`, `SITE_TYPE_INVALID`) trả về đúng HTTP 400.
+  10. Legacy Regression: Xác minh GViz dataset trên Production giữ nguyên toàn vẹn 142/142 địa điểm hợp lệ (`rows=142 valid=142 rejected=0`).
+- **MIGRATION:** `NOT_REQUIRED`
 - **VERDICT:** `LOCATION_UPDATE_PARTIAL_PATCH_PRODUCTION_ACCEPTANCE_PASS`
 
 ## [2026-08-31] Production Gateway Cutover & PR #62 Controlled Release
