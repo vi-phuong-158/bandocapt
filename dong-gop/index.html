@@ -32,7 +32,7 @@
 
             <form id="public-contribution-form" novalidate>
                 <fieldset>
-                    <legend>Thông tin địa điểm</legend>
+                    <legend>1. Chọn địa điểm</legend>
                     <div class="public-contribution-field">
                         <label for="unit-code">Đơn vị quản lý <span aria-hidden="true">*</span></label>
                         <select id="unit-code" name="unitCode" required disabled>
@@ -40,14 +40,51 @@
                         </select>
                     </div>
                     <div class="public-contribution-field">
-                        <label for="location-name">Tên địa điểm <span aria-hidden="true">*</span></label>
-                        <input id="location-name" name="locationName" type="text" maxlength="200" autocomplete="organization" required>
+                        <label for="request-type">Loại yêu cầu <span aria-hidden="true">*</span></label>
+                        <select id="request-type" name="requestType" required>
+                            <option value="Thêm địa điểm mới">Thêm địa điểm mới</option>
+                            <option value="Cập nhật địa điểm đang có">Cập nhật địa điểm hiện có</option>
+                            <option value="Báo địa điểm ngừng hoạt động">Báo địa điểm ngừng hoạt động</option>
+                        </select>
+                    </div>
+                    <div id="target-location-field" class="public-contribution-field" hidden>
+                        <label for="target-record-id">Địa điểm cần cập nhật <span aria-hidden="true">*</span></label>
+                        <select id="target-record-id" name="targetRecordId" disabled>
+                            <option value="">Chọn đơn vị trước</option>
+                        </select>
+                        <p class="public-contribution-help">Chỉ hiển thị địa điểm đang công khai của đơn vị đã chọn.</p>
+                    </div>
+                </fieldset>
+
+                <fieldset id="location-fields">
+                    <legend>2. Thông tin địa điểm</legend>
+                    <div class="public-contribution-field">
+                        <label for="site-type">Loại địa điểm <span aria-hidden="true">*</span></label>
+                        <select id="site-type" name="siteType" required></select>
+                    </div>
+                    <div class="public-contribution-field">
+                        <span class="public-contribution-label">Dịch vụ thực hiện tại địa điểm <span aria-hidden="true">*</span></span>
+                        <p class="public-contribution-help">Có thể chọn nhiều dịch vụ nếu cùng một địa điểm tiếp nhận nhiều loại hồ sơ.</p>
+                        <div id="services-field" class="public-contribution-services" aria-required="true"></div>
+                    </div>
+                    <div class="public-contribution-field">
+                        <label for="location-name">Tên hiển thị khác <span>(không bắt buộc)</span></label>
+                        <input id="location-name" name="locationName" type="text" maxlength="200" autocomplete="organization">
+                        <p class="public-contribution-help">Tên mặc định được tạo theo loại địa điểm và đơn vị. Chỉ nhập khi địa điểm có tên riêng.</p>
+                    </div>
+                    <div class="public-contribution-field">
+                        <label for="service-schedule">Lịch phục vụ</label>
+                        <textarea id="service-schedule" name="serviceSchedule" rows="2" maxlength="1000"></textarea>
+                    </div>
+                    <div class="public-contribution-field">
+                        <label for="served-units">Đơn vị/địa bàn được phục vụ</label>
+                        <textarea id="served-units" name="servedUnits" rows="2" maxlength="1000"></textarea>
                     </div>
                     <div class="public-contribution-field">
                         <label for="address">Địa chỉ <span aria-hidden="true">*</span></label>
                         <textarea id="address" name="address" rows="3" maxlength="500" autocomplete="street-address" required></textarea>
                     </div>
-                    <div class="public-contribution-field">
+                    <div id="location-image-field" class="public-contribution-field">
                         <label for="maps-url">Link Google Maps <span aria-hidden="true">*</span></label>
                         <input id="maps-url" name="mapsUrl" type="url" maxlength="2000" inputmode="url" placeholder="https://maps.google.com/..." required>
                         <p class="public-contribution-help">Dùng đường dẫn Google Maps của địa điểm tại Phú Thọ.</p>
@@ -60,7 +97,7 @@
                 </fieldset>
 
                 <fieldset>
-                    <legend>Thông tin bổ sung <span>(không bắt buộc)</span></legend>
+                    <legend>3. Liên hệ và ghi chú <span>(không bắt buộc)</span></legend>
                     <div class="public-contribution-field">
                         <label for="public-phone">Số điện thoại công khai</label>
                         <input id="public-phone" name="publicPhone" type="tel" maxlength="80" autocomplete="tel">
@@ -93,6 +130,7 @@
             </form>
         </section>
     </main>
+    <script src="../lib/location-taxonomy.js"></script>
     <script src="../js/staff-image.js"></script>
     <script src="../js/public-location-contribution.js"></script>
     <script async defer src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit&onload=onPublicTurnstileLoad"></script>

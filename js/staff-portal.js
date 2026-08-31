@@ -1,6 +1,8 @@
 (function (root) {
     'use strict';
 
+    const taxonomy = root.LocationTaxonomy;
+    if (!taxonomy) return;
     const api = root.StaffApiClient.createClient();
     const portal = document.getElementById('staff-portal');
     const state = {
@@ -25,24 +27,8 @@
         TEMPORARILY_PAUSED: 'Tạm dừng hiển thị',
         STOPPED: 'Đã ngừng hoạt động',
     };
-    const SITE_TYPES = [
-        ['HEADQUARTERS', 'Trụ sở Công an'],
-        ['SECONDARY_OFFICE', 'Điểm làm việc / Trụ sở phụ'],
-        ['CITIZEN_ID_POINT', 'Điểm cấp căn cước'],
-        ['MOBILE_POINT', 'Điểm lưu động'],
-        ['PUBLIC_SERVICE_CENTER', 'Điểm tiếp nhận thủ tục hành chính'],
-        ['OTHER', 'Khác'],
-    ];
-    const SERVICE_OPTIONS = [
-        ['POLICE_OFFICE', 'Trụ sở Công an'],
-        ['CITIZEN_ID', 'Cấp căn cước'],
-        ['E_IDENTIFICATION', 'Hỗ trợ VNeID / định danh điện tử'],
-        ['RESIDENCE', 'Cư trú'],
-        ['VEHICLE_REGISTRATION', 'Đăng ký xe'],
-        ['DUTY', 'Trực ban'],
-        ['CRIME_REPORT', 'Tiếp nhận tin báo, tố giác tội phạm'],
-        ['OTHER', 'Khác'],
-    ];
+    const SITE_TYPES = taxonomy.SITE_TYPES.map(item => [item.code, item.label]);
+    const SERVICE_OPTIONS = taxonomy.SERVICES.map(item => [item.code, item.label]);
     const CCCD_MODES = [
         ['', 'Chưa xác định'],
         ['NOT_PROVIDED', 'Không tiếp nhận căn cước'],
@@ -70,7 +56,7 @@
     }
     function recordValue(record, snake, camel, fallback = '') { return record?.[snake] ?? record?.[camel] ?? fallback; }
     function displayStatus(value) { return STATUS_TEXT[value] || (value ? String(value) : 'Chưa có trạng thái'); }
-    function displayServices(value) { return Array.isArray(value) ? value.join(', ') : String(value || ''); }
+    function displayServices(value) { return (Array.isArray(value) ? value : String(value || '').split(/[|,]/)).filter(Boolean).map(taxonomy.displayService).join(', '); }
     function requestTypeText(type) {
         return ({
             'Thêm địa điểm mới': 'Thêm địa điểm mới',
@@ -324,7 +310,7 @@
 
     function servicesField(form, value, required = false) {
         const wrap = el('div', 'staff-field');
-        const selected = new Set(Array.isArray(value) ? value : String(value || '').split(',').map(item => item.trim()).filter(Boolean));
+        const selected = new Set(taxonomy.toCanonicalServices(Array.isArray(value) ? value : String(value || '').split(',').map(item => item.trim()).filter(Boolean)) || []);
         append(wrap, el('span', '', `Dịch vụ${required ? ' (bắt buộc)' : ''}`), el('small', '', 'Chọn một hoặc nhiều dịch vụ đang được tiếp nhận.'));
         const grid = el('div', 'staff-checkbox-grid');
         if (required) grid.setAttribute('aria-required', 'true');
@@ -354,8 +340,8 @@
             return match ? match.unitName : '';
         }
         function autofill() {
-            if (siteTypeSelect.value === 'HEADQUARTERS' && !locationNameInput.value.trim()) {
-                locationNameInput.value = currentUnitName();
+            if (!locationNameInput.value.trim()) {
+                locationNameInput.value = taxonomy.generateDisplayName(siteTypeSelect.value, currentUnitName());
             }
         }
         siteTypeSelect.addEventListener('change', autofill);
@@ -592,9 +578,9 @@
                 }
             }
             selectField(form, 'siteType', 'Loại địa điểm', source.siteType, SITE_TYPES, true);
+            servicesField(form, source.services, requiresLocationFields);
             field(form, 'locationName', 'Tên địa điểm', source.locationName, 'text', true);
             field(form, 'address', 'Địa chỉ', source.address, 'text', true);
-            servicesField(form, source.services, requiresLocationFields);
             wireLocationNameAutofill(form, modal);
             mapsField(form, modal, requiresLocationFields);
             field(form, 'publicPhone', 'Số điện thoại', source.publicPhone, 'tel');

@@ -360,6 +360,7 @@ function renderLocationPreview(loc, isPolice) {
 }
 
 function serviceLabel(service) {
+  if (window.LocationTaxonomy?.displayService) return window.LocationTaxonomy.displayService(service);
   const labels = {
     POLICE_OFFICE: "Trụ sở Công an",
     CITIZEN_ID: "Cấp căn cước",

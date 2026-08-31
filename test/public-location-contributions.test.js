@@ -28,7 +28,7 @@ function allowlist() {
 function publicPayload(overrides = {}) {
     return {
         request_id: 'public-request-1', operation_id: 'public-operation-1', request_type: pipeline.REQUEST_TYPES.create,
-        unit_code: 'CA_XA_HY_CUONG', location_name: 'Điểm tiếp dân A', address: 'Địa chỉ A',
+        unit_code: 'CA_XA_HY_CUONG', location_name: 'Điểm tiếp dân A', site_type: 'PUBLIC_SERVICE_CENTER', services: ['CITIZEN_RECEPTION'], address: 'Địa chỉ A',
         maps_url_original: 'https://www.google.com/maps/@21.3225,105.4027,16z', maps_url_resolved: 'https://www.google.com/maps/@21.3225,105.4027,16z',
         coordinates: '21.3225,105.4027', submitter_name: 'Người dân', submitter_phone: '0210000000', review_note: 'Ghi chú',
         image: { base64: JPEG, mimeType: 'image/png', filename: 'spoof.png', size: 1 }, ...overrides,
@@ -45,6 +45,7 @@ function makeStore(options = {}) {
     let failAfterStagingAppend = Boolean(options.failAfterStagingAppend);
     return {
         getRows: sheet => sheet === 'Unit_Allowlist' ? allowlist() : sheet === 'Location_Staging' ? staging : sheet === 'Approval_Audit_Log' ? audits : [],
+        getOperationalRecords: () => options.operationalRecords || [],
         findLedger: id => ledgers.get(id) || null,
         createLedger: row => ledgers.set(row.request_id, { ...row }),
         updateLedger: (id, patch) => {
@@ -151,12 +152,12 @@ test('public unit directory contains all 148 canonical units, including units wi
     assert.equal(JSON.stringify(result).includes('notes'), false);
 });
 
-test('public Gateway rejects inactive/unknown units, non-CREATE, target IDs, and missing images', () => {
+test('public Gateway rejects invalid units, malformed targets, unsupported request types, and missing create images', () => {
     for (const [name, overrides, expected] of [
         ['inactive', { unit_code: 'CA_OFF' }, 'PUBLIC_UNIT_NOT_ALLOWED'],
         ['unknown', { unit_code: 'CA_UNKNOWN' }, 'PUBLIC_UNIT_NOT_ALLOWED'],
-        ['update', { request_type: pipeline.REQUEST_TYPES.update }, 'PUBLIC_REQUEST_TYPE_NOT_ALLOWED'],
-        ['stop', { request_type: pipeline.REQUEST_TYPES.stop }, 'PUBLIC_REQUEST_TYPE_NOT_ALLOWED'],
+        ['update without target', { request_type: pipeline.REQUEST_TYPES.update }, 'TARGET_RECORD_ID_REQUIRED'],
+        ['stop without target', { request_type: pipeline.REQUEST_TYPES.stop }, 'TARGET_RECORD_ID_REQUIRED'],
         ['correct', { request_type: pipeline.REQUEST_TYPES.correct }, 'PUBLIC_REQUEST_TYPE_NOT_ALLOWED'],
         ['target', { target_record_id: 'PRIVATE_TARGET' }, 'CREATE_TARGET_RECORD_ID_NOT_ALLOWED'],
         ['unsupported maps host', { maps_url_original: 'https://evil.example/maps/@21.3225,105.4027,16z' }, 'COORDINATE_INVALID_LINK'],
@@ -213,7 +214,30 @@ test('public API DTO exposes only safe unit fields and deterministic request IDs
     assert.equal(publicApi.deriveGatewayRequestId('operation-1'), publicApi.deriveGatewayRequestId('operation-1'));
     assert.notEqual(publicApi.deriveGatewayRequestId('operation-1'), publicApi.deriveGatewayRequestId('operation-2'));
     assert.throws(() => publicApi.validateBody({ operationId: 'x', unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://maps.google.com', image: { base64: JPEG }, email: 'staff@example.gov.vn' }), /UNKNOWN_FIELD/);
-    assert.throws(() => publicApi.validateBody({ operationId: 'x', requestType: pipeline.REQUEST_TYPES.update, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://maps.google.com', image: { base64: JPEG } }), /PUBLIC_REQUEST_TYPE_NOT_ALLOWED/);
+    assert.throws(() => publicApi.validateBody({ operationId: 'x', requestType: pipeline.REQUEST_TYPES.update, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://maps.google.com', image: { base64: JPEG } }), /TARGET_RECORD_ID_REQUIRED/);
+});
+
+test('public update and stop resolve only a current public target in the selected canonical unit', async () => {
+    const getLocations = async () => ({ locations: [
+        { id: 'LOC_A', unitCode: 'CA_XA_HY_CUONG', name: 'Trụ sở A', siteType: 'HEADQUARTERS', services: ['IDENTITY'], address: 'A', phone: '0123', imageUrl: 'https://public.example/a.jpg', submitterEmail: 'private@example.test' },
+        { id: 'LOC_B', unitCode: 'CA_XA_VINH_PHU', name: 'Trụ sở B', siteType: 'HEADQUARTERS', services: ['IDENTITY'], address: 'B' },
+    ] });
+    const update = { requestType: pipeline.REQUEST_TYPES.update, unitCode: 'CA_XA_HY_CUONG', targetRecordId: 'LOC_A', siteType: 'HEADQUARTERS', locationName: '' };
+    assert.equal((await publicApi.assertPublicTarget(update, getLocations)).locationName, 'Trụ sở A');
+    await assert.rejects(() => publicApi.assertPublicTarget({ ...update, targetRecordId: 'LOC_B' }, getLocations), /TARGET_RECORD_ID_NOT_FOUND/);
+    await assert.rejects(() => publicApi.assertPublicTarget({ ...update, targetRecordId: 'PRIVATE_ID' }, getLocations), /TARGET_RECORD_ID_NOT_FOUND/);
+    assert.throws(() => publicApi.validateBody({ operationId: 'bad-service', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', siteType: 'UNKNOWN', services: ['UNKNOWN'], locationName: 'A', address: 'A', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG } }), /SITE_TYPE_INVALID/);
+});
+
+test('public Gateway permits update and stop only for an active same-unit operational target', () => {
+    const target = { record_id: 'LOC_A', unit_code: 'CA_XA_HY_CUONG', name: 'Trụ sở A', site_type: 'HEADQUARTERS', services: 'IDENTITY', address: 'Địa chỉ A', coordinates: '21.3225,105.4027' };
+    const update = publicPayload({ request_id: 'public-update', operation_id: 'public-update', request_type: pipeline.REQUEST_TYPES.update, target_record_id: 'LOC_A', image: undefined });
+    const updated = gateway(makeStore({ operationalRecords: [target] })).submitPublicContribution(update);
+    assert.equal(updated.status, 'PENDING');
+    const stop = publicPayload({ request_id: 'public-stop', operation_id: 'public-stop', request_type: pipeline.REQUEST_TYPES.stop, target_record_id: 'LOC_A', location_name: '', site_type: '', services: [], address: '', maps_url_original: '', maps_url_resolved: '', coordinates: '', image: undefined });
+    assert.equal(gateway(makeStore({ operationalRecords: [target] })).submitPublicContribution(stop).status, 'PENDING');
+    assert.throws(() => gateway(makeStore({ operationalRecords: [{ ...target, unit_code: 'CA_XA_VINH_PHU' }] })).submitPublicContribution(update), /TARGET_RECORD_UNIT_MISMATCH/);
+    assert.throws(() => gateway(makeStore({ operationalRecords: [] })).submitPublicContribution(update), /TARGET_RECORD_ID_NOT_FOUND/);
 });
 
 test('public config exposes only the public Turnstile sitekey and supports Preview overrides', async () => {
@@ -275,7 +299,7 @@ test('public API denies origin/signature/CAPTCHA failures and returns only safe 
     assert.equal(JSON.stringify(safeUnitList.body).includes('allowed_emails'), false);
 
     const missingSignature = apiResponse();
-    await publicApi(apiRequest('POST', { operationId: 'op-missing', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }), missingSignature);
+    await publicApi(apiRequest('POST', { operationId: 'op-missing', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', siteType: 'HEADQUARTERS', services: ['IDENTITY'], locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }), missingSignature);
     assert.equal(missingSignature.statusCode, 403);
 
     process.env.NODE_ENV = 'production';
@@ -287,12 +311,12 @@ test('public API denies origin/signature/CAPTCHA failures and returns only safe 
     delete process.env.CHAT_LOG_HASH_SALT;
     const missingSalt = apiResponse();
     global.fetch = async url => String(url).includes('siteverify') ? response(200, { success: true }) : response(500, {});
-    await publicApi(apiRequest('POST', { operationId: 'op-missing-salt', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }, signedHeaders('op-missing-salt')), missingSalt);
+    await publicApi(apiRequest('POST', { operationId: 'op-missing-salt', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', siteType: 'HEADQUARTERS', services: ['IDENTITY'], locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }, signedHeaders('op-missing-salt')), missingSalt);
     assert.equal(missingSalt.statusCode, 503);
     process.env.CHAT_LOG_HASH_SALT = 'test-only-hash-salt';
     const invalidCaptcha = apiResponse();
     global.fetch = async url => String(url).includes('siteverify') ? response(200, { success: false }) : response(500, {});
-    await publicApi(apiRequest('POST', { operationId: 'op-captcha', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }, signedHeaders('op-captcha')), invalidCaptcha);
+    await publicApi(apiRequest('POST', { operationId: 'op-captcha', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', siteType: 'HEADQUARTERS', services: ['IDENTITY'], locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'token' }, signedHeaders('op-captcha')), invalidCaptcha);
     assert.equal(invalidCaptcha.statusCode, 403);
 
     const success = apiResponse();
@@ -302,7 +326,7 @@ test('public API denies origin/signature/CAPTCHA failures and returns only safe 
         if (Array.isArray(body) && body[0] === 'EVAL') return response(200, { result: 1 });
         return response(200, { ok: true, data: { status: 'PENDING', requestId: 'private-not-public' } });
     };
-    const body = { operationId: 'op-success', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG, mimeType: 'image/png' }, captchaToken: 'token' };
+    const body = { operationId: 'op-success', requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', siteType: 'HEADQUARTERS', services: ['IDENTITY'], locationName: 'A', address: 'B', mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG, mimeType: 'image/png' }, captchaToken: 'token' };
     await publicApi(apiRequest('POST', body, signedHeaders('op-success')), success);
     assert.equal(success.statusCode, 200);
     assert.deepEqual(success.body.data.status, 'PENDING');
@@ -318,7 +342,7 @@ test('public error and diagnostic code utilities map safe error codes', () => {
 
 test('public API boundary rejects malformed, stale, oversized, invalid-map, gateway, and rate-limit cases safely', async () => {
     const validBody = (operationId, overrides = {}) => ({
-        operationId, requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', locationName: 'A', address: 'B',
+        operationId, requestType: pipeline.REQUEST_TYPES.create, unitCode: 'CA_XA_HY_CUONG', siteType: 'HEADQUARTERS', services: ['IDENTITY'], locationName: 'A', address: 'B',
         mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z', image: { base64: JPEG }, captchaToken: 'captcha', ...overrides,
     });
 
@@ -393,7 +417,9 @@ test('public static entry contains required fields and no staff login surface', 
     const html = fs.readFileSync('dong-gop/index.html', 'utf8');
     assert.match(html, /Đóng góp địa điểm/);
     assert.match(html, /name="unitCode"[^>]+required/);
-    assert.match(html, /name="locationName"[^>]+required/);
+    assert.match(html, /name="locationName"/);
+    assert.match(html, /name="siteType"[^>]+required/);
+    assert.match(html, /name="targetRecordId"/);
     assert.match(html, /name="address"[^>]+required/);
     assert.match(html, /name="mapsUrl"[^>]+required/);
     assert.match(html, /name="image"[^>]+required/);
@@ -435,6 +461,8 @@ test('Phase 5 Regression: 148 canonical units public directory, missing location
             operationId: 'op-bad-unit-' + badCode,
             requestType: pipeline.REQUEST_TYPES.create,
             unitCode: badCode,
+            siteType: 'HEADQUARTERS',
+            services: ['IDENTITY'],
             locationName: 'Điểm kiểm thử',
             address: 'Địa chỉ kiểm thử',
             mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z',
@@ -458,6 +486,8 @@ test('Phase 5 Regression: 148 canonical units public directory, missing location
         operationId: 'op-submit-vinh-phu',
         requestType: pipeline.REQUEST_TYPES.create,
         unitCode: 'CA_XA_VINH_PHU',
+        siteType: 'HEADQUARTERS',
+        services: ['IDENTITY'],
         locationName: 'Trụ sở Công an xã Vĩnh Phú',
         address: 'Xã Vĩnh Phú, huyện Phù Ninh, Phú Thọ',
         mapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z',

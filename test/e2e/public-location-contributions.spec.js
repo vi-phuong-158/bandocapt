@@ -9,7 +9,7 @@ const imageFile = {
 async function mockTurnstile(page) {
     await page.route('https://challenges.cloudflare.com/turnstile/v0/api.js**', route => route.fulfill({
         contentType: 'application/javascript',
-        body: `window.turnstile={render:function(element,options){setTimeout(function(){options.callback('e2e-captcha-token');},0);return 1;},reset:function(){}};if(window.onPublicTurnstileLoad)window.onPublicTurnstileLoad();`,
+        body: `window.turnstile={render:function(element,options){window.__publicTurnstileOptions=options;setTimeout(function(){options.callback('e2e-captcha-token');},0);return 1;},reset:function(){setTimeout(function(){window.__publicTurnstileOptions.callback('e2e-captcha-token');},0);}};if(window.onPublicTurnstileLoad)window.onPublicTurnstileLoad();`,
     }));
 }
 
@@ -17,8 +17,16 @@ async function mockContributionApi(page, submissions, { failFirst = false } = {}
     let postCount = 0;
     await page.route('**/api/location-contributions**', async route => {
         if (route.request().method() === 'GET') {
-            if (new URL(route.request().url()).searchParams.get('config') === 'public') {
+            const url = new URL(route.request().url());
+            if (url.searchParams.get('config') === 'public') {
                 return route.fulfill({ json: { ok: true, data: { turnstileSiteKey: '0xTEST_PUBLIC_SITE_KEY' } } });
+            }
+            if (url.searchParams.get('unitCode')) {
+                return route.fulfill({ json: { ok: true, data: { locations: [{
+                    recordId: 'record-public-1', unitCode: 'UNIT_NEW', name: 'Trụ sở Đơn vị mới', siteType: 'HEADQUARTERS',
+                    services: ['IDENTITY'], address: 'Khu 1, Phú Thọ', phone: '', googleMapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z',
+                    serviceSchedule: '', servedUnits: '', imageUrl: '',
+                }] } } });
             }
             return route.fulfill({ json: { ok: true, data: { units: [{ unitCode: 'UNIT_NEW', label: 'Đơn vị mới chưa có địa điểm' }] } } });
         }
@@ -34,6 +42,8 @@ async function mockContributionApi(page, submissions, { failFirst = false } = {}
 
 async function fillContributionForm(page) {
     await page.locator('[name=unitCode]').selectOption('UNIT_NEW');
+    await page.locator('[name=siteType]').selectOption('HEADQUARTERS');
+    await page.locator('[name=services][value=IDENTITY]').check();
     await page.locator('[name=locationName]').fill('Điểm tiếp dân mới');
     await page.locator('[name=address]').fill('Khu 1, Phú Thọ');
     await page.locator('[name=mapsUrl]').fill('https://www.google.com/maps/@21.3225,105.4027,16z');
@@ -58,11 +68,11 @@ test.describe('public location contribution form', () => {
         await expect(submit).toBeEnabled();
         await submit.click();
         await expect(page.locator('#public-contribution-status')).toHaveText(
-            'Đã tiếp nhận đóng góp. Thông tin sẽ chỉ hiển thị trên bản đồ sau khi được kiểm tra và phê duyệt.',
+            'Đã tiếp nhận yêu cầu. Thông tin chỉ thay đổi trên bản đồ sau khi được kiểm tra và phê duyệt.',
         );
         expect(submissions).toHaveLength(1);
         expect(submissions[0].requestType).toBe('Thêm địa điểm mới');
-        expect(submissions[0].targetRecordId).toBeUndefined();
+        expect(submissions[0].targetRecordId).toBe('');
         await expect(submit).toBeDisabled();
     });
 
@@ -84,10 +94,36 @@ test.describe('public location contribution form', () => {
 
         await submit.click();
         await expect(page.locator('#public-contribution-status')).toHaveText(
-            'Đã tiếp nhận đóng góp. Thông tin sẽ chỉ hiển thị trên bản đồ sau khi được kiểm tra và phê duyệt.',
+            'Đã tiếp nhận yêu cầu. Thông tin chỉ thay đổi trên bản đồ sau khi được kiểm tra và phê duyệt.',
         );
         expect(submissions).toHaveLength(2);
         expect(submissions[1].operationId).toBe(firstOperationId);
         await expect(page.locator('.public-contribution-card')).toBeVisible();
+    });
+
+    test('update and stop use only the selected public target in the selected unit', async ({ page }) => {
+        await mockTurnstile(page);
+        const submissions = [];
+        await mockContributionApi(page, submissions);
+        await page.goto('/dong-gop/');
+        await page.locator('[name=unitCode]').selectOption('UNIT_NEW');
+
+        await page.locator('[name=requestType]').selectOption('Cập nhật địa điểm đang có');
+        await expect(page.locator('[name=targetRecordId]')).toBeEnabled();
+        await page.locator('[name=targetRecordId]').selectOption('record-public-1');
+        await page.locator('[name=address]').fill('Khu 2, Phú Thọ');
+        await page.getByRole('button', { name: 'Gửi đóng góp' }).click();
+        expect(submissions[0].requestType).toBe('Cập nhật địa điểm đang có');
+        expect(submissions[0].targetRecordId).toBe('record-public-1');
+        expect(submissions[0].image).toBeUndefined();
+
+        await page.locator('[name=unitCode]').selectOption('UNIT_NEW');
+        await page.locator('[name=requestType]').selectOption('Báo địa điểm ngừng hoạt động');
+        await expect(page.locator('#location-fields')).toBeHidden();
+        await page.locator('[name=targetRecordId]').selectOption('record-public-1');
+        await page.getByRole('button', { name: 'Gửi đóng góp' }).click();
+        expect(submissions[1].requestType).toBe('Báo địa điểm ngừng hoạt động');
+        expect(submissions[1].targetRecordId).toBe('record-public-1');
+        expect(submissions[1].image).toBeUndefined();
     });
 });

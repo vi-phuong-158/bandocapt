@@ -2,14 +2,14 @@
 
 ## Contract
 
-`/dong-gop` is an anonymous, create-only intake. A successful submission means only:
+`/dong-gop` is an anonymous CREATE/UPDATE/STOP intake. A successful submission means only:
 
 ```text
 PUBLIC WEB -> Vercel validation -> private Gateway -> Location_Staging/PENDING
            -> existing Admin Review -> APPROVE -> Published_Locations/public image
 ```
 
-Public submission is not publication. The browser never receives a staff session, allowlist email,
+Public submission is not publication. UPDATE/STOP first select a safe current-public target for the selected canonical unit. Vercel refreshes and verifies that target, then Gateway rechecks the private operational target/unit under its lock; unknown, private, cross-unit and non-baseline targets fail closed. The browser never receives a staff session, allowlist email,
 private workbook/file ID, Gateway URL or `LOCATION_GATEWAY_SECRET`, and never calls Apps Script directly.
 
 ## Source and trust boundary
@@ -32,9 +32,9 @@ private workbook/file ID, Gateway URL or `LOCATION_GATEWAY_SECRET`, and never ca
   `bandocapt:public-location:v1:<date_window>:<hmac_ip_bucket>`, and initializes a TTL through the next
   Vietnam-time daily reset. Redis contains only the pseudonymous bucket and numeric counter; Firebase is
   not required by this public contribution path. Missing/unavailable Redis fails closed with `503`.
-- Apps Script `submitPublicContribution` rechecks the active private `Unit_Allowlist`, forces request
-  type CREATE, rejects target IDs, sniffs image bytes, stores the image privately, and writes one staging
-  row plus one `PUBLIC_SUBMIT` audit under the idempotency ledger and Script Lock.
+- Apps Script `submitPublicContribution` rechecks the canonical unit, request type, target ownership,
+  image policy and idempotency under the Script Lock. CREATE requires one private image; UPDATE may retain
+  the approved image; STOP has no image/location-field requirement. Every request writes only private staging/audit data.
 
 ## Review
 
@@ -45,7 +45,7 @@ Review the private staging row using the existing Admin Review flow. Confirm tha
 3. `image_file_id` is private and no public image URL exists before approval.
 4. APPROVE is the only step that can populate `Published_Locations` and make the image public.
 
-Do not use a public submission to test UPDATE/CORRECT/STOP/CONFIRM. Those remain staff-only actions.
+Public UPDATE and STOP use the same pending-review path; legacy CORRECT and staff CONFIRM remain staff-only actions.
 
 ## Live rehearsal gate
 

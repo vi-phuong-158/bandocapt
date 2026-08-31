@@ -7,6 +7,8 @@ const {
     verifyRequestSignature,
 } = require('../lib/request-security');
 const { getCanonicalUnits, isCanonicalUnitCode } = require('../lib/canonical-units');
+const taxonomy = require('../lib/location-taxonomy');
+const publishedLocations = require('../lib/published-locations');
 const { resolveMapsCoordinates } = require('../lib/staff-maps-resolver');
 const { callGateway, DEFAULT_TIMEOUT_MS, MUTATION_TIMEOUT_MS, MUTATION_MAX_ATTEMPTS } = require('../lib/staff-gateway-client');
 const { checkAndIncrement } = require('../lib/rate-limit-store');
@@ -17,11 +19,11 @@ const DEFAULT_DAILY_IP_LIMIT = 10;
 const DEFAULT_PUBLIC_TURNSTILE_SITE_KEY = '0x4AAAAAACxYIuZq7j7f9a7N';
 const OPERATION_ID_PATTERN = /^[A-Za-z0-9_-]{1,120}$/;
 const TEXT_LIMITS = Object.freeze({
-    operationId: 120, unitCode: 160, locationName: 200, address: 500, mapsUrl: 2000,
-    publicPhone: 80, submitterName: 200, submitterPhone: 80, note: 2000,
+    operationId: 120, unitCode: 160, targetRecordId: 160, locationName: 200, siteType: 80, address: 500, mapsUrl: 2000,
+    publicPhone: 80, submitterName: 200, submitterPhone: 80, serviceSchedule: 1000, servedUnits: 1000, note: 2000,
 });
 const BODY_FIELDS = new Set([
-    'operationId', 'requestType', 'unitCode', 'targetRecordId', 'locationName', 'address', 'mapsUrl',
+    'operationId', 'requestType', 'unitCode', 'targetRecordId', 'locationName', 'siteType', 'services', 'address', 'mapsUrl', 'serviceSchedule', 'servedUnits',
     'publicPhone', 'submitterName', 'submitterPhone', 'note', 'image', 'captchaToken',
 ]);
 
@@ -141,25 +143,37 @@ function validateBody(body) {
     if (Object.keys(body).some(key => !BODY_FIELDS.has(key))) throw apiError('UNKNOWN_FIELD');
     const operationId = normalizeText(body.operationId, 'operationId', true);
     if (!OPERATION_ID_PATTERN.test(operationId)) throw apiError('OPERATION_ID_INVALID');
-    const requestType = normalizeText(body.requestType, 'requestType', true);
-    if (requestType !== 'Thêm địa điểm mới') throw apiError('PUBLIC_REQUEST_TYPE_NOT_ALLOWED');
-    if (body.targetRecordId !== undefined && String(body.targetRecordId || '').trim()) throw apiError('CREATE_TARGET_RECORD_ID_NOT_ALLOWED');
+    const requestType = taxonomy.requestType(normalizeText(body.requestType, 'requestType', true));
+    if (!requestType) throw apiError('PUBLIC_REQUEST_TYPE_NOT_ALLOWED');
+    const unitCode = normalizeText(body.unitCode, 'unitCode', true);
+    if (!isCanonicalUnitCode(unitCode)) throw apiError('UNIT_NOT_ALLOWED');
+    const kind = taxonomy.requestKind(requestType);
+    const targetRecordId = normalizeText(body.targetRecordId, 'targetRecordId');
+    if (kind === 'CREATE' && targetRecordId) throw apiError('CREATE_TARGET_RECORD_ID_NOT_ALLOWED');
+    if (kind !== 'CREATE' && (!targetRecordId || !/^[A-Za-z0-9_-]{1,160}$/.test(targetRecordId))) throw apiError('TARGET_RECORD_ID_REQUIRED');
+    const requiresLocation = kind !== 'STOP';
+    const siteType = normalizeText(body.siteType, 'siteType', requiresLocation).toUpperCase();
+    if (requiresLocation && !taxonomy.isWritableSiteType(siteType)) throw apiError('SITE_TYPE_INVALID');
+    if (body.services !== undefined && (!Array.isArray(body.services) || body.services.some(item => typeof item !== 'string'))) throw apiError('INVALID_DTO');
+    const services = taxonomy.normalizeServices(body.services || [], { forWrite: true });
+    if (requiresLocation && (!services || !services.length)) throw apiError('SERVICES_MISSING');
     return {
         operationId,
         requestType,
-        unitCode: (() => {
-            const code = normalizeText(body.unitCode, 'unitCode', true);
-            if (!isCanonicalUnitCode(code)) throw apiError('UNIT_NOT_ALLOWED');
-            return code;
-        })(),
-        locationName: normalizeText(body.locationName, 'locationName', true),
-        address: normalizeText(body.address, 'address', true),
-        mapsUrl: normalizeText(body.mapsUrl, 'mapsUrl', true),
+        unitCode,
+        targetRecordId,
+        siteType,
+        services: services || [],
+        locationName: normalizeText(body.locationName, 'locationName'),
+        address: normalizeText(body.address, 'address', requiresLocation),
+        mapsUrl: normalizeText(body.mapsUrl, 'mapsUrl', requiresLocation),
+        serviceSchedule: normalizeText(body.serviceSchedule, 'serviceSchedule'),
+        servedUnits: normalizeText(body.servedUnits, 'servedUnits'),
         publicPhone: normalizeText(body.publicPhone, 'publicPhone'),
         submitterName: normalizeText(body.submitterName, 'submitterName'),
         submitterPhone: normalizeText(body.submitterPhone, 'submitterPhone'),
         note: normalizeText(body.note, 'note'),
-        image: validateImage(body.image),
+        image: kind === 'CREATE' ? validateImage(body.image) : (body.image === undefined ? null : validateImage(body.image)),
         captchaToken: typeof body.captchaToken === 'string' ? body.captchaToken.trim().slice(0, 4096) : '',
     };
 }
@@ -216,6 +230,7 @@ async function reserveRateLimitQuota({ redisUrl, redisToken, dateKey, ipBucket, 
 function publicError(error) {
     const code = error?.code || error?.gatewayCode;
     if (code === 'PUBLIC_UNIT_NOT_ALLOWED') return apiError('UNIT_NOT_ALLOWED', 400);
+    if (['TARGET_RECORD_ID_REQUIRED', 'TARGET_RECORD_ID_NOT_FOUND', 'TARGET_RECORD_UNIT_MISMATCH', 'SITE_TYPE_INVALID', 'SERVICES_MISSING', 'SERVICES_INVALID'].includes(code)) return apiError(code, 400);
     if (code === 'COORDINATE_INVALID_LINK' || code === 'COORDINATE_OUTSIDE_PHU_THO' || code === 'COORDINATE_NEEDS_REVIEW') return apiError(code, 400);
     if (code === 'IMAGE_REQUIRED' || code === 'IMAGE_ENCODING_INVALID' || code === 'IMAGE_TYPE_NOT_ALLOWED' || code === 'IMAGE_TOO_LARGE') return apiError(code, 400);
     if (code === 'IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD') return apiError(code, 409);
@@ -228,13 +243,55 @@ function safeGatewayDiagnosticCode(error) {
     return /^[A-Z][A-Z0-9_]{0,127}$/.test(code) ? code : 'UNKNOWN';
 }
 
-function contributionPayload(value, requestId, coordinates) {
+function toSafePublicLocation(location) {
+    if (!location || typeof location !== 'object') return null;
+    const recordId = String(location.id || location.recordId || location.record_id || '').trim();
+    const unitCode = String(location.unitCode || location.unit_code || '').trim();
+    const name = String(location.name || '').trim();
+    if (!recordId || !unitCode || !name) return null;
     return {
+        recordId,
+        unitCode,
+        name,
+        siteType: String(location.siteType || location.site_type || '').trim(),
+        services: Array.isArray(location.services) ? location.services.filter(item => typeof item === 'string') : [],
+        address: String(location.address || '').trim(),
+        phone: String(location.phone || '').trim(),
+        googleMapsUrl: String(location.sourceGoogleMapsUrl ?? location.googleMapsUrl ?? location.google_maps_url ?? '').trim(),
+        serviceSchedule: String(location.serviceSchedule || location.service_schedule || '').trim(),
+        servedUnits: String(location.servedUnits || location.served_units || '').trim(),
+        imageUrl: String(location.imageUrl || location.image_url || '').trim(),
+    };
+}
+
+async function getPublicUnitLocations(unitCode, getLocations = publishedLocations.getPublishedLocations) {
+    let data;
+    try { data = await getLocations({ env: process.env, forceRefresh: true, allowStale: false }); }
+    catch (_) { throw apiError('SERVICE_UNAVAILABLE', 503); }
+    return (data?.locations || []).map(toSafePublicLocation).filter(Boolean)
+        .filter(location => location.unitCode.toLowerCase() === String(unitCode || '').trim().toLowerCase());
+}
+
+async function assertPublicTarget(value, getLocations = publishedLocations.getPublishedLocations) {
+    const unitName = getCanonicalUnits().find(unit => unit.unitCode === value.unitCode)?.label || '';
+    if (taxonomy.requestKind(value.requestType) === 'CREATE') {
+        return { locationName: taxonomy.locationName({ siteType: value.siteType, unitName, override: value.locationName }) };
+    }
+    const target = (await getPublicUnitLocations(value.unitCode, getLocations)).find(location => location.recordId === value.targetRecordId);
+    if (!target) throw apiError('TARGET_RECORD_ID_NOT_FOUND');
+    return { locationName: taxonomy.requestKind(value.requestType) === 'STOP' ? target.name : taxonomy.locationName({ siteType: value.siteType, unitName, override: value.locationName, existingName: target.name }) };
+}
+
+function contributionPayload(value, requestId, coordinates, locationName) {
+    const payload = {
         request_id: requestId,
         operation_id: value.operationId,
         request_type: value.requestType,
         unit_code: value.unitCode,
-        location_name: value.locationName,
+        target_record_id: value.targetRecordId,
+        location_name: locationName,
+        site_type: value.siteType,
+        services: value.services,
         address: value.address,
         public_phone: value.publicPhone,
         maps_url_original: value.mapsUrl,
@@ -243,8 +300,11 @@ function contributionPayload(value, requestId, coordinates) {
         submitter_name: value.submitterName,
         submitter_phone: value.submitterPhone,
         review_note: value.note,
-        image: value.image,
+        service_schedule: value.serviceSchedule,
+        served_units: value.servedUnits,
     };
+    if (value.image) payload.image = value.image;
+    return payload;
 }
 
 async function handler(req, res) {
@@ -259,6 +319,12 @@ async function handler(req, res) {
     if (req.method === 'GET') {
         if (getQueryParam(req, 'config') === 'public') {
             return res.status(200).json({ ok: true, data: publicConfig() });
+        }
+        const unitCode = getQueryParam(req, 'unitCode');
+        if (unitCode) {
+            if (!isCanonicalUnitCode(unitCode)) return res.status(400).json({ error: 'UNIT_NOT_ALLOWED' });
+            try { return res.status(200).json({ ok: true, data: { locations: await getPublicUnitLocations(unitCode) } }); }
+            catch (error) { return res.status(error.status || 503).json({ error: error.code || 'SERVICE_UNAVAILABLE' }); }
         }
         return res.status(200).json({ ok: true, data: { units: getCanonicalUnits() } });
     }
@@ -293,9 +359,12 @@ async function handler(req, res) {
     });
     if (!quota.ok) return res.status(quota.reason === 'limit_exceeded' ? 429 : 503).json({ error: quota.reason === 'limit_exceeded' ? 'RATE_LIMIT_EXCEEDED' : 'SERVICE_UNAVAILABLE' });
     try {
-        const coordinates = await resolveMapsCoordinates(value.mapsUrl);
+        const target = await assertPublicTarget(value);
+        const coordinates = taxonomy.requestKind(value.requestType) === 'STOP'
+            ? { lat: '', lng: '' }
+            : await resolveMapsCoordinates(value.mapsUrl);
         const requestId = deriveGatewayRequestId(value.operationId);
-        const result = await callGateway('submitPublicContribution', contributionPayload(value, requestId, coordinates), {
+        const result = await callGateway('submitPublicContribution', contributionPayload(value, requestId, coordinates, target.locationName), {
             env, requestId, timeoutMs: MUTATION_TIMEOUT_MS, maxAttempts: MUTATION_MAX_ATTEMPTS,
         });
         return res.status(200).json({ ok: true, data: { status: 'PENDING', receiptId: requestId.slice(0, 20), ...(result?.idempotent ? { idempotent: true } : {}) } });
@@ -318,3 +387,6 @@ module.exports.reserveRateLimitQuota = reserveRateLimitQuota;
 module.exports.hashForLog = hashForLog;
 module.exports.getVnDayWindow = getVnDayWindow;
 module.exports.safeGatewayDiagnosticCode = safeGatewayDiagnosticCode;
+module.exports.toSafePublicLocation = toSafePublicLocation;
+module.exports.getPublicUnitLocations = getPublicUnitLocations;
+module.exports.assertPublicTarget = assertPublicTarget;

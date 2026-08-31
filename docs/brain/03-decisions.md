@@ -1,5 +1,11 @@
 # 03 — Technical Decisions
 
+## [2026-08-31] One location marker with unified site/service taxonomy
+
+- **Decision:** One physical location has one stable `record_id` and one marker; it may have N services. `site_type` is physical (HEADQUARTERS, PUBLIC_SERVICE_CENTER, SECONDARY_OFFICE, MOBILE_POINT, OTHER) while `services` is capability data.
+- **Compatibility:** `CITIZEN_ID_POINT` remains readable as a legacy physical-type value and old storage service keys remain readable without an automatic Production migration. Unknown write values fail closed. The new identity UI category maps legacy CITIZEN_ID/E_IDENTIFICATION only for display; it does not invent either service for missing data.
+- **Public mutation:** Anonymous UPDATE/STOP is allowed only after both Vercel's fresh public target lookup and the Gateway's private operational target check agree on the selected `record_id` and `unit_code`. The browser never receives private metadata and all requests remain pending review.
+
 ## [2026-08-25] PR-1: sink inversion thay vi boc `ask()` khoi `api/chat.js`
 
 **Boi canh.** De tai dung RAG cho kenh thu hai (Messenger), can mot ranh gioi giua dieu phoi

@@ -1,8 +1,9 @@
 (function (root, factory) {
-    const api = factory();
+    const taxonomy = typeof module === 'object' && module.exports ? require('../lib/location-taxonomy') : root?.LocationTaxonomy;
+    const api = factory(taxonomy);
     if (typeof module === 'object' && module.exports) module.exports = api;
     if (root) root.LocationApprovalPipeline = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(typeof globalThis !== 'undefined' ? globalThis : this, function (taxonomy) {
     'use strict';
 
     const SHEETS = Object.freeze({
@@ -100,6 +101,7 @@
     const PHU_THO_BOUNDS = Object.freeze({ minLat: 20.25, maxLat: 21.85, minLng: 104.65, maxLng: 106.85 });
     const IMAGE_MIME_TYPES = Object.freeze(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
     const FORMULA_PREFIX = /^[=+\-@]/;
+    if (!taxonomy) throw new Error('LOCATION_TAXONOMY_UNAVAILABLE');
 
     function normalizeLabel(value) {
         // KH\u00d4NG d\u00f9ng `value || ''`: boolean false v\u00e0 s\u1ed1 0 s\u1ebd b\u1ecb nu\u1ed1t th\u00e0nh '' (Google Sheets l\u01b0u \u00f4
@@ -171,7 +173,8 @@
             return map[label] || String(item || '').trim().toUpperCase().replace(/\s+/g, '_');
         }).filter(Boolean);
         if (!normalized.length && useLegacyFallback) normalized.push(normalizeLocationType(legacyType) === 'id_center' ? 'CITIZEN_ID' : 'POLICE_OFFICE');
-        return unique(normalized);
+        const canonical = taxonomy.normalizeServices(normalized, { forWrite: false });
+        return canonical || unique(normalized);
     }
 
     function normalizeLocationType(value) {
@@ -1042,6 +1045,8 @@
             ? { authorized: true, unitCode: options.authorizedUnit.unitCode, unitName: options.authorizedUnit.unitName, error: '' }
             : authorizeSubmission(submission.unitName, submission.submitterEmail, allowlistRows);
         const errors = [];
+        if (submission.requestType !== REQUEST_TYPES.stop && !taxonomy.isAcceptedWriteSiteType(submission.siteType)) errors.push('SITE_TYPE_INVALID');
+        if (submission.requestType !== REQUEST_TYPES.stop && (!submission.services.length || submission.services.some(service => !taxonomy.isAcceptedWriteService(service)))) errors.push('SERVICES_INVALID');
         if (!submission.submitterEmail) errors.push('SUBMITTER_EMAIL_MISSING');
         if (!submission.unitName) errors.push('UNIT_NAME_MISSING');
         if (!authorization.authorized) errors.push(authorization.error);
