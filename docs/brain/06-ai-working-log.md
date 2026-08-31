@@ -1,5 +1,23 @@
 # 06 — AI Working Log
 
+## [2026-08-31] Production Gateway Cutover & PR #62 Controlled Release
+- **Agent:** Antigravity (Gemini 2.5 Flash / Claude 3.7 Sonnet)
+- **EXACT HEAD:** `1e17b9b080474e2d84b2f8e031008b8109a51f12` (Merge PR #62)
+- **SCOPE:** Converted existing Apps Script Gateway (`1-rLypdfkEgzGAY01VOOhbc8aCYHgfvqSDwrHrOGQ58Azu0IVyFrZRYD7`) into canonical Production Gateway and deployed PR #62 unified location service taxonomy bundle.
+  1. Identified existing Web App Deployment `AKfycbzfabFwP2DlIFObAz5kdX_aGBVY_KEHQIwbcIORrOKK-7J0hzt13YxXCmydGQqBGfH7rg` connected to Vercel Production `STAFF_GATEWAY_URL`.
+  2. Captured full remote backup into `temp_backup_remote/` (`Mã.js` 173,152 bytes, `appsscript.json` 208 bytes, Deployment Version 1).
+  3. Built bundle from merged `main` (`npm run build:location-intake` -> 206,329 bytes, `dist/appsscript.json`).
+  4. Ran full verification suite: `npm test` 634/634 PASS, `npm run build` PASS, `npm run ci` PASS.
+  5. Configured `setup/location-intake/.clasp.json` targeting Script ID `1-rLypdfkEgzGAY01VOOhbc8aCYHgfvqSDwrHrOGQ58Azu0IVyFrZRYD7`.
+  6. Executed `clasp push --force` to push PR #62 code bundle to the Gateway project.
+  7. Created immutable Apps Script Version 2 and redeployed existing Web App deployment `AKfycbzfabFwP2DlIFObAz5kdX_aGBVY_KEHQIwbcIORrOKK-7J0hzt13YxXCmydGQqBGfH7rg` to Version 2 (`Production Staff Gateway - PR 62 Release`).
+  8. Verified Web App deployment ID and `/exec` URL remain 100% stable without requiring Vercel env variable reconfiguration.
+  9. Executed read-only health checks on Production: `/api/location-contributions` returns 148 canonical units, `/api/location-contributions?config=public` returns public Turnstile key, GViz reads 142 valid locations.
+  10. Executed security validation: non-canonical unit rejected (`400 UNIT_NOT_ALLOWED`), invalid target rejected (`400/403`).
+- **PRODUCTION IMPACT:** Zero destructive modification to production locations. Legacy published records preserved (142/142 locations active on map).
+- **VERDICT:** `PR62_PRODUCTION_RELEASE_ACCEPTANCE_PASS`
+
+
 ## [2026-08-31] Unified location service form
 - **Agent:** Codex
 - **Thay đổi:** Thêm `lib/location-taxonomy.js` làm registry chung cho site type, services, legacy mapping và generated display name; dùng nó ở `/dong-gop/`, `/can-bo/`, map labels và Apps Script build. Public form nay hỗ trợ CREATE/UPDATE/STOP, lookup public-safe theo canonical unit, prefill target, multi-service và giữ ảnh khi UPDATE. Gateway rechecks target/unit under the existing lock and all requests remain PENDING.
