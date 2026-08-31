@@ -126,4 +126,30 @@ test.describe('public location contribution form', () => {
         expect(submissions[1].targetRecordId).toBe('record-public-1');
         expect(submissions[1].image).toBeUndefined();
     });
+
+    test('partial update with only phone changed submits successfully without re-entering image or maps link', async ({ page }) => {
+        await mockTurnstile(page);
+        const submissions = [];
+        await mockContributionApi(page, submissions);
+        await page.goto('/dong-gop/');
+        await page.locator('[name=unitCode]').selectOption('UNIT_NEW');
+
+        await page.locator('[name=requestType]').selectOption('Cập nhật địa điểm đang có');
+        await expect(page.locator('[name=targetRecordId]')).toBeEnabled();
+        await page.locator('[name=targetRecordId]').selectOption('record-public-1');
+
+        await page.locator('[name=publicPhone]').fill('0912345678');
+        const submit = page.getByRole('button', { name: 'Gửi đóng góp' });
+        await expect(submit).toBeEnabled();
+        await submit.click();
+
+        await expect(page.locator('#public-contribution-status')).toHaveText(
+            'Đã tiếp nhận yêu cầu. Thông tin chỉ thay đổi trên bản đồ sau khi được kiểm tra và phê duyệt.',
+        );
+        expect(submissions).toHaveLength(1);
+        expect(submissions[0].requestType).toBe('Cập nhật địa điểm đang có');
+        expect(submissions[0].targetRecordId).toBe('record-public-1');
+        expect(submissions[0].publicPhone).toBe('0912345678');
+        expect(submissions[0].image).toBeUndefined();
+    });
 });

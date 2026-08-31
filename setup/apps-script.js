@@ -967,9 +967,9 @@
             unitName: String(input.unitName || '').trim(),
             unitCode: String(input.unitCode || '').trim(),
             locationName,
-            siteType: String(input.siteType || '').trim().toUpperCase() || 'HEADQUARTERS',
+            siteType: String(input.siteType || '').trim().toUpperCase(),
             services,
-            type: deriveLegacyType(services, String(input.siteType || '').trim().toUpperCase()),
+            type: deriveLegacyType(services, String(input.siteType || '').trim().toUpperCase() || 'HEADQUARTERS'),
             address: String(input.address || '').trim(),
             publicPhone: String(input.publicPhone || input.phone || '').trim(),
             mapsUrlOriginal: String(input.mapsUrlOriginal || input.mapsUrl || '').trim(),
@@ -981,7 +981,7 @@
             imagePublicUrl: String(input.imagePublicUrl || input.imageUrl || '').trim(),
             publishedImageFileId: String(input.publishedImageFileId || '').trim(),
             imageMimeType: String(input.imageMimeType || '').toLowerCase(),
-            cccdServiceMode: String(input.cccdServiceMode || 'UNKNOWN').trim().toUpperCase(),
+            cccdServiceMode: String(input.cccdServiceMode || '').trim().toUpperCase(),
             serviceSchedule: String(input.serviceSchedule || '').trim(),
             servedUnits: String(input.servedUnits || '').trim(),
             searchAliases: String(input.searchAliases || '').trim(),
@@ -1045,20 +1045,19 @@
             ? { authorized: true, unitCode: options.authorizedUnit.unitCode, unitName: options.authorizedUnit.unitName, error: '' }
             : authorizeSubmission(submission.unitName, submission.submitterEmail, allowlistRows);
         const errors = [];
-        if (submission.requestType !== REQUEST_TYPES.stop && !taxonomy.isAcceptedWriteSiteType(submission.siteType)) errors.push('SITE_TYPE_INVALID');
-        if (submission.requestType !== REQUEST_TYPES.stop && (!submission.services.length || submission.services.some(service => !taxonomy.isAcceptedWriteService(service)))) errors.push('SERVICES_INVALID');
         if (!submission.submitterEmail) errors.push('SUBMITTER_EMAIL_MISSING');
         if (!submission.unitName) errors.push('UNIT_NAME_MISSING');
         if (!authorization.authorized) errors.push(authorization.error);
-        if (!submission.locationName && submission.requestType !== REQUEST_TYPES.stop) errors.push('LOCATION_NAME_MISSING');
-        if (!submission.services.length && submission.requestType !== REQUEST_TYPES.stop) errors.push('SERVICES_MISSING');
-        if (!submission.address && submission.requestType !== REQUEST_TYPES.stop) errors.push('ADDRESS_MISSING');
+
+        const isCreate = submission.requestType === REQUEST_TYPES.create;
+        const isStop = submission.requestType === REQUEST_TYPES.stop;
+        const isUpdate = !isCreate && !isStop;
+
         if (requiresExistingTarget(submission.requestType) && !submission.targetRecordId) errors.push('TARGET_RECORD_ID_REQUIRED');
         // "Thêm địa điểm mới" theo định nghĩa là tạo bản ghi mới, nên không có bản ghi đích nào để
         // trỏ tới. Nhận target_record_id ở đây là mâu thuẫn ngữ nghĩa và trước đây bị nuốt im lặng:
         // requiresExistingTarget(create) = false nên hai rule target bỏ qua, còn dòng `recordId` bên
         // dưới vẫn kế thừa giá trị đó => APPROVE là ghi đè bản ghi đang publish. Chặn hẳn, không warning.
-        const isCreate = submission.requestType === REQUEST_TYPES.create;
         if (isCreate && submission.targetRecordId) errors.push('CREATE_TARGET_RECORD_ID_NOT_ALLOWED');
         const targetRecord = submission.targetRecordId
             ? publishedRecords.find(record => record.record_id === submission.targetRecordId)
@@ -1069,7 +1068,79 @@
         // Unit_Allowlist (suy ra ở server), không lấy theo unit_code người gửi tự khai. Kiểm tra này
         // độc lập với rule create ở trên: yêu cầu create trỏ sang đơn vị khác sẽ dính cả hai lỗi.
         if (targetRecord && !sameUnitCode(targetRecord.unit_code, authorization.unitCode)) errors.push('TARGET_RECORD_UNIT_MISMATCH');
-        if (submission.requestType !== REQUEST_TYPES.stop && ![COORDINATE_STATUSES.extracted, COORDINATE_STATUSES.manuallyConfirmed].includes(submission.coordinateStatus)) errors.push(`COORDINATE_${submission.coordinateStatus}`);
+
+        let effectiveSiteType = submission.siteType;
+        let effectiveServices = submission.services;
+        let effectiveLocationName = submission.locationName;
+        let effectiveAddress = submission.address;
+        let effectivePublicPhone = submission.publicPhone;
+        let effectiveMapsUrlOriginal = submission.mapsUrlOriginal;
+        let effectiveMapsUrlResolved = submission.mapsUrlResolved;
+        let effectiveCoordinates = submission.coordinates;
+        let effectiveCoordinateStatus = submission.coordinateStatus;
+        let effectiveCccdServiceMode = submission.cccdServiceMode;
+        let effectiveServiceSchedule = submission.serviceSchedule;
+        let effectiveServedUnits = submission.servedUnits;
+        let effectiveSearchAliases = submission.searchAliases;
+        let effectivePublishedImageFileId = submission.publishedImageFileId;
+        let effectiveImagePublicUrl = submission.imagePublicUrl;
+
+        if (isUpdate && targetRecord) {
+            if (!effectiveSiteType) effectiveSiteType = targetRecord.site_type || targetRecord.siteType || 'HEADQUARTERS';
+            if (!effectiveServices || !effectiveServices.length) effectiveServices = normalizeServices(targetRecord.services, targetRecord.type);
+            if (!effectiveLocationName) effectiveLocationName = targetRecord.name || targetRecord.location_name || '';
+            if (!effectiveAddress) effectiveAddress = targetRecord.address || '';
+            if (effectivePublicPhone === undefined || effectivePublicPhone === '') effectivePublicPhone = targetRecord.phone || targetRecord.public_phone || '';
+            if (!effectiveMapsUrlOriginal) effectiveMapsUrlOriginal = targetRecord.google_maps_url || targetRecord.maps_url_original || '';
+            if (!effectiveMapsUrlResolved) effectiveMapsUrlResolved = targetRecord.maps_url_resolved || effectiveMapsUrlOriginal || '';
+            const lat = String(targetRecord.latitude || '').trim();
+            const lng = String(targetRecord.longitude || '').trim();
+            const targetCoordinates = String(targetRecord.coordinates || '').trim() || (lat && lng ? `${lat},${lng}` : '');
+            if (!effectiveCoordinates) {
+                effectiveCoordinates = targetCoordinates;
+                effectiveCoordinateStatus = effectiveCoordinates ? COORDINATE_STATUSES.extracted : submission.coordinateStatus;
+            }
+            if (!effectiveCccdServiceMode) effectiveCccdServiceMode = targetRecord.cccd_service_mode || targetRecord.cccdServiceMode || 'NOT_PROVIDED';
+            if (!effectiveServiceSchedule) effectiveServiceSchedule = targetRecord.service_schedule || targetRecord.serviceSchedule || '';
+            if (!effectiveServedUnits) effectiveServedUnits = targetRecord.served_units || targetRecord.servedUnits || '';
+            if (!effectiveSearchAliases) effectiveSearchAliases = targetRecord.search_aliases || targetRecord.searchAliases || '';
+            if (!effectivePublishedImageFileId) effectivePublishedImageFileId = targetRecord.published_image_file_id || targetRecord.publishedImageFileId || targetRecord.image_file_id || '';
+            if (!effectiveImagePublicUrl) effectiveImagePublicUrl = targetRecord.image_url || targetRecord.imageUrl || targetRecord.image_public_url || '';
+
+            // Check if at least one field changed compared to targetRecord
+            const targetServices = normalizeServices(targetRecord.services, targetRecord.type);
+            const servicesChanged = (effectiveServices.slice().sort().join('|') !== targetServices.slice().sort().join('|'));
+            const siteTypeChanged = (effectiveSiteType !== (targetRecord.site_type || targetRecord.siteType || 'HEADQUARTERS'));
+            const nameChanged = (effectiveLocationName !== (targetRecord.name || targetRecord.location_name || ''));
+            const addressChanged = (effectiveAddress !== (targetRecord.address || ''));
+            const phoneChanged = (effectivePublicPhone !== (targetRecord.phone || targetRecord.public_phone || ''));
+            const coordinatesChanged = (effectiveCoordinates !== targetCoordinates);
+            const mapsUrlChanged = Boolean(submission.mapsUrlOriginal && submission.mapsUrlOriginal !== (targetRecord.google_maps_url || targetRecord.maps_url_original || ''));
+            const cccdChanged = (effectiveCccdServiceMode !== (targetRecord.cccd_service_mode || targetRecord.cccdServiceMode || 'NOT_PROVIDED'));
+            const scheduleChanged = (effectiveServiceSchedule !== (targetRecord.service_schedule || targetRecord.serviceSchedule || ''));
+            const servedUnitsChanged = (effectiveServedUnits !== (targetRecord.served_units || targetRecord.servedUnits || ''));
+            const aliasesChanged = (effectiveSearchAliases !== (targetRecord.search_aliases || targetRecord.searchAliases || ''));
+            const imageChanged = Boolean(submission.imageFileId || (submission.imagePublicUrl && submission.imagePublicUrl !== (targetRecord.image_url || targetRecord.imageUrl || targetRecord.image_public_url || '')));
+
+            if (!servicesChanged && !siteTypeChanged && !nameChanged && !addressChanged && !phoneChanged && !coordinatesChanged && !mapsUrlChanged && !cccdChanged && !scheduleChanged && !servedUnitsChanged && !aliasesChanged && !imageChanged) {
+                errors.push('NO_CHANGES');
+            }
+        }
+
+        if (isCreate) {
+            if (!effectiveSiteType) effectiveSiteType = 'HEADQUARTERS';
+            if (!effectiveCccdServiceMode) effectiveCccdServiceMode = 'NOT_PROVIDED';
+        }
+
+        if (!isStop) {
+            if (!taxonomy.isAcceptedWriteSiteType(effectiveSiteType)) errors.push('SITE_TYPE_INVALID');
+            if (!effectiveServices.length || effectiveServices.some(service => !taxonomy.isAcceptedWriteService(service))) errors.push('SERVICES_INVALID');
+            if (!effectiveLocationName) errors.push('LOCATION_NAME_MISSING');
+            if (!effectiveServices.length) errors.push('SERVICES_MISSING');
+            if (!effectiveAddress) errors.push('ADDRESS_MISSING');
+            if (![COORDINATE_STATUSES.extracted, COORDINATE_STATUSES.manuallyConfirmed].includes(effectiveCoordinateStatus)) errors.push(`COORDINATE_${effectiveCoordinateStatus}`);
+        }
+
         if (submission.imageMimeType && !validateImageMimeType(submission.imageMimeType)) errors.push('IMAGE_MIME_NOT_ALLOWED');
         if (!submission.imageFileId && requiresNewImage(submission.requestType)) errors.push('IMAGE_REQUIRED');
         // CREATE luôn nhận id do pipeline sinh. `submission.recordId` hiện không có caller nào truyền
@@ -1077,9 +1148,10 @@
         // migration đi qua migrateLegacyLocations chứ không qua đây), nên giữ nó ở nhánh không-create
         // chỉ để không đổi hành vi ngoài phạm vi task.
         const recordId = isCreate
-            ? buildRecordId(authorization.unitCode || submission.unitCode, submission.locationName, now)
-            : (submission.targetRecordId || submission.recordId || buildRecordId(authorization.unitCode || submission.unitCode, submission.locationName, now));
-        const warnings = detectDuplicateWarnings({ ...submission, recordId }, publishedRecords);
+            ? buildRecordId(authorization.unitCode || submission.unitCode, effectiveLocationName, now)
+            : (submission.targetRecordId || submission.recordId || buildRecordId(authorization.unitCode || submission.unitCode, effectiveLocationName, now));
+        const effectiveType = deriveLegacyType(effectiveServices, effectiveSiteType);
+        const warnings = detectDuplicateWarnings({ ...submission, locationName: effectiveLocationName, coordinates: effectiveCoordinates, recordId }, publishedRecords);
         const isoNow = asIsoString(now);
         return sanitizeUserFields({
             record_id: recordId,
@@ -1088,24 +1160,24 @@
             target_record_id: submission.targetRecordId,
             unit_code: authorization.unitCode || submission.unitCode || slugify(submission.unitName),
             unit_name: authorization.unitName || submission.unitName,
-            location_name: submission.locationName,
-            type: submission.type,
-            site_type: submission.siteType,
-            services: submission.services.join('|'),
-            address: submission.address,
-            public_phone: submission.publicPhone,
-            maps_url_original: submission.mapsUrlOriginal,
-            maps_url_resolved: submission.mapsUrlResolved,
-            coordinates: submission.coordinates,
-            coordinate_status: submission.coordinateStatus,
+            location_name: effectiveLocationName,
+            type: effectiveType,
+            site_type: effectiveSiteType,
+            services: effectiveServices.join('|'),
+            address: effectiveAddress,
+            public_phone: effectivePublicPhone,
+            maps_url_original: effectiveMapsUrlOriginal,
+            maps_url_resolved: effectiveMapsUrlResolved,
+            coordinates: effectiveCoordinates,
+            coordinate_status: effectiveCoordinateStatus,
             image_file_id: submission.imageFileId,
             image_drive_url: submission.imageDriveUrl,
-            image_public_url: submission.imagePublicUrl,
+            image_public_url: effectiveImagePublicUrl,
             image_mime_type: submission.imageMimeType,
-            cccd_service_mode: submission.cccdServiceMode,
-            service_schedule: submission.serviceSchedule,
-            served_units: submission.servedUnits,
-            search_aliases: submission.searchAliases,
+            cccd_service_mode: effectiveCccdServiceMode,
+            service_schedule: effectiveServiceSchedule,
+            served_units: effectiveServedUnits,
+            search_aliases: effectiveSearchAliases,
             submitter_name: submission.submitterName,
             submitter_phone: submission.submitterPhone,
             submitter_email: submission.submitterEmail,
@@ -1114,7 +1186,7 @@
             warnings: warnings.join('|'),
             status: errors.length ? STATUSES.blocked : STATUSES.pending,
             review_action: '', review_note: submission.reviewNote, reviewed_by: '', reviewed_at: '',
-            submitted_at: submission.submittedAt, updated_at: isoNow, published_image_file_id: submission.publishedImageFileId,
+            submitted_at: submission.submittedAt, updated_at: isoNow, published_image_file_id: effectivePublishedImageFileId,
         });
     }
 

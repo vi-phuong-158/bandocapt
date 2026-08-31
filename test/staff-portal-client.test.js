@@ -67,13 +67,13 @@ test('portal unifies existing-location edits and only requires an image for crea
     assert.match(portalSource, /button\(pendingLabel \|\| 'Chỉnh sửa thông tin', 'staff-button', \(\) => openModal\('update', item\), Boolean\(pending\.length\)\)/);
     assert.doesNotMatch(portalSource, /button\('Báo địa chỉ\/vị trí sai'/);
     assert.match(portalSource, /update: 'Chỉnh sửa thông tin'/);
-    assert.match(portalSource, /const requiresLocationFields = \['create', 'update'\]\.includes\(modal\.mode\)/);
+    assert.match(portalSource, /const isCreate = modal\.mode === 'create'/);
     assert.match(portalSource, /const requiresNewImage = modal\.mode === 'create'/);
-    assert.match(portalSource, /servicesField\(form, source\.services, requiresLocationFields\)/);
+    assert.match(portalSource, /servicesField\(form, source\.services, isCreate\)/);
     assert.match(portalSource, /Dịch vụ\$\{required \? ' \(bắt buộc\)' : ''\}/);
     assert.match(portalSource, /grid\.setAttribute\('aria-required', 'true'\)/);
     assert.doesNotMatch(portalSource, /input\.required = required &&/);
-    assert.match(portalSource, /if \(requiresLocationFields && !values\.coordinates\) throw clientError\('COORDINATE_NEEDS_REVIEW'\)/);
+    assert.match(portalSource, /if \(state\.modal\.mode === 'create' && !values\.coordinates\) throw clientError\('COORDINATE_NEEDS_REVIEW'\)/);
     assert.match(portalSource, /imageInput\.required = requiresNewImage/);
     assert.match(portalSource, /if \(state\.modal\.mode === 'create' && !file\) throw clientError\('IMAGE_REQUIRED'\)/);
     assert.match(portalSource, /Thay ảnh địa điểm \(không bắt buộc\)/);
@@ -82,7 +82,7 @@ test('portal unifies existing-location edits and only requires an image for crea
 });
 
 test('portal keeps service and image validation contracts', () => {
-    assert.match(portalSource, /requiresLocationFields && !values\.services\.length/);
+    assert.match(portalSource, /state\.modal\.mode === 'create' && !values\.services\.length/);
     assert.match(portalSource, /imageInput\.accept = 'image\/jpeg,image\/png,image\/webp'/);
     assert.match(portalSource, /StaffImage\.prepareImage\(file\)/);
 });

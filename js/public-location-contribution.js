@@ -56,7 +56,7 @@
         const kind = taxonomy.requestKind(elements.requestType.value);
         const selectedServices = Array.from(elements.services.querySelectorAll('input:checked'));
         elements.submit.disabled = !unitsReady || !captchaToken || !form.checkValidity() ||
-            (kind !== 'CREATE' && !elements.target.value) || (kind !== 'STOP' && !selectedServices.length);
+            (kind !== 'CREATE' && !elements.target.value) || (kind === 'CREATE' && !selectedServices.length);
     }
 
     function renderTaxonomy() {
@@ -75,14 +75,15 @@
 
     function updateRequestMode() {
         const kind = taxonomy.requestKind(elements.requestType.value);
+        const isCreate = kind === 'CREATE';
         const stop = kind === 'STOP';
-        elements.targetField.hidden = kind === 'CREATE';
-        elements.target.disabled = kind === 'CREATE' || !elements.unit.value || !targets.length;
+        elements.targetField.hidden = isCreate;
+        elements.target.disabled = isCreate || !elements.unit.value || !targets.length;
         elements.locationFields.hidden = stop;
-        elements.siteType.required = !stop;
-        elements.address.required = !stop;
-        elements.maps.required = !stop;
-        elements.image.required = kind === 'CREATE';
+        elements.siteType.required = isCreate;
+        elements.address.required = isCreate;
+        elements.maps.required = isCreate;
+        elements.image.required = isCreate;
         elements.imageField.hidden = stop;
         refreshSubmitState();
     }
@@ -181,6 +182,9 @@
             RATE_LIMIT_EXCEEDED: 'Bạn đã gửi quá số lần cho phép hôm nay. Vui lòng thử lại vào ngày mai.',
             IMAGE_TOO_LARGE: 'Ảnh quá lớn. Vui lòng chọn ảnh khác.',
             IMAGE_TYPE_NOT_ALLOWED: 'Ảnh phải là JPEG, PNG hoặc WebP.',
+            NO_CHANGES: 'Bạn chưa thay đổi thông tin nào của địa điểm.',
+            SERVICES_MISSING: 'Vui lòng chọn ít nhất một dịch vụ.',
+            ADDRESS_MISSING: 'Vui lòng nhập địa chỉ.',
         };
         return messages[code] || 'Chưa gửi được đóng góp. Bạn có thể kiểm tra lại và thử lại.';
     }

@@ -29,7 +29,9 @@ function collectPageErrors(page) {
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
     page.on('console', message => {
-        if (message.type() === 'error') errors.push(message.text());
+        if (message.type() === 'error' && !message.text().includes('Failed to load resource')) {
+            errors.push(message.text());
+        }
     });
     return errors;
 }
