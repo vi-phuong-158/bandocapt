@@ -1282,7 +1282,8 @@ body.tthc-catalog-open #ai-chat-launcher {
 #tthc-catalog-list-view[hidden],
 #tthc-catalog-detail-view[hidden],
 #tthc-catalog-back-btn[hidden],
-#tthc-catalog-status[hidden] {
+#tthc-catalog-status[hidden],
+#service-filter-more[hidden] {
     display: none;
 }
 

@@ -3507,3 +3507,72 @@
 - **Kiểm tra:** focused unreachable-image sau patch 10/10 PASS; `npm run ci` PASS (629 tests + build + audit high gate).
   Full E2E local 57/61: target case PASS; ba lỗi `location-image` còn lại là `ERR_CONNECTION_REFUSED` đã tái hiện
   y hệt trên base, cộng một catalog timing failure không liên quan. Không deploy, clasp push, merge hoặc mutate Production.
+
+## [2026-09-01] UI/UX polish + taxonomy synchronization (map filter, near-me, detail, contribution form)
+- **Agent:** Claude Code
+- **Bối cảnh:** Hai vòng review UI/UX trước phát hiện taxonomy 2026-08-31 (site_type/services canonical)
+  đã đi trước lớp trình bày: bộ lọc bản đồ và marker vẫn so khớp mã legacy `POLICE_OFFICE`/`CITIZEN_ID`/
+  `loc.type`, không nhận ra `IDENTITY` mà `/can-bo` và `/dong-gop` đã ghi từ ngày taxonomy hợp nhất; form
+  đóng góp có nhãn `*` tĩnh mâu thuẫn với `required` động ở chế độ UPDATE; panel chi tiết lộ mã enum thô
+  (`PUBLIC_SERVICE_CENTER`) và `servedUnits` nối bằng `|`.
+- **Thay đổi:**
+  - `app.js`: thêm `canonicalServiceCodes()`/`isIdentityLocation()` quy mọi mã dịch vụ (cũ lẫn mới) về
+    canonical qua `LocationTaxonomy.toCanonicalServices` trước khi phân loại — sửa cả 5 điểm dùng
+    `isPolice`/`isCccd` (marker, badge, danh sách kết quả, preview mobile, ghi chú CCCD). Bộ lọc
+    "Công an/Điểm CCCD/Gần tôi" (3 checkbox) thay bằng chip dịch vụ **single-select**
+    (`activeServiceFilter` scalar, hàm `matchesServiceFilter`), 4 chip chính (Căn cước/Cư trú/Đăng ký
+    xe/Xuất nhập cảnh) + nút mở rộng sinh động từ `LocationTaxonomy.SERVICES` (không hard-code). "Gần
+    tôi" (nút FAB `find-location-btn`) đổi từ lọc-Top-5-và-gỡ-marker sang action thuần: áp filter/search
+    hiện có rồi `fitBounds([user, nearest-trong-tập-đang-hiển-thị])`, không bao giờ ẩn/gỡ marker nào.
+    `siteTypeLabel()` xoá mã `SERVICE_POINT` (chưa từng tồn tại), badge và dòng "Loại địa điểm" dùng
+    `taxonomy.displaySiteType()`. Thêm `formatServedUnits()` (`|` → `, `) và `formatVietnameseDate()`
+    (ISO → `dd/mm/yyyy`) — chỉ định dạng hiển thị, không đổi giá trị lưu trữ. Nâng cỡ chữ chip dịch vụ
+    (11→13px) và badge (10→12px); di chuyển khối Dịch vụ lên trước Giờ làm việc trong `index.html`.
+  - `dong-gop/index.html` + `js/public-location-contribution.js`: nhãn bắt buộc (`site-type`, `services`,
+    `address`, `maps-url`, `location-image`) đổi từ dấu `*` tĩnh sang cặp `<span id>` text/mark do
+    `setDynamicLabel()` cập nhật CÙNG một chỗ với `required` trong `updateRequestMode()`. UPDATE dùng
+    đúng semantics đã khoá: ô trống = giữ nguyên (không phải xoá) — nhãn ghi rõ "để trống nếu không thay
+    đổi"/"chỉ chọn nếu muốn thay ảnh", không dùng "(không bắt buộc)" (từ đó gợi ý sai). Thêm dòng
+    "Đang cập nhật: `<tên đầy đủ>`" dưới ô chọn địa điểm (`updateTargetContext()`). `services-field` thu
+    gọn còn 4 dịch vụ chính + nút "Xem thêm N dịch vụ" (tự bung nếu dịch vụ đã prefill nằm trong nhóm ẩn).
+    `fingerprint()` bổ sung `serviceSchedule`/`servedUnits` (thiếu hai trường này khiến sửa xong gửi lại
+    trúng `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD` vì `operationId` không đổi trong khi payload đã
+    đổi). Thêm dòng "Đã chọn: `<tên file>`" tiếng Việt cạnh input ảnh gốc (không thay input, không giảm
+    a11y).
+  - `styles.css` / `styles/public-location-contribution.css`: phát hiện khi kiểm chứng runtime —
+    `#service-filter-more`/`#services-extra` mang cả `hidden` lẫn class `display:flex/grid`; do đặc thù
+    độ đặc hiệu CSS (Tailwind Preflight zero-out `[hidden]` qua `:where()`; CSS thường thì ID selector
+    thắng attribute selector), `display` từ class/ID luôn thắng `[hidden]{display:none}` bất kể thứ tự
+    nạp — hai khối "mở rộng dịch vụ" hiện sẵn ngay từ đầu thay vì ẩn. Thêm guard
+    `#service-filter-more[hidden]`/`#services-extra[hidden] { display: none; }`, đúng mẫu guard đã có
+    sẵn cho `#tthc-catalog-*[hidden]` trong file.
+  - `test/location-ui.test.js`: viết lại theo implementation mới — canonical classification (bao gồm
+    hành vi thật của `matchesServiceFilter` với dữ liệu IDENTITY/CITIZEN_ID/multi-service), single-select
+    (toggle on/off, không có state tổ hợp), 4 chip chính + mở rộng lấy từ taxonomy, "Gần tôi" không còn
+    `slice(0,5)`/gỡ marker, badge/site-type dùng taxonomy, `formatServedUnits`/`formatVietnameseDate`.
+- **Lý do:** Bản ghi tạo sau 31/08 (site_type/services canonical mới) trước đây bị bộ lọc "Điểm CCCD" bỏ
+  sót và bị vẽ marker/badge "Trụ sở Công an" sai — lỗi P0 vì làm sai kết quả tra cứu, không phải lỗi hình
+  thức. Form đóng góp UPDATE trước đây nói "bắt buộc" cho các trường thực ra là "giữ nguyên nếu để trống",
+  khiến người dùng tưởng phải chụp lại ảnh/lấy lại link Maps cho một thay đổi nhỏ.
+- **Kiểm tra:** `npm test` 642/642 PASS; `npm run ci` PASS (build + audit high gate, cùng 6 lỗ hổng
+  moderate từ trước ở `firebase-admin` transitive, không liên quan task). `npm run test:e2e` không chạy
+  được trong sandbox này vì `unpkg.com` (CDN Leaflet) bị chặn ở tầng mạng — xác minh đây là giới hạn môi
+  trường có sẵn từ trước, không phải regression, bằng cách build lại đúng baseline `933321f` (chưa sửa gì)
+  và tái hiện y hệt lỗi `ReferenceError: L is not defined`. Thay vào đó, kiểm chứng runtime trực tiếp trên
+  `dist/` build thật bằng Chromium (Leaflet vendor cục bộ ngoài repo, chỉ để render, không đụng CDN
+  reference trong `index.html` đã commit): xác nhận bằng dữ liệu hỗn hợp legacy+canonical rằng chip
+  "Căn cước" nhận đúng cả bản ghi mới (`IDENTITY`) lẫn bản ghi cũ (`CITIZEN_ID`); single-select
+  click/switch/toggle-off đúng; "Gần tôi" giữ nguyên toàn bộ marker (không còn Top-5); badge/detail hiện
+  nhãn taxonomy thật, không còn enum thô; form UPDATE hiện đúng nhãn/dấu `*` động và dòng "Đang cập nhật"
+  không trùng lặp; hàng chip mobile cuộn ngang một dòng, không tràn/không đè bottom nav.
+- **Không làm:** không đổi `js/app-navigation.js`, mobile bottom nav, thang `--z-*`/safe-area, bảng
+  màu/thang chữ toàn cục, layout sidebar desktop, cluster/`LABEL_ZOOM`, vị trí nút Chỉ đường/Gọi điện,
+  hành vi STOP (đã đúng từ trước), semantics "ô trống = giữ nguyên" ở Gateway, `buildStagingRecord`.
+  Không sửa `lib/location-taxonomy.js` (không thêm mã mới, chỉ sửa nơi tiêu thụ). Follow-up cố ý chưa
+  làm, ghi nhận riêng: (1) `publicPhone`/`serviceSchedule`/`servedUnits` chưa có cách xoá tường minh qua
+  UI (ô trống luôn nghĩa là giữ nguyên) — thiếu năng lực, không phải mơ hồ, cần sentinel rõ ràng nếu làm
+  sau; (2) `buildStagingRecord` trong `setup/apps-script.js` (khoá, không sửa trong task này) gọi
+  `normalizeServices(targetRecord.services, targetRecord.type)` thiếu tham số thứ 3
+  (`useLegacyFallback`), nên UPDATE một bản ghi legacy có `services` rỗng có thể tự suy ra
+  `POLICE_OFFICE` chưa ai xác nhận — đặt tên finding
+  `LEGACY_EMPTY_SERVICES_UPDATE_CAN_INFER_POLICE_OFFICE` cho việc theo dõi sau.
