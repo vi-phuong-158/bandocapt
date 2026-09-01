@@ -3522,3 +3522,21 @@
 - **Kiểm tra:** focused unreachable-image sau patch 10/10 PASS; `npm run ci` PASS (629 tests + build + audit high gate).
   Full E2E local 57/61: target case PASS; ba lỗi `location-image` còn lại là `ERR_CONNECTION_REFUSED` đã tái hiện
   y hệt trên base, cộng một catalog timing failure không liên quan. Không deploy, clasp push, merge hoặc mutate Production.
+
+## [2026-09-01] Sửa resolver tự chọn địa điểm khi thiếu địa bàn
+- **Agent:** Codex
+- **Thay đổi:** Location resolver chỉ dùng evidence từ current message hoặc immediate assistant
+  follow-up; loại history user cũ khỏi scoring. Thêm eval-only pipeline trace và server-side buffer/
+  gate cho `no_match`/`unavailable`, chặn station/address/phone/Maps hallucination trước SSE.
+- **File đã sửa:** `lib/published-locations.js`, `api/chat.js`, `test/location-resolution-contract.test.js`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Lý do:** Câu hỏi chỉ có service intent "căn cước" không được phép tự biến thành địa bàn Hòa Bình;
+  history conversation không được tái sử dụng sau khi đổi chủ đề.
+- **Kiểm tra:** `node --test test/location-resolution-contract.test.js` (10/10; gồm no_match và
+  ambiguous public fallback), `npm test`
+  (646/646), `npm run build`, `npm run ci` (exit 0), và focused chat E2E
+  (`chat-embed.spec.js` + `chat-progressive-disclosure.spec.js`, 5/5). Mock Gemini trả địa chỉ
+  Hòa Bình bị fallback an toàn trước khi phát SSE; full E2E suite bị dừng do runner không kết thúc
+  sau khi khởi chạy 69 test.
+- **Phạm vi an toàn:** Chỉ fixture local; không gọi/sửa Google Sheet production, Pinecone production,
+  không bật content diagnostic logging, không deploy.

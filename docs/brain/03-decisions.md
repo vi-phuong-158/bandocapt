@@ -1,5 +1,20 @@
 # 03 — Technical Decisions
 
+## [2026-09-01] Location evidence is current-turn scoped and fail-closed
+
+- **Decision:** A service intent such as `CITIZEN_ID`/CCCD only requests the location-resolution
+  branch; it never supplies a location. A concrete location may be resolved only from the current
+  user message or from a short immediate answer after the assistant's explicit location question.
+- **History boundary:** Arbitrary recent user turns are not location evidence. This prevents an old
+  location from being reused after a topic change and keeps conversation state request-scoped.
+- **Safety boundary:** `no_match` and `unavailable` are passed to the model as structured status,
+  but generation is buffered and checked server-side before SSE. A specific station/address/phone/
+  Maps claim causes a deterministic generic location-evidence fallback. `ambiguous_*` never selects
+  an option automatically.
+- **Isolation:** `lib/published-locations.js` may cache only the shared published dataset. It does
+  not cache messages, history, or last-location state; `/api/chat` has no module-level conversation
+  state.
+
 ## [2026-08-31] One location marker with unified site/service taxonomy
 
 - **Decision:** One physical location has one stable `record_id` and one marker; it may have N services. `site_type` is physical (HEADQUARTERS, PUBLIC_SERVICE_CENTER, SECONDARY_OFFICE, MOBILE_POINT, OTHER) while `services` is capability data.

@@ -1663,6 +1663,66 @@ function getOutOfScopeReply(userMessage) {
     return 'I could not find reliable information for this question. Please contact your local police station (Ward/Commune Police) for direct assistance.';
 }
 
+function normalizeLocationSafetyText(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[đĐ]/g, 'd')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+}
+
+function getLocationSafetyTerms(dataset = {}) {
+    const records = [
+        ...(dataset.locations || []),
+        ...(dataset.conflicts || []).flatMap(conflict => conflict.records || []),
+    ];
+    return records.flatMap(record => [
+        record.name,
+        record.address,
+        record.searchAliases,
+        record.servedUnits,
+        record.aliases?.fullName,
+        record.aliases?.withoutCongAn,
+        record.aliases?.bareName,
+        ...(record.aliases?.approved || []),
+    ].flatMap(value => String(value || '').split('|')))
+        .map(normalizeLocationSafetyText)
+        .filter(value => value.length >= 3)
+        .filter((value, index, values) => values.indexOf(value) === index);
+}
+
+function containsSpecificLocationClaim(text, dataset = {}) {
+    const normalized = normalizeLocationSafetyText(text);
+    if (!normalized) return false;
+    if (getLocationSafetyTerms(dataset).some(term => normalized.includes(term))) return true;
+
+    // Dataset terms catch all published names/aliases. These structural guards also catch a
+    // newly hallucinated station/address that is not yet in the dataset, while allowing generic
+    // wording such as "Công an phường/xã nơi cư trú".
+    return /(?:công an|tru so|trụ sở|diem cap can cuoc|điểm cấp căn cước)\s+(?:phuong|phường|xa|xã|thi tran|thị trấn)\s+(?!noi\b|nơi\b|phu hop\b|phù hợp\b|gan\b|gần\b|dia phuong\b|địa phương\b)[^.!?\n]{2,}/iu.test(String(text || '')) ||
+        /\b(?:dia chi|địa chỉ|so dien thoai|số điện thoại|google maps|chi duong|chỉ đường|toa do|tọa độ)\s*[:：]/iu.test(String(text || ''));
+}
+
+function getMissingLocationEvidenceReply(userLang = 'vi') {
+    if (userLang === 'vi') {
+        return 'Mình chưa thể chỉ một trụ sở cụ thể vì bạn chưa cung cấp xã/phường. Bạn có thể cho biết đang ở xã/phường nào để mình chỉ đúng trụ sở Công an và đường đi nhé.';
+    }
+    if (userLang === 'zh') return '由于您尚未提供所在的乡/坊，我现在不能安全地指定具体办事地点。请告诉我您所在的乡/坊，我再为您查询已核实的地址和路线。';
+    if (userLang === 'ko') return '현재 거주하는 코뮌/방을 알려 주지 않으셔서 특정 경찰서를 안전하게 지정할 수 없습니다. 거주 지역을 알려 주시면 확인된 주소와 경로를 안내하겠습니다.';
+    return 'I cannot safely choose a specific police station because you have not provided your commune or ward. Tell me your commune or ward and I will look up a verified address and route.';
+}
+
+function getAmbiguousLocationReply(userLang = 'vi') {
+    if (userLang === 'vi') {
+        return 'Có nhiều trụ sở phù hợp với thông tin địa bàn hiện có nên mình chưa thể tự chọn một địa điểm. Bạn hãy cho biết rõ xã/phường hoặc xác nhận địa điểm bạn muốn tra cứu nhé.';
+    }
+    if (userLang === 'zh') return '目前有多个办事地点符合该地区信息，我不能自行选择其中一个。请提供更具体的乡/坊，或确认您要查询的地点。';
+    if (userLang === 'ko') return '현재 입력하신 지역과 일치하는 경찰서가 여러 곳이어서 임의로 선택할 수 없습니다. 정확한 코뮌/방을 알려 주시거나 조회할 장소를 확인해 주세요.';
+    return 'Several police stations match the location information, so I cannot choose one arbitrarily. Provide the exact commune or ward, or confirm which location you want me to check.';
+}
+
 // T2A: Cổng fail-closed thuần — true khi KHÔNG có bất kỳ nguồn grounded nào để trả lời
 // (RAG rỗng + không có trụ sở xác minh + không có khối thẩm quyền XNC). Tách hàm để
 // unit-test được toàn bộ nhánh mà không cần gọi LLM/Pinecone thật.
@@ -2219,14 +2279,26 @@ module.exports = async function handler(req, res) {
     const governanceEnabled = process.env.RAG_GOVERNANCE_FILTER === '1';
     // [EVAL-DEBUG T1.3] Trace retrieval, chỉ dựng khi evalMode; production giữ null → không lộ.
     const evalTrace = evalMode ? {
+        currentMessage: userMessage.trim(),
+        sanitizedHistory: safeHistory,
+        locationLookupRequested,
+        locationResolutionStatus: 'not_requested',
+        locationLookupTexts: [],
+        verifiedLocationMatches: [],
+        verifiedLocationPrompt: '',
         standaloneQuery,                // T2A: query độc lập dùng chung embedding/classify/rerank/XNC
         classifyQuery: standaloneQuery, // đã hợp nhất — trace giữ lại để soi
         category: null,
         matchesRaw: [],
         matchesFinal: [],
+        retrievedDocuments: [],
         excluded: [],
+        finalGenerationPrompt: null,
+        answer: '',
     } : null;
     let verifiedLocationPrompt = formatVerifiedLocationsPrompt({ lookupRequested: false }, { cacheStatus: 'fresh' });
+    let locationResolutionStatus = 'not_requested';
+    let locationSafetyDataset = {};
     const indexName = process.env.PINECONE_INDEX_NAME || 'chatbot-tthc-xnc';
     const indexHost = process.env.PINECONE_INDEX_HOST || undefined;
     // P1.1.1: Pin đúng 1 namespace từ env — bỏ vòng thử nhiều namespace (giảm worst-case
@@ -2387,6 +2459,15 @@ module.exports = async function handler(req, res) {
 
                     // UI-05: Lưu sources cho citation chips
                     matchedSources = topMatches.map(m => buildCitationSource(m.metadata, m.score));
+                    if (evalTrace) {
+                        evalTrace.retrievedDocuments = topMatches.map(m => ({
+                            id: m.id,
+                            score: typeof m.score === 'number' ? Number(m.score.toFixed(4)) : null,
+                            title: m.metadata?.title || m.metadata?.procedure_title || null,
+                            source_file: m.metadata?.source_file || m.metadata?.van_ban || null,
+                            procedure_id: m.metadata?.procedure_id || null,
+                        }));
+                    }
                 }
 
                 // [EVAL-DEBUG T1.3] Thu thập trace toàn bộ match + lý do loại từng cái.
@@ -2429,11 +2510,30 @@ module.exports = async function handler(req, res) {
         if (locationDataset?.error) {
             console.error('[api/chat] Verified locations unavailable:', locationDataset.error.message);
             verifiedLocationPrompt = formatVerifiedLocationsPrompt({ lookupRequested: true, status: 'unavailable' });
+            locationResolutionStatus = 'unavailable';
         } else if (locationDataset) {
             const verifiedLocationResult = findVerifiedLocationMatches(userMessage, safeHistory, locationDataset);
             verifiedLocationMatches = verifiedLocationResult.matches || [];
             verifiedLocationPrompt = formatVerifiedLocationsPrompt(verifiedLocationResult, locationDataset);
             locStatus = verifiedLocationResult.status;
+            locationResolutionStatus = locStatus;
+            locationSafetyDataset = locationDataset;
+            if (evalTrace) {
+                evalTrace.locationResolutionStatus = locStatus;
+                evalTrace.locationLookupTexts = verifiedLocationResult.lookupTexts || [];
+                evalTrace.verifiedLocationMatches = verifiedLocationMatches.map(match => ({
+                    name: match.name,
+                    matchedAlias: match.matchedAlias || '',
+                    score: match.matchScore ?? null,
+                }));
+            }
+        } else {
+            locationResolutionStatus = 'unavailable';
+        }
+
+        if (evalTrace) {
+            evalTrace.locationResolutionStatus = locationResolutionStatus;
+            evalTrace.verifiedLocationPrompt = verifiedLocationPrompt;
         }
 
         const normalizedMsg = userMessage.normalize('NFKC').toLowerCase();
@@ -2685,6 +2785,11 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
         { role: 'user', parts: [{ text: userMessage.trim() + languageLockContext + foreignNationalScopeContext }] }
     ];
 
+    if (evalTrace) {
+        evalTrace.verifiedLocationPrompt = verifiedLocationPrompt;
+        evalTrace.finalGenerationPrompt = { system: finalSystemPrompt, contents };
+    }
+
     const payload = {
         system_instruction: {
             parts: [{ text: finalSystemPrompt }]
@@ -2836,6 +2941,10 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             legalCorpus: `${matchedDocs}\n${verifiedLocationPrompt}`,
             allowedConstants: ['12 giờ', '24 giờ', '12 hours', '24 hours', '12小时', '24小时', '12시간', '24시간', 'Điều 33'],
         });
+        // A no_match/unavailable result is a security boundary, not merely a prompt hint.
+        // Buffer that answer until generation ends so a later hallucinated station cannot have
+        // already been streamed to the browser before the deterministic gate sees it.
+        const deferLocationOutput = ['no_match', 'unavailable', 'ambiguous_match', 'ambiguous_conflict'].includes(locationResolutionStatus);
         const emitValidatedSegments = ({ flush = false } = {}) => {
             const { segment, remainder } = takeCompleteSegment(pendingText, { flush });
             pendingText = remainder;
@@ -2846,7 +2955,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
                 stageTimings.time_to_first_validated_sentence_ms = Date.now() - _startTime;
             }
             fullText += validation.sanitizedText;
-            sink.event({ text: validation.sanitizedText });
+            if (!deferLocationOutput) sink.event({ text: validation.sanitizedText });
             return validation.violations;
         };
         let outputValidatorViolations = [];
@@ -3008,6 +3117,33 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             pendingText = trimToSentenceBoundary(pendingText) + getTruncationNotice(isVietnamese ? 'vi' : userLang);
         }
         outputValidatorViolations.push(...emitValidatedSegments({ flush: true }));
+
+        let locationSafetyFallback = false;
+        if (['ambiguous_match', 'ambiguous_conflict'].includes(locationResolutionStatus)) {
+            // Ambiguous matches may expose candidate options in the internal prompt, but the
+            // public answer must always ask for clarification instead of selecting one.
+            locationSafetyFallback = true;
+            outputValidatorViolations.push({
+                tier: 1,
+                type: 'ambiguous_location_claim',
+                action: 'fallback',
+            });
+            fullText = getAmbiguousLocationReply(userLang);
+        } else if (deferLocationOutput && containsSpecificLocationClaim(fullText, locationSafetyDataset)) {
+            locationSafetyFallback = true;
+            outputValidatorViolations.push({
+                tier: 1,
+                type: 'unverified_location_claim',
+                action: 'fallback',
+            });
+            fullText = getMissingLocationEvidenceReply(userLang);
+        } else if (deferLocationOutput && !fullText.trim()) {
+            // All generated content may have been removed by the existing validator. Keep the
+            // response deterministic and useful instead of ending with an empty SSE payload.
+            locationSafetyFallback = true;
+            fullText = getMissingLocationEvidenceReply(userLang);
+        }
+        if (deferLocationOutput) sink.event({ text: fullText });
         const validationResult = { violations: outputValidatorViolations };
 
         // --- Gửi event kết thúc kèm history ---
@@ -3025,6 +3161,8 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             evalTrace.timings = { ...stageTimings };
             evalTrace.provider = provider;
             evalTrace.fallback_used = fallbackUsed;
+            evalTrace.answer = fullText;
+            evalTrace.locationSafetyFallback = locationSafetyFallback;
         }
         stopHeartbeat?.();
         sink.event({
@@ -3035,6 +3173,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             verifiedLocations: buildVerifiedLocationLinks(verifiedLocationMatches),
             truncated: wasTruncatedByTokenLimit,
             finishReason,
+            ...(locationSafetyFallback ? { locationSafetyFallback: true } : {}),
             ...(evalMode && evalTrace ? { eval: evalTrace } : {})
         });
         sink.close();
@@ -3165,6 +3304,9 @@ module.exports.buildVerifiedLocationLinks = buildVerifiedLocationLinks;
 module.exports.isRetryableProviderError = isRetryableProviderError;
 module.exports.getRemainingDeadlineMs = getRemainingDeadlineMs;
 module.exports.detectUserLanguage = detectUserLanguage;
+module.exports.containsSpecificLocationClaim = containsSpecificLocationClaim;
+module.exports.getMissingLocationEvidenceReply = getMissingLocationEvidenceReply;
+module.exports.getAmbiguousLocationReply = getAmbiguousLocationReply;
 module.exports.translateQueryForRetrieval = translateQueryForRetrieval;
 module.exports.hasForeignSubjectQuery = hasForeignSubjectQuery;
 module.exports.isCitizenResidenceDoc = isCitizenResidenceDoc;
