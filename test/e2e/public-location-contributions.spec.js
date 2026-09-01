@@ -25,7 +25,7 @@ async function mockContributionApi(page, submissions, { failFirst = false } = {}
                 return route.fulfill({ json: { ok: true, data: { locations: [{
                     recordId: 'record-public-1', unitCode: 'UNIT_NEW', name: 'Trụ sở Đơn vị mới', siteType: 'HEADQUARTERS',
                     services: ['IDENTITY'], address: 'Khu 1, Phú Thọ', phone: '', googleMapsUrl: 'https://www.google.com/maps/@21.3225,105.4027,16z',
-                    serviceSchedule: '', servedUnits: '', imageUrl: '',
+                    serviceSchedule: '', servedUnits: '', imageUrl: 'https://images.example.test/current-location.jpg',
                 }] } } });
             }
             return route.fulfill({ json: { ok: true, data: { units: [{ unitCode: 'UNIT_NEW', label: 'Đơn vị mới chưa có địa điểm' }] } } });
@@ -51,6 +51,26 @@ async function fillContributionForm(page) {
 }
 
 test.describe('public location contribution form', () => {
+    test('CREATE keeps address, Maps, image, site type, and services required', async ({ page }) => {
+        await mockTurnstile(page);
+        const submissions = [];
+        await mockContributionApi(page, submissions);
+        await page.goto('/dong-gop/');
+        await page.locator('[name=unitCode]').selectOption('UNIT_NEW');
+
+        for (const selector of ['[name=siteType]', '[name=address]', '[name=mapsUrl]', '[name=image]']) {
+            await expect(page.locator(selector)).toHaveJSProperty('required', true);
+            await expect(page.locator(selector)).toHaveAttribute('aria-required', 'true');
+        }
+        await expect(page.locator('#services-field')).toHaveAttribute('aria-required', 'true');
+        await expect(page.locator('[name=services]').first()).toBeVisible();
+        await expect(page.locator('[data-required-mark="address"]')).toBeVisible();
+        await expect(page.locator('[data-required-mark="maps"]')).toBeVisible();
+        await expect(page.locator('[data-required-mark="image"]')).toBeVisible();
+        await expect(page.locator('[data-required-mark="services"]')).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Gửi đóng góp' })).toBeDisabled();
+    });
+
     test('mobile form loads without login, submits once, and shows pending-only success', async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         await mockTurnstile(page);
@@ -110,7 +130,12 @@ test.describe('public location contribution form', () => {
 
         await page.locator('[name=requestType]').selectOption('Cập nhật địa điểm đang có');
         await expect(page.locator('[name=targetRecordId]')).toBeEnabled();
+        await expect(page.locator('[name=targetRecordId]')).toHaveJSProperty('required', true);
+        await expect(page.locator('[name=targetRecordId]')).toHaveAttribute('aria-required', 'true');
         await page.locator('[name=targetRecordId]').selectOption('record-public-1');
+        await expect(page.locator('[name=address]')).toHaveJSProperty('required', false);
+        await expect(page.locator('[name=mapsUrl]')).toHaveJSProperty('required', false);
+        await expect(page.locator('[name=image]')).toHaveJSProperty('required', false);
         await page.locator('[name=address]').fill('Khu 2, Phú Thọ');
         await page.getByRole('button', { name: 'Gửi đóng góp' }).click();
         expect(submissions[0].requestType).toBe('Cập nhật địa điểm đang có');
@@ -120,11 +145,41 @@ test.describe('public location contribution form', () => {
         await page.locator('[name=unitCode]').selectOption('UNIT_NEW');
         await page.locator('[name=requestType]').selectOption('Báo địa điểm ngừng hoạt động');
         await expect(page.locator('#location-fields')).toBeHidden();
+        await expect(page.locator('[name=mapsUrl]')).toHaveJSProperty('required', false);
+        await expect(page.locator('[name=image]')).toHaveJSProperty('required', false);
         await page.locator('[name=targetRecordId]').selectOption('record-public-1');
         await page.getByRole('button', { name: 'Gửi đóng góp' }).click();
         expect(submissions[1].requestType).toBe('Báo địa điểm ngừng hoạt động');
         expect(submissions[1].targetRecordId).toBe('record-public-1');
         expect(submissions[1].image).toBeUndefined();
+    });
+
+    test('UPDATE shows existing data as optional context and prefills services, address, Maps, and image state', async ({ page }) => {
+        await mockTurnstile(page);
+        const submissions = [];
+        await mockContributionApi(page, submissions);
+        await page.goto('/dong-gop/');
+        await page.locator('[name=unitCode]').selectOption('UNIT_NEW');
+        await page.locator('[name=requestType]').selectOption('Cập nhật địa điểm đang có');
+        await page.locator('[name=targetRecordId]').selectOption('record-public-1');
+
+        for (const selector of ['[name=siteType]', '[name=address]', '[name=mapsUrl]', '[name=image]']) {
+            await expect(page.locator(selector)).toHaveJSProperty('required', false);
+            await expect(page.locator(selector)).toHaveAttribute('aria-required', 'false');
+        }
+        await expect(page.locator('#services-field')).toHaveAttribute('aria-required', 'false');
+        await expect(page.locator('[name=address]')).toHaveValue('Khu 1, Phú Thọ');
+        await expect(page.locator('[name=mapsUrl]')).toHaveValue('https://www.google.com/maps/@21.3225,105.4027,16z');
+        await expect(page.locator('[name=services][value=IDENTITY]')).toBeChecked();
+        await expect(page.locator('[data-required-mark="address"]')).toBeHidden();
+        await expect(page.locator('[data-required-mark="maps"]')).toBeHidden();
+        await expect(page.locator('[data-required-mark="image"]')).toBeHidden();
+        await expect(page.locator('[data-required-mark="services"]')).toBeHidden();
+        await expect(page.locator('[data-optional-mark="address"]')).toBeVisible();
+        await expect(page.locator('#address-help')).toHaveText('Giữ nguyên nếu địa chỉ không thay đổi.');
+        await expect(page.locator('#maps-help')).toHaveText('Thông tin hiện tại đang được hiển thị. Chỉ thay đổi khi vị trí trên bản đồ đã thay đổi.');
+        await expect(page.locator('#image-help')).toHaveText('Chỉ tải ảnh mới nếu muốn thay ảnh hiện tại.');
+        await expect(page.locator('#current-image-status')).toHaveText('Địa điểm này đã có ảnh. Không cần tải lại ảnh nếu ảnh hiện tại vẫn đúng.');
     });
 
     test('partial update with only phone changed submits successfully without re-entering image or maps link', async ({ page }) => {
