@@ -1,5 +1,20 @@
 # 06 — AI Working Log
 
+## [2026-09-01] Hoàn thiện Public Location Contribution UX + Floating CTA
+- **Agent:** Codex
+- **Thay đổi:** Gom CTA `Đóng góp địa điểm` và launcher Hỏi đáp vào shared floating-actions trên trang bản đồ; responsive desktop/mobile, safe-area, focus-visible và touch target tối thiểu; không hiển thị CTA trên `/dong-gop/`. Giữ nguyên UPDATE UX partial đã hoàn tất ở entry ngay dưới.
+- **File đã sửa:** `index.html`, `styles.css`, `tokens.css`, `test/e2e/public-floating-cta.spec.js` cùng các file UPDATE UX và tài liệu liên quan.
+- **Lý do:** Làm chức năng đóng góp dễ tìm và dễ bấm hơn trên mobile mà không refactor navigation hoặc thay đổi behavior Hỏi đáp.
+- **Kiểm tra:** Floating CTA Playwright 3/3 PASS ở 320/375/390/430/768/1280 coverage; public contribution focused 9/9; full E2E 69/69; `npm run ci` PASS với 636/636 unit tests, build/syntax/staff checks và audit không có high/critical.
+- **Phạm vi an toàn:** Không gọi Apps Script, không submit contribution, không thay đổi workbook/dữ liệu Production, không merge/deploy Production.
+
+## [2026-09-01] Hoàn thiện UX cập nhật địa điểm công khai
+- **Agent:** Codex
+- **Thay đổi:** Đồng bộ trạng thái required/aria-required và dấu `*` theo CREATE/UPDATE/STOP; làm rõ help text cho địa chỉ, Google Maps và ảnh; hiển thị trạng thái ảnh hiện có; sửa selector wrapper ảnh; cho phép UPDATE không chọn lại dịch vụ khi backend sẽ giữ dữ liệu hiện tại.
+- **File đã sửa:** `dong-gop/index.html`, `js/public-location-contribution.js`, `test/e2e/public-location-contributions.spec.js`, `test/public-location-contributions.test.js`.
+- **Lý do:** Luồng partial update đã có ở backend nhưng UI còn khiến người dùng hiểu nhầm Maps, địa chỉ và ảnh luôn bắt buộc, đồng thời chưa phản ánh đúng accessibility state.
+- **Kiểm tra:** Public contribution unit 16/16; Playwright public contribution 6/6; build và full CI chạy sau khi hoàn tất. Không deploy, không gọi Apps Script, không thay đổi workbook/dữ liệu Production.
+
 ## [2026-08-31] Production Release — PR #63 Location Update Partial Patch
 - **Agent:** Antigravity (Gemini 2.5 Flash / Claude 3.7 Sonnet)
 - **PR:** #63 (`fix: preserve unchanged fields on location updates`)
