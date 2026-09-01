@@ -288,20 +288,28 @@
     <script src="lib/location-taxonomy.js" defer></script>
     <script src="app.js" defer></script>
 
-    <!-- AI CHATBOT WIDGET -->
-    <div id="ai-chat-launcher">
-        <span class="ai-launcher-pulse" aria-hidden="true"></span>
-        <span class="ai-launcher-pulse ai-launcher-pulse--delay" aria-hidden="true"></span>
-        <button id="ai-chat-toggle-btn" aria-label="Mở trợ lý AI" aria-expanded="false" aria-controls="ai-chat-window">
-            <span class="ai-launcher-avatar">
-                <img src="assets/icon-128.webp" alt="" aria-hidden="true" width="128" height="128">
-                <span class="ai-launcher-dot" aria-hidden="true"></span>
-            </span>
-            <span class="ai-launcher-text">
-                <span class="ai-launcher-title">Hỏi đáp AI</span>
-                <span class="ai-launcher-sub">Trợ lý tra cứu · 24/7</span>
-            </span>
-        </button>
+    <!-- PUBLIC FLOATING ACTIONS -->
+    <div id="public-floating-actions" class="public-floating-actions" role="group" aria-label="Thao tác nhanh">
+        <a id="public-contribution-cta" class="public-contribution-cta" href="dong-gop/">
+            <span class="material-symbols-outlined" aria-hidden="true">add_location_alt</span>
+            <span>Đóng góp địa điểm</span>
+        </a>
+
+        <!-- AI CHATBOT WIDGET -->
+        <div id="ai-chat-launcher">
+            <span class="ai-launcher-pulse" aria-hidden="true"></span>
+            <span class="ai-launcher-pulse ai-launcher-pulse--delay" aria-hidden="true"></span>
+            <button id="ai-chat-toggle-btn" aria-label="Mở trợ lý AI" aria-expanded="false" aria-controls="ai-chat-window">
+                <span class="ai-launcher-avatar">
+                    <img src="assets/icon-128.webp" alt="" aria-hidden="true" width="128" height="128">
+                    <span class="ai-launcher-dot" aria-hidden="true"></span>
+                </span>
+                <span class="ai-launcher-text">
+                    <span class="ai-launcher-title">Hỏi đáp AI</span>
+                    <span class="ai-launcher-sub">Trợ lý tra cứu · 24/7</span>
+                </span>
+            </button>
+        </div>
     </div>
 
     <div id="ai-chat-window" class="ai-chat-window--hidden" role="dialog" aria-labelledby="ai-chat-title" aria-modal="false" aria-hidden="true">

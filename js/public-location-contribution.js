@@ -11,7 +11,8 @@
         submitterName: document.getElementById('submitter-name'), submitterPhone: document.getElementById('submitter-phone'), note: document.getElementById('note'),
         requestType: document.getElementById('request-type'), target: document.getElementById('target-record-id'), targetField: document.getElementById('target-location-field'),
         siteType: document.getElementById('site-type'), services: document.getElementById('services-field'), locationFields: document.getElementById('location-fields'),
-        serviceSchedule: document.getElementById('service-schedule'), servedUnits: document.getElementById('served-units'), imageField: document.getElementById('location-image-field'),
+        serviceSchedule: document.getElementById('service-schedule'), servedUnits: document.getElementById('served-units'), mapsField: document.getElementById('maps-field'), imageField: document.getElementById('location-image-field'),
+        addressHelp: document.getElementById('address-help'), mapsHelp: document.getElementById('maps-help'), imageHelp: document.getElementById('image-help'), currentImageStatus: document.getElementById('current-image-status'),
         captcha: document.getElementById('public-turnstile-widget'), status: document.getElementById('public-contribution-status'), submit: document.getElementById('public-contribution-submit'),
         targetContext: document.getElementById('target-context'), imageFilename: document.getElementById('location-image-filename'),
     };
@@ -61,6 +62,15 @@
             (kind !== 'CREATE' && !elements.target.value) || (kind === 'CREATE' && !selectedServices.length);
     }
 
+    function setRequiredState(element, required, fieldName) {
+        element.required = required;
+        element.setAttribute('aria-required', String(required));
+        const requiredMark = form.querySelector(`[data-required-mark="${fieldName}"]`);
+        const optionalMark = form.querySelector(`[data-optional-mark="${fieldName}"]`);
+        if (requiredMark) requiredMark.hidden = !required;
+        if (optionalMark) optionalMark.hidden = required;
+    }
+
     function appendServiceOption(item, container) {
         const label = document.createElement('label');
         label.className = 'public-contribution-service';
@@ -97,35 +107,34 @@
         elements.services.append(toggle, extraContainer);
     }
 
-    // Gắn/gỡ dấu * và đổi hẳn chữ nhãn TẠI CÙNG một nơi với `required`, để nhãn không bao giờ lệch
-    // khỏi hành vi thật (đây chính là bug đã sửa: HTML có `*` tĩnh trong khi JS đổi `required` riêng).
-    // Bán chọn UPDATE: ô trống nghĩa là GIỮ NGUYÊN dữ liệu hiện tại — không phải xoá — nên nhãn phải
-    // nói đúng "để trống nếu không đổi", không dùng "(không bắt buộc)" (từ đó gợi ý sai là để trống
-    // thì trường sẽ trống).
-    function setDynamicLabel(textId, markId, createText, updateText, isCreate) {
-        const textEl = document.getElementById(textId);
-        const markEl = document.getElementById(markId);
-        if (textEl) textEl.textContent = isCreate ? createText : updateText;
-        if (markEl) markEl.hidden = !isCreate;
-    }
-
     function updateRequestMode() {
         const kind = taxonomy.requestKind(elements.requestType.value);
         const isCreate = kind === 'CREATE';
         const stop = kind === 'STOP';
         elements.targetField.hidden = isCreate;
         elements.target.disabled = isCreate || !elements.unit.value || !targets.length;
+        setRequiredState(elements.target, !isCreate, 'target');
         elements.locationFields.hidden = stop;
-        elements.siteType.required = isCreate;
-        elements.address.required = isCreate;
-        elements.maps.required = isCreate;
-        elements.image.required = isCreate;
+        setRequiredState(elements.siteType, isCreate, 'siteType');
+        elements.services.setAttribute('aria-required', String(isCreate));
+        const servicesRequiredMark = form.querySelector('[data-required-mark="services"]');
+        const servicesOptionalMark = form.querySelector('[data-optional-mark="services"]');
+        if (servicesRequiredMark) servicesRequiredMark.hidden = !isCreate;
+        if (servicesOptionalMark) servicesOptionalMark.hidden = isCreate;
+        setRequiredState(elements.address, isCreate, 'address');
+        setRequiredState(elements.maps, isCreate, 'maps');
+        setRequiredState(elements.image, isCreate, 'image');
         elements.imageField.hidden = stop;
-        setDynamicLabel('site-type-label-text', 'site-type-required-mark', 'Loại địa điểm', 'Loại địa điểm', isCreate);
-        setDynamicLabel('services-label-text', 'services-required-mark', 'Dịch vụ thực hiện tại địa điểm', 'Dịch vụ thực hiện tại địa điểm', isCreate);
-        setDynamicLabel('address-label-text', 'address-required-mark', 'Địa chỉ', 'Địa chỉ (để trống nếu không thay đổi)', isCreate);
-        setDynamicLabel('maps-label-text', 'maps-required-mark', 'Link Google Maps', 'Link Google Maps (để trống nếu vị trí không thay đổi)', isCreate);
-        setDynamicLabel('image-label-text', 'image-required-mark', '01 ảnh địa điểm', 'Ảnh mới (chỉ chọn nếu muốn thay ảnh)', isCreate);
+        elements.mapsField.hidden = stop;
+        elements.addressHelp.textContent = isCreate
+            ? 'Bắt buộc với địa điểm mới.'
+            : 'Giữ nguyên nếu địa chỉ không thay đổi.';
+        elements.mapsHelp.textContent = isCreate
+            ? 'Dùng đường dẫn Google Maps của địa điểm tại Phú Thọ.'
+            : 'Thông tin hiện tại đang được hiển thị. Chỉ thay đổi khi vị trí trên bản đồ đã thay đổi.';
+        elements.imageHelp.textContent = isCreate
+            ? 'Ảnh được giữ riêng tư trong thời gian chờ kiểm tra.'
+            : 'Chỉ tải ảnh mới nếu muốn thay ảnh hiện tại.';
         refreshSubmitState();
     }
 
@@ -161,11 +170,20 @@
         elements.publicPhone.value = target.phone || '';
         elements.serviceSchedule.value = target.serviceSchedule || '';
         elements.servedUnits.value = target.servedUnits || '';
+        if (target.imageUrl) {
+            elements.currentImageStatus.hidden = false;
+            elements.currentImageStatus.textContent = 'Địa điểm này đã có ảnh. Không cần tải lại ảnh nếu ảnh hiện tại vẫn đúng.';
+        } else {
+            elements.currentImageStatus.hidden = true;
+            elements.currentImageStatus.textContent = '';
+        }
         refreshSubmitState();
     }
 
     async function loadTargets() {
         targets = [];
+        elements.currentImageStatus.hidden = true;
+        elements.currentImageStatus.textContent = '';
         updateTargetContext(null);
         elements.target.replaceChildren(new Option(elements.unit.value ? 'Đang tải địa điểm…' : 'Chọn đơn vị trước', ''));
         if (!elements.unit.value) return updateRequestMode();
@@ -263,7 +281,7 @@
         if (!form.checkValidity()) { form.reportValidity(); return; }
         const requestKind = taxonomy.requestKind(elements.requestType.value);
         const selectedServices = Array.from(elements.services.querySelectorAll('input:checked')).map(input => input.value);
-        if (requestKind !== 'STOP' && !selectedServices.length) { setStatus('Vui lòng chọn ít nhất một dịch vụ.', 'error'); return; }
+        if (requestKind === 'CREATE' && !selectedServices.length) { setStatus('Vui lòng chọn ít nhất một dịch vụ.', 'error'); return; }
         const file = elements.image.files?.[0];
         const nextFingerprint = fingerprint(file);
         if (nextFingerprint !== operationFingerprint) { operationId = createOperationId(); operationFingerprint = nextFingerprint; }

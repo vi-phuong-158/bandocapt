@@ -1,5 +1,20 @@
 # 06 — AI Working Log
 
+## [2026-09-01] Hoàn thiện Public Location Contribution UX + Floating CTA
+- **Agent:** Codex
+- **Thay đổi:** Gom CTA `Đóng góp địa điểm` và launcher Hỏi đáp vào shared floating-actions trên trang bản đồ; responsive desktop/mobile, safe-area, focus-visible và touch target tối thiểu; không hiển thị CTA trên `/dong-gop/`. Giữ nguyên UPDATE UX partial đã hoàn tất ở entry ngay dưới.
+- **File đã sửa:** `index.html`, `styles.css`, `tokens.css`, `test/e2e/public-floating-cta.spec.js` cùng các file UPDATE UX và tài liệu liên quan.
+- **Lý do:** Làm chức năng đóng góp dễ tìm và dễ bấm hơn trên mobile mà không refactor navigation hoặc thay đổi behavior Hỏi đáp.
+- **Kiểm tra:** Floating CTA Playwright 3/3 PASS ở 320/375/390/430/768/1280 coverage; public contribution focused 9/9; full E2E 69/69; `npm run ci` PASS với 636/636 unit tests, build/syntax/staff checks và audit không có high/critical.
+- **Phạm vi an toàn:** Không gọi Apps Script, không submit contribution, không thay đổi workbook/dữ liệu Production, không merge/deploy Production.
+
+## [2026-09-01] Hoàn thiện UX cập nhật địa điểm công khai
+- **Agent:** Codex
+- **Thay đổi:** Đồng bộ trạng thái required/aria-required và dấu `*` theo CREATE/UPDATE/STOP; làm rõ help text cho địa chỉ, Google Maps và ảnh; hiển thị trạng thái ảnh hiện có; sửa selector wrapper ảnh; cho phép UPDATE không chọn lại dịch vụ khi backend sẽ giữ dữ liệu hiện tại.
+- **File đã sửa:** `dong-gop/index.html`, `js/public-location-contribution.js`, `test/e2e/public-location-contributions.spec.js`, `test/public-location-contributions.test.js`.
+- **Lý do:** Luồng partial update đã có ở backend nhưng UI còn khiến người dùng hiểu nhầm Maps, địa chỉ và ảnh luôn bắt buộc, đồng thời chưa phản ánh đúng accessibility state.
+- **Kiểm tra:** Public contribution unit 16/16; Playwright public contribution 6/6; build và full CI chạy sau khi hoàn tất. Không deploy, không gọi Apps Script, không thay đổi workbook/dữ liệu Production.
+
 ## [2026-08-31] Production Release — PR #63 Location Update Partial Patch
 - **Agent:** Antigravity (Gemini 2.5 Flash / Claude 3.7 Sonnet)
 - **PR:** #63 (`fix: preserve unchanged fields on location updates`)
@@ -3528,17 +3543,22 @@
     `taxonomy.displaySiteType()`. Thêm `formatServedUnits()` (`|` → `, `) và `formatVietnameseDate()`
     (ISO → `dd/mm/yyyy`) — chỉ định dạng hiển thị, không đổi giá trị lưu trữ. Nâng cỡ chữ chip dịch vụ
     (11→13px) và badge (10→12px); di chuyển khối Dịch vụ lên trước Giờ làm việc trong `index.html`.
-  - `dong-gop/index.html` + `js/public-location-contribution.js`: nhãn bắt buộc (`site-type`, `services`,
-    `address`, `maps-url`, `location-image`) đổi từ dấu `*` tĩnh sang cặp `<span id>` text/mark do
-    `setDynamicLabel()` cập nhật CÙNG một chỗ với `required` trong `updateRequestMode()`. UPDATE dùng
-    đúng semantics đã khoá: ô trống = giữ nguyên (không phải xoá) — nhãn ghi rõ "để trống nếu không thay
-    đổi"/"chỉ chọn nếu muốn thay ảnh", không dùng "(không bắt buộc)" (từ đó gợi ý sai). Thêm dòng
-    "Đang cập nhật: `<tên đầy đủ>`" dưới ô chọn địa điểm (`updateTargetContext()`). `services-field` thu
-    gọn còn 4 dịch vụ chính + nút "Xem thêm N dịch vụ" (tự bung nếu dịch vụ đã prefill nằm trong nhóm ẩn).
-    `fingerprint()` bổ sung `serviceSchedule`/`servedUnits` (thiếu hai trường này khiến sửa xong gửi lại
-    trúng `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD` vì `operationId` không đổi trong khi payload đã
-    đổi). Thêm dòng "Đã chọn: `<tên file>`" tiếng Việt cạnh input ảnh gốc (không thay input, không giảm
-    a11y).
+  - `dong-gop/index.html` + `js/public-location-contribution.js`: **hợp nhất với PR #64** (merge vào
+    `main` cùng ngày, độc lập sửa đúng vấn đề P0 này bằng cơ chế `data-required-mark`/`data-optional-mark`
+    + `setRequiredState()` — bao phủ cả `target`/`siteType`/`services` và có `aria-required`, help-text
+    theo mode, `current-image-status`). Giữ nguyên cơ chế của PR #64 (không dựng `setDynamicLabel()` song
+    song); chỉ sửa đúng phần chữ trong `data-optional-mark` của `address`/`maps`/`image` từ
+    "(không bắt buộc)" sang "để trống nếu không thay đổi"/"để trống nếu vị trí không thay đổi"/"chỉ chọn
+    nếu muốn thay ảnh" — theo đúng semantics đã khoá (ô trống = giữ nguyên, không phải xoá; "không bắt
+    buộc" gợi ý sai). Lớp trên cơ chế đó, bổ sung phần PR #64 chưa có: dòng "Đang cập nhật:
+    `<tên đầy đủ>`" dưới ô chọn địa điểm (`updateTargetContext()`, không lặp lại loại địa điểm vì
+    `target.name` đã có sẵn tiền tố theo `generateDisplayName()`); `services-field` thu gọn còn 4 dịch vụ
+    chính + nút "Xem thêm N dịch vụ" (tự bung nếu dịch vụ đã prefill nằm trong nhóm ẩn); `fingerprint()`
+    bổ sung `serviceSchedule`/`servedUnits` (thiếu hai trường này khiến sửa xong gửi lại trúng
+    `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD` vì `operationId` không đổi trong khi payload đã đổi
+    — PR #64 không chạm hàm này); dòng "Đã chọn: `<tên file>`" tiếng Việt cạnh input ảnh gốc, riêng biệt
+    với `current-image-status` của PR #64 (một nói về ảnh đã có trên bản ghi, một xác nhận file vừa chọn
+    ở máy — không thay input, không giảm a11y).
   - `styles.css` / `styles/public-location-contribution.css`: phát hiện khi kiểm chứng runtime —
     `#service-filter-more`/`#services-extra` mang cả `hidden` lẫn class `display:flex/grid`; do đặc thù
     độ đặc hiệu CSS (Tailwind Preflight zero-out `[hidden]` qua `:where()`; CSS thường thì ID selector
