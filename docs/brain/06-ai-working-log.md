@@ -1,5 +1,33 @@
 # 06 — AI Working Log
 
+## [2026-09-03] R3D — Forward-port chatbot location-context fail-closed fix (`8403147`) from PR #65 onto current `main`
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** PR #65 (`fix: close chatbot location-context leak`) mở trên branch
+  `fix/public-location-update-ux` cũ, cùng branch với chuỗi R0.5→R2b UI đã superseded bởi PR #66/#68.
+  PR #65 tự nó không mergeable (`CONFLICTING`) vì mang theo toàn bộ lịch sử branch cũ. Forensic riêng
+  commit `8403147` (`fix(chat): fail closed on missing location evidence`) cho thấy nó chỉ sửa
+  `api/chat.js`/`lib/published-locations.js`/test — không đụng `app.js`/taxonomy — nên độc lập hoàn
+  toàn với phần UI đã forward-port riêng ở R3A.
+- **Xác minh trước khi port:** `git diff 78f3268 693c80f -- api/chat.js lib/published-locations.js`
+  rỗng — `main` (sau PR #66) và cha của `8403147` giống hệt nhau ở hai file này, nên không có gì trên
+  `main` đã tình cờ implement lại cùng fix dưới tên khác; toàn bộ fix `STILL_MISSING` trên `main`
+  trước khi port.
+- **Thay đổi:** `git cherry-pick -x 8403147` lên branch mới `fix/chat-location-context-forward-port`
+  tạo từ `origin/main` tại `7dab6d4`. Cherry-pick áp code (`api/chat.js`, `lib/published-locations.js`,
+  `test/location-resolution-contract.test.js`) sạch không conflict; chỉ `docs/brain/03-decisions.md`
+  và `docs/brain/06-ai-working-log.md` conflict (hai bên cùng thêm entry ở đầu file) — resolve bằng
+  cách giữ cả hai entry, không bỏ nội dung bên nào.
+- **File đã sửa:** `api/chat.js`, `lib/published-locations.js`, `test/location-resolution-contract.test.js`
+  (cả ba từ `8403147`, không đổi so với PR #65), `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md` (merge nội dung, không viết lại
+  entry lịch sử nào).
+- **Lý do:** Đóng invariant an toàn "location evidence chỉ tính current-turn, fail-closed khi thiếu/
+  mơ hồ, không leak địa điểm cũ giữa các lượt hỏi" trên `main` hiện hành, không giữ nó kẹt trong một
+  PR không mergeable.
+- **Kiểm tra:** xem báo cáo R3D trong phiên làm việc cho kết quả `npm test`/`npm run ci`/E2E đầy đủ.
+- **An toàn:** không đụng branch `fix/public-location-update-ux` cũ, không đóng/merge/rebase PR #65,
+  không kéo lịch sử R0.5–R2b vào branch mới này, không commit/push cho tới khi acceptance PASS.
+
 ## [2026-09-03] R3A — Forward-port map selection/panel/drag-dismiss state hardening onto PR #66 taxonomy UX
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** Một chuỗi R0.5→R1→R2a→R2b từng được làm trên branch `fix/public-location-update-ux`
@@ -3655,3 +3683,21 @@
   (`useLegacyFallback`), nên UPDATE một bản ghi legacy có `services` rỗng có thể tự suy ra
   `POLICE_OFFICE` chưa ai xác nhận — đặt tên finding
   `LEGACY_EMPTY_SERVICES_UPDATE_CAN_INFER_POLICE_OFFICE` cho việc theo dõi sau.
+
+## [2026-09-01] Sửa resolver tự chọn địa điểm khi thiếu địa bàn
+- **Agent:** Codex
+- **Thay đổi:** Location resolver chỉ dùng evidence từ current message hoặc immediate assistant
+  follow-up; loại history user cũ khỏi scoring. Thêm eval-only pipeline trace và server-side buffer/
+  gate cho `no_match`/`unavailable`, chặn station/address/phone/Maps hallucination trước SSE.
+- **File đã sửa:** `lib/published-locations.js`, `api/chat.js`, `test/location-resolution-contract.test.js`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Lý do:** Câu hỏi chỉ có service intent "căn cước" không được phép tự biến thành địa bàn Hòa Bình;
+  history conversation không được tái sử dụng sau khi đổi chủ đề.
+- **Kiểm tra:** `node --test test/location-resolution-contract.test.js` (10/10; gồm no_match và
+  ambiguous public fallback), `npm test`
+  (646/646), `npm run build`, `npm run ci` (exit 0), và focused chat E2E
+  (`chat-embed.spec.js` + `chat-progressive-disclosure.spec.js`, 5/5). Mock Gemini trả địa chỉ
+  Hòa Bình bị fallback an toàn trước khi phát SSE; full E2E suite bị dừng do runner không kết thúc
+  sau khi khởi chạy 69 test.
+- **Phạm vi an toàn:** Chỉ fixture local; không gọi/sửa Google Sheet production, Pinecone production,
+  không bật content diagnostic logging, không deploy.

@@ -36,8 +36,35 @@
   the product.
 - **Not decided here:** the desktop `#detail-panel`-covers-`#search-panel` reachability gap (R2a) is
   unchanged — a layout question, explicitly out of scope. PR #65 (`fix: close chatbot
-  location-context leak`, still open/`CONFLICTING` against `main`) is untouched; owner handles it
-  separately.
+  location-context leak`) carried this UI chain plus one independent chat-safety commit
+  (`8403147`); the safety commit is forward-ported separately below (R3D) since it never touched
+  UI/taxonomy code, and PR #65 itself is left open for the owner to close as superseded.
+
+## [2026-09-03] R3D: chatbot location-context fail-closed fix forward-ported from PR #65's `8403147` onto current `main`
+
+- **Decision:** `8403147` (`fix(chat): fail closed on missing location evidence`) never touched
+  `app.js`/taxonomy code — it is a self-contained `api/chat.js` + `lib/published-locations.js` fix,
+  independent of the R0.5–R2b UI chain it happened to share a branch with. `main`'s copies of both
+  files were byte-identical to `8403147`'s parent (PR #66 never touched them), so it cherry-picks
+  cleanly with zero code conflict; only this doc's own concurrent entries conflicted, resolved by
+  keeping both.
+- See the `[2026-09-01]` entry immediately below for the fix's own content (current-turn-scoped
+  location evidence, fail-closed output buffering, ambiguous-match refusal).
+
+## [2026-09-01] Location evidence is current-turn scoped and fail-closed
+
+- **Decision:** A service intent such as `CITIZEN_ID`/CCCD only requests the location-resolution
+  branch; it never supplies a location. A concrete location may be resolved only from the current
+  user message or from a short immediate answer after the assistant's explicit location question.
+- **History boundary:** Arbitrary recent user turns are not location evidence. This prevents an old
+  location from being reused after a topic change and keeps conversation state request-scoped.
+- **Safety boundary:** `no_match` and `unavailable` are passed to the model as structured status,
+  but generation is buffered and checked server-side before SSE. A specific station/address/phone/
+  Maps claim causes a deterministic generic location-evidence fallback. `ambiguous_*` never selects
+  an option automatically.
+- **Isolation:** `lib/published-locations.js` may cache only the shared published dataset. It does
+  not cache messages, history, or last-location state; `/api/chat` has no module-level conversation
+  state.
 
 ## [2026-08-31] One location marker with unified site/service taxonomy
 
