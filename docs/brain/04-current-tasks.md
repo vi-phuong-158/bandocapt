@@ -15,6 +15,14 @@
   E2E 2/2 PASS. Full E2E has 57/61 PASS with four unrelated existing image-loading failures under
   `location-image`/staff image fixture; no public contribution E2E failure remains.
 
+## [IMPLEMENTED — OWNER APPROVED 2026-09-02] Nhà trọ an toàn — Beta data egress
+
+- Source contains only the disabled independent data/layer foundation. No pilot record is published,
+  no import/migration/deploy occurred, and `Published_Locations`/Staff/Gateway remain untouched.
+- Owner approved forwarding `accommodationName`, `localityCode` and `policeUnitCode` to the AI provider
+  for the one current residence question. Server validation projects exactly those fields and rejects
+  injection-shaped values; application telemetry does not receive the context.
+
 ## [OWNER APPROVAL REQUIRED 2026-08-22] Production operational baseline reconciliation
 
 - The controlled Production rehearsal found that all 142 `LEGACY_*` public rows have no private operational
@@ -418,4 +426,10 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
 - **Google Form giữ lại tạm thời** làm đường dự phòng, nhưng dự phòng KHÔNG tức thời — xem
   `STAFF_PORTAL_PLAN.md` §26 (Form sao chép mất liên kết thư mục upload, chủ sở hữu phải mở Form
   editor bấm *Phục hồi/Restore* trước khi dùng lại).
+
+## Nhà trọ an toàn — Beta rehearsal status (2026-09-02)
+- **Đã hoàn tất trong worktree:** Beta OFF/ON, context continuity, scalability 100/1.000/5.000 và
+  viewport smoke 320/375/390/430/768/1024; toàn bộ Beta Playwright spec đạt 5/5.
+- **Full E2E suite status:** 74 tests chạy hoàn chỉnh (72 PASS, 1 pre-existing main failure trên `staff-portal-modal.spec.js:507:5`, 1 flake; 0 beta regression). Unit tests: 678/678 PASS; `npm run ci`: PASS.
+- Sẵn sàng preview acceptance: không deploy prod, không import/apply, không dùng dữ liệu pilot thật.
 

@@ -36,7 +36,9 @@ test('map uses controlled clustering plus a separate selected marker layer', () 
     assert.match(source, /disableClusteringAtZoom:\s*14/);
     assert.match(source, /zoom <= 9 \? 60 : zoom <= 11 \? 48 : 36/);
     assert.match(source, /const selectedLayer = L\.layerGroup\(\)\.addTo\(map\)/);
-    assert.match(source, /isSelected \? selectedLayer : clusterGroup/);
+    assert.match(source, /const accommodationClusterGroup = createClusterGroup\(createAccommodationClusterIcon\)/);
+    assert.match(source, /const selectedAccommodationLayer = L\.layerGroup\(\)/);
+    assert.match(source, /isSelected \? layers\.selected : layers\.cluster/);
 });
 
 test('mobile detail uses a 164px preview and no random avatar fallback', () => {

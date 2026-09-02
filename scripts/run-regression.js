@@ -28,6 +28,25 @@ const COMMON_FORBIDDEN_PATTERNS = [
     { label: 'does not cite dang ky tam tru citizen procedure', pattern: /đăng ký tạm trú|dang ky tam tru/i }
 ];
 
+// Runner-reliability fix (Phase 2): fail-fast TRƯỚC khi đốt 30+ live call nếu thiếu
+// credential thật sự bắt buộc. GEMINI_API_KEY là credential DUY NHẤT api/chat.js chặn
+// cứng bằng SERVER_CONFIG_ERROR trước mọi nhánh provider (dùng tối thiểu cho embedding,
+// bất kể LLM_PRIMARY/LLM_FALLBACK — xem api/chat.js dòng kiểm tra `if (!apiKey)` ngay sau
+// bước CORS/rate-limit). PINECONE_API_KEY và DEEPSEEK_API_KEY tuỳ topology — Pinecone có
+// đường graceful-degrade (catch nuốt lỗi, bot vẫn trả lời không RAG), DeepSeek chỉ bắt
+// buộc khi LLM_PRIMARY/LLM_FALLBACK trỏ tới nó — nên chỉ báo SET/UNSET tham khảo, KHÔNG
+// chặn ở preflight này. An toàn cuối cùng nếu preflight bỏ sót vẫn là fail-closed ở
+// lib/regression-grader.js (SERVER_CONFIG_ERROR không bao giờ được chấm PASS).
+// Nhận `env` để test được tất định, không phụ thuộc .env thật trên máy chạy test.
+function checkRequiredCredentials(env = process.env) {
+    const required = ['GEMINI_API_KEY'];
+    const informational = ['PINECONE_API_KEY', 'DEEPSEEK_API_KEY'];
+    const missing = required.filter(name => !env[name]);
+    // Chỉ in SET/UNSET — KHÔNG BAO GIỜ in giá trị thật.
+    const status = [...required, ...informational].map(name => `${name}: ${env[name] ? 'SET' : 'UNSET'}`);
+    return { ok: missing.length === 0, missing, status };
+}
+
 function parseArgs(argv) {
     const parsed = { ids: null, delayMs: 2000, strictGate: false, runs: 1, majority: false };
     for (let i = 0; i < argv.length; i += 1) {
@@ -76,18 +95,32 @@ function parseArgs(argv) {
 }
 
 // T1.11 gate đa số — hàm THUẦN, unit-test được không cần chạy live.
-// perRun: mảng N phần tử, mỗi phần tử là mảng { id, verdict, providerError, failures, isConv }.
+// perRun: mảng N phần tử, mỗi phần tử là mảng { id, verdict, providerError, infraErrorCode, failures, isConv }.
 // Một ca là hard fail THẬT (chặn gate) khi rớt ≥ threshold/N run; rớt 1..threshold-1 là "flaky"
 // (advisory, KHÔNG chặn) — tách nhiễu 1-run của LLM khỏi lỗi hệ thống.
+//
+// infraRuns: runner-reliability fix — gộp CẢ HAI dạng lỗi hạ tầng: (a) verdict INFRA_FAIL
+// (lỗi tường minh, câu trả lời rỗng — vd SERVER_CONFIG_ERROR) VÀ (b) HARD_FAIL có kèm
+// infraErrorCode (Pinecone timeout bị nuốt nhưng model vẫn sinh câu trả lời ungrounded).
+// Mục đích: một run PINECONE_QUERY_TIMEOUT không được lẫn vào "content regression" khi
+// đọc majorityHardFails — xem docs/brain/03-decisions.md.
 function aggregateMajority(perRun, threshold) {
     const agg = new Map();
     perRun.forEach((runCases, runIdx) => {
         for (const c of runCases) {
-            const e = agg.get(c.id) || { id: c.id, isConv: c.isConv, verdicts: [], failRuns: [], provRuns: [], deferredRuns: [], failuresByRun: [] };
-            e.verdicts[runIdx] = c.providerError ? 'E' : (c.verdict === 'HARD_FAIL' ? 'F' : (c.verdict === 'DEFERRED_FAIL' ? 'd' : '.'));
+            const e = agg.get(c.id) || {
+                id: c.id, isConv: c.isConv, verdicts: [],
+                failRuns: [], provRuns: [], deferredRuns: [], infraRuns: [], infraFailRuns: [],
+                failuresByRun: [],
+            };
+            const isInfra = c.verdict === 'INFRA_FAIL' || Boolean(c.infraErrorCode);
+            e.verdicts[runIdx] = (c.providerError || c.verdict === 'INFRA_FAIL') ? 'E'
+                : (c.verdict === 'HARD_FAIL' ? 'F' : (c.verdict === 'DEFERRED_FAIL' ? 'd' : '.'));
             if (c.verdict === 'HARD_FAIL') e.failRuns.push(runIdx + 1);
             if (c.providerError) e.provRuns.push(runIdx + 1);
             if (c.verdict === 'DEFERRED_FAIL') e.deferredRuns.push(runIdx + 1);
+            if (isInfra) e.infraRuns.push(runIdx + 1);
+            if (c.verdict === 'HARD_FAIL' && c.infraErrorCode) e.infraFailRuns.push(runIdx + 1);
             if (c.failures && c.failures.length) e.failuresByRun.push(`run${runIdx + 1}: ${c.failures.join(', ')}`);
             agg.set(c.id, e);
         }
@@ -99,6 +132,8 @@ function aggregateMajority(perRun, threshold) {
         flakyHardFails: rows.filter(e => e.failRuns.length > 0 && e.failRuns.length < threshold),
         majorityProvErrs: rows.filter(e => e.provRuns.length >= threshold),
         flakyProvErrs: rows.filter(e => e.provRuns.length > 0 && e.provRuns.length < threshold),
+        majorityInfraFails: rows.filter(e => e.infraRuns.length >= threshold),
+        flakyInfraFails: rows.filter(e => e.infraRuns.length > 0 && e.infraRuns.length < threshold),
     };
 }
 
@@ -273,11 +308,12 @@ function evaluateCase(result) {
         eval: result.eval,
     }, { globalForbidden: COMMON_FORBIDDEN_PATTERNS });
     return {
-        status: graded.verdict,            // PASS | HARD_FAIL | DEFERRED_FAIL
+        status: graded.verdict,            // PASS | HARD_FAIL | DEFERRED_FAIL | INFRA_FAIL
         failures: graded.failures,
         isDeferred: graded.isDeferred,
         softWarnings: graded.softWarnings,
         providerError: graded.providerError,
+        infraErrorCode: graded.infraErrorCode,
         language: graded.language,
         authority: graded.authority,
         grounding: graded.grounding,
@@ -422,14 +458,21 @@ async function executeSuiteOnce(questions, conversations, args) {
 }
 
 // Gộp verdict câu đơn + hội thoại → tổng hard fail / provider error cho quyết định gate 1-run.
+// totalInfraFail đếm riêng verdict INFRA_FAIL (lỗi tường minh, câu trả lời rỗng — vd
+// SERVER_CONFIG_ERROR) — LUÔN nằm trong totalProviderErrors (providerError vẫn set trên
+// ca đó) nên gate --strict-gate hiện có đã tự động chặn đúng; trường này chỉ để report/test
+// đọc rõ ràng, không đổi logic gate.
 function computeTotals(results, conversationResults) {
     const gradedResults = results.filter(r => r.grade);
     const hardFailCount = gradedResults.filter(r => r.grade.status === 'HARD_FAIL').length;
+    const infraFailCount = gradedResults.filter(r => r.grade.status === 'INFRA_FAIL').length;
     const providerErrorCount = gradedResults.filter(r => r.grade.providerError).length;
     const convHardFailCount = conversationResults.filter(c => c.grade.verdict === 'HARD_FAIL').length;
+    const convInfraFailCount = conversationResults.filter(c => c.grade.verdict === 'INFRA_FAIL').length;
     const convProviderErrorCount = conversationResults.filter(c => c.grade.providerError).length;
     return {
         totalHardFail: hardFailCount + convHardFailCount,
+        totalInfraFail: infraFailCount + convInfraFailCount,
         totalProviderErrors: providerErrorCount + convProviderErrorCount,
     };
 }
@@ -437,10 +480,12 @@ function computeTotals(results, conversationResults) {
 // Gộp verdict một run về dạng phẳng cho gate đa số.
 function unifyRunCases({ results, conversationResults }) {
     const single = results.filter(r => r.grade).map(r => ({
-        id: r.id, verdict: r.grade.status, providerError: r.grade.providerError, failures: r.grade.failures, isConv: false,
+        id: r.id, verdict: r.grade.status, providerError: r.grade.providerError,
+        infraErrorCode: r.grade.infraErrorCode, failures: r.grade.failures, isConv: false,
     }));
     const conv = conversationResults.map(c => ({
-        id: c.id, verdict: c.grade.verdict, providerError: c.grade.providerError, failures: c.grade.failures, isConv: true,
+        id: c.id, verdict: c.grade.verdict, providerError: c.grade.providerError,
+        infraErrorCode: c.grade.infraErrorCode, failures: c.grade.failures, isConv: true,
     }));
     return [...single, ...conv];
 }
@@ -463,6 +508,9 @@ function buildReportMd(results, conversationResults, args) {
     const passCount = gradedResults.filter(result => result.grade.status === 'PASS').length;
     const hardFailCount = gradedResults.filter(result => result.grade.status === 'HARD_FAIL').length;
     const deferredFailCount = gradedResults.filter(result => result.grade.status === 'DEFERRED_FAIL').length;
+    // INFRA_FAIL: lỗi hạ tầng/provider tường minh (câu trả lời rỗng) — KHÔNG BAO GIỜ là PASS
+    // giả (runner-reliability fix), cũng KHÔNG phải content hard fail.
+    const infraFailCount = gradedResults.filter(result => result.grade.status === 'INFRA_FAIL').length;
     const failCount = hardFailCount + deferredFailCount;
     // Gate chính thức: 0 hard fail. Deferred (F01) KHÔNG chặn gate cho tới Giai đoạn 3.
     const providerErrorCount = gradedResults.filter(result => result.grade.providerError).length;
@@ -494,7 +542,7 @@ function buildReportMd(results, conversationResults, args) {
     let reportMd = `# Báo cáo Regression Run (${now.toISOString()})\n\n`;
     reportMd += `- Tổng số câu chạy: ${results.length}\n`;
     reportMd += `- Số ca tự chấm (câu đơn): ${gradedResults.length}/30\n`;
-    reportMd += `- **PASS: ${passCount}** — **HARD_FAIL: ${hardFailCount}** — DEFERRED_FAIL: ${deferredFailCount} — PROVIDER_ERROR: ${providerErrorCount}\n`;
+    reportMd += `- **PASS: ${passCount}** — **HARD_FAIL: ${hardFailCount}** — DEFERRED_FAIL: ${deferredFailCount} — INFRA_FAIL: ${infraFailCount} — PROVIDER_ERROR: ${providerErrorCount}\n`;
     if (conversationResults.length > 0) {
         reportMd += `- Hội thoại nhiều lượt: ${conversationResults.length} — **PASS: ${convPassCount}** · HARD_FAIL: ${convHardFailCount} · PROVIDER_ERROR: ${convProviderErrorCount}\n`;
     }
@@ -541,6 +589,7 @@ function buildReportMd(results, conversationResults, args) {
     // Phân loại chi tiết theo verdict — đọc nhanh phần cần sửa, không phải cuộn qua 30 câu.
     const hardFails = gradedResults.filter(r => r.grade.status === 'HARD_FAIL');
     const deferredFails = gradedResults.filter(r => r.grade.status === 'DEFERRED_FAIL');
+    const infraFails = gradedResults.filter(r => r.grade.status === 'INFRA_FAIL');
     const softCases = results.filter(r => r.grade && (r.grade.softWarnings.length > 0 || r.verbosity || r.truncated));
     const providerErrors = results.filter(r => r.grade && r.grade.providerError);
 
@@ -548,10 +597,19 @@ function buildReportMd(results, conversationResults, args) {
     if (hardFails.length > 0 || convHardFails.length > 0) {
         reportMd += `## ❌ Hard fail (${hardFails.length + convHardFails.length}) — CHẶN GATE\n`;
         for (const r of hardFails) {
-            reportMd += `- **${r.id}** — ${r.grade.failures.join('; ') || 'không rõ nguyên nhân'}\n`;
+            const infraTag = r.grade.infraErrorCode ? ` [INFRA_FAILURE: ${r.grade.infraErrorCode} — có thể không phải code regression, xem hạ tầng trước khi kết luận]` : '';
+            reportMd += `- **${r.id}** — ${r.grade.failures.join('; ') || 'không rõ nguyên nhân'}${infraTag}\n`;
         }
         for (const c of convHardFails) {
-            reportMd += `- **${c.id}** (hội thoại) — ${c.grade.failures.join('; ') || 'không rõ nguyên nhân'}\n`;
+            const infraTag = c.grade.infraErrorCode ? ` [INFRA_FAILURE: ${c.grade.infraErrorCode}]` : '';
+            reportMd += `- **${c.id}** (hội thoại) — ${c.grade.failures.join('; ') || 'không rõ nguyên nhân'}${infraTag}\n`;
+        }
+        reportMd += '\n';
+    }
+    if (infraFails.length > 0) {
+        reportMd += `## 🔌 INFRA_FAIL (${infraFails.length}) — lỗi hạ tầng/provider, KHÔNG PHẢI PASS và KHÔNG PHẢI content hard fail\n`;
+        for (const r of infraFails) {
+            reportMd += `- **${r.id}** — INFRA_FAILURE: ${r.grade.infraErrorCode || r.grade.providerError}\n`;
         }
         reportMd += '\n';
     }
@@ -659,9 +717,12 @@ function buildReportMd(results, conversationResults, args) {
 async function runSingle(questions, conversations, args) {
     const once = await executeSuiteOnce(questions, conversations, args);
     writeReport(buildReportMd(once.results, once.conversationResults, args));
-    const { totalHardFail, totalProviderErrors } = computeTotals(once.results, once.conversationResults);
+    const { totalHardFail, totalInfraFail, totalProviderErrors } = computeTotals(once.results, once.conversationResults);
     // Gate: hard fail (câu đơn + hội thoại) luôn đánh exit 1. Với --strict-gate (T1.10),
     // provider error cũng đánh exit 1 — không được che lỗi hạ tầng trong run baseline.
+    // totalProviderErrors đã gộp cả INFRA_FAIL (verdict không bao giờ là PASS giả nữa —
+    // xem lib/regression-grader.js:classifyVerdict); dòng log dưới chỉ để đọc rõ nguyên nhân.
+    if (totalInfraFail > 0) console.log(`INFRA_FAILURE: ${totalInfraFail} ca không sinh được nội dung do lỗi hạ tầng/provider (không tính là PASS).`);
     if (totalHardFail > 0) process.exitCode = 1;
     if (args.strictGate && totalProviderErrors > 0) process.exitCode = 1;
 }
@@ -680,32 +741,41 @@ async function runMajority(questions, conversations, args) {
         perRun.push(unifyRunCases(once));
     }
 
-    const { rows, majorityHardFails, flakyHardFails, majorityProvErrs, flakyProvErrs } = aggregateMajority(perRun, threshold);
-    const blocked = majorityHardFails.length > 0 || (args.strictGate && majorityProvErrs.length > 0);
+    const {
+        rows, majorityHardFails, flakyHardFails, majorityProvErrs, flakyProvErrs,
+        majorityInfraFails, flakyInfraFails,
+    } = aggregateMajority(perRun, threshold);
+    // majorityInfraFails đã gộp majorityProvErrs (mọi INFRA_FAIL đều có providerError) CỘNG
+    // thêm ca HARD_FAIL kèm Pinecone timeout bị nuốt — dùng nó thay majorityProvErrs để gate
+    // không bỏ sót dạng lỗi hạ tầng thứ hai (xem aggregateMajority ở trên).
+    const blocked = majorityHardFails.length > 0 || (args.strictGate && majorityInfraFails.length > 0);
 
     let md = `# Báo cáo Gate ĐA SỐ (majority ${threshold}/${N})\n\n`;
     md += `- Số run đầy đủ: **${N}** — ngưỡng đa số: **${threshold}/${N}** (một ca là HARD FAIL THẬT khi rớt ≥ ${threshold} run)\n`;
-    md += `- **Gate ĐA SỐ${args.strictGate ? ' (kèm provider error)' : ''}: ${blocked ? '❌ KHÔNG ĐẠT' : '✅ ĐẠT'}** — deferred (F01) không chặn tới Giai đoạn 3\n`;
-    md += `- Hard fail ĐA SỐ (chặn gate): ${majorityHardFails.length ? majorityHardFails.map(e => `${e.id} (${e.failRuns.length}/${N})`).join(', ') : '_không có_'}\n`;
+    md += `- **Gate ĐA SỐ${args.strictGate ? ' (kèm infra/provider error)' : ''}: ${blocked ? '❌ KHÔNG ĐẠT' : '✅ ĐẠT'}** — deferred (F01) không chặn tới Giai đoạn 3\n`;
+    md += `- Hard fail ĐA SỐ (chặn gate): ${majorityHardFails.length ? majorityHardFails.map(e => `${e.id} (${e.failRuns.length}/${N})${e.infraFailRuns.length ? ` [INFRA: ${e.infraFailRuns.length}/${e.failRuns.length} run kèm lỗi hạ tầng]` : ''}`).join(', ') : '_không có_'}\n`;
     if (args.strictGate) {
-        md += `- Provider error ĐA SỐ (chặn gate): ${majorityProvErrs.length ? majorityProvErrs.map(e => `${e.id} (${e.provRuns.length}/${N})`).join(', ') : '_không có_'}\n`;
+        md += `- INFRA/PROVIDER error ĐA SỐ (chặn gate): ${majorityInfraFails.length ? majorityInfraFails.map(e => `${e.id} (${e.infraRuns.length}/${N})`).join(', ') : '_không có_'}\n`;
     }
-    md += `- 🟠 Flaky (rớt 1..${threshold - 1}/${N} run — advisory, KHÔNG chặn): ${flakyHardFails.length ? flakyHardFails.map(e => `${e.id} (${e.failRuns.length}/${N})`).join(', ') : '_không có_'}\n`;
+    md += `- 🟠 Flaky content (rớt 1..${threshold - 1}/${N} run — advisory, KHÔNG chặn): ${flakyHardFails.length ? flakyHardFails.map(e => `${e.id} (${e.failRuns.length}/${N})`).join(', ') : '_không có_'}\n`;
+    md += `- 🟠 FLAKY_INFRA (lỗi hạ tầng lẻ tẻ, advisory — KHÔNG tự động coi là code regression): ${flakyInfraFails.length ? flakyInfraFails.map(e => `${e.id} (${e.infraRuns.length}/${N})`).join(', ') : '_không có_'}\n`;
     if (flakyProvErrs.length) {
         md += `- 🟠 Provider error lẻ tẻ (advisory): ${flakyProvErrs.map(e => `${e.id} (${e.provRuns.length}/${N})`).join(', ')}\n`;
     }
     md += `\n## Ma trận verdict theo run\n\n`;
-    md += `Ký hiệu: \`.\` PASS · \`F\` HARD_FAIL · \`d\` DEFERRED_FAIL · \`E\` provider error\n\n`;
+    md += `Ký hiệu: \`.\` PASS · \`F\` HARD_FAIL · \`d\` DEFERRED_FAIL · \`E\` provider/infra error (rỗng — SERVER_CONFIG_ERROR, INFRA_FAIL…)\n\n`;
     md += `| ID | ${Array.from({ length: N }, (_, i) => `R${i + 1}`).join(' | ')} | Fail/N | Phân loại |\n`;
     md += `|---|${'---|'.repeat(N)}---:|---|\n`;
     for (const e of rows) {
         const cells = Array.from({ length: N }, (_, i) => e.verdicts[i] || '?').join(' | ');
         let klass = '✅ ổn định';
-        if (e.failRuns.length >= threshold) klass = '❌ HARD FAIL (đa số)';
-        else if (e.failRuns.length > 0) klass = '🟠 flaky';
+        if (e.failRuns.length >= threshold) {
+            klass = e.infraFailRuns.length >= e.failRuns.length ? '❌ HARD FAIL (đa số) [toàn bộ kèm INFRA]'
+                : (e.infraFailRuns.length > 0 ? '❌ HARD FAIL (đa số) [một phần kèm INFRA]' : '❌ HARD FAIL (đa số)');
+        } else if (e.failRuns.length > 0) klass = '🟠 flaky';
         else if (e.deferredRuns.length > 0) klass = '🟡 deferred';
-        else if (e.provRuns.length >= threshold) klass = '🔌 provider (đa số)';
-        else if (e.provRuns.length > 0) klass = '🟠 provider lẻ';
+        else if (e.infraRuns.length >= threshold) klass = '🔌 INFRA/PROVIDER (đa số)';
+        else if (e.infraRuns.length > 0) klass = '🟠 FLAKY_INFRA';
         md += `| ${e.id}${e.isConv ? ' (HT)' : ''} | ${cells} | ${e.failRuns.length}/${N} | ${klass} |\n`;
     }
     md += `\n## Chi tiết failure theo run\n\n`;
@@ -723,6 +793,16 @@ async function runMajority(questions, conversations, args) {
 
 async function main() {
     const args = parseArgs(process.argv.slice(2));
+
+    // Phase 2: fail-fast trước khi chạy live suite nếu thiếu credential thật sự bắt buộc.
+    const credCheck = checkRequiredCredentials();
+    console.log(`Credential check: ${credCheck.status.join(' · ')}`);
+    if (!credCheck.ok) {
+        console.error(`REGRESSION_CREDENTIALS_MISSING: thiếu ${credCheck.missing.join(', ')} — dừng trước khi chạy live suite, không đốt live call vô ích.`);
+        process.exitCode = 1;
+        return;
+    }
+
     const selectedIds = args.ids ? new Set(args.ids) : null;
     const questions = parseQuestions().filter(q => !selectedIds || selectedIds.has(q.id));
     const conversations = parseConversations().filter(conv => !selectedIds || selectedIds.has(conv.id));
@@ -745,5 +825,8 @@ if (require.main === module) {
     });
 }
 
-// T1.10/T1.11: xuất helper thuần cho unit test (test/regression-runner.test.js).
-module.exports = { parseArgs, parseQuestions, parseConversations, conversationGradeOptions, aggregateMajority, summarizeStageTimings };
+// T1.10/T1.11/runner-reliability: xuất helper thuần cho unit test (test/regression-runner.test.js).
+module.exports = {
+    parseArgs, parseQuestions, parseConversations, conversationGradeOptions, aggregateMajority, summarizeStageTimings,
+    computeTotals, unifyRunCases, checkRequiredCredentials,
+};

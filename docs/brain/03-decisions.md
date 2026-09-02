@@ -1,5 +1,20 @@
 # 03 — Technical Decisions
 
+## [2026-09-01] Location evidence is current-turn scoped and fail-closed
+
+- **Decision:** A service intent such as `CITIZEN_ID`/CCCD only requests the location-resolution
+  branch; it never supplies a location. A concrete location may be resolved only from the current
+  user message or from a short immediate answer after the assistant's explicit location question.
+- **History boundary:** Arbitrary recent user turns are not location evidence. This prevents an old
+  location from being reused after a topic change and keeps conversation state request-scoped.
+- **Safety boundary:** `no_match` and `unavailable` are passed to the model as structured status,
+  but generation is buffered and checked server-side before SSE. A specific station/address/phone/
+  Maps claim causes a deterministic generic location-evidence fallback. `ambiguous_*` never selects
+  an option automatically.
+- **Isolation:** `lib/published-locations.js` may cache only the shared published dataset. It does
+  not cache messages, history, or last-location state; `/api/chat` has no module-level conversation
+  state.
+
 ## [2026-08-31] One location marker with unified site/service taxonomy
 
 - **Decision:** One physical location has one stable `record_id` and one marker; it may have N services. `site_type` is physical (HEADQUARTERS, PUBLIC_SERVICE_CENTER, SECONDARY_OFFICE, MOBILE_POINT, OTHER) while `services` is capability data.
@@ -1817,4 +1832,44 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - **Reason:** Firebase project quota blocked a safe dedicated TEST RTDB, while Upstash provides a
   Vercel-native atomic key/value resource with a TEST-only Preview binding and no architecture change
   to the contribution workflow.
+## [2026-08-26] Regression runner: thiếu credential/lỗi hạ tầng phải fail-closed, không PASS giả
+
+- **Quyết định:** `lib/regression-grader.js` — `classifyVerdict()` không còn chỉ nhìn số lượng
+  `hardFailures`; khi `providerError` (result.error) đang set VÀ không có failure nào (nghĩa là
+  content check bị bỏ qua vì câu trả lời rỗng), verdict là **`INFRA_FAIL`**, không bao giờ là
+  `PASS`. `gradeCase()` thêm trường `infraErrorCode` (lỗi tường minh, hoặc suy ra từ
+  `eval.pineconeErrored`/`pineconeErrorDetail` khi Pinecone lỗi/timeout bị `api/chat.js` nuốt
+  nhưng model vẫn sinh câu trả lời) — gắn kèm bằng chứng hạ tầng lên cả HARD_FAIL thật (không
+  che verdict) để report/gate phân biệt được INFRA/PROVIDER failure khỏi CODE/CONTENT
+  regression. `scripts/run-regression.js` thêm preflight `checkRequiredCredentials()` (chỉ
+  `GEMINI_API_KEY` — credential DUY NHẤT `api/chat.js` chặn cứng trước mọi nhánh provider) fail
+  fast trước khi đốt live call; `aggregateMajority()` thêm `infraRuns`/`majorityInfraFails`/
+  `flakyInfraFails` để gate đa số block đúng khi lỗi hạ tầng chiếm đa số nhưng không tự động
+  quy lỗi hạ tầng thiểu số (1 run flaky) thành content regression.
+- **Canonical live merge gate:** `npm run regression:live` (=
+  `node scripts/run-regression.js --strict-gate --majority --runs 3`). Dùng lệnh này TRƯỚC KHI
+  merge một PR chạm RAG/orchestration. `node scripts/run-regression.js` đơn lẻ (không cờ) vẫn
+  giữ nguyên cho debug/dev nhanh — KHÔNG phải cổng chấp nhận merge, exit code vẫn lenient như cũ.
+- **Lý do:** Phát hiện sau PR #59 (sink inversion) — chạy live regression thiếu credential từng
+  cho `exit 0` và in `Grade: PASS` dù response rỗng và lỗi là `SERVER_CONFIG_ERROR` (false
+  green). Riêng biệt, một cửa sổ Pinecone timeout thật khiến 5 case RAG hiện `HARD_FAIL:
+  ungrounded_fact` trên single-run gate; control re-run cùng điều kiện hội tụ về PASS — chứng
+  minh single-run dễ đọc nhầm biến động hạ tầng thoáng qua thành code regression.
+- **Phạm vi:** Chỉ sửa test harness (`lib/regression-grader.js`, `scripts/run-regression.js`).
+  `api/chat.js` chỉ thêm 3 dòng lộ `pineconeErrored`/`pineconeErrorDetail` (đã có sẵn nội bộ)
+  vào `evalTrace` — trường này CHỈ tồn tại khi `evalMode` (gated bởi `NODE_ENV !== 'production'`
+  + `EVAL_BYPASS_TOKEN` + `evalDebug` flag), không đổi RAG/retrieval/timeout semantics, không
+  đổi hành vi production. Không sửa baseline debt của EV04/EV01/F01/TYPO01.
+
+## [2026-09-02] Nhà trọ an toàn — tách hẳn dữ liệu Beta khỏi dữ liệu Công an
+
+- `Published_Locations` chỉ tiếp tục biểu diễn điểm phục vụ Công an. Accommodation là DTO static
+  allowlist riêng, cờ tắt mặc định và đúng một pilot locality; không dùng schema/migration/Staff/Gateway.
+- Bản đồ dùng cluster + selected layer riêng. Service chips và nút “Gần tôi” tiếp tục có semantics
+  Công an; Beta chỉ tham gia search/distance khi người dùng bật layer.
+- Mapping đơn vị Công an chỉ exact-one theo mã công khai; thiếu/trùng/không khớp trả `null`, không
+  suy diễn theo tên hoặc địa chỉ.
+- Owner approved the external-AI context on 2026-09-02. The server accepts only `accommodationName`,
+  `localityCode`, and `policeUnitCode`, rejects malformed/injection-shaped values, projects those three
+  fields only, and keeps them out of application telemetry.
 

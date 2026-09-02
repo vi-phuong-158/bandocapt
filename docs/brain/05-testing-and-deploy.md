@@ -81,6 +81,14 @@ Build compile CSS minified, kiểm tra syntax JavaScript và tạo static artifa
 npm run build
 ```
 
+### Accommodation Beta pre-release rehearsal
+
+Keep `ACCOMMODATION_BETA_CONFIG.enabled` false until the pilot dataset is reviewed. Before enabling a
+single locality, run `node --test test/accommodation-beta.test.js`, `npm test`, and `npm run build`; then
+use `npx vercel dev` plus the affected browser flow to check toggle-off, search, marker clustering, detail,
+directions, keyboard focus and 100/1.000/5.000 synthetic-record responsiveness. A production rollout
+also needs a separate owner decision for any chatbot context egress.
+
 Khi thêm Tailwind class mới, phải rebuild `output.css` và commit:
 ```bash
 npm run dev     # chạy watch → lưu → Ctrl+C
@@ -192,6 +200,12 @@ npx vercel --prod
 - **Vercel function timeout:** `api/chat.js` có maxDuration 60s (cấu hình trong `vercel.json`).
 - **Pinecone cold start:** Instance Pinecone có thể sleep sau thời gian không dùng → query đầu chậm.
 - **Firebase Realtime DB:** Dùng `.firebaseio.app` domain Asia Southeast — latency ~100-200ms từ Vercel.
+
+## Beta synthetic rehearsal gate (2026-09-02)
+
+- Local preview only, synthetic records only; no deploy/import/apply or production service writes.
+- Beta Playwright acceptance: 5/5 PASS; unit/regression: 678/678 PASS; `npm run ci`: PASS.
+- Full `npm run test:e2e`: hoàn thành toàn bộ 74 tests (72 PASS, 2 FAIL). 1 failure là `PRE_EXISTING_MAIN_FAILURE` trên `staff-portal-modal.spec.js:507:5` (tái lập trên exact `origin/main`), 1 failure là `TEST_FLAKE` (pass độc lập trong 3.2s). 0 beta regression.
 - **RTDB fallback retention:** khi dùng RTDB fallback, chạy `npm run prune:telemetry` bằng môi trường có
   `FIREBASE_DB_URL`/`FIREBASE_DB_SECRET` để xóa bản ghi hết hạn ở `chat_logs_metrics` và `chat_logs_diagnostic`.
 - **System prompt:** hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`). Đổi prompt phải sửa code

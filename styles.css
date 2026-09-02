@@ -111,6 +111,7 @@
 /* Color: Police = primary blue, ID = amber */
 .marker-police .marker-icon { background: var(--color-primary); }
 .marker-id .marker-icon { background: var(--color-cccd); }
+.marker-accommodation .marker-icon { background: var(--color-nearby); }
 
 @keyframes pulse-ring-green { 0% { transform: scale(0.8) translateZ(0); opacity: 0.8; } 100% { transform: scale(3.5) translateZ(0); opacity: 0; } }
 @keyframes pulse-ring-amber { 0% { transform: scale(0.8) translateZ(0); opacity: 0.8; } 100% { transform: scale(3.5) translateZ(0); opacity: 0; } }
@@ -122,6 +123,7 @@
 .marker-selected::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; border-radius: 50%; z-index: 1; }
 .marker-selected.marker-police::before { background-color: rgba(29, 78, 216, 0.4); animation: pulse-ring-green 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
 .marker-selected.marker-id::before { background-color: rgba(217, 119, 6, 0.4); animation: pulse-ring-amber 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+.marker-selected.marker-accommodation::before { background-color: color-mix(in srgb, var(--color-nearby) 38%, transparent); animation: pulse-ring-green 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
 
 /* --- Label tên trên marker --- */
 .marker-label {
@@ -160,6 +162,17 @@
 /* Card Công an: logo trơn, không nền/đổ bóng */
 .result-icon-box--plain { background-color: transparent; box-shadow: none; }
 .bg-id { background-color: var(--color-cccd); }
+.result-icon-box--accommodation { background-color: var(--color-nearby); }
+
+.accommodation-beta-toggle {
+    min-height: var(--hit-min); margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border: 1px solid var(--border-default); border-radius: var(--radius-md); color: var(--text-secondary); background: var(--surface-raised); font-size: var(--text-sm); font-weight: var(--weight-bold); display: inline-flex; align-items: center; gap: var(--space-2); text-align: left;
+}
+.accommodation-beta-toggle:hover, .accommodation-beta-toggle:focus-visible { border-color: var(--color-nearby); color: var(--color-nearby); outline: none; }
+.accommodation-beta-toggle.is-active { border-color: var(--color-nearby); background: var(--emerald-100); color: var(--color-nearby); }
+.detail-badge-accommodation { display: inline-block; margin-bottom: var(--space-2); padding: 6px 12px; border-radius: var(--radius-pill); background: color-mix(in srgb, var(--color-nearby) 90%, black); color: var(--white); font-size: var(--text-xs); font-weight: var(--weight-bold); letter-spacing: .08em; text-transform: uppercase; }
+.accommodation-detail-note { display: grid; gap: var(--space-2); }
+.accommodation-chat-cta { min-height: var(--hit-min); width: fit-content; padding: var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--color-primary); color: var(--white); font-size: var(--text-sm); font-weight: var(--weight-bold); display: inline-flex; align-items: center; gap: var(--space-2); }
+.accommodation-chat-cta:hover, .accommodation-chat-cta:focus-visible { background: var(--color-primary-dark); outline: 3px solid color-mix(in srgb, var(--color-primary) 25%, transparent); outline-offset: 2px; }
 
 .result-content { flex: 1; min-width: 0; padding-top: 2px; }
 .result-title { font-family: var(--font-display); font-weight: var(--weight-bold); font-size: var(--text-md); color: var(--text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: var(--space-1); letter-spacing: var(--tracking-tight); }
@@ -1849,6 +1862,7 @@ body.tthc-catalog-modal-open { overflow: hidden; }
 .marker-cluster-civic--small { --cluster-size: 36px; }
 .marker-cluster-civic--medium { --cluster-size: 40px; }
 .marker-cluster-civic--large { --cluster-size: 44px; }
+.marker-cluster-accommodation > div { background: var(--color-nearby); }
 
 @media (max-width: 767px) {
     body {

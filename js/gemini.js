@@ -106,12 +106,13 @@ async function signRequestToken(message, ts) {
     }
 }
 
-async function callGeminiStream(userMessage, conversationHistory = [], onChunk, signal, onStatus) {
+async function callGeminiStream(userMessage, conversationHistory = [], onChunk, signal, onStatus, residenceContext = null) {
     // Lấy Turnstile token (đã được render sẵn từ lúc load trang)
     const captchaToken = getTurnstileToken();
 
     const requestBody = { userMessage, history: conversationHistory };
     if (captchaToken) requestBody.captchaToken = captchaToken;
+    if (residenceContext) requestBody.residenceContext = residenceContext;
 
     const controller = new AbortController();
     // Phân loại lý do abort để không quy mọi trường hợp về TIMEOUT chung chung — người dùng

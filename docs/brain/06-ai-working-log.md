@@ -92,6 +92,41 @@
 - **PRODUCTION BOUNDARY:** Zero Production workbooks, Script Properties, environment variables, or images touched.
 - **TEST RESULTS:** `npm test` 621/621 PASS, `npm run build` PASS, full `npm run ci` PASS.
 - **VERDICT:** `PR58_PHASE3A_ACCEPTANCE_PASS_READY_FOR_MERGE_REVIEW`
+## [2026-08-26] Regression runner reliability — fail-closed thiếu credential + phân loại infra/provider failure
+- **Agent:** Claude Code
+- **Thay đổi:** (1) `lib/regression-grader.js`: `classifyVerdict()` không còn cho `PASS` khi
+  `providerError` set và không có failure nào (content check bị bỏ qua vì response rỗng) —
+  verdict mới là `INFRA_FAIL`. Thêm `classifyInfraErrorCode()` + trường `infraErrorCode` trên
+  `gradeCase()`, đọc từ `result.error` hoặc `eval.pineconeErrored`/`pineconeErrorDetail`. (2)
+  `api/chat.js`: thêm biến `pineconeErrorDetail` cạnh `pineconeErrored` có sẵn, lộ cả hai vào
+  `evalTrace` ở done-event thành công (chỉ khi `evalMode`) — trước đây cờ này bị tính rồi bỏ,
+  regression runner không có cách nào biết Pinecone đã lỗi/timeout khi model vẫn sinh câu trả
+  lời. (3) `scripts/run-regression.js`: thêm `checkRequiredCredentials()` preflight (chỉ chặn
+  cứng `GEMINI_API_KEY`, báo SET/UNSET tham khảo cho Pinecone/DeepSeek), `computeTotals()` thêm
+  `totalInfraFail`, `aggregateMajority()` thêm `infraRuns`/`infraFailRuns`/`majorityInfraFails`/
+  `flakyInfraFails`, report (`buildReportMd` + majority markdown) thêm dòng `INFRA_FAIL` và gắn
+  nhãn `INFRA_FAILURE: <code>` lên HARD_FAIL có bằng chứng hạ tầng đi kèm. (4) `package.json`:
+  thêm npm script `regression:live` = `node scripts/run-regression.js --strict-gate --majority
+  --runs 3` — canonical command cho live merge gate; single-run không cờ giữ nguyên cho debug.
+- **File đã sửa:** `lib/regression-grader.js`, `api/chat.js`, `scripts/run-regression.js`,
+  `package.json`, `test/regression-grader.test.js`, `test/regression-runner.test.js`,
+  `docs/brain/03-decisions.md`.
+- **Lý do:** Live regression cho PR #59 phát hiện 3 vấn đề của chính bộ regression (không phải
+  RAG code): (a) thiếu credential từng cho `exit 0` + `Grade: PASS` giả dù `SERVER_CONFIG_ERROR`
+  — vì `classifyVerdict()` không hề tham chiếu `providerError`; (b) một cửa sổ Pinecone timeout
+  thật làm 5 case hiện `HARD_FAIL: ungrounded_fact` trên single-run gate, control re-run cùng
+  điều kiện hội tụ về PASS — chứng minh single-run dễ đọc nhầm biến động hạ tầng thoáng qua
+  thành code regression; (c) report không phân biệt được INFRA/PROVIDER failure khỏi CODE/
+  CONTENT regression thật (cả hai đều hiện `HARD_FAIL: ungrounded_fact` giống hệt nhau).
+- **Kiểm tra:** `npm test` 612/612 PASS (76 test mới, gồm T1/T2/T3/T4/T5/T5b/T6/T7/T8/T9 +
+  `classifyInfraErrorCode` — tất định, không cần network/credential thật). `npm run ci` EXIT 0.
+  Focused live smoke thật (`--strict-gate --ids TR01,TR03,EV04`, credential thật): preflight in
+  đúng `GEMINI_API_KEY: SET · PINECONE_API_KEY: SET · DEEPSEEK_API_KEY: SET` (không lộ giá trị),
+  không `SERVER_CONFIG_ERROR`, response thật (721–782 ký tự), TR01/TR03 PASS, EV04 giữ nguyên
+  `HARD_FAIL` baseline debt đã biết (không kèm infra lần này — báo `INFRA_FAIL: 0` đúng thực
+  tế). Không sửa `EV04`/`EV01`/`F01`/`TYPO01`. Golden SSE và `test/response-sink.test.js` chạy
+  lại xác nhận không bị ảnh hưởng bởi 2 dòng thêm vào `api/chat.js` (evalMode luôn tắt trong
+  golden). `.env` copy tạm cho smoke test đã xoá trước khi kết thúc phiên.
 
 ## [2026-08-25] PR-1 — Sink inversion cho `/api/chat` (không có code Messenger)
 - **Agent:** Claude Code
@@ -3596,3 +3631,48 @@
   (`useLegacyFallback`), nên UPDATE một bản ghi legacy có `services` rỗng có thể tự suy ra
   `POLICE_OFFICE` chưa ai xác nhận — đặt tên finding
   `LEGACY_EMPTY_SERVICES_UPDATE_CAN_INFER_POLICE_OFFICE` cho việc theo dõi sau.
+## [2026-09-01] Sửa resolver tự chọn địa điểm khi thiếu địa bàn
+- **Agent:** Codex
+- **Thay đổi:** Location resolver chỉ dùng evidence từ current message hoặc immediate assistant
+  follow-up; loại history user cũ khỏi scoring. Thêm eval-only pipeline trace và server-side buffer/
+  gate cho `no_match`/`unavailable`, chặn station/address/phone/Maps hallucination trước SSE.
+- **File đã sửa:** `lib/published-locations.js`, `api/chat.js`, `test/location-resolution-contract.test.js`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Lý do:** Câu hỏi chỉ có service intent "căn cước" không được phép tự biến thành địa bàn Hòa Bình;
+  history conversation không được tái sử dụng sau khi đổi chủ đề.
+- **Kiểm tra:** `node --test test/location-resolution-contract.test.js` (10/10; gồm no_match và
+  ambiguous public fallback), `npm test`
+  (646/646), `npm run build`, `npm run ci` (exit 0), và focused chat E2E
+  (`chat-embed.spec.js` + `chat-progressive-disclosure.spec.js`, 5/5). Mock Gemini trả địa chỉ
+  Hòa Bình bị fallback an toàn trước khi phát SSE; full E2E suite bị dừng do runner không kết thúc
+  sau khi khởi chạy 69 test.
+- **Phạm vi an toàn:** Chỉ fixture local; không gọi/sửa Google Sheet production, Pinecone production,
+  không bật content diagnostic logging, không deploy.
+
+## [2026-09-02] Nhà trọ an toàn — Beta foundation
+- **Agent:** Codex
+- **Thay đổi:** thêm `lib/accommodation-beta.js` (allowlist DTO, pilot/coordinate/source/status validation,
+  fail-closed exact mapping và benchmark), `data.js` kill switch mặc định tắt, Leaflet layer/cluster/toggle
+  tách biệt trong `app.js`, badge/detail/chỉ đường/CTA cư trú và style token-based. Static build đưa module
+  vào manifest nhưng module chỉ được request khi feature flag bật. Thêm test và tài liệu rollout.
+- **Bảo mật:** không đổi `Published_Locations`, Staff, Gateway hoặc public contribution. Không có record
+  pilot/import/deploy. Owner later approved structured provider context for exactly name/locality/police-unit
+  code; `api/chat.js` validates and projects only these public fields and excludes them from app telemetry.
+- **Kiểm tra:** `node --check app.js`, `node --check lib/accommodation-beta.js`, `node --check js/chatbot.js`,
+  `node --test test/accommodation-beta.test.js` (8/8 PASS), `npm run ci` (677/677 PASS; build + audit
+  high gate). E2E bị giới hạn thời gian runner trong phiên này.
+
+## [2026-09-02] Nhà trọ an toàn — Beta E2E/scalability rehearsal & closure
+- **Agent:** Codex & Antigravity
+- **Thay đổi:** CTA Beta lazy-loads chatbot before opening the approved residence context; added
+  Playwright acceptance for OFF/ON, context A→B→new chat, required viewport sizes, and synthetic
+  100/1,000/5,000 records. Added payload-size/JSON-parse/validation timing evidence to the unit
+  contract test.
+- **Kết quả:** Beta browser spec **5/5 PASS**; `npm test` **678/678 PASS**; `npm run ci` PASS
+  (build + audit high gate). Synthetic payloads: 38,142 / 382,842 / 1,922,842 bytes for
+  100 / 1,000 / 5,000 records. No production data, imports, deployment, or external writes.
+- **Full E2E verification:** `npm run test:e2e` hoàn thành toàn bộ 74 bài test (72 PASS, 2 FAIL).
+  Đã kiểm chứng đối soát trên exact `origin/main` (commit `693c80f`): `staff-portal-modal.spec.js:507:5`
+  thất bại giống hệt (`PRE_EXISTING_MAIN_FAILURE`); `staff-portal-modal.spec.js:592:5` là `TEST_FLAKE`
+  (pass độc lập trong 3.2s). Hoàn toàn không có hồi quy nào thuộc về Beta (`0 BETA_REGRESSION`).
+  Toàn bộ gating sẵn sàng cho Owner Preview Review.
