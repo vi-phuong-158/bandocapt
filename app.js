@@ -134,6 +134,30 @@ function isIdentityLocation(loc) {
   return canonicalServiceCodes(loc).includes("IDENTITY");
 }
 
+// Canonical site type is authoritative for the public map. Legacy service/type
+// signals remain a fallback for rows that predate the taxonomy migration.
+function canonicalSiteType(loc) {
+  if (loc._canonicalSiteType === undefined) {
+    loc._canonicalSiteType = window.LocationTaxonomy?.toCanonicalSiteType
+      ? window.LocationTaxonomy.toCanonicalSiteType(loc.siteType)
+      : null;
+  }
+  return loc._canonicalSiteType;
+}
+
+function isPoliceLocation(loc) {
+  const siteType = canonicalSiteType(loc);
+  if (siteType) return siteType !== "PUBLIC_SERVICE_CENTER";
+  return loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
+}
+
+function isCccdLocation(loc) {
+  if (isIdentityLocation(loc)) return true;
+  const siteType = canonicalSiteType(loc);
+  if (siteType) return siteType === "PUBLIC_SERVICE_CENTER";
+  return loc.services?.includes("CITIZEN_ID") || loc.type === "id_center";
+}
+
 // Bộ lọc dịch vụ trên bản đồ là single-select: `null` = không lọc (hiện tất cả), ngược lại chỉ giữ
 // địa điểm có đúng mã dịch vụ canonical đang chọn. Cô lập vào một hàm duy nhất để nếu sau này cần
 // mở rộng logic thì chỉ sửa ở đây, không lan ra marker/filter/danh sách/detail.
@@ -157,7 +181,7 @@ function getMarkerThumbnail(loc) {
 }
 
 function createCustomIcon(loc) {
-  const isPolice = !isIdentityLocation(loc);
+  const isPolice = isPoliceLocation(loc);
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
   const isMobile = isMobileViewport();
@@ -732,7 +756,7 @@ function openDetailPanel(loc, trigger = null) {
     refreshLocationMarker(currentlySelectedLocation);
   }
 
-  const isPolice = !isIdentityLocation(loc);
+  const isPolice = isPoliceLocation(loc);
   renderLocationPreview(loc, isPolice);
 
   // site_type là nguồn sự thật cho "đây là đâu" (mô tả hình thái vật lý qua taxonomy); nhánh cũ chỉ
@@ -781,7 +805,7 @@ function openDetailPanel(loc, trigger = null) {
   const procedureNoteHtml =
     loc.cccdServiceMode === "TEMPORARILY_PAUSED"
       ? `<div class="text-[13px] text-amber-800 bg-amber-50 border border-amber-200/50 p-2.5 rounded-xl flex items-start gap-2 shadow-sm font-medium"><span class="material-symbols-outlined text-[18px] text-amber-600">info</span><span>Điểm cấp căn cước đang tạm dừng. Vui lòng liên hệ trước khi đến.</span></div>`
-      : isIdentityLocation(loc)
+      : isCccdLocation(loc)
       ? `<div class="text-[13px] text-amber-800 bg-amber-50 border border-amber-200/50 p-2.5 rounded-xl flex items-start gap-2 shadow-sm font-medium"><span class="material-symbols-outlined text-[18px] text-amber-600">info</span><span>Lưu ý: Mang theo CCCD/CMND cũ hoặc Giấy khai sinh khi làm thủ tục.</span></div>`
       : "";
 
@@ -923,7 +947,7 @@ function renderResultsList(results) {
 
 resultsList.innerHTML = results
     .map((loc) => {
-      const isPolice = !isIdentityLocation(loc);
+      const isPolice = isPoliceLocation(loc);
       const distStr =
         loc._currentDistance != null
           ? loc._currentDistance < 1
