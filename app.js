@@ -99,8 +99,32 @@ document
   .getElementById("zoom-out-btn")
   .addEventListener("click", () => map.zoomOut());
 
+// `loc.type`/legacy service codes không đáng tin cho bản ghi tạo sau taxonomy 2026-08-31 (Gateway
+// `deriveLegacyType` chỉ nhận diện mã CITIZEN_ID cũ, không nhận IDENTITY mới). Luôn quy về mã dịch
+// vụ canonical qua LocationTaxonomy trước khi so sánh, để marker/filter/detail nhận đúng cả bản ghi
+// cũ lẫn mới. Kết quả được cache trên chính location vì danh sách dịch vụ không đổi giữa các lần vẽ.
+function canonicalServiceCodes(loc) {
+  if (!loc._canonicalServices) {
+    const taxonomy = window.LocationTaxonomy;
+    loc._canonicalServices = (taxonomy?.toCanonicalServices?.(loc.services)) || loc.services || [];
+  }
+  return loc._canonicalServices;
+}
+
+function isIdentityLocation(loc) {
+  return canonicalServiceCodes(loc).includes("IDENTITY");
+}
+
+// Bộ lọc dịch vụ trên bản đồ là single-select: `null` = không lọc (hiện tất cả), ngược lại chỉ giữ
+// địa điểm có đúng mã dịch vụ canonical đang chọn. Cô lập vào một hàm duy nhất để nếu sau này cần
+// mở rộng logic thì chỉ sửa ở đây, không lan ra marker/filter/danh sách/detail.
+function matchesServiceFilter(loc, activeService) {
+  if (!activeService) return true;
+  return canonicalServiceCodes(loc).includes(activeService);
+}
+
 function createCustomIcon(loc) {
-  const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
+  const isPolice = !isIdentityLocation(loc);
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
 
@@ -374,11 +398,18 @@ function serviceLabel(service) {
   return labels[service] || service;
 }
 
+// Refactor, không phải bảng thứ hai: đúng 5 mã LocationTaxonomy.SITE_TYPES + 1 mã legacy
+// CITIZEN_ID_POINT, dùng làm fallback khi lib/location-taxonomy.js chưa kịp nạp. `SERVICE_POINT`
+// (mã chưa từng tồn tại trong taxonomy) đã bị xoá khỏi bảng này.
 function siteTypeLabel(siteType) {
+  if (window.LocationTaxonomy?.displaySiteType) return window.LocationTaxonomy.displaySiteType(siteType) || siteType;
   const labels = {
-    HEADQUARTERS: "Trụ sở",
-    SERVICE_POINT: "Điểm phục vụ",
-    MOBILE_POINT: "Điểm lưu động",
+    HEADQUARTERS: "Trụ sở Công an",
+    PUBLIC_SERVICE_CENTER: "Điểm tiếp nhận thủ tục hành chính",
+    SECONDARY_OFFICE: "Điểm làm việc / trụ sở phụ",
+    MOBILE_POINT: "Điểm tiếp nhận lưu động",
+    OTHER: "Khác",
+    CITIZEN_ID_POINT: "Điểm cấp căn cước (dữ liệu cũ)",
   };
   return labels[siteType] || siteType;
 }
@@ -393,16 +424,30 @@ function cccdModeLabel(mode) {
   return labels[mode] || mode;
 }
 
+// Trình bày thuần tuý — KHÔNG đổi giá trị gốc lưu trong dữ liệu, chỉ định dạng lại lúc hiển thị.
+function formatServedUnits(value) {
+  return String(value || "").split("|").map(item => item.trim()).filter(Boolean).join(", ");
+}
+
+function formatVietnameseDate(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime())) return text;
+  const pad = n => String(n).padStart(2, "0");
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`;
+}
+
 function renderLocationServiceMeta(loc) {
   if (!detailServiceMeta) return;
   const rows = [];
   if (loc.services?.length) {
-    rows.push(`<div><p class="text-[12px] text-textMuted font-medium mb-1.5">Dịch vụ tại địa điểm</p><div class="flex flex-wrap gap-1.5">${loc.services.map(service => `<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">${escapeHtml(serviceLabel(service))}</span>`).join("")}</div></div>`);
+    rows.push(`<div><p class="text-[12px] text-textMuted font-medium mb-1.5">Dịch vụ tại địa điểm</p><div class="flex flex-wrap gap-1.5">${loc.services.map(service => `<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[13px] font-semibold text-slate-700">${escapeHtml(serviceLabel(service))}</span>`).join("")}</div></div>`);
   }
   if (loc.siteType) rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Loại địa điểm:</span> ${escapeHtml(siteTypeLabel(loc.siteType))}</p>`);
   if (loc.cccdServiceMode && loc.cccdServiceMode !== "NOT_PROVIDED" && loc.cccdServiceMode !== "UNKNOWN") rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Tiếp nhận căn cước:</span> ${escapeHtml(cccdModeLabel(loc.cccdServiceMode))}</p>`);
-  if (loc.servedUnits) rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Phục vụ:</span> ${escapeHtml(loc.servedUnits)}</p>`);
-  if (loc.verifiedAt) rows.push(`<p class="text-[12px] leading-relaxed text-textMuted">Xác minh: ${escapeHtml(loc.verifiedAt)}</p>`);
+  if (loc.servedUnits) rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Phục vụ:</span> ${escapeHtml(formatServedUnits(loc.servedUnits))}</p>`);
+  if (loc.verifiedAt) rows.push(`<p class="text-[12px] leading-relaxed text-textMuted">Xác minh: ${escapeHtml(formatVietnameseDate(loc.verifiedAt))}</p>`);
   detailServiceMeta.innerHTML = rows.join("");
 }
 
@@ -502,13 +547,16 @@ if (previousSelectedLocation && previousSelectedLocation.marker) {
     refreshLocationMarker(currentlySelectedLocation);
   }
 
-const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
+const isPolice = !isIdentityLocation(loc);
   renderLocationPreview(loc, isPolice);
 
-detailBadge.textContent = loc.services?.includes("POLICE_OFFICE") && loc.services?.includes("CITIZEN_ID") ? "Trụ sở và điểm CCCD" : (isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD");
+// site_type là nguồn sự thật cho "đây là đâu" (mô tả hình thái vật lý qua taxonomy); nhánh cũ chỉ
+// còn dùng khi bản ghi legacy chưa có site_type, để không đổi hành vi các bản ghi trước 2026-08-31.
+const legacyBadgeText = loc.services?.includes("POLICE_OFFICE") && loc.services?.includes("CITIZEN_ID") ? "Trụ sở và điểm CCCD" : (isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD");
+  detailBadge.textContent = window.LocationTaxonomy?.displaySiteType(loc.siteType) || legacyBadgeText;
   detailBadge.className = isPolice
-    ? "inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu"
-    : "inline-block px-3 py-1.5 bg-accent/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 border border-amber-400/20 text-amber-50 shadow-lg transform-gpu";
+    ? "inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-full text-[12px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu"
+    : "inline-block px-3 py-1.5 bg-accent/90 backdrop-blur-md rounded-full text-[12px] font-bold uppercase tracking-widest mb-2 border border-amber-400/20 text-amber-50 shadow-lg transform-gpu";
 
 detailTitle.textContent = loc.name;
   detailTitle.className = "font-display text-[26px] md:text-[28px] font-bold leading-tight drop-shadow-md text-white";
@@ -549,7 +597,7 @@ if (isWeekday && (isMorning || isAfternoon)) {
 const procedureNote =
     loc.cccdServiceMode === "TEMPORARILY_PAUSED"
       ? `<div class="text-[13px] text-amber-800 mt-2.5 bg-amber-50 border border-amber-200/50 p-3 rounded-xl flex items-start gap-2 shadow-sm font-medium"><span class="material-symbols-outlined text-[18px] text-amber-600">info</span><span>Điểm cấp căn cước đang tạm dừng. Vui lòng liên hệ trước khi đến.</span></div>`
-      : loc.services?.includes("CITIZEN_ID")
+      : isIdentityLocation(loc)
       ? `<div class="text-[13px] text-amber-800 mt-2.5 bg-amber-50 border border-amber-200/50 p-3 rounded-xl flex items-start gap-2 shadow-sm font-medium">
         <span class="material-symbols-outlined text-[18px] text-amber-600">info</span>
         <span>Lưu ý: Người dân nhớ mang theo CCCD/CMND cũ hoặc Giấy khai sinh.</span>
@@ -621,56 +669,16 @@ previewExpandBtn.addEventListener("click", () => {
   requestAnimationFrame(() => detailPhoneLink.focus());
 });
 
-function getActiveFilters() {
-  return {
-    showPolice: document.getElementById("filter-police").checked,
-    showId: document.getElementById("filter-id").checked,
-    showNearby: document.getElementById("filter-nearby").checked,
-  };
-}
+// Bộ lọc dịch vụ trên bản đồ (single-select, xem `matchesServiceFilter`): `null` = không chip nào
+// active = hiện tất cả. State là một scalar đơn giản, không phải mảng/checkbox tổ hợp.
+let activeServiceFilter = null;
 
 function filterAndRender() {
   const searchTerm = searchInput.value.toLowerCase().trim();
-  const { showPolice, showId, showNearby } = getActiveFilters();
-  const nearbySpinner = document.getElementById('nearby-spinner');
-
-if (showNearby && userLat == null) {
-    if (nearbySpinner) {
-      nearbySpinner.textContent = 'progress_activity';
-      nearbySpinner.classList.add('animate-spin');
-    }
-    requestUserLocation(
-      function () {
-        if (nearbySpinner) {
-          nearbySpinner.textContent = 'near_me';
-          nearbySpinner.classList.remove('animate-spin');
-        }
-        filterAndRender();
-      },
-      function () {
-        if (nearbySpinner) {
-          nearbySpinner.textContent = 'near_me';
-          nearbySpinner.classList.remove('animate-spin');
-        }
-
-document.getElementById('filter-nearby').checked = false;
-        filterAndRender();
-      }
-    );
-    return;
-  }
-
-if (!showNearby && nearbySpinner) {
-    nearbySpinner.textContent = 'near_me';
-    nearbySpinner.classList.remove('animate-spin');
-  }
-
-let visibleLocations = [];
+  const visibleLocations = [];
 
 locations.forEach((loc) => {
-    const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
-    const isCccd = loc.services?.includes("CITIZEN_ID") || loc.type === "id_center";
-    const matchesFilter = (isPolice && showPolice) || (isCccd && showId);
+    const matchesFilter = matchesServiceFilter(loc, activeServiceFilter);
     const matchesSearch =
       (loc._nameLower || loc.name.toLowerCase()).includes(searchTerm) ||
       (loc._addressLower || loc.address.toLowerCase()).includes(searchTerm) ||
@@ -694,28 +702,6 @@ if (userLat != null) {
     );
   }
 
-if (showNearby && userLat != null) {
-
-visibleLocations.slice(5).forEach((loc) => {
-      loc._visible = false;
-      removeLocationMarker(loc);
-    });
-    visibleLocations = visibleLocations.slice(0, 5);
-
-if (visibleLocations.length > 0) {
-      const boundsCoords = [[userLat, userLng]];
-      visibleLocations.forEach((loc) => {
-        if (loc.lat != null && loc.lng != null) {
-          boundsCoords.push([loc.lat, loc.lng]);
-        }
-      });
-      if (boundsCoords.length > 1) {
-        const bounds = L.latLngBounds(boundsCoords);
-        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-      }
-    }
-  }
-
   if (currentlySelectedLocation && !currentlySelectedLocation._visible) {
     closeDetailPanel({ restoreFocus: false });
   }
@@ -736,7 +722,7 @@ function renderResultsList(results) {
 
 resultsList.innerHTML = results
     .map((loc) => {
-      const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
+      const isPolice = !isIdentityLocation(loc);
       const distStr =
         loc._currentDistance != null
           ? loc._currentDistance < 1
@@ -796,15 +782,66 @@ resultsList.addEventListener("keydown", (e) => {
 });
 
 searchInput.addEventListener("input", debouncedFilterAndRender);
-document
-  .getElementById("filter-police")
-  .addEventListener("change", filterAndRender);
-document
-  .getElementById("filter-id")
-  .addEventListener("change", filterAndRender);
-document
-  .getElementById("filter-nearby")
-  .addEventListener("change", filterAndRender);
+
+// Bốn chip chính lấy nguyên trạng trong HTML; phần mở rộng ("+N dịch vụ khác") được sinh từ
+// LocationTaxonomy để không hard-code trùng danh sách dịch vụ ở hai nơi và tự đúng khi taxonomy đổi.
+const PRIMARY_SERVICE_CODES = ["IDENTITY", "RESIDENCE", "VEHICLE_REGISTRATION", "IMMIGRATION"];
+const SERVICE_CHIP_ICONS = {
+  IDENTITY: "badge", RESIDENCE: "home", VEHICLE_REGISTRATION: "directions_car",
+  DRIVER_LICENSE: "credit_card", IMMIGRATION: "flight", CRIMINAL_RECORD: "gavel",
+  FIRE_SAFETY: "local_fire_department", SECURITY_ORDER: "shield_moon",
+  CITIZEN_RECEPTION: "groups", OTHER: "more_horiz",
+};
+const serviceFilterGroup = document.getElementById("service-filter-group");
+const serviceFilterExpandBtn = document.getElementById("service-filter-expand-btn");
+const serviceFilterExpandLabel = document.getElementById("service-filter-expand-label");
+const serviceFilterMore = document.getElementById("service-filter-more");
+
+function extraServicesLabel(count) {
+  return `+ ${count} dịch vụ khác`;
+}
+
+function renderExpandedServiceChips() {
+  const taxonomy = window.LocationTaxonomy;
+  if (!serviceFilterMore || !taxonomy) return;
+  const extra = taxonomy.SERVICES.filter(item => !PRIMARY_SERVICE_CODES.includes(item.code));
+  serviceFilterMore.innerHTML = extra.map(item => `
+    <button type="button" class="service-chip group flex items-center gap-1.5 py-2 px-3 bg-transparent hover:bg-white/50 rounded-full border border-slate-200/80 transition-all aria-pressed:bg-white aria-pressed:border-primary/40 aria-pressed:shadow-sm" data-service="${item.code}" aria-pressed="false">
+      <span class="material-symbols-outlined text-[18px] text-slate-400 group-aria-pressed:text-primary transition-colors" style="font-variation-settings: 'FILL' 1;">${SERVICE_CHIP_ICONS[item.code] || "more_horiz"}</span>
+      <span class="text-[12px] font-bold text-slate-500 group-aria-pressed:text-primary transition-colors whitespace-nowrap">${escapeHtml(item.label)}</span>
+    </button>
+  `).join("");
+  if (serviceFilterExpandLabel) serviceFilterExpandLabel.textContent = extraServicesLabel(extra.length);
+}
+
+function setActiveServiceFilter(code) {
+  activeServiceFilter = activeServiceFilter === code ? null : code;
+  document.querySelectorAll(".service-chip[data-service]").forEach(btn => {
+    btn.setAttribute("aria-pressed", String(btn.dataset.service === activeServiceFilter));
+  });
+  filterAndRender();
+}
+
+function toggleServiceExpand() {
+  if (!serviceFilterMore || !serviceFilterExpandBtn) return;
+  const wasExpanded = serviceFilterExpandBtn.getAttribute("aria-expanded") === "true";
+  serviceFilterExpandBtn.setAttribute("aria-expanded", String(!wasExpanded));
+  serviceFilterMore.hidden = wasExpanded;
+  if (serviceFilterExpandLabel) {
+    serviceFilterExpandLabel.textContent = wasExpanded
+      ? extraServicesLabel(serviceFilterMore.querySelectorAll(".service-chip").length)
+      : "Thu gọn";
+  }
+}
+
+if (serviceFilterGroup) {
+  serviceFilterGroup.addEventListener("click", (e) => {
+    if (e.target.closest("#service-filter-expand-btn")) { toggleServiceExpand(); return; }
+    const chip = e.target.closest(".service-chip[data-service]");
+    if (chip) setActiveServiceFilter(chip.dataset.service);
+  });
+}
+renderExpandedServiceChips();
 
 function showMobileSearch() {
   clearOverlayHideTimer();
@@ -903,6 +940,21 @@ if (onSuccessCallback) onSuccessCallback();
   );
 }
 
+// "Gần tôi" là action, không phải taxonomy filter: chỉ sắp xếp/canh bản đồ trong đúng tập đang
+// hiển thị (đã qua tìm kiếm + bộ lọc dịch vụ), không bao giờ ẩn hay gỡ marker nào khỏi bản đồ.
+function centerOnNearestVisible() {
+  if (userLat == null || userLng == null) return;
+  const nearest = locations
+    .filter(loc => loc._visible && loc.lat != null && loc.lng != null)
+    .sort((a, b) => (a._currentDistance ?? Infinity) - (b._currentDistance ?? Infinity))[0];
+  if (!nearest) {
+    map.flyTo([userLat, userLng], 14, { animate: true });
+    alert("Không có địa điểm phù hợp gần bạn.");
+    return;
+  }
+  map.fitBounds(L.latLngBounds([[userLat, userLng], [nearest.lat, nearest.lng]]), { padding: [56, 56], maxZoom: 15 });
+}
+
 document.getElementById("find-location-btn").addEventListener("click", () => {
   const icon = document.getElementById("location-icon");
   icon.textContent = "progress_activity";
@@ -912,8 +964,10 @@ requestUserLocation(
     function () {
       icon.textContent = "my_location";
       icon.classList.remove("animate-spin");
-      map.flyTo([userLat, userLng], 14, { animate: true });
+      // Bước 2-3 (áp filter/search hiện có + sắp xếp gần->xa) rồi mới canh bản đồ (bước 4), đúng thứ
+      // tự "Filter dịch vụ trước -> Gần tôi xử lý trong tập kết quả đó".
       filterAndRender();
+      centerOnNearestVisible();
       if (currentlySelectedLocation) openDetailPanel(currentlySelectedLocation);
     },
     function () {

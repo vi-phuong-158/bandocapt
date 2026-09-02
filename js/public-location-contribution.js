@@ -14,7 +14,9 @@
         serviceSchedule: document.getElementById('service-schedule'), servedUnits: document.getElementById('served-units'), mapsField: document.getElementById('maps-field'), imageField: document.getElementById('location-image-field'),
         addressHelp: document.getElementById('address-help'), mapsHelp: document.getElementById('maps-help'), imageHelp: document.getElementById('image-help'), currentImageStatus: document.getElementById('current-image-status'),
         captcha: document.getElementById('public-turnstile-widget'), status: document.getElementById('public-contribution-status'), submit: document.getElementById('public-contribution-submit'),
+        targetContext: document.getElementById('target-context'), imageFilename: document.getElementById('location-image-filename'),
     };
+    const PRIMARY_SERVICE_CODES = ['IDENTITY', 'RESIDENCE', 'VEHICLE_REGISTRATION', 'IMMIGRATION'];
     let units = [];
     let targets = [];
     let unitsReady = false;
@@ -69,18 +71,40 @@
         if (optionalMark) optionalMark.hidden = required;
     }
 
+    function appendServiceOption(item, container) {
+        const label = document.createElement('label');
+        label.className = 'public-contribution-service';
+        const input = document.createElement('input');
+        input.type = 'checkbox'; input.name = 'services'; input.value = item.code;
+        const text = document.createElement('span'); text.textContent = item.label;
+        label.append(input, text); container.appendChild(label);
+    }
+
+    // 4 dịch vụ hay dùng nhất hiện trực tiếp; phần còn lại (lấy nguyên từ taxonomy, không hard-code
+    // trùng danh sách) gấp gọn sau nút "Xem thêm" để form đỡ dài — vẫn hỗ trợ chọn nhiều dịch vụ.
     function renderTaxonomy() {
         elements.siteType.replaceChildren(new Option('Chọn loại địa điểm', ''));
         taxonomy.SITE_TYPES.forEach(item => elements.siteType.add(new Option(item.label, item.code)));
         elements.services.replaceChildren();
-        taxonomy.SERVICES.forEach(item => {
-            const label = document.createElement('label');
-            label.className = 'public-contribution-service';
-            const input = document.createElement('input');
-            input.type = 'checkbox'; input.name = 'services'; input.value = item.code;
-            const text = document.createElement('span'); text.textContent = item.label;
-            label.append(input, text); elements.services.appendChild(label);
+        const primary = taxonomy.SERVICES.filter(item => PRIMARY_SERVICE_CODES.includes(item.code));
+        const extra = taxonomy.SERVICES.filter(item => !PRIMARY_SERVICE_CODES.includes(item.code));
+        primary.forEach(item => appendServiceOption(item, elements.services));
+        if (!extra.length) return;
+        const extraContainer = document.createElement('div');
+        extraContainer.id = 'services-extra';
+        extraContainer.hidden = true;
+        extra.forEach(item => appendServiceOption(item, extraContainer));
+        const toggle = document.createElement('button');
+        toggle.type = 'button'; toggle.id = 'services-toggle'; toggle.className = 'public-contribution-services-toggle';
+        toggle.setAttribute('aria-expanded', 'false'); toggle.setAttribute('aria-controls', 'services-extra');
+        toggle.textContent = `Xem thêm ${extra.length} dịch vụ`;
+        toggle.addEventListener('click', () => {
+            const expanded = toggle.getAttribute('aria-expanded') === 'true';
+            toggle.setAttribute('aria-expanded', String(!expanded));
+            extraContainer.hidden = expanded;
+            toggle.textContent = expanded ? `Xem thêm ${extra.length} dịch vụ` : 'Thu gọn';
         });
+        elements.services.append(toggle, extraContainer);
     }
 
     function updateRequestMode() {
@@ -114,12 +138,32 @@
         refreshSubmitState();
     }
 
+    // `target.name` đã là tên hiển thị đầy đủ — với site_type khác HEADQUARTERS,
+    // `taxonomy.generateDisplayName()` tự sinh tên theo đúng dạng "<loại địa điểm> – <đơn vị>"
+    // (xem lib/location-taxonomy.js), nên KHÔNG được prepend lại typeLabel ở đây kẻo lặp đôi.
+    function updateTargetContext(target) {
+        if (!elements.targetContext) return;
+        if (!target) { elements.targetContext.hidden = true; elements.targetContext.textContent = ''; return; }
+        elements.targetContext.textContent = `Đang cập nhật: ${target.name}`;
+        elements.targetContext.hidden = false;
+    }
+
     function prefillTarget() {
         const target = targets.find(item => item.recordId === elements.target.value);
+        updateTargetContext(target);
         if (!target) return;
         elements.siteType.value = taxonomy.isWritableSiteType(target.siteType) ? target.siteType : '';
         const services = taxonomy.toCanonicalServices(target.services) || [];
         elements.services.querySelectorAll('input').forEach(input => { input.checked = services.includes(input.value); });
+        // Một dịch vụ prefill có thể nằm trong nhóm đã gấp gọn — bung ra để người dùng thấy đúng
+        // những gì đang chọn, không để checkbox đã tick ẩn sau nút "Xem thêm".
+        const extraContainer = document.getElementById('services-extra');
+        const toggle = document.getElementById('services-toggle');
+        if (extraContainer && toggle && extraContainer.querySelector('input:checked')) {
+            extraContainer.hidden = false;
+            toggle.setAttribute('aria-expanded', 'true');
+            toggle.textContent = 'Thu gọn';
+        }
         elements.name.value = target.name || '';
         elements.address.value = target.address || '';
         elements.maps.value = target.googleMapsUrl || '';
@@ -140,6 +184,7 @@
         targets = [];
         elements.currentImageStatus.hidden = true;
         elements.currentImageStatus.textContent = '';
+        updateTargetContext(null);
         elements.target.replaceChildren(new Option(elements.unit.value ? 'Đang tải địa điểm…' : 'Chọn đơn vị trước', ''));
         if (!elements.unit.value) return updateRequestMode();
         try {
@@ -202,6 +247,7 @@
         return JSON.stringify({
             unit: inputValue(elements.unit), requestType: inputValue(elements.requestType), target: inputValue(elements.target), siteType: inputValue(elements.siteType),
             services: Array.from(elements.services.querySelectorAll('input:checked')).map(input => input.value), name: inputValue(elements.name), address: inputValue(elements.address), maps: inputValue(elements.maps),
+            serviceSchedule: inputValue(elements.serviceSchedule), servedUnits: inputValue(elements.servedUnits),
             publicPhone: inputValue(elements.publicPhone), submitterName: inputValue(elements.submitterName), submitterPhone: inputValue(elements.submitterPhone),
             note: inputValue(elements.note), file: file ? [file.name, file.size, file.lastModified, file.type] : [],
         });
@@ -263,6 +309,8 @@
             form.reset();
             renderTaxonomy();
             targets = [];
+            updateTargetContext(null);
+            if (elements.imageFilename) elements.imageFilename.textContent = 'Chưa chọn ảnh';
             updateRequestMode();
             operationId = createOperationId();
             operationFingerprint = '';
@@ -281,6 +329,11 @@
     elements.unit.addEventListener('change', loadTargets);
     elements.requestType.addEventListener('change', updateRequestMode);
     elements.target.addEventListener('change', prefillTarget);
+    elements.image.addEventListener('change', () => {
+        if (!elements.imageFilename) return;
+        const file = elements.image.files?.[0];
+        elements.imageFilename.textContent = file ? `Đã chọn: ${file.name}` : 'Chưa chọn ảnh';
+    });
     form.addEventListener('submit', submit);
     renderTaxonomy();
     updateRequestMode();

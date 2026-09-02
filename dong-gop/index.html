@@ -53,6 +53,7 @@
                             <option value="">Chọn đơn vị trước</option>
                         </select>
                         <p class="public-contribution-help">Chỉ hiển thị địa điểm đang công khai của đơn vị đã chọn.</p>
+                        <p id="target-context" class="public-contribution-help" role="status" hidden></p>
                     </div>
                 </fieldset>
 
@@ -81,20 +82,21 @@
                         <textarea id="served-units" name="servedUnits" rows="2" maxlength="1000"></textarea>
                     </div>
                     <div class="public-contribution-field">
-                        <label for="address">Địa chỉ <span class="public-contribution-required-mark" data-required-mark="address" aria-hidden="true">*</span><span class="public-contribution-optional" data-optional-mark="address" hidden> (không bắt buộc)</span></label>
+                        <label for="address">Địa chỉ <span class="public-contribution-required-mark" data-required-mark="address" aria-hidden="true">*</span><span class="public-contribution-optional" data-optional-mark="address" hidden> (để trống nếu không thay đổi)</span></label>
                         <textarea id="address" name="address" rows="3" maxlength="500" autocomplete="street-address" required></textarea>
                         <p id="address-help" class="public-contribution-help"></p>
                     </div>
                     <div id="maps-field" class="public-contribution-field">
-                        <label for="maps-url">Link Google Maps <span class="public-contribution-required-mark" data-required-mark="maps" aria-hidden="true">*</span><span class="public-contribution-optional" data-optional-mark="maps" hidden> (không bắt buộc)</span></label>
+                        <label for="maps-url">Link Google Maps <span class="public-contribution-required-mark" data-required-mark="maps" aria-hidden="true">*</span><span class="public-contribution-optional" data-optional-mark="maps" hidden> (để trống nếu vị trí không thay đổi)</span></label>
                         <input id="maps-url" name="mapsUrl" type="url" maxlength="2000" inputmode="url" placeholder="https://maps.google.com/..." required>
                         <p id="maps-help" class="public-contribution-help"></p>
                     </div>
                     <div id="location-image-field" class="public-contribution-field">
-                        <label for="location-image">01 ảnh địa điểm <span class="public-contribution-required-mark" data-required-mark="image" aria-hidden="true">*</span><span class="public-contribution-optional" data-optional-mark="image" hidden> (không bắt buộc)</span></label>
+                        <label for="location-image">01 ảnh địa điểm <span class="public-contribution-required-mark" data-required-mark="image" aria-hidden="true">*</span><span class="public-contribution-optional" data-optional-mark="image" hidden> (chỉ chọn nếu muốn thay ảnh)</span></label>
                         <input id="location-image" name="image" type="file" accept="image/jpeg,image/png,image/webp" required>
                         <p id="image-help" class="public-contribution-help"></p>
                         <p id="current-image-status" class="public-contribution-help" hidden></p>
+                        <p id="location-image-filename" class="public-contribution-help" aria-live="polite">Chưa chọn ảnh</p>
                     </div>
                 </fieldset>
 
