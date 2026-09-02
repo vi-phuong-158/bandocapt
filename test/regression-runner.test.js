@@ -7,7 +7,11 @@ const {
     VERBOSITY_LIMIT_NARROW,
     VERBOSITY_LIMIT_FULL,
 } = require('../lib/regression-metrics');
-const { parseArgs, parseConversations, conversationGradeOptions, aggregateMajority, summarizeStageTimings } = require('../scripts/run-regression');
+const path = require('node:path');
+const {
+    parseArgs, parseConversations, conversationGradeOptions, aggregateMajority, summarizeStageTimings,
+    computeTotals, unifyRunCases, checkRequiredCredentials,
+} = require('../scripts/run-regression');
 const { gradeCase, compilePattern } = require('../lib/regression-grader');
 
 test('regression word count handles whitespace and CJK text', () => {
@@ -145,4 +149,137 @@ test('H17 expectation: foreigner branch with QLXNC + diplomatic mission passes',
     });
     assert.equal(missingEmbassy.verdict, 'HARD_FAIL');
     assert.ok(missingEmbassy.failures.some(f => f.includes('diplomatic_mission_contact')));
+});
+
+// =======================================================================
+// Runner-reliability fix — tất định, KHÔNG gọi network thật (không cần credential).
+// =======================================================================
+
+test('T1/T2 (runner-level): computeTotals đếm INFRA_FAIL vào totalProviderErrors → strict-gate exit 1', () => {
+    // Mô phỏng đúng path thật của runSingle(): computeTotals() rồi kiểm điều kiện gate,
+    // không cần chạy executeSuiteOnce() (network thật) để test logic exit-code.
+    const results = [
+        { grade: { status: 'INFRA_FAIL', providerError: 'SERVER_CONFIG_ERROR', infraErrorCode: 'SERVER_CONFIG_ERROR' } },
+        { grade: { status: 'PASS', providerError: null, infraErrorCode: null } },
+    ];
+    const { totalHardFail, totalInfraFail, totalProviderErrors } = computeTotals(results, []);
+    assert.equal(totalHardFail, 0, 'INFRA_FAIL không phải content hard fail');
+    assert.equal(totalInfraFail, 1);
+    assert.equal(totalProviderErrors, 1, 'INFRA_FAIL vẫn phải tính vào totalProviderErrors để --strict-gate chặn được');
+    // Logic gate y hệt runSingle(): strict-gate + có provider/infra error → phải fail.
+    const strictArgs = { strictGate: true };
+    let exitCode = 0;
+    if (totalHardFail > 0) exitCode = 1;
+    if (strictArgs.strictGate && totalProviderErrors > 0) exitCode = 1;
+    assert.equal(exitCode, 1, 'strict-gate phải exit khác 0 khi có INFRA_FAIL — không được exit 0/PASS giả');
+});
+
+test('T3: 3 runs PASS / INFRA / PASS → FLAKY_INFRA (thiểu số), KHÔNG bị đọc thành majority content regression', () => {
+    const perRun = [
+        [{ id: 'TR01', verdict: 'PASS' }],
+        [{ id: 'TR01', verdict: 'INFRA_FAIL', providerError: 'PINECONE_QUERY_TIMEOUT', infraErrorCode: 'PINECONE_QUERY_TIMEOUT' }],
+        [{ id: 'TR01', verdict: 'PASS' }],
+    ];
+    const { majorityHardFails, majorityInfraFails, flakyInfraFails } = aggregateMajority(perRun, 2);
+    assert.deepEqual(majorityHardFails, [], 'không có HARD_FAIL nào — không được coi là content regression');
+    assert.deepEqual(majorityInfraFails, [], '1/3 infra là thiểu số, không đạt ngưỡng đa số');
+    assert.deepEqual(flakyInfraFails.map(e => e.id), ['TR01']);
+});
+
+test('T4: 3 runs INFRA / INFRA / PASS → majority infra failure, gate phải block', () => {
+    const perRun = [
+        [{ id: 'TR01', verdict: 'INFRA_FAIL', providerError: 'PINECONE_QUERY_TIMEOUT', infraErrorCode: 'PINECONE_QUERY_TIMEOUT' }],
+        [{ id: 'TR01', verdict: 'INFRA_FAIL', providerError: 'PINECONE_QUERY_TIMEOUT', infraErrorCode: 'PINECONE_QUERY_TIMEOUT' }],
+        [{ id: 'TR01', verdict: 'PASS' }],
+    ];
+    const { majorityHardFails, majorityInfraFails, flakyInfraFails } = aggregateMajority(perRun, 2);
+    assert.deepEqual(majorityHardFails, [], 'lỗi hạ tầng không phải content hard fail — không lẫn vào bucket này');
+    assert.deepEqual(majorityInfraFails.map(e => e.id), ['TR01'], '2/3 đạt ngưỡng đa số → phải block');
+    assert.deepEqual(flakyInfraFails, []);
+    // Logic blocked y hệt runMajority() khi --strict-gate.
+    const strictArgs = { strictGate: true };
+    const blocked = majorityHardFails.length > 0 || (strictArgs.strictGate && majorityInfraFails.length > 0);
+    assert.equal(blocked, true);
+});
+
+test('T5: 3 runs HARD_FAIL / HARD_FAIL / PASS → majority content hard fail, gate phải block (hành vi cũ giữ nguyên)', () => {
+    const perRun = [
+        [{ id: 'TR01', verdict: 'HARD_FAIL', failures: ['missing_required_fact:must_declare'] }],
+        [{ id: 'TR01', verdict: 'HARD_FAIL', failures: ['missing_required_fact:must_declare'] }],
+        [{ id: 'TR01', verdict: 'PASS' }],
+    ];
+    const { majorityHardFails } = aggregateMajority(perRun, 2);
+    assert.deepEqual(majorityHardFails.map(e => e.id), ['TR01']);
+    const blocked = majorityHardFails.length > 0;
+    assert.equal(blocked, true, 'majority HARD_FAIL luôn chặn gate, không cần --strict-gate');
+});
+
+test('T5b: HARD_FAIL đa số kèm infraErrorCode vẫn giữ HARD_FAIL/BLOCK, nhưng đánh dấu rõ infraFailRuns để report không đọc nhầm', () => {
+    // Case thật đã điều tra: Pinecone timeout bị nuốt, model vẫn sinh ungrounded content.
+    const perRun = [
+        [{ id: 'TR01', verdict: 'HARD_FAIL', infraErrorCode: 'PINECONE_QUERY_TIMEOUT', failures: ['ungrounded_fact:must_declare'] }],
+        [{ id: 'TR01', verdict: 'HARD_FAIL', infraErrorCode: 'PINECONE_QUERY_TIMEOUT', failures: ['ungrounded_fact:must_declare'] }],
+        [{ id: 'TR01', verdict: 'PASS' }],
+    ];
+    const { majorityHardFails } = aggregateMajority(perRun, 2);
+    assert.deepEqual(majorityHardFails.map(e => e.id), ['TR01']);
+    const row = majorityHardFails[0];
+    assert.equal(row.infraFailRuns.length, 2, 'cả 2 run HARD_FAIL đều kèm infraErrorCode — phải lộ ra trong report');
+});
+
+test('T6 (runner-level): unifyRunCases mang infraErrorCode từ grade sang aggregateMajority', () => {
+    const results = [{ id: 'TR01', grade: { status: 'INFRA_FAIL', providerError: 'SERVER_CONFIG_ERROR', infraErrorCode: 'SERVER_CONFIG_ERROR', failures: [] } }];
+    const unified = unifyRunCases({ results, conversationResults: [] });
+    assert.equal(unified[0].infraErrorCode, 'SERVER_CONFIG_ERROR');
+});
+
+test('T7: parseArgs hiện có không hỏng — flag cũ vẫn hoạt động y hệt sau fix (regression-runner-reliability không đổi CLI)', () => {
+    assert.equal(parseArgs([]).strictGate, false);
+    assert.equal(parseArgs([]).majority, false);
+    assert.equal(parseArgs([]).runs, 1);
+    assert.deepEqual(parseArgs(['--ids', 'TR01,TR02']).ids, ['TR01', 'TR02']);
+    assert.equal(parseArgs(['--delay-ms', '500']).delayMs, 500);
+});
+
+test('T8: canonical live-gate command (npm run regression:live) resolve đúng strict + majority + 3 run', () => {
+    const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf-8'));
+    const liveScript = pkg.scripts['regression:live'];
+    assert.ok(liveScript, 'package.json cần script "regression:live" — canonical command cho live merge gate');
+    assert.match(liveScript, /^node scripts\/run-regression\.js /);
+    // Parse chính argv mà npm script đó thực thi để xác nhận nó thật sự bật đủ 3 cờ.
+    const argv = liveScript.replace(/^node scripts\/run-regression\.js /, '').trim().split(/\s+/);
+    const resolved = parseArgs(argv);
+    assert.equal(resolved.strictGate, true);
+    assert.equal(resolved.majority, true);
+    assert.equal(resolved.runs, 3);
+    // Single-run debug command vẫn giữ nguyên, không bị canonical command ảnh hưởng.
+    assert.equal(parseArgs([]).strictGate, false);
+    assert.equal(parseArgs([]).majority, false);
+});
+
+test('T9: checkRequiredCredentials không bao giờ in giá trị credential thật, chỉ SET/UNSET', () => {
+    const fakeSecretValue = 'sk-super-secret-do-not-log-1234567890';
+    const withCred = checkRequiredCredentials({ GEMINI_API_KEY: fakeSecretValue, PINECONE_API_KEY: fakeSecretValue });
+    for (const line of withCred.status) {
+        assert.ok(/^[A-Z_]+: (SET|UNSET)$/.test(line), `dòng report phải đúng dạng "NAME: SET|UNSET", thực tế: "${line}"`);
+        assert.ok(!line.includes(fakeSecretValue), 'KHÔNG được in giá trị credential thật ra report');
+    }
+    assert.equal(withCred.ok, true);
+
+    const missing = checkRequiredCredentials({});
+    assert.equal(missing.ok, false);
+    assert.deepEqual(missing.missing, ['GEMINI_API_KEY']);
+    for (const line of missing.status) {
+        assert.ok(/^[A-Z_]+: (SET|UNSET)$/.test(line));
+    }
+});
+
+test('checkRequiredCredentials: PINECONE/DEEPSEEK chỉ thông tin, không chặn preflight (topology fallback)', () => {
+    // Chỉ GEMINI_API_KEY bị api/chat.js chặn cứng bằng SERVER_CONFIG_ERROR trước mọi nhánh
+    // provider (dùng tối thiểu cho embedding) — Pinecone/DeepSeek đều có đường graceful-degrade
+    // theo topology hiện tại, nên preflight không được chặn cứng chỉ vì hai biến này UNSET.
+    const geminiOnly = checkRequiredCredentials({ GEMINI_API_KEY: 'set' });
+    assert.equal(geminiOnly.ok, true);
+    assert.ok(geminiOnly.status.includes('PINECONE_API_KEY: UNSET'));
+    assert.ok(geminiOnly.status.includes('DEEPSEEK_API_KEY: UNSET'));
 });

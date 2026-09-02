@@ -1832,4 +1832,32 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - **Reason:** Firebase project quota blocked a safe dedicated TEST RTDB, while Upstash provides a
   Vercel-native atomic key/value resource with a TEST-only Preview binding and no architecture change
   to the contribution workflow.
+## [2026-08-26] Regression runner: thiếu credential/lỗi hạ tầng phải fail-closed, không PASS giả
+
+- **Quyết định:** `lib/regression-grader.js` — `classifyVerdict()` không còn chỉ nhìn số lượng
+  `hardFailures`; khi `providerError` (result.error) đang set VÀ không có failure nào (nghĩa là
+  content check bị bỏ qua vì câu trả lời rỗng), verdict là **`INFRA_FAIL`**, không bao giờ là
+  `PASS`. `gradeCase()` thêm trường `infraErrorCode` (lỗi tường minh, hoặc suy ra từ
+  `eval.pineconeErrored`/`pineconeErrorDetail` khi Pinecone lỗi/timeout bị `api/chat.js` nuốt
+  nhưng model vẫn sinh câu trả lời) — gắn kèm bằng chứng hạ tầng lên cả HARD_FAIL thật (không
+  che verdict) để report/gate phân biệt được INFRA/PROVIDER failure khỏi CODE/CONTENT
+  regression. `scripts/run-regression.js` thêm preflight `checkRequiredCredentials()` (chỉ
+  `GEMINI_API_KEY` — credential DUY NHẤT `api/chat.js` chặn cứng trước mọi nhánh provider) fail
+  fast trước khi đốt live call; `aggregateMajority()` thêm `infraRuns`/`majorityInfraFails`/
+  `flakyInfraFails` để gate đa số block đúng khi lỗi hạ tầng chiếm đa số nhưng không tự động
+  quy lỗi hạ tầng thiểu số (1 run flaky) thành content regression.
+- **Canonical live merge gate:** `npm run regression:live` (=
+  `node scripts/run-regression.js --strict-gate --majority --runs 3`). Dùng lệnh này TRƯỚC KHI
+  merge một PR chạm RAG/orchestration. `node scripts/run-regression.js` đơn lẻ (không cờ) vẫn
+  giữ nguyên cho debug/dev nhanh — KHÔNG phải cổng chấp nhận merge, exit code vẫn lenient như cũ.
+- **Lý do:** Phát hiện sau PR #59 (sink inversion) — chạy live regression thiếu credential từng
+  cho `exit 0` và in `Grade: PASS` dù response rỗng và lỗi là `SERVER_CONFIG_ERROR` (false
+  green). Riêng biệt, một cửa sổ Pinecone timeout thật khiến 5 case RAG hiện `HARD_FAIL:
+  ungrounded_fact` trên single-run gate; control re-run cùng điều kiện hội tụ về PASS — chứng
+  minh single-run dễ đọc nhầm biến động hạ tầng thoáng qua thành code regression.
+- **Phạm vi:** Chỉ sửa test harness (`lib/regression-grader.js`, `scripts/run-regression.js`).
+  `api/chat.js` chỉ thêm 3 dòng lộ `pineconeErrored`/`pineconeErrorDetail` (đã có sẵn nội bộ)
+  vào `evalTrace` — trường này CHỈ tồn tại khi `evalMode` (gated bởi `NODE_ENV !== 'production'`
+  + `EVAL_BYPASS_TOKEN` + `evalDebug` flag), không đổi RAG/retrieval/timeout semantics, không
+  đổi hành vi production. Không sửa baseline debt của EV04/EV01/F01/TYPO01.
 

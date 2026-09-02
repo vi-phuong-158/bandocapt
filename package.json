@@ -42,6 +42,7 @@
     "seed:approved-law-guide": "node scripts/seed-approved-law-guide-to-candidate.js",
     "seed:evisa-phutho-web": "node scripts/seed-evisa-to-phutho-web.js",
     "test:regression:tam-tru": "node scripts/run-regression.js --ids TR01,TR02,TR03,ON01,TL01,GD02,TR09",
+    "regression:live": "node scripts/run-regression.js --strict-gate --majority --runs 3",
     "test:e2e": "npm run build && playwright test",
     "test": "node --test test/*.test.js",
     "verify:published-locations": "node scripts/verify-published-locations.js"
