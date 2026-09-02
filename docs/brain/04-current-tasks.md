@@ -427,3 +427,9 @@ Trien khai theo ke hoach review 2026-07-10. Moi giai doan = 1 nhanh feature:
   `STAFF_PORTAL_PLAN.md` §26 (Form sao chép mất liên kết thư mục upload, chủ sở hữu phải mở Form
   editor bấm *Phục hồi/Restore* trước khi dùng lại).
 
+## Nhà trọ an toàn — Beta rehearsal status (2026-09-02)
+- **Đã hoàn tất trong worktree:** Beta OFF/ON, context continuity, scalability 100/1.000/5.000 và
+  viewport smoke 320/375/390/430/768/1024; toàn bộ Beta Playwright spec đạt 5/5.
+- **Full E2E suite status:** 74 tests chạy hoàn chỉnh (72 PASS, 1 pre-existing main failure trên `staff-portal-modal.spec.js:507:5`, 1 flake; 0 beta regression). Unit tests: 678/678 PASS; `npm run ci`: PASS.
+- Sẵn sàng preview acceptance: không deploy prod, không import/apply, không dùng dữ liệu pilot thật.
+

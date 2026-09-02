@@ -958,6 +958,7 @@ function loadAccommodationBetaModule() {
 }
 
 function setAccommodationLayerVisible(visible) {
+  const toggleStartedAt = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
   accommodationRuntime.visible = Boolean(visible && accommodationRuntime.enabled);
   const toggle = document.getElementById("accommodation-beta-toggle");
   if (toggle) {
@@ -977,6 +978,10 @@ function setAccommodationLayerVisible(visible) {
     map.removeLayer(accommodationClusterGroup);
     map.removeLayer(selectedAccommodationLayer);
   }
+  window.__accommodationBetaMetrics = {
+    ...(window.__accommodationBetaMetrics || {}),
+    toggleMs: (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now()) - toggleStartedAt,
+  };
   filterAndRender();
 }
 
@@ -996,12 +1001,14 @@ function mountAccommodationBetaControl() {
 async function initializeAccommodationBeta() {
   const config = window.ACCOMMODATION_BETA_CONFIG;
   if (!config || config.enabled !== true) return;
+  const startedAt = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
   try {
     const module = await loadAccommodationBetaModule();
     const dataset = module.prepareDataset(config);
     accommodationRuntime.enabled = dataset.enabled;
     accommodationRuntime.rejected = dataset.rejected;
     accommodationRuntime.pilotLocalityCode = dataset.pilotLocalityCode;
+    const markersStartedAt = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
     accommodationRuntime.locations = dataset.records.map((record) => {
       const police = module.resolvePoliceUnit(record, locations);
       const loc = {
@@ -1020,6 +1027,13 @@ async function initializeAccommodationBeta() {
       loc.marker.on("click", () => openDetailPanel(loc));
       return loc;
     });
+    const now = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+    window.__accommodationBetaMetrics = {
+      recordCount: accommodationRuntime.locations.length,
+      rejectedCount: dataset.rejected.length,
+      validationAndLoadMs: now - startedAt,
+      markerCreationMs: now - markersStartedAt,
+    };
     dataset.rejected.forEach(item => console.warn(`[accommodation-beta] Rejected record ${item.index}: ${item.reason}`));
     mountAccommodationBetaControl();
   } catch (error) {
@@ -1032,11 +1046,21 @@ detailServiceMeta?.addEventListener("click", event => {
   if (!cta) return;
   const loc = accommodationRuntime.locations.find(item => item.id === cta.dataset.accommodationId);
   if (!loc) return;
-  window.ChatbotUI?.openResidenceContext?.({
+  const residenceContext = {
     accommodationName: loc.name,
     localityCode: loc.localityCode,
     policeUnitCode: loc.policeUnitCode,
-  });
+  };
+  if (window.ChatbotUI?.openResidenceContext) {
+    window.ChatbotUI.openResidenceContext(residenceContext);
+    return;
+  }
+  const chatLoad = window.LazyFeatures?.loadChatModule?.();
+  if (chatLoad?.then) {
+    chatLoad
+      .then(() => window.ChatbotUI?.openResidenceContext?.(residenceContext))
+      .catch(() => {});
+  }
 });
 
 

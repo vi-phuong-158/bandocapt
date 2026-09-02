@@ -3661,3 +3661,18 @@
 - **Kiểm tra:** `node --check app.js`, `node --check lib/accommodation-beta.js`, `node --check js/chatbot.js`,
   `node --test test/accommodation-beta.test.js` (8/8 PASS), `npm run ci` (677/677 PASS; build + audit
   high gate). E2E bị giới hạn thời gian runner trong phiên này.
+
+## [2026-09-02] Nhà trọ an toàn — Beta E2E/scalability rehearsal & closure
+- **Agent:** Codex & Antigravity
+- **Thay đổi:** CTA Beta lazy-loads chatbot before opening the approved residence context; added
+  Playwright acceptance for OFF/ON, context A→B→new chat, required viewport sizes, and synthetic
+  100/1,000/5,000 records. Added payload-size/JSON-parse/validation timing evidence to the unit
+  contract test.
+- **Kết quả:** Beta browser spec **5/5 PASS**; `npm test` **678/678 PASS**; `npm run ci` PASS
+  (build + audit high gate). Synthetic payloads: 38,142 / 382,842 / 1,922,842 bytes for
+  100 / 1,000 / 5,000 records. No production data, imports, deployment, or external writes.
+- **Full E2E verification:** `npm run test:e2e` hoàn thành toàn bộ 74 bài test (72 PASS, 2 FAIL).
+  Đã kiểm chứng đối soát trên exact `origin/main` (commit `693c80f`): `staff-portal-modal.spec.js:507:5`
+  thất bại giống hệt (`PRE_EXISTING_MAIN_FAILURE`); `staff-portal-modal.spec.js:592:5` là `TEST_FLAKE`
+  (pass độc lập trong 3.2s). Hoàn toàn không có hồi quy nào thuộc về Beta (`0 BETA_REGRESSION`).
+  Toàn bộ gating sẵn sàng cho Owner Preview Review.

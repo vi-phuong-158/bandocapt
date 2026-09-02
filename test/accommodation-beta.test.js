@@ -71,6 +71,29 @@ test('benchmark remains responsive for 100, 1000, and 5000 synthetic records', (
   });
 });
 
+test('synthetic scalability records capture payload, parse, and validation metrics', () => {
+  const metrics = [100, 1000, 5000].map((count) => {
+    const records = Array.from({ length: count }, (_, index) => record({
+      id: `ACC_SCALE_${index}`,
+      name: `Nhà trọ Synthetic ${index}`,
+    }));
+    const payload = JSON.stringify(config(records));
+    const payloadBytes = Buffer.byteLength(payload, 'utf8');
+    const parseStartedAt = process.hrtime.bigint();
+    const parsed = JSON.parse(payload);
+    const parseMs = Number(process.hrtime.bigint() - parseStartedAt) / 1e6;
+    const validationStartedAt = process.hrtime.bigint();
+    const dataset = AccommodationBeta.prepareDataset(parsed);
+    const validationMs = Number(process.hrtime.bigint() - validationStartedAt) / 1e6;
+    assert.equal(dataset.records.length, count);
+    assert.ok(payloadBytes > 0);
+    assert.ok(Number.isFinite(parseMs) && parseMs >= 0);
+    assert.ok(Number.isFinite(validationMs) && validationMs >= 0);
+    return { count, payloadBytes, parseMs: Number(parseMs.toFixed(3)), validationMs: Number(validationMs.toFixed(3)) };
+  });
+  console.log(`[accommodation-beta] synthetic scalability ${JSON.stringify(metrics)}`);
+});
+
 test('chat context retains only approved public Beta fields and rejects injection-shaped values', () => {
   const validation = validateChatRequestBody({
     userMessage: 'Tôi cần hướng dẫn khai báo tạm trú.',
