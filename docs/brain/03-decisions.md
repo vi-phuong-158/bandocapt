@@ -1,5 +1,25 @@
 # 03 — Technical Decisions
 
+## [2026-09-02] Public map/filter classification reads canonical taxonomy first, legacy signal only as fallback
+
+- **Decision:** `app.js` place-type/service classification (marker icon, quick filter, detail badge,
+  mobile preview) is centralized into `isPoliceLocation(loc)`/`isCccdLocation(loc)`. Both consult
+  the new `LocationTaxonomy.toCanonicalSiteType()`/`toCanonicalServices()` first; the pre-migration
+  `loc.services.includes("POLICE_OFFICE"/"CITIZEN_ID")` / `loc.type` check only runs when a record
+  has no readable canonical `siteType`. This closes the bug in `docs/redesign/CLAUDE_REVIEW_R0_V1.md`
+  (M2): a `PUBLIC_SERVICE_CENTER` + `[IDENTITY]` record previously matched neither legacy code and
+  silently fell into the "Công an" bucket, contradicting the [2026-08-31] site/service taxonomy
+  decision below.
+- **Why not touch the data model:** `site_type`/`services` were already correctly separated and
+  written by the taxonomy library (see [2026-08-31]); only the map's *read-side* classification had
+  not been updated to consume them. No schema, API, or write-path change was needed.
+- **Scope boundary:** UI markup/pixels, the sheet state machine (`app.js:185–340`), the chatbot, and
+  the "Nhà trọ an toàn" Beta layer are explicitly out of scope for this fix — see the redesign R0
+  review for why those are separate, later phases (R1–R5).
+- **Verification:** the fix was proven to close the bug (not just pass tests written to match it) by
+  temporarily reverting it and confirming the new canonical-case tests fail while the new
+  legacy-case tests still pass, then restoring the fix and confirming both pass.
+
 ## [2026-09-01] Location evidence is current-turn scoped and fail-closed
 
 - **Decision:** A service intent such as `CITIZEN_ID`/CCCD only requests the location-resolution

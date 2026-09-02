@@ -1,5 +1,36 @@
 # 06 — AI Working Log
 
+## [2026-09-02] R0.5 — Taxonomy adapter cho public map/filter
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Tiếp nối review redesign R0 (`docs/redesign/CLAUDE_REVIEW_R0_V1.md`), owner duyệt
+  4 amendment (desktop default = collapsed, chatbot context = location-id-only, Nhà trọ Beta =
+  nguồn riêng) và thứ tự triển khai R0→R0.5→R1→...→R5. Task này chỉ làm R0.5.
+- **Thay đổi:** Sửa bug phân loại "Công an"/"Điểm CCCD" trên bản đồ/bộ lọc: trước đây `app.js` so
+  khớp trực tiếp mã service legacy (`POLICE_OFFICE`/`CITIZEN_ID`) hoặc `loc.type`, nên một bản ghi
+  ghi đúng taxonomy hiện hành (`siteType=PUBLIC_SERVICE_CENTER`, `services=['IDENTITY']`) không
+  khớp mã nào và bị mặc định thành "Công an". Thêm `LocationTaxonomy.toCanonicalSiteType()` vào
+  `lib/location-taxonomy.js` (mirror `toCanonicalServices` đã có), gom toàn bộ phân loại trong
+  `app.js` (marker icon, filter, detail badge + combo-badge + procedure note, mobile preview,
+  result list — 6 nơi từng lặp code) vào 2 hàm dùng chung `isPoliceLocation`/`isCccdLocation`:
+  ưu tiên canonical `siteType`/`services`, fallback đúng y hệt biểu thức cũ khi bản ghi chưa có
+  `siteType`. Không đổi UI, không đổi schema/API, không đụng sheet state machine, chatbot hay
+  Nhà trọ Beta.
+- **File đã sửa:** `app.js`, `lib/location-taxonomy.js`, `test/location-ui.test.js`,
+  `test/location-taxonomy.test.js`, `test/e2e/location-taxonomy-filter.spec.js` (mới),
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Kiểm tra:** `npm test` 648/648 (646 baseline + 2 mới). `npx playwright test` full suite:
+  71/72 rồi 71/72 ở hai lần chạy riêng, mỗi lần đúng 1 test không liên quan tới R0.5 fail
+  (`civic-mobile-ui.spec.js:77` — SSL handshake tới `tile.openstreetmap.org`; rồi
+  `tthc-catalog.spec.js:62`), cả hai đều PASS khi chạy riêng lẻ ngay sau đó — flake môi trường,
+  không phải regression (đã dán nhãn baseline flake tương tự `staff-portal-modal.spec.js:507` đã
+  ghi trong review R0). Test mới (`location-taxonomy-filter.spec.js`, 3 case) PASS ổn định ở mọi
+  lần chạy độc lập. Xác minh bug thật sự bị đóng (không chỉ test khớp code): tạm `git stash` đúng
+  `app.js`+`lib/location-taxonomy.js`, build lại, chạy lại 3 test mới → 2 test canonical FAIL đúng
+  như dự đoán (`received "Trụ sở Công an"` thay vì `"Điểm cấp CCCD"`), test legacy vẫn PASS; sau đó
+  `git stash pop` khôi phục fix, build lại, cả 3 PASS.
+- **Phạm vi an toàn:** Không sửa dữ liệu Production, không commit, không push, không merge, không
+  deploy. Dừng lại sau R0.5 theo yêu cầu owner; R1 chưa bắt đầu.
+
 ## [2026-09-01] Hoàn thiện Public Location Contribution UX + Floating CTA
 - **Agent:** Codex
 - **Thay đổi:** Gom CTA `Đóng góp địa điểm` và launcher Hỏi đáp vào shared floating-actions trên trang bản đồ; responsive desktop/mobile, safe-area, focus-visible và touch target tối thiểu; không hiển thị CTA trên `/dong-gop/`. Giữ nguyên UPDATE UX partial đã hoàn tất ở entry ngay dưới.

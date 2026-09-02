@@ -99,8 +99,50 @@ document
   .getElementById("zoom-out-btn")
   .addEventListener("click", () => map.zoomOut());
 
+// Canonical place-type/service classification (R0.5 taxonomy adapter). `loc.siteType` and
+// `loc.services` may already be canonical (see lib/location-taxonomy.js SITE_TYPES/SERVICES) or
+// still carry pre-migration values from older sheet rows. Every call site that used to duplicate
+// the old POLICE_OFFICE/police_station and CITIZEN_ID/id_center checks inline must go through
+// these two functions instead, so the map, filters, markers and detail panel always agree on how
+// a location is classified.
+function canonicalSiteType(loc) {
+  if (loc._canonicalSiteType === undefined) {
+    loc._canonicalSiteType = window.LocationTaxonomy?.toCanonicalSiteType
+      ? window.LocationTaxonomy.toCanonicalSiteType(loc.siteType)
+      : null;
+  }
+  return loc._canonicalSiteType;
+}
+
+function canonicalServiceCodes(loc) {
+  if (loc._canonicalServiceCodes === undefined) {
+    loc._canonicalServiceCodes = window.LocationTaxonomy?.toCanonicalServices
+      ? window.LocationTaxonomy.toCanonicalServices(loc.services)
+      : null;
+  }
+  return loc._canonicalServiceCodes;
+}
+
+// "Công an" bucket: any canonical site type other than a dedicated public-service reception
+// point, or (when siteType isn't populated / isn't canonical) the pre-migration legacy signal.
+function isPoliceLocation(loc) {
+  const siteType = canonicalSiteType(loc);
+  if (siteType) return siteType !== "PUBLIC_SERVICE_CENTER";
+  return loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
+}
+
+// "Điểm CCCD" bucket: offers the canonical IDENTITY service, or is sited as a dedicated
+// public-service reception point, or (legacy fallback) carries the old CITIZEN_ID/id_center signal.
+function isCccdLocation(loc) {
+  const services = canonicalServiceCodes(loc);
+  if (services?.includes("IDENTITY")) return true;
+  const siteType = canonicalSiteType(loc);
+  if (siteType) return siteType === "PUBLIC_SERVICE_CENTER";
+  return loc.services?.includes("CITIZEN_ID") || loc.type === "id_center";
+}
+
 function createCustomIcon(loc) {
-  const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
+  const isPolice = isPoliceLocation(loc);
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
 
@@ -502,10 +544,10 @@ if (previousSelectedLocation && previousSelectedLocation.marker) {
     refreshLocationMarker(currentlySelectedLocation);
   }
 
-const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
+const isPolice = isPoliceLocation(loc);
   renderLocationPreview(loc, isPolice);
 
-detailBadge.textContent = loc.services?.includes("POLICE_OFFICE") && loc.services?.includes("CITIZEN_ID") ? "Trụ sở và điểm CCCD" : (isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD");
+detailBadge.textContent = isPolice && isCccdLocation(loc) ? "Trụ sở và điểm CCCD" : (isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD");
   detailBadge.className = isPolice
     ? "inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu"
     : "inline-block px-3 py-1.5 bg-accent/90 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-widest mb-2 border border-amber-400/20 text-amber-50 shadow-lg transform-gpu";
@@ -549,7 +591,7 @@ if (isWeekday && (isMorning || isAfternoon)) {
 const procedureNote =
     loc.cccdServiceMode === "TEMPORARILY_PAUSED"
       ? `<div class="text-[13px] text-amber-800 mt-2.5 bg-amber-50 border border-amber-200/50 p-3 rounded-xl flex items-start gap-2 shadow-sm font-medium"><span class="material-symbols-outlined text-[18px] text-amber-600">info</span><span>Điểm cấp căn cước đang tạm dừng. Vui lòng liên hệ trước khi đến.</span></div>`
-      : loc.services?.includes("CITIZEN_ID")
+      : isCccdLocation(loc)
       ? `<div class="text-[13px] text-amber-800 mt-2.5 bg-amber-50 border border-amber-200/50 p-3 rounded-xl flex items-start gap-2 shadow-sm font-medium">
         <span class="material-symbols-outlined text-[18px] text-amber-600">info</span>
         <span>Lưu ý: Người dân nhớ mang theo CCCD/CMND cũ hoặc Giấy khai sinh.</span>
@@ -668,8 +710,8 @@ if (!showNearby && nearbySpinner) {
 let visibleLocations = [];
 
 locations.forEach((loc) => {
-    const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
-    const isCccd = loc.services?.includes("CITIZEN_ID") || loc.type === "id_center";
+    const isPolice = isPoliceLocation(loc);
+    const isCccd = isCccdLocation(loc);
     const matchesFilter = (isPolice && showPolice) || (isCccd && showId);
     const matchesSearch =
       (loc._nameLower || loc.name.toLowerCase()).includes(searchTerm) ||
@@ -736,7 +778,7 @@ function renderResultsList(results) {
 
 resultsList.innerHTML = results
     .map((loc) => {
-      const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
+      const isPolice = isPoliceLocation(loc);
       const distStr =
         loc._currentDistance != null
           ? loc._currentDistance < 1
