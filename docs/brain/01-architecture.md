@@ -868,3 +868,12 @@ Drive file/open/uc links to the existing allowed Google content host, while pend
 remain private. Missing or failed images use stable placeholders without removing the card content. This
 source change requires a Gateway bundle release together with Vercel deployment, but no workbook schema
 migration.
+
+## Nhà trọ an toàn — Beta (feature-flagged, 2026-09-02)
+
+`data.js` owns the off-by-default static `ACCOMMODATION_BETA_CONFIG`. Only when `enabled === true`
+does `app.js` load `lib/accommodation-beta.js`; otherwise there is no module/data request. The UMD module
+validates and projects a strictly public allowlisted DTO, and `app.js` renders it into separate
+`accommodationClusterGroup` / `selectedAccommodationLayer` Leaflet groups. This path never calls
+`Published_Locations`, Staff APIs, the Gateway, or public contribution APIs. See
+`docs/accommodation-beta.md` for data and rollout constraints.

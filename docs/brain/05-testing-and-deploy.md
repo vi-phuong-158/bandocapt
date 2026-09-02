@@ -81,6 +81,14 @@ Build compile CSS minified, kiểm tra syntax JavaScript và tạo static artifa
 npm run build
 ```
 
+### Accommodation Beta pre-release rehearsal
+
+Keep `ACCOMMODATION_BETA_CONFIG.enabled` false until the pilot dataset is reviewed. Before enabling a
+single locality, run `node --test test/accommodation-beta.test.js`, `npm test`, and `npm run build`; then
+use `npx vercel dev` plus the affected browser flow to check toggle-off, search, marker clustering, detail,
+directions, keyboard focus and 100/1.000/5.000 synthetic-record responsiveness. A production rollout
+also needs a separate owner decision for any chatbot context egress.
+
 Khi thêm Tailwind class mới, phải rebuild `output.css` và commit:
 ```bash
 npm run dev     # chạy watch → lưu → Ctrl+C

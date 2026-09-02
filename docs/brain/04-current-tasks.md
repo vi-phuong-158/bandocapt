@@ -15,6 +15,14 @@
   E2E 2/2 PASS. Full E2E has 57/61 PASS with four unrelated existing image-loading failures under
   `location-image`/staff image fixture; no public contribution E2E failure remains.
 
+## [IMPLEMENTED — OWNER APPROVED 2026-09-02] Nhà trọ an toàn — Beta data egress
+
+- Source contains only the disabled independent data/layer foundation. No pilot record is published,
+  no import/migration/deploy occurred, and `Published_Locations`/Staff/Gateway remain untouched.
+- Owner approved forwarding `accommodationName`, `localityCode` and `policeUnitCode` to the AI provider
+  for the one current residence question. Server validation projects exactly those fields and rejects
+  injection-shaped values; application telemetry does not receive the context.
+
 ## [OWNER APPROVAL REQUIRED 2026-08-22] Production operational baseline reconciliation
 
 - The controlled Production rehearsal found that all 142 `LEGACY_*` public rows have no private operational

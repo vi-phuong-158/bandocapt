@@ -115,6 +115,10 @@ function isIdentityLocation(loc) {
   return canonicalServiceCodes(loc).includes("IDENTITY");
 }
 
+function isAccommodationLocation(loc) {
+  return loc?.kind === "accommodation";
+}
+
 // Bộ lọc dịch vụ trên bản đồ là single-select: `null` = không lọc (hiện tất cả), ngược lại chỉ giữ
 // địa điểm có đúng mã dịch vụ canonical đang chọn. Cô lập vào một hàm duy nhất để nếu sau này cần
 // mở rộng logic thì chỉ sửa ở đây, không lan ra marker/filter/danh sách/detail.
@@ -124,6 +128,15 @@ function matchesServiceFilter(loc, activeService) {
 }
 
 function createCustomIcon(loc) {
+  if (isAccommodationLocation(loc)) {
+    const isSelected = currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
+    return L.divIcon({
+      className: "transparent-leaflet-icon",
+      html: `<div class="marker-container marker-accommodation${isSelected ? " marker-selected" : ""}"><div class="marker-icon"><div class="marker-inner"><span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">bed</span></div></div><div class="marker-label">${escapeHtml(loc.name)}</div></div>`,
+      iconSize: [48, 48],
+      iconAnchor: [24, 48],
+    });
+  }
   const isPolice = !isIdentityLocation(loc);
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
@@ -170,31 +183,58 @@ function createClusterIcon(cluster) {
   });
 }
 
-const clusterGroup = typeof L.markerClusterGroup === "function"
-  ? L.markerClusterGroup({
-      disableClusteringAtZoom: 14,
-      maxClusterRadius: zoom => zoom <= 9 ? 60 : zoom <= 11 ? 48 : 36,
-      showCoverageOnHover: false,
-      zoomToBoundsOnClick: true,
-      spiderfyOnMaxZoom: false,
-      removeOutsideVisibleBounds: true,
-      animate: !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
-      iconCreateFunction: createClusterIcon,
-    }).addTo(map)
-  : L.layerGroup().addTo(map);
+function createAccommodationClusterIcon(cluster) {
+  const icon = createClusterIcon(cluster);
+  icon.options.className = `${icon.options.className} marker-cluster-accommodation`;
+  return icon;
+}
+
+function createClusterGroup(iconCreateFunction) {
+  return typeof L.markerClusterGroup === "function"
+    ? L.markerClusterGroup({
+        disableClusteringAtZoom: 14,
+        maxClusterRadius: zoom => zoom <= 9 ? 60 : zoom <= 11 ? 48 : 36,
+        showCoverageOnHover: false,
+        zoomToBoundsOnClick: true,
+        spiderfyOnMaxZoom: false,
+        removeOutsideVisibleBounds: true,
+        animate: !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+        iconCreateFunction,
+      })
+    : L.layerGroup();
+}
+
+const clusterGroup = createClusterGroup(createClusterIcon).addTo(map);
 const selectedLayer = L.layerGroup().addTo(map);
+const accommodationClusterGroup = createClusterGroup(createAccommodationClusterIcon);
+const selectedAccommodationLayer = L.layerGroup();
+const accommodationRuntime = { enabled: false, visible: false, locations: [], rejected: [], pilotLocalityCode: "" };
+
+function searchableLocations() {
+  return accommodationRuntime.enabled && accommodationRuntime.visible
+    ? locations.concat(accommodationRuntime.locations)
+    : locations;
+}
+
+function markerLayersFor(loc) {
+  return isAccommodationLocation(loc)
+    ? { cluster: accommodationClusterGroup, selected: selectedAccommodationLayer }
+    : { cluster: clusterGroup, selected: selectedLayer };
+}
 
 function removeLocationMarker(loc) {
   if (!loc?.marker) return;
-  if (clusterGroup.hasLayer(loc.marker)) clusterGroup.removeLayer(loc.marker);
-  if (selectedLayer.hasLayer(loc.marker)) selectedLayer.removeLayer(loc.marker);
+  const layers = markerLayersFor(loc);
+  if (layers.cluster.hasLayer(loc.marker)) layers.cluster.removeLayer(loc.marker);
+  if (layers.selected.hasLayer(loc.marker)) layers.selected.removeLayer(loc.marker);
 }
 
 function addLocationMarker(loc) {
   if (!loc?.marker || !loc._visible) return;
   removeLocationMarker(loc);
   const isSelected = currentlySelectedLocation?.id === loc.id;
-  (isSelected ? selectedLayer : clusterGroup).addLayer(loc.marker);
+  const layers = markerLayersFor(loc);
+  (isSelected ? layers.selected : layers.cluster).addLayer(loc.marker);
 }
 
 function refreshLocationMarker(loc) {
@@ -204,7 +244,7 @@ function refreshLocationMarker(loc) {
 }
 
 function updateAllMarkersIcon() {
-  locations.forEach((loc) => {
+  searchableLocations().forEach((loc) => {
     refreshLocationMarker(loc);
   });
 }
@@ -371,13 +411,15 @@ function formatDistance(distance) {
 }
 
 function renderLocationPreview(loc, isPolice) {
+  const isAccommodation = isAccommodationLocation(loc);
   previewTitle.textContent = loc.name;
   previewAddress.textContent = loc.address;
   previewDirections.href = `https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`;
-  previewIcon.classList.toggle("is-cccd", !isPolice);
+  previewIcon.classList.toggle("is-cccd", !isPolice && !isAccommodation);
+  previewIcon.classList.toggle("is-accommodation", isAccommodation);
   previewIcon.querySelector(".material-symbols-outlined").textContent = isPolice
     ? "local_police"
-    : "badge";
+    : isAccommodation ? "bed" : "badge";
   const distance = formatDistance(loc._currentDistance);
   previewDistance.textContent = distance;
   previewDistance.hidden = !distance;
@@ -440,6 +482,13 @@ function formatVietnameseDate(value) {
 
 function renderLocationServiceMeta(loc) {
   if (!detailServiceMeta) return;
+  if (isAccommodationLocation(loc)) {
+    const policeLine = loc.policeUnitName
+      ? `<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Công an phụ trách:</span> ${escapeHtml(loc.policeUnitName)}</p>`
+      : `<p class="text-[13px] leading-relaxed text-slate-600">Chưa xác nhận đơn vị Công an phụ trách; hãy liên hệ Công an địa phương.</p>`;
+    detailServiceMeta.innerHTML = `<div class="accommodation-detail-note"><p class="text-[13px] leading-relaxed text-slate-700"><span class="font-semibold">Dữ liệu Beta:</span> thông tin điểm lưu trú hỗ trợ tra cứu, không thay thế xác nhận của cơ quan có thẩm quyền.</p>${policeLine}<p class="text-[12px] leading-relaxed text-textMuted">Xác minh: ${escapeHtml(formatVietnameseDate(loc.lastVerifiedAt))} · Cập nhật: ${escapeHtml(formatVietnameseDate(loc.updatedAt))}</p><button type="button" class="accommodation-chat-cta" data-accommodation-id="${escapeHtml(loc.id)}"><span class="material-symbols-outlined" aria-hidden="true">chat</span> Hỏi thủ tục cư trú</button></div>`;
+    return;
+  }
   const rows = [];
   if (loc.services?.length) {
     rows.push(`<div><p class="text-[12px] text-textMuted font-medium mb-1.5">Dịch vụ tại địa điểm</p><div class="flex flex-wrap gap-1.5">${loc.services.map(service => `<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[13px] font-semibold text-slate-700">${escapeHtml(serviceLabel(service))}</span>`).join("")}</div></div>`);
@@ -547,14 +596,17 @@ if (previousSelectedLocation && previousSelectedLocation.marker) {
     refreshLocationMarker(currentlySelectedLocation);
   }
 
-const isPolice = !isIdentityLocation(loc);
+const isAccommodation = isAccommodationLocation(loc);
+const isPolice = !isAccommodation && !isIdentityLocation(loc);
   renderLocationPreview(loc, isPolice);
 
 // site_type là nguồn sự thật cho "đây là đâu" (mô tả hình thái vật lý qua taxonomy); nhánh cũ chỉ
 // còn dùng khi bản ghi legacy chưa có site_type, để không đổi hành vi các bản ghi trước 2026-08-31.
 const legacyBadgeText = loc.services?.includes("POLICE_OFFICE") && loc.services?.includes("CITIZEN_ID") ? "Trụ sở và điểm CCCD" : (isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD");
-  detailBadge.textContent = window.LocationTaxonomy?.displaySiteType(loc.siteType) || legacyBadgeText;
-  detailBadge.className = isPolice
+  detailBadge.textContent = isAccommodation ? "Nhà trọ an toàn · Beta" : (window.LocationTaxonomy?.displaySiteType(loc.siteType) || legacyBadgeText);
+  detailBadge.className = isAccommodation
+    ? "detail-badge-accommodation"
+    : isPolice
     ? "inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-full text-[12px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu"
     : "inline-block px-3 py-1.5 bg-accent/90 backdrop-blur-md rounded-full text-[12px] font-bold uppercase tracking-widest mb-2 border border-amber-400/20 text-amber-50 shadow-lg transform-gpu";
 
@@ -607,7 +659,7 @@ const procedureNote =
 detailHours.innerHTML = loc.serviceSchedule
   ? `<span class="text-slate-600 font-medium">${escapeHtml(loc.serviceSchedule)}</span>${procedureNote}`
   : `<span class="${statusColor} font-bold">${statusText}</span> <span class="text-slate-300 mx-1.5">•</span> Sáng: 07h30-11h30 | Chiều: 13h00-16h30 ${procedureNote}`;
-  detailHoursContainer.style.display = "flex";
+  detailHoursContainer.style.display = isAccommodation ? "none" : "flex";
   renderLocationServiceMeta(loc);
 
 if (loc._currentDistance != null) {
@@ -677,8 +729,9 @@ function filterAndRender() {
   const searchTerm = searchInput.value.toLowerCase().trim();
   const visibleLocations = [];
 
-locations.forEach((loc) => {
-    const matchesFilter = matchesServiceFilter(loc, activeServiceFilter);
+searchableLocations().forEach((loc) => {
+    // Service chips govern police locations only. Accommodation is a separate map layer.
+    const matchesFilter = isAccommodationLocation(loc) || matchesServiceFilter(loc, activeServiceFilter);
     const matchesSearch =
       (loc._nameLower || loc.name.toLowerCase()).includes(searchTerm) ||
       (loc._addressLower || loc.address.toLowerCase()).includes(searchTerm) ||
@@ -722,6 +775,7 @@ function renderResultsList(results) {
 
 resultsList.innerHTML = results
     .map((loc) => {
+      const isAccommodation = isAccommodationLocation(loc);
       const isPolice = !isIdentityLocation(loc);
       const distStr =
         loc._currentDistance != null
@@ -730,10 +784,12 @@ resultsList.innerHTML = results
             : `${loc._currentDistance.toFixed(1)}km`
           : "";
 
-const iconHTML = isPolice
+const iconHTML = isAccommodation
+        ? `<span class="material-symbols-outlined" style="font-size:22px;font-variation-settings:'FILL' 1;">bed</span>`
+        : isPolice
         ? `<img src="assets/logo.png" alt="" aria-hidden="true" style="width:40px;height:40px;object-fit:contain;">`
         : `<span class="material-symbols-outlined" style="font-size:22px;font-variation-settings:'FILL' 1;">badge</span>`;
-      const iconClass = isPolice ? "result-icon-box--plain" : "bg-id";
+      const iconClass = isAccommodation ? "result-icon-box--accommodation" : (isPolice ? "result-icon-box--plain" : "bg-id");
 
       return `
           <li class="result-list-item">
@@ -743,7 +799,7 @@ const iconHTML = isPolice
                 </div>
                 <div class="result-content">
                     <h3 class="result-title">${escapeHtml(loc.name)}</h3>
-                    <p class="result-address">${escapeHtml(loc.address)}</p>
+                    <p class="result-address">${isAccommodation ? "BETA · " : ""}${escapeHtml(loc.address)}</p>
                 </div>
                 ${distStr ? `<div class="result-dist"><span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1;">near_me</span>${distStr}</div>` : ""}
             </button>
@@ -763,7 +819,7 @@ resultsList.addEventListener("click", (e) => {
   }
   const item = e.target.closest(".result-item");
   if (!item) return;
-  const loc = locations.find((l) => String(l.id) === item.dataset.id);
+  const loc = searchableLocations().find((l) => String(l.id) === item.dataset.id);
   if (loc) openDetailPanel(loc, item);
 });
 
@@ -889,6 +945,100 @@ async function fetchSheetData(sheetName) {
   return response.json();
 }
 
+function loadAccommodationBetaModule() {
+  if (window.AccommodationBeta) return Promise.resolve(window.AccommodationBeta);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "lib/accommodation-beta.js";
+    script.async = true;
+    script.onload = () => window.AccommodationBeta ? resolve(window.AccommodationBeta) : reject(new Error("ACCOMMODATION_MODULE_UNAVAILABLE"));
+    script.onerror = () => reject(new Error("ACCOMMODATION_MODULE_LOAD_FAILED"));
+    document.head.appendChild(script);
+  });
+}
+
+function setAccommodationLayerVisible(visible) {
+  accommodationRuntime.visible = Boolean(visible && accommodationRuntime.enabled);
+  const toggle = document.getElementById("accommodation-beta-toggle");
+  if (toggle) {
+    toggle.setAttribute("aria-pressed", String(accommodationRuntime.visible));
+    toggle.classList.toggle("is-active", accommodationRuntime.visible);
+    toggle.querySelector(".accommodation-toggle-label").textContent = accommodationRuntime.visible
+      ? "Đang hiện Nhà trọ an toàn · Beta"
+      : "Hiện Nhà trọ an toàn · Beta";
+  }
+  if (accommodationRuntime.visible) {
+    accommodationClusterGroup.addTo(map);
+    selectedAccommodationLayer.addTo(map);
+  } else {
+    if (currentlySelectedLocation && isAccommodationLocation(currentlySelectedLocation)) {
+      closeDetailPanel({ restoreFocus: false });
+    }
+    map.removeLayer(accommodationClusterGroup);
+    map.removeLayer(selectedAccommodationLayer);
+  }
+  filterAndRender();
+}
+
+function mountAccommodationBetaControl() {
+  const filterGroup = document.getElementById("service-filter-group");
+  if (!filterGroup || document.getElementById("accommodation-beta-toggle")) return;
+  const control = document.createElement("button");
+  control.type = "button";
+  control.id = "accommodation-beta-toggle";
+  control.className = "accommodation-beta-toggle";
+  control.setAttribute("aria-pressed", "false");
+  control.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">bed</span><span class="accommodation-toggle-label">Hiện Nhà trọ an toàn · Beta</span>';
+  control.addEventListener("click", () => setAccommodationLayerVisible(!accommodationRuntime.visible));
+  filterGroup.appendChild(control);
+}
+
+async function initializeAccommodationBeta() {
+  const config = window.ACCOMMODATION_BETA_CONFIG;
+  if (!config || config.enabled !== true) return;
+  try {
+    const module = await loadAccommodationBetaModule();
+    const dataset = module.prepareDataset(config);
+    accommodationRuntime.enabled = dataset.enabled;
+    accommodationRuntime.rejected = dataset.rejected;
+    accommodationRuntime.pilotLocalityCode = dataset.pilotLocalityCode;
+    accommodationRuntime.locations = dataset.records.map((record) => {
+      const police = module.resolvePoliceUnit(record, locations);
+      const loc = {
+        ...record,
+        phone: record.contactPhone,
+        lat: record.latitude,
+        lng: record.longitude,
+        policeUnitName: police?.name || "",
+        _nameLower: record.name.toLowerCase(),
+        _addressLower: record.address.toLowerCase(),
+        _aliasesLower: "",
+        _servedUnitsLower: "",
+        _visible: false,
+      };
+      loc.marker = L.marker([loc.lat, loc.lng], { icon: createCustomIcon(loc) });
+      loc.marker.on("click", () => openDetailPanel(loc));
+      return loc;
+    });
+    dataset.rejected.forEach(item => console.warn(`[accommodation-beta] Rejected record ${item.index}: ${item.reason}`));
+    mountAccommodationBetaControl();
+  } catch (error) {
+    console.warn("[accommodation-beta] Layer disabled:", error.message);
+  }
+}
+
+detailServiceMeta?.addEventListener("click", event => {
+  const cta = event.target.closest("[data-accommodation-id]");
+  if (!cta) return;
+  const loc = accommodationRuntime.locations.find(item => item.id === cta.dataset.accommodationId);
+  if (!loc) return;
+  window.ChatbotUI?.openResidenceContext?.({
+    accommodationName: loc.name,
+    localityCode: loc.localityCode,
+    policeUnitCode: loc.policeUnitCode,
+  });
+});
+
 
 function requestUserLocation(onSuccessCallback, onErrorCallback) {
   if (!navigator.geolocation) {
@@ -920,7 +1070,7 @@ const rad = Math.PI / 180;
       const userLatRad = userLat * rad;
       const cosUserLat = Math.cos(userLatRad);
 
-locations.forEach((loc) => {
+searchableLocations().forEach((loc) => {
         const dLat = (loc.lat - userLat) * rad;
         const dLng = (loc.lng - userLng) * rad;
         const a =
@@ -1040,6 +1190,7 @@ const name = item.name;
 
 const loc = {
         id: item.id,
+        unitCode: item.unitCode,
         name,
         type,
         address,
@@ -1075,6 +1226,9 @@ locations.push(loc);
     });
 
 filterAndRender();
+    // The beta module is a separate static asset and is requested only when its
+    // explicit kill-switch is enabled. A failure leaves the police map intact.
+    void initializeAccommodationBeta();
 
 } catch (err) {
     console.warn("Google Sheets Headquarters Error: ", err.message);

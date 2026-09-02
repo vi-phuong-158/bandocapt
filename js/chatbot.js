@@ -86,6 +86,7 @@ let chatHistory = [];
 let turnstileVerified = false;
 let turnstileToken = null;
 let isChatSending = false;
+let pendingResidenceContext = null;
 let activeCancelController = null;
 let activeAbortMode = null;
 const isLocalHost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
@@ -704,6 +705,8 @@ async function handleChatSend() {
 
     const text = input.value.trim();
     if (!text) return;
+    const residenceContext = pendingResidenceContext;
+    pendingResidenceContext = null;
 
     isChatSending = true;
     activeCancelController = new AbortController();
@@ -746,7 +749,7 @@ async function handleChatSend() {
                 const label = content.querySelector('.ai-chat-typing-label');
                 if (label) label.textContent = CHATBOT_TEXT.typingGenerating;
             }
-        });
+        }, residenceContext);
 
         if (renderTimer) clearTimeout(renderTimer);
         if (activeAbortMode === 'close' && requestController.signal.aborted) {
@@ -949,7 +952,21 @@ window.handleChatEnter = handleChatEnter;
 window.ChatbotUI = {
     open: openChatWindow,
     close: closeChatWindow,
-    isOpen: isChatWindowVisible
+    isOpen: isChatWindowVisible,
+    openResidenceContext(context) {
+        if (!context || typeof context !== 'object') return;
+        pendingResidenceContext = {
+            accommodationName: String(context.accommodationName || '').slice(0, 160),
+            localityCode: String(context.localityCode || '').slice(0, 80),
+            policeUnitCode: String(context.policeUnitCode || '').slice(0, 80)
+        };
+        openChatWindow();
+        const { input } = getChatElements();
+        if (input) {
+            input.value = 'Tôi cần hướng dẫn thủ tục khai báo tạm trú.';
+            input.focus();
+        }
+    }
 };
 
 if (typeof module !== 'undefined' && module.exports) {

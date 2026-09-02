@@ -1861,3 +1861,15 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
   + `EVAL_BYPASS_TOKEN` + `evalDebug` flag), không đổi RAG/retrieval/timeout semantics, không
   đổi hành vi production. Không sửa baseline debt của EV04/EV01/F01/TYPO01.
 
+## [2026-09-02] Nhà trọ an toàn — tách hẳn dữ liệu Beta khỏi dữ liệu Công an
+
+- `Published_Locations` chỉ tiếp tục biểu diễn điểm phục vụ Công an. Accommodation là DTO static
+  allowlist riêng, cờ tắt mặc định và đúng một pilot locality; không dùng schema/migration/Staff/Gateway.
+- Bản đồ dùng cluster + selected layer riêng. Service chips và nút “Gần tôi” tiếp tục có semantics
+  Công an; Beta chỉ tham gia search/distance khi người dùng bật layer.
+- Mapping đơn vị Công an chỉ exact-one theo mã công khai; thiếu/trùng/không khớp trả `null`, không
+  suy diễn theo tên hoặc địa chỉ.
+- Owner approved the external-AI context on 2026-09-02. The server accepts only `accommodationName`,
+  `localityCode`, and `policeUnitCode`, rejects malformed/injection-shaped values, projects those three
+  fields only, and keeps them out of application telemetry.
+

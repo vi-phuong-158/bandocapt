@@ -3648,3 +3648,16 @@
   sau khi khởi chạy 69 test.
 - **Phạm vi an toàn:** Chỉ fixture local; không gọi/sửa Google Sheet production, Pinecone production,
   không bật content diagnostic logging, không deploy.
+
+## [2026-09-02] Nhà trọ an toàn — Beta foundation
+- **Agent:** Codex
+- **Thay đổi:** thêm `lib/accommodation-beta.js` (allowlist DTO, pilot/coordinate/source/status validation,
+  fail-closed exact mapping và benchmark), `data.js` kill switch mặc định tắt, Leaflet layer/cluster/toggle
+  tách biệt trong `app.js`, badge/detail/chỉ đường/CTA cư trú và style token-based. Static build đưa module
+  vào manifest nhưng module chỉ được request khi feature flag bật. Thêm test và tài liệu rollout.
+- **Bảo mật:** không đổi `Published_Locations`, Staff, Gateway hoặc public contribution. Không có record
+  pilot/import/deploy. Owner later approved structured provider context for exactly name/locality/police-unit
+  code; `api/chat.js` validates and projects only these public fields and excludes them from app telemetry.
+- **Kiểm tra:** `node --check app.js`, `node --check lib/accommodation-beta.js`, `node --check js/chatbot.js`,
+  `node --test test/accommodation-beta.test.js` (8/8 PASS), `npm run ci` (677/677 PASS; build + audit
+  high gate). E2E bị giới hạn thời gian runner trong phiên này.
