@@ -215,6 +215,19 @@ function addLocationMarker(loc) {
   (isSelected ? selectedLayer : clusterGroup).addLayer(loc.marker);
 }
 
+// R1 state arbiter: the only function allowed to write `loc._visible`. Keeps the flag and marker
+// layer membership atomic — anything that decides a location should show or hide (filterAndRender,
+// initial load) must go through this, never set `loc._visible` and touch a layer separately, or
+// list/marker/preview/detail can end up reading a stale mix of the two.
+function setLocationVisible(loc, visible) {
+  loc._visible = visible;
+  if (visible) {
+    addLocationMarker(loc);
+  } else {
+    removeLocationMarker(loc);
+  }
+}
+
 function refreshLocationMarker(loc) {
   if (!loc?.marker) return;
   loc.marker.setIcon(createCustomIcon(loc));
@@ -720,12 +733,10 @@ locations.forEach((loc) => {
       (loc._servedUnitsLower || "").includes(searchTerm);
 
 if (matchesFilter && matchesSearch) {
-      loc._visible = true;
-      addLocationMarker(loc);
+      setLocationVisible(loc, true);
       visibleLocations.push(loc);
     } else {
-      loc._visible = false;
-      removeLocationMarker(loc);
+      setLocationVisible(loc, false);
     }
   });
 
@@ -738,10 +749,7 @@ if (userLat != null) {
 
 if (showNearby && userLat != null) {
 
-visibleLocations.slice(5).forEach((loc) => {
-      loc._visible = false;
-      removeLocationMarker(loc);
-    });
+visibleLocations.slice(5).forEach((loc) => setLocationVisible(loc, false));
     visibleLocations = visibleLocations.slice(0, 5);
 
 if (visibleLocations.length > 0) {
@@ -854,7 +862,9 @@ function showMobileSearch() {
     previousSelectedLocation = currentlySelectedLocation;
     currentlySelectedLocation = null;
     if (previousSelectedLocation?.marker) {
-      previousSelectedLocation.marker.setIcon(createCustomIcon(previousSelectedLocation));
+      // Not just an icon swap: deselecting must also move the marker back out of `selectedLayer`
+      // (see setLocationVisible / refreshLocationMarker), or it stays exempt from clustering.
+      refreshLocationMarker(previousSelectedLocation);
     }
     detailTrigger = null;
     setSheetState(SHEET_STATES.HIDDEN, { restoreFocus: false });
@@ -1055,8 +1065,7 @@ const marker = L.marker([loc.lat, loc.lng], {
         icon: createCustomIcon(loc),
       });
       loc.marker = marker;
-      loc._visible = true;
-      clusterGroup.addLayer(marker);
+      setLocationVisible(loc, true);
       marker.on("click", () => openDetailPanel(loc));
 
 locations.push(loc);

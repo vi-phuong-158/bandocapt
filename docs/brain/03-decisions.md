@@ -1,5 +1,27 @@
 # 03 — Technical Decisions
 
+## [2026-09-02] Location visibility has one writer: `setLocationVisible`; marker refresh is never partial
+
+- **Decision:** `loc._visible` may be assigned in exactly one place, `setLocationVisible(loc, visible)`,
+  which atomically keeps it and marker layer membership (`clusterGroup` vs `selectedLayer`) in sync.
+  Any code that deselects a location and needs to update its marker must call
+  `refreshLocationMarker(loc)` (icon + layer membership together) — never `marker.setIcon(...)` alone.
+- **Bug closed:** `showMobileSearch()` deselected `currentlySelectedLocation` and only called
+  `.setIcon()`, leaving the marker stuck in `selectedLayer` (no clustering, ignores
+  `removeOutsideVisibleBounds`) until the next unrelated filter/search event repaired it. Proven with
+  a real browser test that pans the map far away and asserts the marker is cleared from the DOM —
+  reverting the fix reproduces the stale marker, confirmed via the same revert/restore process used
+  for the R0.5 fix below.
+- **Scope boundary vs the original ARCH-1 proposal:** `docs/redesign/CLAUDE_REVIEW_R0_V1.md` ARCH-1
+  proposed a `data-app-state` body attribute governing *panel chrome* (search-panel vs detail-panel
+  visibility). That is unrelated and still open. This decision is narrower: only *location*
+  visibility/filter/classification consistency, as scoped by the owner for R1.
+- **Known, intentionally unaddressed gap:** on desktop, `#detail-panel` visually covers
+  `#search-panel`'s quick filters whenever a location is selected, so a real mouse click cannot
+  reach them in that state. The auto-close-on-filter-change invariant this decision protects is real
+  and now tested, but only reachable today via the always-visible `#find-location-btn` FAB. Fixing
+  panel reachability is out of scope for R1 ("do not redesign UI") — it is R2a's floating-panel work.
+
 ## [2026-09-02] Public map/filter classification reads canonical taxonomy first, legacy signal only as fallback
 
 - **Decision:** `app.js` place-type/service classification (marker icon, quick filter, detail badge,

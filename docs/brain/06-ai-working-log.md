@@ -1,5 +1,42 @@
 # 06 — AI Working Log
 
+## [2026-09-02] R1 — State arbiter cho location visibility
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Tiếp nối R0.5 (`2d5f990`). Owner giao R1 với phạm vi hẹp hơn ARCH-1 gốc trong
+  `docs/redesign/CLAUDE_REVIEW_R0_V1.md` (vốn nói về `data-app-state` cho panel chrome): chỉ cần
+  MỘT nguồn sự thật cho visibility/filter của địa điểm (marker, list, preview, detail, quick
+  filter, taxonomy) — không đổi UI, không refactor rộng.
+- **Audit trước khi sửa:** Rà toàn bộ nơi mutate `loc._visible`, marker layer membership
+  (`clusterGroup`/`selectedLayer`), và `currentlySelectedLocation`. Phát hiện 1 bug thật:
+  `showMobileSearch()` khi deselect chỉ gọi `marker.setIcon(...)` trực tiếp (không qua
+  `refreshLocationMarker`/`addLocationMarker`), nên marker bị kẹt trong `selectedLayer` (layerGroup
+  phẳng, không cluster, không tôn trọng `removeOutsideVisibleBounds`) cho đến lần filter/search
+  tiếp theo mới tự sửa. Cũng phát hiện `fetchHeadquarters` initial load gọi thẳng
+  `clusterGroup.addLayer(marker)`, một đường mutate layer membership thứ hai song song với
+  `addLocationMarker`/`removeLocationMarker`.
+- **Thay đổi:** Thêm `setLocationVisible(loc, visible)` — hàm DUY NHẤT được phép ghi `loc._visible`,
+  giữ nguyên tử với marker layer membership. Thay 4 nơi mutate `loc._visible` trực tiếp
+  (`filterAndRender` × 3, `fetchHeadquarters` initial load × 1) bằng lệnh gọi hàm này. Sửa
+  `showMobileSearch()` gọi `refreshLocationMarker(previousSelectedLocation)` thay vì `.setIcon()`
+  trần. Giữ nguyên 100% phân loại canonical/legacy của R0.5, không đổi schema/API, không đụng
+  sheet state machine, không đụng chatbot, không có Nhà trọ Beta layer nào tồn tại để tích hợp
+  (xác nhận bằng grep — chưa được xây, R5 chưa tới).
+- **File đã sửa:** `app.js`, `test/location-ui.test.js`, `test/e2e/location-visibility-arbiter.spec.js`
+  (mới), `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Kiểm tra:** `npm test` 649/649 (648 baseline + 1 mới). `npx playwright test` full suite chạy
+  2 lần liên tiếp: 76/76 cả hai lần, không flake. 4 test E2E mới (`location-visibility-arbiter.spec.js`)
+  xác minh: (1) marker trở lại clusterGroup sau khi deselect qua mobile search — verify bằng cách
+  kéo bản đồ ra xa để `removeOutsideVisibleBounds` loại marker khỏi DOM (đáng tin cậy hơn nhiều so
+  với thử cluster theo zoom, vốn phụ thuộc mật độ fixture); (2) reselect sau khi deselect vẫn đúng;
+  (3) detail tự đóng khi quick filter làm địa điểm đang chọn biến mất; (4) case canonical
+  PUBLIC_SERVICE_CENTER+IDENTITY tự đóng khi tắt filter CCCD — nối R0.5 với R1 trong một luồng.
+  Xác minh bug THẬT bị đóng (không chỉ test khớp code): tạm `git stash` đúng `app.js`, build lại,
+  chạy lại 4 test → đúng test (1) fail (marker vẫn đứng riêng ngoài `clusterGroup` sau khi kéo xa),
+  3 test còn lại vẫn pass (chứng minh chúng là regression test cho hành vi đã đúng sẵn, không phải
+  test cho bug); sau đó `git stash pop` khôi phục fix, build lại, cả 4 pass.
+- **Phạm vi an toàn:** Không sửa dữ liệu Production, không commit, không push, không merge, không
+  deploy. Dừng lại sau R1 theo yêu cầu owner; R2 chưa bắt đầu.
+
 ## [2026-09-02] R0.5 — Taxonomy adapter cho public map/filter
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** Tiếp nối review redesign R0 (`docs/redesign/CLAUDE_REVIEW_R0_V1.md`), owner duyệt

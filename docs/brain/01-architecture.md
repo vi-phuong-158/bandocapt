@@ -1,5 +1,47 @@
 # 01 - Architecture
 
+## Location visibility state arbiter — R1 (2026-09-02)
+
+- **Scope note:** this closes a narrower, concrete follow-up to ARCH-1 in `docs/redesign/CLAUDE_REVIEW_R0_V1.md`
+  (which proposed a `data-app-state` body attribute for *panel chrome* — search-panel vs
+  detail-panel visibility, still open). R1 as scoped by the owner is about *location* visibility/filter
+  state only: marker layer membership, `loc._visible`, and their consumers (list, preview, detail,
+  quick filters) must never disagree.
+- **Bug closed:** `showMobileSearch()` deselected `currentlySelectedLocation` and called
+  `marker.setIcon(...)` directly, skipping `refreshLocationMarker`/`addLocationMarker`. The marker
+  stayed in `selectedLayer` (a plain `L.layerGroup` — no clustering, ignores
+  `removeOutsideVisibleBounds`) with the deselected icon until an unrelated filter/search event
+  happened to re-run `filterAndRender` and fix its layer membership. Also found: `fetchHeadquarters`'
+  initial marker add bypassed the canonical add/remove pair with a raw `clusterGroup.addLayer(marker)`.
+- **Fix:** added `setLocationVisible(loc, visible)` — the only function allowed to write
+  `loc._visible`; it keeps the flag and marker layer membership atomic. All 4 direct-write call
+  sites (`filterAndRender` × 3, `fetchHeadquarters` initial load × 1) now go through it.
+  `showMobileSearch()`'s deselect now calls `refreshLocationMarker(previousSelectedLocation)`
+  (icon + layer membership together) instead of a bare `.setIcon()`.
+- **Preserved as-is:** R0.5's canonical/legacy classification (`isPoliceLocation`/`isCccdLocation`,
+  untouched); the invariant `filterAndRender` already had for auto-closing `#detail-panel` when
+  `currentlySelectedLocation._visible` turns false (now covered by a regression test, since it was
+  previously untested); the sheet state machine (`app.js:185–340`); schema/API; the chatbot. No
+  accommodation-Beta layer exists in the codebase yet (confirmed by grep) — nothing to integrate.
+- **Test:** `test/location-ui.test.js` (source characterization: `setLocationVisible` exists and is
+  the sole `loc._visible` writer; `.setIcon()` appears exactly once, inside `refreshLocationMarker`;
+  `showMobileSearch` calls `refreshLocationMarker`). `test/e2e/location-visibility-arbiter.spec.js`
+  (browser, 4 cases): deselect-via-mobile-search returns the marker to `clusterGroup` (verified by
+  panning the map far away and asserting `removeOutsideVisibleBounds` clears it — more reliable than
+  asserting on emergent clustering, which is fixture-density-dependent); reselect after that
+  deselect still works; a selected location auto-closes its detail panel when a quick filter hides
+  it; the same for a canonical `PUBLIC_SERVICE_CENTER + [IDENTITY]` record, bridging R0.5 and R1 in
+  one flow. Verified the fix closes a real bug the same way as R0.5: reverted `app.js`, confirmed
+  the one bug-specific test fails while the other 3 (regression coverage for already-correct
+  behavior) still pass, then restored and confirmed all 4 pass.
+- **Known gap surfaced, not fixed here:** on desktop, `#detail-panel` (z-20) visually covers
+  `#search-panel` (z-10, including the quick filters) whenever a location is selected — a real mouse
+  click cannot reach the filter checkboxes in that state today. The auto-close-on-filter-change
+  invariant is real and now tested, but only reachable via the always-visible `#find-location-btn`
+  FAB or (as in the new tests) a direct `change` dispatch — not via a real click on the filter label
+  while detail is open. This is a pre-existing desktop layout fact (not something R1 should fix per
+  "do not redesign UI"); R2a's floating-panel redesign is what will make search and detail visible together.
+
 ## Public map/filter taxonomy adapter — R0.5 (2026-09-02)
 
 - **Bug closed:** trước bản vá này, `app.js` phân loại "Công an" vs "Điểm CCCD" (marker icon, quick filter, detail badge, mobile preview) bằng cách so khớp trực tiếp các mã service **legacy** (`POLICE_OFFICE`, `CITIZEN_ID`) hoặc trường `type` suy ra từ text tự do. Một bản ghi ghi đúng theo taxonomy hiện hành (`siteType=PUBLIC_SERVICE_CENTER`, `services=['IDENTITY']`) không khớp bất kỳ mã legacy nào nên rơi vào nhánh mặc định và bị hiển thị nhầm thành "Công an". Chi tiết: `docs/redesign/CLAUDE_REVIEW_R0_V1.md` mục M2.
@@ -407,7 +449,7 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 |---------------|---------|--------------|---------------|
 | `index.html` | Shell UI, tai JS nen va lazy loader; asset runtime duoc doi sang URL content-hash trong `dist/` | Browser | `output.css`, `styles.css`, `app.js`, `js/lazy-features.js` |
 | `js/app-navigation.js` | Dieu phoi 3 tab mobile Ban do/Thu tuc/Hoi dap AI, dong bo `aria-current` va ghi nhan lan dau mo AI | `index.html` | public surface callbacks tu `app.js`, `js/chatbot.js`, `js/tthc-catalog.js` |
-| `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker/cluster, preview vi tri mobile. (2026-08-17) Anh dia diem cong khai: `isAllowedLocationImage` (host allowlist) -> `applyDetailImage`/`showDetailImageFallback` (anh loi roi ve logo) -> lightbox xem anh lon (`openImageLightbox`/`closeImageLightbox`, dong bang nut/nen/`Esc`); co `detailImageIsPublic` la nguon su that cho `syncPanelsToViewport`. (2026-09-02, R0.5) Phan loai "Cong an"/"Diem CCCD" (marker, filter, detail badge, mobile preview) di qua MOT cap ham dung chung `isPoliceLocation`/`isCccdLocation` (goi `canonicalSiteType`/`canonicalServiceCodes`, cache tren `loc._canonical*`): uu tien `LocationTaxonomy.toCanonicalSiteType`/`toCanonicalServices`, chi fallback ve bieu thuc legacy `loc.services.includes("POLICE_OFFICE"/"CITIZEN_ID")`/`loc.type` khi ban ghi chua co `siteType` canonical. KHONG con chuoi `loc.services?.includes(...)` lap lai o 6 noi rieng nhu truoc | `index.html`, `js/app-navigation.js` | `js/location-data.js`, `lib/location-taxonomy.js`, `api/google-sheet.js`, `data.js`, Leaflet.markercluster |
+| `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker/cluster, preview vi tri mobile. (2026-08-17) Anh dia diem cong khai: `isAllowedLocationImage` (host allowlist) -> `applyDetailImage`/`showDetailImageFallback` (anh loi roi ve logo) -> lightbox xem anh lon (`openImageLightbox`/`closeImageLightbox`, dong bang nut/nen/`Esc`); co `detailImageIsPublic` la nguon su that cho `syncPanelsToViewport`. (2026-09-02, R0.5) Phan loai "Cong an"/"Diem CCCD" (marker, filter, detail badge, mobile preview) di qua MOT cap ham dung chung `isPoliceLocation`/`isCccdLocation` (goi `canonicalSiteType`/`canonicalServiceCodes`, cache tren `loc._canonical*`): uu tien `LocationTaxonomy.toCanonicalSiteType`/`toCanonicalServices`, chi fallback ve bieu thuc legacy `loc.services.includes("POLICE_OFFICE"/"CITIZEN_ID")`/`loc.type` khi ban ghi chua co `siteType` canonical. KHONG con chuoi `loc.services?.includes(...)` lap lai o 6 noi rieng nhu truoc. (2026-09-02, R1) `setLocationVisible(loc, visible)` la ham DUY NHAT duoc phep ghi `loc._visible`, giu nguyen tu voi marker layer membership (`clusterGroup`/`selectedLayer` qua `addLocationMarker`/`removeLocationMarker`); `filterAndRender` (x3) va initial load trong `fetchHeadquarters` deu goi ham nay. Bat ky noi nao xoa `currentlySelectedLocation` va dung marker cua no phai goi `refreshLocationMarker` (icon + layer membership cung luc), khong duoc `.setIcon()` rieng — `showMobileSearch` da sua theo dung quy tac nay | `index.html`, `js/app-navigation.js` | `js/location-data.js`, `lib/location-taxonomy.js`, `api/google-sheet.js`, `data.js`, Leaflet.markercluster |
 | `data.js` | Fallback tinh cho map khi Google Sheets loi | `app.js` | - |
 | `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check, doc them `search_aliases` neu co | `app.js`, `lib/published-locations.js`, test | - |
 | `js/gemini.js` | Goi `POST /api/chat` (parse SSE stream) va `POST /api/feedback` (`sendFeedback`); ky HMAC dung chung qua `signRequestToken`. (2026-08-06) Phan loai abort qua `abortReason`: `USER_CANCELLED`/`IDLE_TIMEOUT` (25s)/`REQUEST_TIMEOUT` (65s), uu tien `STREAM_ERROR`+`partialText` neu da co noi dung | `js/chatbot.js` | `api/chat.js`, `api/feedback.js` |

@@ -18,7 +18,7 @@ test('map filtering uses services while adding markers from the location collect
     assert.match(appSource, /const isPolice = isPoliceLocation\(loc\)/);
     assert.match(appSource, /const isCccd = isCccdLocation\(loc\)/);
     assert.match(appSource, /const matchesFilter = \(isPolice && showPolice\) \|\| \(isCccd && showId\)/);
-    assert.match(appSource, /locations\.forEach\(\(loc\) => \{[\s\S]{0,900}addLocationMarker\(loc\)/);
+    assert.match(appSource, /locations\.forEach\(\(loc\) => \{[\s\S]{0,900}setLocationVisible\(loc, true\)/);
     assert.doesNotMatch(appSource, /loc\.services\.forEach\([^)]*addLocationMarker/);
 });
 
@@ -50,6 +50,43 @@ test('police/CCCD classification is centralized and canonical-first with a legac
     assert.equal(inlineMatches.length, 1, 'the police fallback expression must exist exactly once, inside isPoliceLocation');
     const inlineCccdMatches = appSource.match(/loc\.services\?\.includes\("CITIZEN_ID"\) \|\| loc\.type === "id_center"/g) || [];
     assert.equal(inlineCccdMatches.length, 1, 'the CCCD fallback expression must exist exactly once, inside isCccdLocation');
+});
+
+// R1 state arbiter contract: `loc._visible` may be written ONLY by `setLocationVisible(loc, v)`,
+// which keeps it and marker layer membership (clusterGroup vs selectedLayer) atomic. This is the
+// source-level companion to the browser contract test in
+// test/e2e/location-visibility-arbiter.spec.js (app.js cannot run outside a DOM/Leaflet
+// environment, so it is characterized here and exercised end-to-end there).
+test('location visibility is written only through setLocationVisible, never inline', () => {
+    assert.match(appSource, /function setLocationVisible\(loc, visible\) \{/);
+    const arbiterBody = appSource.match(/function setLocationVisible\(loc, visible\) \{([\s\S]{0,300}?)\r?\n\}/)?.[1] || '';
+    assert.match(arbiterBody, /loc\._visible = visible/);
+    assert.match(arbiterBody, /addLocationMarker\(loc\)/);
+    assert.match(arbiterBody, /removeLocationMarker\(loc\)/);
+
+    // Exactly one place is allowed to assign `loc._visible` directly: inside the arbiter itself.
+    // filterAndRender (x3: match+search, else-branch, "Gần tôi" top-5 slice) and the initial-load
+    // path in fetchHeadquarters must all call setLocationVisible instead.
+    const directAssignments = appSource.match(/loc\._visible = /g) || [];
+    assert.equal(directAssignments.length, 1, 'loc._visible must be assigned in exactly one place: setLocationVisible');
+    assert.equal((appSource.match(/setLocationVisible\(loc, true\)/g) || []).length, 2, 'expected 2 call sites setting visible=true (filterAndRender match branch, initial load)');
+    assert.equal((appSource.match(/setLocationVisible\(loc, false\)/g) || []).length, 2, 'expected 2 call sites setting visible=false (filterAndRender else branch, nearby top-5 slice)');
+
+    // The initial marker-add in fetchHeadquarters must not bypass the arbiter with a raw layer call.
+    assert.doesNotMatch(appSource, /clusterGroup\.addLayer\(marker\)/);
+
+    // Any transition that clears `currentlySelectedLocation` and touches that location's marker
+    // must refresh both the icon AND layer membership together (refreshLocationMarker), never call
+    // `.setIcon()` alone — a direct `.setIcon()` call left a marker stranded in `selectedLayer`,
+    // exempt from clustering, until the next unrelated filter/search event happened to fix it.
+    const setIconMatches = appSource.match(/\.setIcon\(createCustomIcon\([^)]*\)\)/g) || [];
+    assert.equal(setIconMatches.length, 1, '.setIcon(...) must appear exactly once, inside refreshLocationMarker');
+    const refreshBody = appSource.match(/function refreshLocationMarker\(loc\) \{([\s\S]{0,200}?)\r?\n\}/)?.[1] || '';
+    assert.match(refreshBody, /loc\.marker\.setIcon\(createCustomIcon\(loc\)\)/);
+    assert.match(refreshBody, /addLocationMarker\(loc\)/);
+
+    const showMobileSearchBody = appSource.match(/function showMobileSearch\(\) \{([\s\S]{0,1200}?)\r?\n\}/)?.[1] || '';
+    assert.match(showMobileSearchBody, /refreshLocationMarker\(previousSelectedLocation\)/);
 });
 
 test('detail panel renders public service metadata without internal review fields', () => {
