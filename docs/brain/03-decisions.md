@@ -1,5 +1,30 @@
 # 03 — Technical Decisions
 
+## [2026-09-03] A drag-dismiss of the mobile detail sheet is a panel-state transition, not sheet-position mechanics — it must route through `closeDetailPanel`
+
+- **Decision:** `endSheetDrag` treats a drag that resolves to `SHEET_STATES.HIDDEN` as a full
+  dismiss and calls `closeDetailPanel({ restoreFocus })`, not `setSheetState(HIDDEN, ...)`. A drag
+  that resolves to `COLLAPSED`/`EXPANDED` remains a bare `setSheetState` call — genuine
+  intra-surface mechanics, not a decision about which panel owns the screen. This is the same
+  distinction R2a already drew for `previewExpandBtn`/`syncPanelsToViewport`; drag-dismiss was the
+  one transition-shaped case still on the wrong side of it.
+- **Bug closed:** dragging `#drag-handle` past the dismiss threshold closed the sheet's visual
+  chrome but left `currentlySelectedLocation`, `detailSuspended`, and the marker's
+  `selectedLayer`/`.marker-selected` state pointing at the dismissed location — exactly the "R2a
+  investigated, not pursued" gap (see `01-architecture.md`), now reproduced live with a proven
+  real-pointer-drag Playwright helper (`test/e2e/mobile-sheet-dismiss.spec.js`) and fixed. The
+  residue was previously invisible in casual testing because the next `openDetailPanel` call always
+  self-heals it as a side effect of refreshing its own `previousSelectedLocation` — masking the bug
+  during the window between a dismiss and the next selection.
+- **No new writer introduced:** the fix is a two-line branch inside `endSheetDrag` that hands off to
+  the existing, already-canonical `closeDetailPanel()` (which itself calls `applyPanelChrome`).
+  `applyPanelChrome` remains the sole writer of `activePanelState`/`document.body.dataset.panelState`;
+  R2a's contract is unchanged, not extended.
+- **Resurrection invariant, verified rather than assumed:** `resumeDetailSelection()` gates on
+  `detailSuspended`, which `closeDetailPanel()` already resets to `false`. So once a dismiss routes
+  through `closeDetailPanel`, a later mobile-nav-tab suspend/resume round-trip cannot resurrect the
+  dismissed selection — confirmed by a dedicated E2E case, not inferred from reading the gate alone.
+
 ## [2026-09-03] Panel chrome has one writer: `applyPanelChrome`; browsing/detail/mobile-search are mutually exclusive by construction
 
 - **Decision:** exactly one of `PANEL_STATES.BROWSING` / `DETAIL` / `MOBILE_SEARCH` owns the screen
@@ -39,12 +64,10 @@
 - **Preserved as-is:** R0.5's `isPoliceLocation`/`isCccdLocation` and R1's
   `setLocationVisible`/`refreshLocationMarker` — `applyPanelChrome` only ever decides panel chrome,
   never location visibility.
-- **Investigated, not closed:** whether dragging `#drag-handle` far enough to fully dismiss the
-  sheet (bypassing `collapsed`) can leave `currentlySelectedLocation` and its marker's
-  `selectedLayer` membership stale — the same bug class as R1's. A synthetic Playwright drag past
-  the dismiss threshold did not reproduce it, but the drag simulation wasn't confirmed reliable, so
-  this is left open rather than reported as closed. Not in R2a's explicit test list (click/tap
-  surfaces only).
+- **Investigated, not closed in R2a → closed in R2b:** whether dragging `#drag-handle` far enough to
+  fully dismiss the sheet (bypassing `collapsed`) can leave `currentlySelectedLocation` and its
+  marker's `selectedLayer` membership stale — the same bug class as R1's. See the R2b decision
+  above.
 
 ## [2026-09-02] Location visibility has one writer: `setLocationVisible`; marker refresh is never partial
 

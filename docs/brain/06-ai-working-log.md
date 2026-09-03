@@ -1,5 +1,67 @@
 # 06 — AI Working Log
 
+## [2026-09-03] R2b — Mobile sheet drag-dismiss selection cleanup
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Tiếp nối R2a (`fad4eb6`). R2a để lại một mục "investigated, not pursued": kéo
+  `#drag-handle` xuống đủ xa để dismiss hẳn detail sheet (thay vì dừng ở `collapsed`) có thể để lại
+  `currentlySelectedLocation`/marker `.marker-selected` cũ, nhưng lần thử trước (Playwright drag
+  giả lập) không tái hiện được và độ tin cậy của bản thân thao tác giả lập chưa được xác minh.
+- **Phase A — characterize trước khi sửa:** đọc lại toàn bộ vòng đời `SHEET_STATES`,
+  `endSheetDrag`, `resolveSheetStateFromOffset` (chọn state gần nhất theo khoảng cách offset),
+  `openDetailPanel`/`closeDetailPanel`, `suspendDetailSelection`/`resumeDetailSelection`. Xây dựng
+  helper drag thật bằng `page.mouse` (down → move nhiều bước → up), xác minh nó thực sự kích hoạt
+  handler sản phẩm (không phải `page.evaluate` giả lập) qua một lần chạy debug có instrument: bản
+  thân `event.preventDefault()` trong handler thật đã ngăn trình duyệt phát sinh `mousedown`
+  tương thích — bằng chứng gián tiếp nhưng chắc chắn rằng `pointerdown` thật đã tới đúng target.
+- **Phát hiện gốc rễ:** `endSheetDrag`, khi drag không bị huỷ và resolve về `SHEET_STATES.HIDDEN`
+  (một dismiss thật), gọi thẳng `setSheetState(HIDDEN, ...)` — bỏ qua toàn bộ cleanup vòng đời lựa
+  chọn mà `closeDetailPanel()` thực hiện (`currentlySelectedLocation = null`, `detailSuspended =
+  false`, `refreshLocationMarker` cho marker cũ, `applyPanelChrome(BROWSING)`). Mọi affordance đóng
+  khác (`#back-to-list-btn`, `#preview-close-btn`, Escape) đã đi qua `closeDetailPanel()` từ trước;
+  drag-dismiss là đường duy nhất còn sót. Lỗi này "vô hình" trong test thủ công vì lần
+  `openDetailPanel` kế tiếp (chọn địa điểm khác) luôn tự dọn residue như tác dụng phụ của việc
+  refresh `previousSelectedLocation` của chính nó.
+- **Sửa:** trong `endSheetDrag`, khi state resolve được là `HIDDEN` (không bị cancel), gọi
+  `closeDetailPanel({ restoreFocus })` rồi return, thay vì `setSheetState(HIDDEN, ...)`. Đường drag
+  bị cancel (`pointercancel`/`lostpointercapture`) không đổi — `dragStartState` chỉ có thể là
+  `COLLAPSED`/`EXPANDED` vì pointerdown handler từ chối bắt đầu drag khi sheet đã `HIDDEN`. Không
+  thêm writer mới — chỉ định tuyến đúng nhánh còn sót qua `closeDetailPanel()` đã có sẵn từ R1/R2a.
+- **File đã sửa:** `app.js` (endSheetDrag, +11/-4 dòng), `test/e2e/mobile-sheet-dismiss.spec.js`
+  (mới, 6 test case), `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Lý do:** đóng nốt class bug vòng đời mobile detail sheet mà R2a đã nêu nhưng chưa đóng — "một
+  địa điểm người dùng đã dismiss hẳn không được tồn tại như một selection đang hoạt động ở bất kỳ
+  đâu trong UI state, và không navigation/panel transition nào sau đó được âm thầm hồi sinh nó".
+- **Kiểm tra:**
+  - `npm test`: 650/650 pass (không có test unit nào chạm `app.js` phần này).
+  - `test/e2e/mobile-sheet-dismiss.spec.js` (6 ca, real `page.mouse` drag trên `#drag-handle`):
+    full dismiss dọn sạch selection/marker/chrome; partial drag expanded→collapsed giữ nguyên
+    selection (không biến mọi drag-down thành deselect); dismiss A rồi chọn B chỉ còn B được chọn;
+    chuyển tab nav đi/về giữ nguyên một selection còn sống; selection đã dismiss KHÔNG hồi sinh sau
+    khi chuyển tab đi/về; dismiss → mở mobile search → chọn B vẫn giữ đúng mutual exclusion của
+    R2a.
+  - Characterize trước khi sửa: chạy đúng bộ test trên trước khi sửa product code — đúng 3/6 case
+    fail (full dismiss residue, dismiss-rồi-chọn-B residue, không-hồi-sinh) vì còn `.marker-selected`
+    dư ở A ngay sau dismiss; 3 case còn lại (partial collapse, live-selection suspend/resume,
+    dismiss→search→chọn B) pass ngay cả khi chưa sửa, vì cơ chế tự dọn của `openDetailPanel` che
+    mất lỗi trong đúng 3 kịch bản đó — khớp chính xác với class bug đã nêu.
+  - Revert-cycle proof cho core acceptance (full dismiss): revert riêng `app.js` về nội dung tại
+    `fad4eb6` (R2a baseline, không đụng test), chạy lại → fail đúng lý do
+    (`data-panel-state` vẫn `"detail"` thay vì `"browsing"`); phục hồi fix → pass lại.
+  - Một flake tái hiện được trong chính test mới (không phải full-suite-only): "partial drag from
+    expanded to collapsed" fail ~2/3 lần khi chạy cô lập nhiều lần liên tiếp. Điều tra: đây là lỗi
+    trong test harness (không phải product code) — `boundingBox()` của `#drag-handle` được đọc
+    ngay sau một click gây transition CSS (hoặc scroll do `focus()` sau đó), có thể vẫn đang
+    settle, khiến toạ độ drag tính sai. Sửa bằng cách poll `boundingBox()` tới khi ổn định (2 lần
+    đọc liên tiếp khớp) trước khi bắt đầu drag, thay vì sleep cố định — chạy lại 5/5 lần liên tiếp
+    pass sau khi sửa harness.
+  - Regression gate: `test/e2e/location-visibility-arbiter.spec.js` (R1, 4 ca) +
+    `test/e2e/panel-state-arbiter.spec.js` (R2a, 5 ca) + `test/e2e/mobile-sheet-dismiss.spec.js`
+    (R2b, 6 ca) + `test/e2e/civic-mobile-ui.spec.js` (4 ca, gồm đúng ca từng fail ở lần chạy
+    full-suite của R2a) chạy chung: 19/19 pass.
+  - Full Playwright suite một lần (87 test, `workers: 1`): 87/87 pass — không còn flake nào tái
+    hiện, kể cả `civic-mobile-ui.spec.js`.
+- **An toàn:** không đổi API/schema/data, không đụng contribution flows/taxonomy/chatbot. Owner đã
+  review và cho phép commit cục bộ; không push, không PR, không merge, không deploy, chưa bắt đầu
 ## [2026-09-03] R2a — Panel-state arbiter (desktop/mobile chrome)
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** Tiếp nối R1 (`828a11c`). R1 đã đóng ARCH-1 phần *location visibility*; R2a đóng

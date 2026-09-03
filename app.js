@@ -401,10 +401,16 @@ function endSheetDrag({ cancelled = false, restoreFocus = false } = {}) {
   }
   const finalOffset = cancelled ? dragStartOffset : getCurrentSheetOffset();
   activePointerId = null;
-  setSheetState(
-    cancelled ? dragStartState : resolveSheetStateFromOffset(finalOffset),
-    { animate: true, restoreFocus },
-  );
+  const resolvedState = cancelled ? dragStartState : resolveSheetStateFromOffset(finalOffset);
+  // A drag that resolves to HIDDEN is a full dismiss, not a sheet-position tweak: it must go
+  // through the same selection-lifecycle cleanup as every other close affordance (back button,
+  // preview-close button, Escape), or currentlySelectedLocation/the marker's .marker-selected
+  // state/activePanelState are left stale until something else happens to touch them.
+  if (resolvedState === SHEET_STATES.HIDDEN) {
+    closeDetailPanel({ restoreFocus });
+    return;
+  }
+  setSheetState(resolvedState, { animate: true, restoreFocus });
 }
 
 dragHandle.addEventListener("pointerdown", (event) => {

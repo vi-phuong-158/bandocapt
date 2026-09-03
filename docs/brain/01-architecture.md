@@ -1,5 +1,50 @@
 # 01 - Architecture
 
+## Mobile sheet drag-dismiss — R2b (2026-09-03)
+
+- **Scope:** closes the gap R2a flagged as "investigated, not pursued" (below): dragging
+  `#drag-handle` far enough to fully dismiss the mobile detail sheet. Selection-lifecycle fix only —
+  no new state, no new writer, no visual change.
+- **Bug closed:** `endSheetDrag` handled a drag that resolved to `SHEET_STATES.HIDDEN` (a real
+  dismiss, not a sheet-position tweak) by calling `setSheetState(HIDDEN, ...)` directly — the one
+  path into "the sheet is gone" that bypassed `closeDetailPanel()`'s selection-lifecycle cleanup
+  (`currentlySelectedLocation`, `detailSuspended`, marker `selectedLayer` membership/`.marker-selected`,
+  `applyPanelChrome`'s BROWSING chrome). Every other close affordance (`#back-to-list-btn`,
+  `#preview-close-btn`, Escape) already routed through `closeDetailPanel()`; drag-dismiss was the
+  missed one. Confirmed live: a real Playwright pointer-drag past the dismiss threshold left the
+  panel chrome at `browsing` but `.marker-selected` still applied to the dismissed location's marker,
+  until a later `openDetailPanel` call (selecting anything else) incidentally cleaned it up as a side
+  effect of refreshing its own `previousSelectedLocation`.
+- **Fix:** in `endSheetDrag`, when the resolved (non-cancelled) target state is `HIDDEN`, call
+  `closeDetailPanel({ restoreFocus })` and return, instead of `setSheetState(HIDDEN, ...)`. A
+  cancelled drag (`pointercancel`/`lostpointercapture`) can never resolve to `HIDDEN` — `dragStartState`
+  is always `COLLAPSED` or `EXPANDED`, since the pointerdown handler refuses to start a drag while
+  the sheet is already `HIDDEN` — so the cancelled path is unaffected. No new writer was introduced;
+  the fix routes the one missed transition through the existing R2a-preserved `closeDetailPanel`.
+- **Preserved as-is:** `applyPanelChrome` remains the sole writer of `activePanelState`/
+  `document.body.dataset.panelState`; the direct `setSheetState` calls for genuine intra-surface
+  mechanics (drag move/collapse/expand that does *not* resolve to a dismiss, `previewExpandBtn`'s
+  tap, `syncPanelsToViewport`'s resize resync) are untouched. `isPoliceLocation`/`isCccdLocation`
+  (R0.5), `setLocationVisible`/`refreshLocationMarker` (R1) — untouched.
+- **Test:** `test/e2e/mobile-sheet-dismiss.spec.js` (6 cases, real `page.mouse` pointer drags on
+  `#drag-handle` — confirmed via an instrumented throwaway run that these dispatch genuine
+  pointerdown/pointermove/pointerup the production handler responds to, not just synthetic mouse
+  events): full drag-dismiss clears selection/marker/chrome with no residue; a partial drag from
+  expanded to collapsed leaves the selection intact (dismiss is not "any drag-down"); dismissing A
+  then selecting B leaves only B selected; a live (non-dismissed) selection survives switching
+  mobile nav tabs away and back; a dismissed selection is *not* resurrected by that same tab
+  round-trip (`resumeDetailSelection` gates on `detailSuspended`, which `closeDetailPanel` clears);
+  dismiss → open mobile search → select B preserves R2a's overlay/detail mutual exclusion with no
+  stale A. Revert-cycle verified: reverting `endSheetDrag` to the R2a baseline made the core
+  dismiss test fail for the documented reason (`data-panel-state` stuck at `detail`); restoring the
+  fix made it pass again.
+- **Test-harness note (not a product finding):** the drag helper needed `reducedMotion: 'reduce'`
+  and a bounding-box stability poll before starting a drag — a boundingBox read taken immediately
+  after a state-changing click can be stale if the sheet's own CSS transition (or a subsequent
+  focus-triggered scroll) is still settling, making a synthetic drag start from the wrong
+  coordinates. This is a test-timing concern only; the app's real transition/focus behavior is
+  unchanged.
+
 ## Panel-state arbiter — R2a (2026-09-03)
 
 - **Scope:** closes ARCH-1 from `docs/redesign/CLAUDE_REVIEW_R0_V1.md` (the `data-app-state`
@@ -46,6 +91,9 @@
   Left as direct `setSheetState` calls (intra-surface sheet-position mechanics, not panel-state
   transitions, so intentionally outside the arbiter): `endSheetDrag` (drag-to-settle),
   `previewExpandBtn`'s collapsed→expanded tap, and `syncPanelsToViewport`'s resize resync.
+  **Refined in R2b** (see above): `endSheetDrag` is intra-surface only when the drag resolves to
+  `COLLAPSED`/`EXPANDED`; a drag that resolves to `HIDDEN` is a full dismiss and now routes through
+  `closeDetailPanel()` (hence `applyPanelChrome`), not a bare `setSheetState` call.
 - **Preserved as-is:** `isPoliceLocation`/`isCccdLocation` (R0.5) and `setLocationVisible`/
   `refreshLocationMarker` (R1) — untouched; `applyPanelChrome` only decides panel *chrome*, never
   location visibility. Schema/API, contribution flows, taxonomy, accommodation Beta — untouched.
@@ -64,13 +112,12 @@
   step that the overlay and the detail sheet are never simultaneously open; Escape while idle no
   longer focuses `#mobile-search-btn` (reproduced failing pre-fix with a live Playwright run, not
   just reasoned about — see 06-ai-working-log.md for the trace).
-- **Investigated, not pursued:** whether dragging `#drag-handle` far enough to fully dismiss the
-  sheet (rather than settling at `collapsed`) can leave `currentlySelectedLocation`/the marker's
-  `selectedLayer` membership stale, the same class of bug as R1's `showMobileSearch` one — a
-  synthetic Playwright mouse-drag past the dismiss threshold did not reproduce it (sheet settled
-  back at `collapsed`, no divergence observed), but the drag simulation itself was not confirmed
-  reliable enough to trust a negative result. Not in scope for R2a's explicit test list (which
-  covers click/tap-driven surfaces only); flagged for a future pass if it recurs.
+- **Investigated, not pursued (R2a) → closed in R2b:** whether dragging `#drag-handle` far enough
+  to fully dismiss the sheet (rather than settling at `collapsed`) can leave
+  `currentlySelectedLocation`/the marker's `selectedLayer` membership stale, the same class of bug
+  as R1's `showMobileSearch` one. R2a's synthetic mouse-drag did not reproduce it, but the drag
+  simulation itself wasn't confirmed reliable — R2b built a proven-reliable real-pointer-drag
+  helper, reproduced the bug live, and fixed it (see the R2b section above).
 
 ## Location visibility state arbiter — R1 (2026-09-02)
 
