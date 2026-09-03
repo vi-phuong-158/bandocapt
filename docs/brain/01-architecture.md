@@ -1,5 +1,67 @@
 # 01 - Architecture
 
+## Location UI state hardening — R3A forward-port onto PR #66 taxonomy/filter UX (2026-09-03)
+
+- **Scope:** forward-ports the map-selection/panel-state/drag-dismiss safety invariants originally
+  built as R1 (`828a11c`), R2a (`fad4eb6`) and R2b (`0453e16`) — on a now-abandoned earlier branch
+  state — onto the taxonomy/filter UX that actually shipped to `main` via PR #66 ("fix: align map UX
+  with location taxonomy", `f975702`). R0.5's own taxonomy/filter implementation (checkbox filters,
+  `isPoliceLocation`/`isCccdLocation`) is **superseded** by PR #66 and was not restored; only the
+  state-lifecycle invariants were carried forward. No visual redesign, no taxonomy/filter UX change.
+- **Product decisions preserved from PR #66, unchanged by this port:** single-select service-filter
+  chips (`activeServiceFilter` scalar, `matchesServiceFilter`, `PRIMARY_SERVICE_CODES`); classification
+  via `isIdentityLocation`/`canonicalServiceCodes` (mutually-exclusive police-vs-identity boolean,
+  not R0.5's two independent, possibly-overlapping predicates); "Gần tôi" (`centerOnNearestVisible`)
+  as a pure sort/center action that never hides or removes a marker (no Top-5 cut).
+- **R1 port — visibility source of truth:** added `setLocationVisible(loc, visible)` as the only
+  function allowed to write `loc._visible` and touch marker layer membership
+  (`clusterGroup`/`selectedLayer`) together. Routed `filterAndRender`'s per-location decision and
+  `fetchHeadquarters`' initial load through it (main had these as two separate, non-atomic
+  statements — the exact structural risk R1 originally closed). `showMobileSearch`'s deselect path
+  fixed to call `refreshLocationMarker` instead of a bare `marker.setIcon(...)` (the concrete R1 bug:
+  a deselected marker stayed stuck in `selectedLayer`, exempt from clustering, until an unrelated
+  filter/search event happened to repair it — this exact bug was still present on `main`, unfixed,
+  before this port). `centerOnNearestVisible` (PR #66's near-me) was left untouched — it only reads
+  `loc._visible`, never writes it, so it was never part of the R1 risk class.
+- **R2a port — panel-state arbiter:** added `PANEL_STATES` (`BROWSING`/`DETAIL`/`MOBILE_SEARCH`) and
+  `applyPanelChrome(state, opts)` as the sole writer of `activePanelState` /
+  `document.body.dataset.panelState`, and the sole caller of `setSheetState` (whole-surface
+  transitions) and the new `setMobileSearchOverlay` (mobile-search-overlay DOM chrome, extracted from
+  the duplicated inline writes in `showMobileSearch`/`hideMobileSearch` that main still had).
+  `openDetailPanel`, `closeDetailPanel`, `showMobileSearch`, `hideMobileSearch`,
+  `suspendDetailSelection`, `resumeDetailSelection` and the initial page-load state all route through
+  it. Also fixed the Escape-key handler, which on `main` still read
+  `closeSearchBtn.offsetParent !== null` (a layout heuristic true whenever the viewport is
+  mobile-width, regardless of whether the overlay is actually open) — the exact R2a bug, still
+  present, unfixed, on `main` before this port; now reads `activePanelState === PANEL_STATES.MOBILE_SEARCH`.
+  Left as direct `setSheetState` calls (intra-surface mechanics, not panel-state transitions):
+  `previewExpandBtn`'s collapsed→expanded tap, `syncPanelsToViewport`'s resize resync, and
+  `endSheetDrag`'s non-dismiss resolutions (see R2b below).
+- **R2b port — drag-dismiss selection cleanup:** `endSheetDrag`, when a drag resolves to
+  `SHEET_STATES.HIDDEN` (a full dismiss, not a sheet-position tweak), now calls
+  `closeDetailPanel({ restoreFocus })` instead of a bare `setSheetState(HIDDEN, ...)` — the exact R2b
+  bug, still present, unfixed, on `main` before this port. A cancelled drag can never resolve to
+  `HIDDEN` (pointerdown refuses to start a drag while the sheet is already `HIDDEN`), so the cancelled
+  path is unaffected.
+- **Test-adaptation principle:** R1/R2a's original E2E specs asserted against the checkbox filter
+  (`#filter-police`/`#filter-id`/`#filter-nearby`), which no longer exists on `main`. Every such
+  assertion was rewritten against the current UI (`.service-chip[data-service="..."]`, real clicks)
+  — the *invariant* under test (no stale marker/panel/selection across a filter-driven visibility
+  change) is unchanged; only the interaction mechanism was updated. `test/location-ui.test.js`'s one
+  affected characterization assertion (`filterAndRender`'s visibility-write call site) was updated to
+  check for `setLocationVisible(loc, ` instead of a bare `addLocationMarker(loc)` — every other PR #66
+  taxonomy/filter characterization test in that file is untouched and still passes.
+- **New coverage, not carried over from the old branch:** `test/e2e/near-me-pure-action.spec.js` — PR
+  #66's "Gần tôi" pure-action contract (no Top-5 revival, respects the active service filter, does
+  not disturb a live selection) had no dedicated regression test before this port.
+- **Preserved as-is:** `canonicalServiceCodes`/`isIdentityLocation`/`matchesServiceFilter`/
+  `PRIMARY_SERVICE_CODES`/`centerOnNearestVisible` (PR #66) — untouched; `applyPanelChrome` and
+  `setLocationVisible` only ever decide panel chrome / marker-layer membership, never taxonomy
+  classification or filter matching. Schema/API, contribution flows, chatbot — untouched.
+- **Not re-opened:** the desktop reachability gap R2a already flagged (`#detail-panel` visually
+  covers `#search-panel` — including its filter chips now — whenever a location is selected on
+  desktop) is unchanged; it is a layout question, out of scope for a state-lifecycle port.
+
 ## Unified location form contract (2026-08-31)
 
 - `lib/location-taxonomy.js` is the UMD registry used by Node, static browser pages and the generated Apps Script bundle. It owns canonical site-type/service labels, ordering, write validation, legacy display mapping and deterministic display-name policy.

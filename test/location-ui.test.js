@@ -31,7 +31,12 @@ test('map classification and single-select filter go through canonical taxonomy,
     const classificationSites = appSource.match(/const isPolice = !isIdentityLocation\(loc\);/g) || [];
     assert.ok(classificationSites.length >= 3, `expected >=3 canonical isPolice sites, found ${classificationSites.length}`);
 
-    assert.match(appSource, /locations\.forEach\(\(loc\) => \{[\s\S]{0,900}addLocationMarker\(loc\)/);
+    // R1 visibility arbiter (forward-ported): `filterAndRender`'s per-location taxonomy decision
+    // must route through `setLocationVisible`, the only function allowed to write `loc._visible`
+    // and touch marker layer membership together — never `loc._visible = ...` / `addLocationMarker`
+    // as two separate statements at the call site, or list/marker/detail can read a stale mix.
+    assert.match(appSource, /locations\.forEach\(\(loc\) => \{[\s\S]{0,900}setLocationVisible\(loc, /);
+    assert.match(appSource, /function setLocationVisible\(loc, visible\) \{[\s\S]{0,200}addLocationMarker\(loc\)/);
     assert.doesNotMatch(appSource, /loc\.services\.forEach\([^)]*addLocationMarker/);
 });
 

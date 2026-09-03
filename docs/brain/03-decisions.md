@@ -1,5 +1,44 @@
 # 03 — Technical Decisions
 
+## [2026-09-03] R3A: map-selection/panel/drag-dismiss state hardening is forward-ported onto PR #66's taxonomy/filter UX, not restored from the superseded branch
+
+- **Decision:** PR #66 (`f975702`, merged to `main`) is canonical for taxonomy/filter product
+  behavior — single-select service-filter chips, `isIdentityLocation`-based classification, "Gần
+  tôi" as a pure sort/center action with no Top-N hiding. The R0.5/R1/R2a/R2b work built on the
+  earlier `fix/public-location-update-ux` branch diverged from this (different checkbox filter,
+  different classification predicates) and cannot be merged as-is (see the R3 conflict review this
+  decision follows). Only the **state-lifecycle invariants** R1/R2a/R2b proved — not their UI or
+  taxonomy assumptions — are carried forward, onto a fresh branch based on current `main`.
+- **What was actually wrong on `main` before this port, independent of the taxonomy question:**
+  `main`'s `app.js` had the *exact* R1/R2a/R2b bugs already fixed once on the abandoned branch: (1)
+  `filterAndRender`/`fetchHeadquarters` wrote `loc._visible` and touched marker layer membership as
+  two separate, non-atomic statements at each call site; (2) `showMobileSearch`'s deselect called a
+  bare `marker.setIcon(...)`, never moving the marker out of `selectedLayer`; (3) the mobile
+  search-overlay's DOM chrome was duplicated inline across `showMobileSearch`/`hideMobileSearch`
+  with every entry point manually remembering to close other surfaces first; (4) the Escape handler
+  read `closeSearchBtn.offsetParent !== null`, true whenever the viewport is mobile-width regardless
+  of whether the overlay is open; (5) `endSheetDrag` resolved a full dismiss by calling
+  `setSheetState(HIDDEN, ...)` directly, bypassing selection cleanup. None of these are related to
+  which taxonomy/filter model is canonical — they are the same structural risk class regardless of
+  what decides a location's visibility.
+- **Mechanism:** `setLocationVisible(loc, visible)` (R1) is the sole writer of `loc._visible`;
+  `applyPanelChrome(state, opts)` (R2a) is the sole writer of `activePanelState`/
+  `document.body.dataset.panelState` and mutual-exclusion arbiter between browsing/detail/mobile-search;
+  `endSheetDrag` (R2b) routes a resolved-to-HIDDEN drag through the existing `closeDetailPanel()`
+  instead of a bare sheet-state write. None of the three touch `canonicalServiceCodes`,
+  `isIdentityLocation`, `matchesServiceFilter`, or `centerOnNearestVisible` — the taxonomy/filter
+  layer and the state-lifecycle layer are orthogonal by construction, which is what made this port
+  possible without redesigning PR #66's UX.
+- **Test policy:** old E2E assertions written against `#filter-police`/`#filter-id`/`#filter-nearby`
+  checkboxes were rewritten against the current `.service-chip[data-service]` chips — the invariant
+  under test is unchanged, only the interaction target. No product behavior was changed to make an
+  old test pass; where a test's own mechanism no longer matched reality, the test was updated, not
+  the product.
+- **Not decided here:** the desktop `#detail-panel`-covers-`#search-panel` reachability gap (R2a) is
+  unchanged — a layout question, explicitly out of scope. PR #65 (`fix: close chatbot
+  location-context leak`, still open/`CONFLICTING` against `main`) is untouched; owner handles it
+  separately.
+
 ## [2026-08-31] One location marker with unified site/service taxonomy
 
 - **Decision:** One physical location has one stable `record_id` and one marker; it may have N services. `site_type` is physical (HEADQUARTERS, PUBLIC_SERVICE_CENTER, SECONDARY_OFFICE, MOBILE_POINT, OTHER) while `services` is capability data.
