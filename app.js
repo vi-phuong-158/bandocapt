@@ -70,6 +70,19 @@ const SHEET_STATES = Object.freeze({
   EXPANDED: "expanded",
 });
 
+// R2a panel-state contract: exactly one of these three surfaces owns the screen at a time.
+// `applyPanelChrome` (defined below, after setSheetState) is the only function allowed to decide
+// between them — every entry point that used to hand-toggle search-panel/mobile-overlay classes
+// or call setSheetState directly to open/close a surface must go through it, so a future change
+// can't reintroduce the kind of divergence R1 fixed in showMobileSearch (see
+// docs/brain/03-decisions.md).
+const PANEL_STATES = Object.freeze({
+  BROWSING: "browsing",
+  DETAIL: "detail",
+  MOBILE_SEARCH: "mobile-search",
+});
+let activePanelState = PANEL_STATES.BROWSING;
+
 const map = L.map("map", {
   zoomControl: false,
   zoomSnap: 0.5,
@@ -335,6 +348,41 @@ function clearOverlayHideTimer() {
     clearTimeout(overlayHideTimer);
     overlayHideTimer = null;
   }
+}
+
+// Sole writer of the mobile search overlay's DOM chrome (search-panel translate/opacity,
+// mobile-overlay backdrop, mobile-search-btn visibility). Only called from applyPanelChrome.
+function setMobileSearchOverlay(open) {
+  clearOverlayHideTimer();
+  if (mobileSearchBtn) mobileSearchBtn.classList.toggle("hidden", open);
+  searchPanel.classList.toggle("-translate-y-[120%]", !open);
+  searchPanel.classList.toggle("opacity-0", !open);
+  searchPanel.classList.toggle("translate-y-0", open);
+  searchPanel.classList.toggle("opacity-100", open);
+  if (open) {
+    mobileOverlay.classList.remove("hidden");
+    requestAnimationFrame(() => mobileOverlay.classList.remove("opacity-0"));
+  } else {
+    mobileOverlay.classList.add("opacity-0");
+    overlayHideTimer = setTimeout(() => {
+      mobileOverlay.classList.add("hidden");
+      overlayHideTimer = null;
+    }, 300);
+  }
+}
+
+// R2a canonical panel-state writer: the only function allowed to decide which of BROWSING /
+// DETAIL / MOBILE_SEARCH owns the screen. Guarantees mutual exclusion by construction — the
+// mobile search overlay and the detail sheet can never both be open, because a single call here
+// always fully applies exactly one state's chrome to both.
+function applyPanelChrome(state, { animate = true, restoreFocus = false, sheetState } = {}) {
+  activePanelState = state;
+  document.body.dataset.panelState = state;
+  setMobileSearchOverlay(state === PANEL_STATES.MOBILE_SEARCH);
+  const targetSheetState = state === PANEL_STATES.DETAIL
+    ? (sheetState || (isMobileViewport() ? SHEET_STATES.COLLAPSED : SHEET_STATES.EXPANDED))
+    : SHEET_STATES.HIDDEN;
+  setSheetState(targetSheetState, { animate, restoreFocus });
 }
 
 function resolveSheetStateFromOffset(offset) {
@@ -627,9 +675,8 @@ if (loc._currentDistance != null) {
 actionDirections.href = `https://www.google.com/maps/dir/?api=1&destination=${loc.lat},${loc.lng}`;
 
 
-hideMobileSearch({ restoreFocus: false });
+applyPanelChrome(PANEL_STATES.DETAIL);
   const isMobile = isMobileViewport();
-  setSheetState(isMobile ? SHEET_STATES.COLLAPSED : SHEET_STATES.EXPANDED);
   requestAnimationFrame(() => (isMobile ? previewExpandBtn : backToListBtn).focus());
 
 if (isMobile) {
@@ -663,7 +710,7 @@ function closeDetailPanel({ restoreFocus = true } = {}) {
 if (previousSelectedLocation && previousSelectedLocation.marker) {
     refreshLocationMarker(previousSelectedLocation);
   }
-  setSheetState(SHEET_STATES.HIDDEN, { restoreFocus });
+  applyPanelChrome(PANEL_STATES.BROWSING, { restoreFocus });
 }
 
 backToListBtn.addEventListener("click", () => {
@@ -857,7 +904,6 @@ document
   .addEventListener("change", filterAndRender);
 
 function showMobileSearch() {
-  clearOverlayHideTimer();
   if (activeSheetState !== SHEET_STATES.HIDDEN) {
     previousSelectedLocation = currentlySelectedLocation;
     currentlySelectedLocation = null;
@@ -867,26 +913,13 @@ function showMobileSearch() {
       refreshLocationMarker(previousSelectedLocation);
     }
     detailTrigger = null;
-    setSheetState(SHEET_STATES.HIDDEN, { restoreFocus: false });
   }
-  if (mobileSearchBtn) mobileSearchBtn.classList.add("hidden");
-  searchPanel.classList.remove("-translate-y-[120%]", "opacity-0");
-  searchPanel.classList.add("translate-y-0", "opacity-100");
-  mobileOverlay.classList.remove("hidden");
-  requestAnimationFrame(() => mobileOverlay.classList.remove("opacity-0"));
+  applyPanelChrome(PANEL_STATES.MOBILE_SEARCH, { restoreFocus: false });
   requestAnimationFrame(() => searchInput.focus());
 }
 
 function hideMobileSearch({ restoreFocus = true } = {}) {
-  clearOverlayHideTimer();
-  if (mobileSearchBtn) mobileSearchBtn.classList.remove("hidden");
-  searchPanel.classList.remove("translate-y-0", "opacity-100");
-  searchPanel.classList.add("-translate-y-[120%]", "opacity-0");
-  mobileOverlay.classList.add("opacity-0");
-  overlayHideTimer = setTimeout(() => {
-    mobileOverlay.classList.add("hidden");
-    overlayHideTimer = null;
-  }, 300);
+  applyPanelChrome(PANEL_STATES.BROWSING, { restoreFocus: false });
   if (restoreFocus && isMobileViewport()) {
     requestAnimationFrame(() => mobileSearchBtn.focus());
   }
@@ -1090,8 +1123,7 @@ document.addEventListener("keydown", event => {
     closeImageLightbox();
   } else if (activeSheetState !== SHEET_STATES.HIDDEN) {
     closeDetailPanel();
-  } else if (closeSearchBtn.offsetParent !== null) {
-    // Mobile search panel đang mở (close button hiển thị)
+  } else if (activePanelState === PANEL_STATES.MOBILE_SEARCH) {
     hideMobileSearch();
   }
 });
@@ -1118,16 +1150,13 @@ function suspendDetailSelection() {
   if (currentlySelectedLocation && activeSheetState !== SHEET_STATES.HIDDEN) {
     detailSuspended = true;
   }
-  if (activeSheetState !== SHEET_STATES.HIDDEN) {
-    setSheetState(SHEET_STATES.HIDDEN, { animate: false });
-  }
-  hideMobileSearch({ restoreFocus: false });
+  applyPanelChrome(PANEL_STATES.BROWSING, { animate: false, restoreFocus: false });
 }
 
 function resumeDetailSelection() {
   if (!detailSuspended || !currentlySelectedLocation || !isMobileViewport()) return;
   detailSuspended = false;
-  setSheetState(SHEET_STATES.COLLAPSED);
+  applyPanelChrome(PANEL_STATES.DETAIL, { sheetState: SHEET_STATES.COLLAPSED });
   refreshLocationMarker(currentlySelectedLocation);
 }
 
@@ -1139,6 +1168,6 @@ window.AppNavigation?.registerSurface("map", {
 window.addEventListener("resize", debounce(syncPanelsToViewport, 120));
 window.addEventListener("orientationchange", syncPanelsToViewport);
 
-setSheetState(SHEET_STATES.HIDDEN, { animate: false });
+applyPanelChrome(PANEL_STATES.BROWSING, { animate: false, restoreFocus: false });
 
 fetchHeadquarters();

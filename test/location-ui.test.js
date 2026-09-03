@@ -89,6 +89,59 @@ test('location visibility is written only through setLocationVisible, never inli
     assert.match(showMobileSearchBody, /refreshLocationMarker\(previousSelectedLocation\)/);
 });
 
+// R2a panel-state contract: exactly one of BROWSING / DETAIL / MOBILE_SEARCH owns the screen at
+// a time, and `applyPanelChrome` is the only function allowed to decide between them — every
+// entry point that used to hand-toggle search-panel/mobile-overlay classes directly, or call
+// `setSheetState` to open/close a whole surface, must go through it instead. This is the
+// source-level companion to the browser contract test in test/e2e/panel-state-arbiter.spec.js
+// (app.js cannot run outside a DOM/Leaflet environment, so it is characterized here and exercised
+// end-to-end there).
+test('panel chrome (detail sheet + mobile search overlay) is applied only through applyPanelChrome', () => {
+    assert.match(appSource, /function applyPanelChrome\(state, \{ animate = true, restoreFocus = false, sheetState \} = \{\}\) \{/);
+    assert.match(appSource, /function setMobileSearchOverlay\(open\) \{/);
+
+    const applyPanelChromeBody = appSource.match(/function applyPanelChrome\(state, \{ animate = true, restoreFocus = false, sheetState \} = \{\}\) \{([\s\S]{0,700}?)\r?\n\}/)?.[1] || '';
+    assert.match(applyPanelChromeBody, /activePanelState = state/);
+    assert.match(applyPanelChromeBody, /document\.body\.dataset\.panelState = state/);
+    assert.match(applyPanelChromeBody, /setMobileSearchOverlay\(state === PANEL_STATES\.MOBILE_SEARCH\)/);
+    assert.match(applyPanelChromeBody, /setSheetState\(targetSheetState/);
+
+    // `document.body.dataset.panelState` may only be assigned inside applyPanelChrome — that's
+    // what makes it trustworthy as a single source of truth for which surface is active.
+    const panelStateAssignments = appSource.match(/document\.body\.dataset\.panelState = /g) || [];
+    assert.equal(panelStateAssignments.length, 1, 'document.body.dataset.panelState must be assigned in exactly one place: applyPanelChrome');
+
+    // The raw mobile-search-overlay class toggles (search-panel translate/opacity, mobile-overlay
+    // backdrop, mobile-search-btn visibility) must live only inside setMobileSearchOverlay — not
+    // duplicated across showMobileSearch/hideMobileSearch the way they were before R2a.
+    const setMobileSearchOverlayBody = appSource.match(/function setMobileSearchOverlay\(open\) \{([\s\S]{0,700}?)\r?\n\}/)?.[1] || '';
+    const overlayClassMatches = appSource.match(/searchPanel\.classList\.toggle\(/g) || [];
+    assert.equal(overlayClassMatches.length, 4, 'search-panel class toggles must appear only inside setMobileSearchOverlay');
+    assert.equal((setMobileSearchOverlayBody.match(/searchPanel\.classList\.toggle\(/g) || []).length, 4);
+    assert.equal((appSource.match(/mobileOverlay\.classList\.add\("hidden"\)/g) || []).length, 1, 'mobile-overlay hide must appear only inside setMobileSearchOverlay');
+    assert.equal((appSource.match(/mobileOverlay\.classList\.remove\("hidden"\)/g) || []).length, 1, 'mobile-overlay show must appear only inside setMobileSearchOverlay');
+    assert.match(setMobileSearchOverlayBody, /mobileOverlay\.classList\.remove\("hidden"\)/);
+    assert.match(setMobileSearchOverlayBody, /mobileOverlay\.classList\.add\("hidden"\)/);
+
+    // openDetailPanel, closeDetailPanel, showMobileSearch and hideMobileSearch must each route
+    // through the canonical writer instead of touching setSheetState / overlay classes directly.
+    assert.equal((appSource.match(/applyPanelChrome\(PANEL_STATES\.DETAIL/g) || []).length, 2, 'expected 2 call sites entering DETAIL (openDetailPanel, resumeDetailSelection)');
+    assert.equal((appSource.match(/applyPanelChrome\(PANEL_STATES\.BROWSING/g) || []).length, 4, 'expected 4 call sites entering BROWSING (closeDetailPanel, hideMobileSearch, suspendDetailSelection, initial load)');
+    assert.equal((appSource.match(/applyPanelChrome\(PANEL_STATES\.MOBILE_SEARCH/g) || []).length, 1, 'expected 1 call site entering MOBILE_SEARCH (showMobileSearch)');
+
+    // The remaining direct setSheetState(...) calls are intra-surface sheet-position mechanics,
+    // not panel-state transitions, so they legitimately bypass applyPanelChrome: the arbiter
+    // itself, the drag-to-settle handler, the collapsed->expanded "Xem chi tiết" tap, and the
+    // viewport-resize resync (twice). A new direct call outside these should fail this count.
+    const directSetSheetStateCalls = appSource.match(/(?<!\bfunction )setSheetState\(/g) || [];
+    assert.equal(directSetSheetStateCalls.length, 5, 'setSheetState must be called only from applyPanelChrome, endSheetDrag, the preview-expand handler, and syncPanelsToViewport (x2)');
+
+    // The Escape-key handler must read the real state flag, not the offsetParent layout heuristic
+    // that used to report "mobile search is open" even while it was translated off-screen.
+    assert.match(appSource, /activePanelState === PANEL_STATES\.MOBILE_SEARCH/);
+    assert.doesNotMatch(appSource, /closeSearchBtn\.offsetParent/);
+});
+
 test('detail panel renders public service metadata without internal review fields', () => {
     for (const field of ['loc.services', 'loc.siteType', 'loc.serviceSchedule', 'loc.cccdServiceMode', 'loc.servedUnits', 'loc.verifiedAt']) {
         assert.ok(appSource.includes(field), `missing ${field}`);

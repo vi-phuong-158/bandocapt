@@ -1,5 +1,51 @@
 # 03 — Technical Decisions
 
+## [2026-09-03] Panel chrome has one writer: `applyPanelChrome`; browsing/detail/mobile-search are mutually exclusive by construction
+
+- **Decision:** exactly one of `PANEL_STATES.BROWSING` / `DETAIL` / `MOBILE_SEARCH` owns the screen
+  at a time. `applyPanelChrome(state, opts)` is the only function allowed to decide between them —
+  it is the sole writer of `activePanelState`/`document.body.dataset.panelState`, and the sole
+  caller of `setSheetState` (detail sheet) and the new `setMobileSearchOverlay` (mobile search
+  overlay chrome) for whole-surface transitions. Mutual exclusion is structural, not by convention:
+  a single call always fully applies exactly one state to both surfaces.
+- **Bug closed (structural risk, not a single observable defect):** the mobile search overlay's DOM
+  writes (search-panel translate/opacity classes, `#mobile-overlay` backdrop,
+  `#mobile-search-btn` visibility) were duplicated inline across `showMobileSearch`/
+  `hideMobileSearch`, and every surface-opening entry point had to manually remember to close the
+  other surfaces first (`openDetailPanel` calling `hideMobileSearch()`, `suspendDetailSelection`
+  calling both `setSheetState(HIDDEN)` and `hideMobileSearch()`). This is the same shape of risk
+  that caused the R1 `showMobileSearch` bug (a call site that forgot to fully coordinate). R2a
+  removes the possibility structurally instead of auditing each call site by hand.
+- **Bug closed (observable):** the `Escape` key handler tested for "mobile search is open" via
+  `closeSearchBtn.offsetParent !== null` — a layout heuristic, not real state. `offsetParent` is
+  non-null whenever the viewport is mobile-width, regardless of whether the overlay is actually
+  showing (CSS `transform` doesn't affect it). Pressing Escape on a fresh, fully idle mobile page
+  called `hideMobileSearch()` and stole focus to `#mobile-search-btn` unexpectedly. Reproduced live
+  with a clean Playwright run before fixing (`document.activeElement` was `mobile-search-btn` after
+  Escape on an untouched page load), fixed by reading `activePanelState === PANEL_STATES.MOBILE_SEARCH`
+  instead.
+- **Reachability, addressed procedurally rather than visually:** on desktop, `#detail-panel`
+  (`md:z-20`) fully occupies the same box as `#search-panel` (`md:z-10`) whenever a location is
+  selected, so no real click can reach the quick filters underneath — confirmed with a real
+  Playwright click that times out (`toThrow()`). R2a does not change this layout (that would be a
+  visual redesign, explicitly out of scope). Instead, `#back-to-list-btn` — already a real,
+  always-present, single-click control — is formalized as the canonical way back to a reachable
+  state, and is now proven end-to-end with a real click (`test/e2e/panel-state-arbiter.spec.js`),
+  replacing the `page.evaluate()` checkbox-toggle R1 needed as a workaround.
+- **Scope boundary vs the original ARCH-1 proposal:** `docs/redesign/CLAUDE_REVIEW_R0_V1.md`
+  ARCH-1 proposed a `data-app-state` body attribute for panel chrome. `PANEL_STATES` /
+  `document.body.dataset.panelState` is that proposal's narrower realization — three explicit
+  states, JS-only, no CSS/visual changes — closing the gap R1 explicitly left open.
+- **Preserved as-is:** R0.5's `isPoliceLocation`/`isCccdLocation` and R1's
+  `setLocationVisible`/`refreshLocationMarker` — `applyPanelChrome` only ever decides panel chrome,
+  never location visibility.
+- **Investigated, not closed:** whether dragging `#drag-handle` far enough to fully dismiss the
+  sheet (bypassing `collapsed`) can leave `currentlySelectedLocation` and its marker's
+  `selectedLayer` membership stale — the same bug class as R1's. A synthetic Playwright drag past
+  the dismiss threshold did not reproduce it, but the drag simulation wasn't confirmed reliable, so
+  this is left open rather than reported as closed. Not in R2a's explicit test list (click/tap
+  surfaces only).
+
 ## [2026-09-02] Location visibility has one writer: `setLocationVisible`; marker refresh is never partial
 
 - **Decision:** `loc._visible` may be assigned in exactly one place, `setLocationVisible(loc, visible)`,
@@ -20,7 +66,9 @@
   `#search-panel`'s quick filters whenever a location is selected, so a real mouse click cannot
   reach them in that state. The auto-close-on-filter-change invariant this decision protects is real
   and now tested, but only reachable today via the always-visible `#find-location-btn` FAB. Fixing
-  panel reachability is out of scope for R1 ("do not redesign UI") — it is R2a's floating-panel work.
+  panel reachability is out of scope for R1 ("do not redesign UI"). **R2a (below) addressed this
+  procedurally**: the layout itself is unchanged, but the existing `#back-to-list-btn` real-click
+  path back to a reachable state is now formalized and tested end-to-end.
 
 ## [2026-09-02] Public map/filter classification reads canonical taxonomy first, legacy signal only as fallback
 

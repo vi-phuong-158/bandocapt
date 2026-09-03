@@ -1,5 +1,77 @@
 # 01 - Architecture
 
+## Panel-state arbiter — R2a (2026-09-03)
+
+- **Scope:** closes ARCH-1 from `docs/redesign/CLAUDE_REVIEW_R0_V1.md` (the `data-app-state`
+  proposal), narrowed to a JS-only reachability/determinism fix — no visual redesign, no new CSS.
+  Companion to R1 (`loc._visible`/marker-layer arbiter): R1 made *which locations* show up
+  deterministic; R2a makes *which top-level surface* (search/browsing, a location's detail sheet,
+  or the mobile search overlay) owns the screen deterministic.
+- **Audit findings:** the three surfaces (`#search-panel`, `#detail-panel`, the mobile search
+  overlay) were kept mutually exclusive only by manual, scattered coordination — `setSheetState`
+  (detail sheet chrome) was already one function, but the mobile search overlay's DOM writes
+  (search-panel translate/opacity classes, `#mobile-overlay` backdrop, `#mobile-search-btn`
+  visibility) were duplicated inline across `showMobileSearch`/`hideMobileSearch`, and every
+  surface-opening entry point (`openDetailPanel`, `suspendDetailSelection`) had to *remember* to
+  call `hideMobileSearch()`/`setSheetState(HIDDEN)` first — structurally the same shape of risk R1
+  closed in `showMobileSearch`. Also found and fixed: the `Escape` key handler detected "is mobile
+  search open" via `closeSearchBtn.offsetParent !== null`, a layout heuristic that is true whenever
+  the viewport is mobile-width regardless of whether the overlay is actually showing (CSS
+  `transform` doesn't touch `offsetParent`) — pressing Escape in the idle state (nothing open) on
+  mobile incorrectly ran `hideMobileSearch()` and stole focus to `#mobile-search-btn`. Reproduced
+  live with Playwright before fixing (see Test below).
+- **Reachability finding:** on desktop, `#detail-panel` (`md:z-20`) and `#search-panel`
+  (`md:z-10`) occupy the identical `md:inset-0` box inside the 400px sidebar; whenever a location
+  is selected (`data-sheet-state="expanded"`), the detail panel is fully opaque and
+  `pointer-events:auto`, so a real click can never land on the quick-filter checkboxes underneath —
+  confirmed with a real Playwright click (`toThrow()` on a timed-out `.click()`). This is
+  unchanged by R2a: fixing it in-place would require enlarging the visible search area while
+  detail is open, which is a visual redesign and out of scope. The resolution is procedural, not
+  visual — the existing `#back-to-list-btn` (a real, always-present, single click) is the canonical
+  way back to a state where filters are reachable, and it was already fully functional before R2a;
+  R2a's contribution is a real-click E2E test proving that path end-to-end, replacing the
+  `page.evaluate()` checkbox-toggle workaround R1 had to use to test filter-driven auto-close while
+  a detail panel was open.
+- **Contract:** `PANEL_STATES = { BROWSING, DETAIL, MOBILE_SEARCH }` (`app.js`, next to
+  `SHEET_STATES`). `applyPanelChrome(state, { animate, restoreFocus, sheetState })` is the sole
+  writer of `activePanelState` / `document.body.dataset.panelState`, and the sole caller of both
+  `setMobileSearchOverlay(open)` (new — the single writer of the mobile-search-overlay DOM chrome,
+  extracted from the old `showMobileSearch`/`hideMobileSearch` duplication) and `setSheetState`
+  for whole-surface transitions. Mutual exclusion is structural: a single `applyPanelChrome` call
+  always fully applies exactly one state, so the overlay and the detail sheet cannot both end up
+  open. `openDetailPanel`, `closeDetailPanel`, `showMobileSearch`, `hideMobileSearch`,
+  `suspendDetailSelection`, `resumeDetailSelection`, and the initial page-load state all route
+  through it; `openDetailPanel` no longer needs its own explicit `hideMobileSearch()` call before
+  opening detail — `applyPanelChrome(DETAIL)` guarantees the overlay closes as a side effect.
+  Left as direct `setSheetState` calls (intra-surface sheet-position mechanics, not panel-state
+  transitions, so intentionally outside the arbiter): `endSheetDrag` (drag-to-settle),
+  `previewExpandBtn`'s collapsed→expanded tap, and `syncPanelsToViewport`'s resize resync.
+- **Preserved as-is:** `isPoliceLocation`/`isCccdLocation` (R0.5) and `setLocationVisible`/
+  `refreshLocationMarker` (R1) — untouched; `applyPanelChrome` only decides panel *chrome*, never
+  location visibility. Schema/API, contribution flows, taxonomy, accommodation Beta — untouched.
+- **Test:** `test/location-ui.test.js` (source characterization: `applyPanelChrome` and
+  `setMobileSearchOverlay` exist; `document.body.dataset.panelState` is assigned in exactly one
+  place; the mobile-overlay/search-panel class toggles exist only inside `setMobileSearchOverlay`;
+  exact call-site counts for each `PANEL_STATES` value; exactly 5 direct `setSheetState(` calls
+  remain outside the arbiter, at the documented legitimate sites; the Escape handler no longer
+  reads `closeSearchBtn.offsetParent`). `test/e2e/panel-state-arbiter.spec.js` (browser, 5 cases,
+  real pointer/keyboard input throughout): desktop — filters are unreachable by a real click while
+  detail is open, and reachable again after a real click on `#back-to-list-btn`, with an actual
+  filter click changing which results render; select→close→select-another leaves exactly the
+  correct marker flagged selected. Mobile — select→open mobile search→reselect leaves no stale
+  panel or stale `.marker-selected` marker; a scripted sequence of six real transitions
+  (idle→overlay→detail-collapsed→detail-expanded→overlay→idle→detail→idle) asserts after every
+  step that the overlay and the detail sheet are never simultaneously open; Escape while idle no
+  longer focuses `#mobile-search-btn` (reproduced failing pre-fix with a live Playwright run, not
+  just reasoned about — see 06-ai-working-log.md for the trace).
+- **Investigated, not pursued:** whether dragging `#drag-handle` far enough to fully dismiss the
+  sheet (rather than settling at `collapsed`) can leave `currentlySelectedLocation`/the marker's
+  `selectedLayer` membership stale, the same class of bug as R1's `showMobileSearch` one — a
+  synthetic Playwright mouse-drag past the dismiss threshold did not reproduce it (sheet settled
+  back at `collapsed`, no divergence observed), but the drag simulation itself was not confirmed
+  reliable enough to trust a negative result. Not in scope for R2a's explicit test list (which
+  covers click/tap-driven surfaces only); flagged for a future pass if it recurs.
+
 ## Location visibility state arbiter — R1 (2026-09-02)
 
 - **Scope note:** this closes a narrower, concrete follow-up to ARCH-1 in `docs/redesign/CLAUDE_REVIEW_R0_V1.md`
@@ -40,7 +112,11 @@
   invariant is real and now tested, but only reachable via the always-visible `#find-location-btn`
   FAB or (as in the new tests) a direct `change` dispatch — not via a real click on the filter label
   while detail is open. This is a pre-existing desktop layout fact (not something R1 should fix per
-  "do not redesign UI"); R2a's floating-panel redesign is what will make search and detail visible together.
+  "do not redesign UI"). **Resolved procedurally in R2a** (see above): the layout itself is
+  unchanged (still no real click reaches the filters while detail is open), but R2a formalized and
+  real-click-tested the existing `#back-to-list-btn` path back to a reachable state, and closed the
+  actual *arbiter* gap this section was really pointing at (mobile-search-overlay chrome wasn't
+  centralized the way the detail sheet was).
 
 ## Public map/filter taxonomy adapter — R0.5 (2026-09-02)
 
@@ -449,7 +525,7 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 |---------------|---------|--------------|---------------|
 | `index.html` | Shell UI, tai JS nen va lazy loader; asset runtime duoc doi sang URL content-hash trong `dist/` | Browser | `output.css`, `styles.css`, `app.js`, `js/lazy-features.js` |
 | `js/app-navigation.js` | Dieu phoi 3 tab mobile Ban do/Thu tuc/Hoi dap AI, dong bo `aria-current` va ghi nhan lan dau mo AI | `index.html` | public surface callbacks tu `app.js`, `js/chatbot.js`, `js/tthc-catalog.js` |
-| `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker/cluster, preview vi tri mobile. (2026-08-17) Anh dia diem cong khai: `isAllowedLocationImage` (host allowlist) -> `applyDetailImage`/`showDetailImageFallback` (anh loi roi ve logo) -> lightbox xem anh lon (`openImageLightbox`/`closeImageLightbox`, dong bang nut/nen/`Esc`); co `detailImageIsPublic` la nguon su that cho `syncPanelsToViewport`. (2026-09-02, R0.5) Phan loai "Cong an"/"Diem CCCD" (marker, filter, detail badge, mobile preview) di qua MOT cap ham dung chung `isPoliceLocation`/`isCccdLocation` (goi `canonicalSiteType`/`canonicalServiceCodes`, cache tren `loc._canonical*`): uu tien `LocationTaxonomy.toCanonicalSiteType`/`toCanonicalServices`, chi fallback ve bieu thuc legacy `loc.services.includes("POLICE_OFFICE"/"CITIZEN_ID")`/`loc.type` khi ban ghi chua co `siteType` canonical. KHONG con chuoi `loc.services?.includes(...)` lap lai o 6 noi rieng nhu truoc. (2026-09-02, R1) `setLocationVisible(loc, visible)` la ham DUY NHAT duoc phep ghi `loc._visible`, giu nguyen tu voi marker layer membership (`clusterGroup`/`selectedLayer` qua `addLocationMarker`/`removeLocationMarker`); `filterAndRender` (x3) va initial load trong `fetchHeadquarters` deu goi ham nay. Bat ky noi nao xoa `currentlySelectedLocation` va dung marker cua no phai goi `refreshLocationMarker` (icon + layer membership cung luc), khong duoc `.setIcon()` rieng — `showMobileSearch` da sua theo dung quy tac nay | `index.html`, `js/app-navigation.js` | `js/location-data.js`, `lib/location-taxonomy.js`, `api/google-sheet.js`, `data.js`, Leaflet.markercluster |
+| `app.js` | Khoi tao Leaflet, tai tru so, tim kiem, marker/cluster, preview vi tri mobile. (2026-08-17) Anh dia diem cong khai: `isAllowedLocationImage` (host allowlist) -> `applyDetailImage`/`showDetailImageFallback` (anh loi roi ve logo) -> lightbox xem anh lon (`openImageLightbox`/`closeImageLightbox`, dong bang nut/nen/`Esc`); co `detailImageIsPublic` la nguon su that cho `syncPanelsToViewport`. (2026-09-02, R0.5) Phan loai "Cong an"/"Diem CCCD" (marker, filter, detail badge, mobile preview) di qua MOT cap ham dung chung `isPoliceLocation`/`isCccdLocation` (goi `canonicalSiteType`/`canonicalServiceCodes`, cache tren `loc._canonical*`): uu tien `LocationTaxonomy.toCanonicalSiteType`/`toCanonicalServices`, chi fallback ve bieu thuc legacy `loc.services.includes("POLICE_OFFICE"/"CITIZEN_ID")`/`loc.type` khi ban ghi chua co `siteType` canonical. KHONG con chuoi `loc.services?.includes(...)` lap lai o 6 noi rieng nhu truoc. (2026-09-02, R1) `setLocationVisible(loc, visible)` la ham DUY NHAT duoc phep ghi `loc._visible`, giu nguyen tu voi marker layer membership (`clusterGroup`/`selectedLayer` qua `addLocationMarker`/`removeLocationMarker`); `filterAndRender` (x3) va initial load trong `fetchHeadquarters` deu goi ham nay. Bat ky noi nao xoa `currentlySelectedLocation` va dung marker cua no phai goi `refreshLocationMarker` (icon + layer membership cung luc), khong duoc `.setIcon()` rieng — `showMobileSearch` da sua theo dung quy tac nay. (2026-09-03, R2a) `applyPanelChrome(state, opts)` la ham DUY NHAT quyet dinh giua 3 trang thai `PANEL_STATES` (`BROWSING`/`DETAIL`/`MOBILE_SEARCH`), goi `setSheetState` (sheet detail) va `setMobileSearchOverlay` (chrome overlay tim kiem mobile — moi, gom cac doan class-toggle truoc day lap lai trong `showMobileSearch`/`hideMobileSearch`) — dam bao 2 be mat nay khong bao gio cung mo. `openDetailPanel`/`closeDetailPanel`/`showMobileSearch`/`hideMobileSearch`/`suspendDetailSelection`/`resumeDetailSelection`/trang thai khoi tao deu di qua ham nay; phim `Escape` doc `activePanelState` thay vi heuristic `offsetParent` cu (sai khi idle tren mobile) | `index.html`, `js/app-navigation.js` | `js/location-data.js`, `lib/location-taxonomy.js`, `api/google-sheet.js`, `data.js`, Leaflet.markercluster |
 | `data.js` | Fallback tinh cho map khi Google Sheets loi | `app.js` | - |
 | `js/location-data.js` | Normalize payload `Published_Locations`, parse toa do, bounds check, doc them `search_aliases` neu co | `app.js`, `lib/published-locations.js`, test | - |
 | `js/gemini.js` | Goi `POST /api/chat` (parse SSE stream) va `POST /api/feedback` (`sendFeedback`); ky HMAC dung chung qua `signRequestToken`. (2026-08-06) Phan loai abort qua `abortReason`: `USER_CANCELLED`/`IDLE_TIMEOUT` (25s)/`REQUEST_TIMEOUT` (65s), uu tien `STREAM_ERROR`+`partialText` neu da co noi dung | `js/chatbot.js` | `api/chat.js`, `api/feedback.js` |

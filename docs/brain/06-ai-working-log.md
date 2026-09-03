@@ -1,5 +1,71 @@
 # 06 — AI Working Log
 
+## [2026-09-03] R2a — Panel-state arbiter (desktop/mobile chrome)
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Tiếp nối R1 (`828a11c`). R1 đã đóng ARCH-1 phần *location visibility*; R2a đóng
+  phần còn lại của ARCH-1 (`docs/redesign/CLAUDE_REVIEW_R0_V1.md`): panel *chrome* — search-panel,
+  detail-panel, mobile search overlay, floating controls — không được chồng lấp hoặc không thể
+  tương tác thật. Phạm vi: chỉ JS state model, KHÔNG redesign UI/CSS.
+- **Audit trước khi sửa:** rà toàn bộ writer của `#search-panel`, `#detail-panel`, mobile search
+  overlay, floating buttons, result list, map control, và các nơi `currentlySelectedLocation` ảnh
+  hưởng panel chrome. Phát hiện: `setSheetState` đã là 1 hàm duy nhất cho detail sheet, nhưng chrome
+  của mobile search overlay (class translate/opacity của `#search-panel`, backdrop
+  `#mobile-overlay`, ẩn/hiện `#mobile-search-btn`) bị lặp lại inline trong cả `showMobileSearch` và
+  `hideMobileSearch`; mỗi entry point mở 1 bề mặt phải tự nhớ gọi đóng bề mặt kia trước
+  (`openDetailPanel` gọi `hideMobileSearch()`, `suspendDetailSelection` gọi cả `setSheetState` lẫn
+  `hideMobileSearch`) — cùng dạng rủi ro đã gây ra bug R1 trong `showMobileSearch`. Còn phát hiện 1
+  bug thật: phím `Escape` dùng heuristic `closeSearchBtn.offsetParent !== null` để đoán "mobile
+  search đang mở" — heuristic này đúng bất kể overlay có thật sự mở hay không (chỉ cần viewport
+  mobile, vì CSS `transform` không ảnh hưởng `offsetParent`), nên Escape ở trạng thái idle hoàn
+  toàn trên mobile vẫn cướp focus sang `#mobile-search-btn`. Tái hiện bằng Playwright thật (page
+  load sạch, không click gì, `document.activeElement` sau Escape là `mobile-search-btn`) trước khi
+  sửa.
+- **Phát hiện về reachability (không sửa layout):** trên desktop, `#detail-panel` (`md:z-20`) phủ
+  kín đúng vùng `#search-panel` (`md:z-10`, `md:inset-0` chung) mỗi khi có địa điểm được chọn — xác
+  nhận bằng click Playwright thật vào label quick-filter, timeout/reject vì bị che thật (không phải
+  suy luận). R2a không đổi layout (sẽ là redesign, ngoài phạm vi). Giải pháp là thủ tục: nút
+  `#back-to-list-btn` (đã có sẵn, click thật, luôn hiện) là đường quay lại trạng thái filter dùng
+  được, nay có E2E click thật xác nhận toàn bộ luồng, thay cho cách R1 phải dùng
+  `page.evaluate()` giả lập checkbox.
+- **Sửa:** thêm `PANEL_STATES` (`BROWSING`/`DETAIL`/`MOBILE_SEARCH`) và `applyPanelChrome(state,
+  opts)` — hàm DUY NHẤT được phép quyết định giữa 3 trạng thái, ghi `activePanelState` +
+  `document.body.dataset.panelState`, gọi `setSheetState` và hàm mới `setMobileSearchOverlay(open)`
+  (gom toàn bộ đoạn class-toggle từng lặp lại). `openDetailPanel`, `closeDetailPanel`,
+  `showMobileSearch`, `hideMobileSearch`, `suspendDetailSelection`, `resumeDetailSelection`, và
+  trạng thái khởi tạo đều đi qua `applyPanelChrome`. Escape handler đổi sang đọc
+  `activePanelState === PANEL_STATES.MOBILE_SEARCH` thay vì `offsetParent`. Giữ nguyên các
+  `setSheetState(...)` trực tiếp còn lại (5 chỗ) vì là cơ chế nội bộ trong-1-bề-mặt, không phải
+  chuyển bề mặt: `applyPanelChrome` (1), `endSheetDrag` (drag-to-settle), `previewExpandBtn`
+  (collapsed→expanded), `syncPanelsToViewport` (resize resync, x2).
+- **File đã sửa:** `app.js`, `test/location-ui.test.js` (thêm test characterization), mới
+  `test/e2e/panel-state-arbiter.spec.js` (5 case, browser thật), `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`.
+- **Lý do:** owner yêu cầu 1 state model tường minh cho panel chrome để không lặp lại kiểu bug R1
+  đã đóng, và loại 1 bug focus-steal thật phát hiện trong lúc audit.
+- **Kiểm tra:**
+  - Unit: `npm test` — 650/650 pass (649 cũ + 1 test characterization mới).
+  - E2E mới (`test/e2e/panel-state-arbiter.spec.js`, 5 case, real click/tap/keyboard): desktop —
+    filter thật sự không click được khi detail mở (assertion `toThrow()` trên click timeout), click
+    thật `#back-to-list-btn` xong thì filter click được và có tác dụng thật (danh sách đổi); chọn →
+    đóng → chọn địa điểm khác giữ đúng marker nào đang "selected". Mobile — chọn → mở mobile
+    search → không còn panel/marker "kẹt"; chuỗi 6 bước chuyển trạng thái thật không bao giờ để 2 bề
+    mặt cùng mở; Escape lúc idle không cướp focus.
+  - Xác minh test thật sự bắt được thay đổi: revert tạm `app.js` về HEAD (`828a11c`), chạy lại test
+    characterization mới (fail đúng vì thiếu `applyPanelChrome`) và test E2E "Escape while idle"
+    (fail đúng — `mobile-search-btn` bị focus, khớp bug đã tái hiện ở trên), sau đó phục hồi bản vá
+    và build lại `dist/`, cả 2 pass lại.
+  - Regression: `npx playwright test test/e2e/location-visibility-arbiter.spec.js` (R1) — 4/4 pass,
+    không đổi. Full suite `npx playwright test` (81 test) chạy 1 lần sau khi các test trọng tâm
+    xanh: 80 passed, 1 fail
+    (`civic-mobile-ui.spec.js: mobile navigation replaces launchers and keeps the selected location
+    across tabs`) — chạy lại riêng file đó 2 lần (1 lần chỉ đúng test đó, 1 lần cả 4 test trong
+    file) đều pass sạch cả 2 lần → phân loại flake môi trường chỉ-xảy-ra-khi-chạy-full-suite, không
+    sửa product code theo nó, đúng chỉ dẫn "do not change product code merely to satisfy a
+    demonstrably unrelated flake".
+- **An toàn:** không đổi API/schema/database, không đụng contribution flow, không đổi taxonomy,
+  không làm Beta Nhà trọ, không sửa `siteTypeLabel()`. Không commit trong vòng này (owner instruction:
+  "Stop after implementation and validation. Do not commit."). Không push/merge/deploy.
+
 ## [2026-09-02] R1 — State arbiter cho location visibility
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** Tiếp nối R0.5 (`2d5f990`). Owner giao R1 với phạm vi hẹp hơn ARCH-1 gốc trong
