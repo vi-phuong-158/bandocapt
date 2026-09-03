@@ -1,5 +1,64 @@
 # 06 — AI Working Log
 
+## [2026-09-03] R3A — Forward-port map selection/panel/drag-dismiss state hardening onto PR #66 taxonomy UX
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Một chuỗi R0.5→R1→R2a→R2b từng được làm trên branch `fix/public-location-update-ux`
+  cũ (checkbox filter, `isPoliceLocation`/`isCccdLocation`). Trong lúc đó, PR #66 (`f975702`, đã
+  merge vào `main`) độc lập thay toàn bộ tầng taxonomy/filter: chip dịch vụ single-select,
+  `isIdentityLocation`, "Gần tôi" thành pure action. Hai bên xung đột thật (không phải merge
+  conflict hình thức) — owner quyết định PR #66 là canonical cho taxonomy/filter; R0.5 bị
+  superseded. Nhiệm vụ R3A: forward-port đúng phần state-lifecycle invariant (R1/R2a/R2b) lên trên
+  UX hiện hành của `main`, không phục hồi checkbox/predicate cũ.
+- **Branch:** `fix/location-ui-state-hardening`, tạo mới từ `origin/main` tại `693c80f`
+  (worktree sạch, không đụng working tree của owner).
+- **Phát hiện quan trọng:** `main`'s `app.js` **vẫn còn nguyên** cả 5 bug mà R1/R2a/R2b từng sửa
+  trên branch cũ — độc lập với câu hỏi taxonomy nào canonical: (1) `filterAndRender`/
+  `fetchHeadquarters` ghi `loc._visible` và đổi layer marker thành hai câu lệnh tách rời, không
+  atomic; (2) `showMobileSearch` deselect chỉ gọi `marker.setIcon()` trần, marker kẹt lại trong
+  `selectedLayer`; (3) chrome overlay mobile-search bị lặp code inline giữa
+  `showMobileSearch`/`hideMobileSearch`; (4) Escape handler đọc
+  `closeSearchBtn.offsetParent !== null` (dương tính sai bất cứ khi nào viewport mobile-width, bất
+  kể overlay có thật sự mở hay không); (5) `endSheetDrag` khi resolve về HIDDEN gọi thẳng
+  `setSheetState(HIDDEN, ...)`, bỏ qua toàn bộ cleanup selection.
+- **Port R1:** thêm `setLocationVisible(loc, visible)` làm writer duy nhất của `loc._visible`, route
+  `filterAndRender` (2 điểm) + `fetchHeadquarters` initial load (1 điểm) qua đó; sửa
+  `showMobileSearch` gọi `refreshLocationMarker` thay vì `.setIcon()` trần. Không tạo lại
+  `isPoliceLocation`/`isCccdLocation` — dùng nguyên `canonicalServiceCodes`/`isIdentityLocation` của
+  PR #66.
+- **Port R2a:** thêm `PANEL_STATES`/`activePanelState`/`setMobileSearchOverlay`/`applyPanelChrome`
+  làm writer duy nhất của panel chrome; route `openDetailPanel`/`closeDetailPanel`/
+  `showMobileSearch`/`hideMobileSearch`/`suspendDetailSelection`/`resumeDetailSelection`/initial
+  state qua đó; sửa Escape handler đọc `activePanelState` thay vì `offsetParent`.
+- **Port R2b:** `endSheetDrag` route nhánh resolve-về-HIDDEN qua `closeDetailPanel({restoreFocus})`
+  thay vì `setSheetState` trần.
+- **File đã sửa:** `app.js` (port R1+R2a+R2b, không đụng taxonomy/filter code của PR #66),
+  `test/location-ui.test.js` (1 assertion cập nhật cho `setLocationVisible`, các assertion taxonomy/
+  filter khác của PR #66 giữ nguyên), `test/e2e/location-visibility-arbiter.spec.js` (mới, adapt từ
+  R1, checkbox→chip), `test/e2e/panel-state-arbiter.spec.js` (mới, adapt từ R2a, checkbox→chip ở
+  đúng 1 test, 4 test còn lại không đổi), `test/e2e/mobile-sheet-dismiss.spec.js` (mới, port nguyên
+  văn từ R2b — không phụ thuộc UI filter), `test/e2e/near-me-pure-action.spec.js` (mới, coverage
+  chưa từng có cho hợp đồng "Gần tôi = pure action" của PR #66), `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`.
+- **Lý do:** Đóng đúng class bug state-lifecycle (stale selection, panel-state collision, Escape
+  misfire, drag-dismiss resurrection) trên UX taxonomy/filter thật sự đang chạy trên `main`, không
+  âm thầm mở rộng scope sang redesign taxonomy/filter.
+- **Kiểm tra:**
+  - `npm test`: 642/642 pass (baseline `main` cũng 642/642 trước khi sửa; 1 assertion trong
+    `test/location-ui.test.js` được cập nhật cho đúng cơ chế `setLocationVisible` mới, không đổi
+    assertion taxonomy/filter nào khác).
+  - Focused E2E (21 ca, 1 lần chạy sạch): `location-visibility-arbiter.spec.js` (4),
+    `panel-state-arbiter.spec.js` (5), `mobile-sheet-dismiss.spec.js` (6),
+    `near-me-pure-action.spec.js` (2), `civic-mobile-ui.spec.js` (4) — 21/21 pass.
+  - Revert-cycle proof cho 2 bug class bắt buộc: (A) Escape idle — revert riêng dòng Escape handler
+    về `closeSearchBtn.offsetParent !== null`, test "Escape while idle" fail đúng lý do
+    (`#mobile-search-btn` bị focus); phục hồi fix → pass lại. (B) Drag-dismiss residue — revert
+    riêng nhánh HIDDEN của `endSheetDrag` về `setSheetState` trần, test "full drag-dismiss" fail
+    đúng lý do (`data-panel-state` vẫn `"detail"`); phục hồi fix → pass lại, xác nhận thêm bằng
+    2 spec liên quan chạy lại 11/11 pass.
+  - Full Playwright suite một lần trên nhánh đã port (xem kết quả trong báo cáo R3A).
+- **An toàn:** không đổi API/schema/data, không phục hồi checkbox filter/predicate R0.5, không
+  đụng PR #65, không commit/push/merge/deploy cho tới khi acceptance PASS.
+
 ## [2026-09-01] Hoàn thiện Public Location Contribution UX + Floating CTA
 - **Agent:** Codex
 - **Thay đổi:** Gom CTA `Đóng góp địa điểm` và launcher Hỏi đáp vào shared floating-actions trên trang bản đồ; responsive desktop/mobile, safe-area, focus-visible và touch target tối thiểu; không hiển thị CTA trên `/dong-gop/`. Giữ nguyên UPDATE UX partial đã hoàn tất ở entry ngay dưới.
