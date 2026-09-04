@@ -1,5 +1,31 @@
 # 03 — Technical Decisions
 
+## [2026-09-04] R1: Map-First Civic App Design Closure & Accessibility Arbiter
+
+- **Bối cảnh:** Vòng thiết kế giao diện chính hoàn thiện theo hướng Map-first civic app. Cần giải quyết dứt điểm desktop reachability gap (vốn bị hoãn lại từ R2a/R3A), nâng cấp tìm kiếm hỗ trợ dịch vụ thủ tục hành chính, chuẩn hoá cấp bậc thông tin (information hierarchy) và loại bỏ hoàn toàn việc hiển thị giờ làm việc mặc định giả.
+- **Quyết định 1 — Desktop single-sidebar lifecycle:**
+  - `#search-panel` và `#detail-panel` loại trừ lẫn nhau (mutual exclusion). Khi vào `DETAIL`, `#search-panel` ẩn với transition mượt mà (`opacity: 0; pointer-events: none; transform: translate3d(-12px,0,0)`).
+  - Nút `#back-to-list-btn` ("Quay lại danh sách") cho phép quay lại `BROWSING` với query tìm kiếm, chip lọc đang chọn và danh sách kết quả được bảo toàn nguyên vẹn.
+  - Không bổ sung `PANEL_STATES.RESULTS`: SEARCH và RESULTS đều thuộc bề mặt `BROWSING`.
+- **Quyết định 2 — Đồng bộ trợ năng theo Viewport (`syncSearchPanelAccessibility`):**
+  - Trạng thái `inert` và `aria-hidden` của `#search-panel` phụ thuộc chặt chẽ vào cả `activePanelState` và `isMobileViewport()`:
+    - Desktop + BROWSING: active (`inert=false, aria-hidden="false"`).
+    - Desktop + DETAIL: `inert=true, aria-hidden="true"`.
+    - Mobile + BROWSING: `inert=true, aria-hidden="true"` (search panel ở ngoài màn hình, chặn focus bàn phím/screen reader).
+    - Mobile + MOBILE_SEARCH: active (`inert=false, aria-hidden="false"`).
+    - Mobile + DETAIL: `inert=true, aria-hidden="true"`.
+  - Được gọi từ `applyPanelChrome` (sole state writer) và `syncPanelsToViewport` khi co giãn qua 768px.
+- **Quyết định 3 — Tìm kiếm theo nhãn dịch vụ chuẩn hóa:**
+  - Copy placeholder: `"Tìm Công an xã/phường, địa chỉ hoặc dịch vụ"`.
+  - `matchesSearch` tìm kiếm trên nhãn dịch vụ canonical (`canonicalServiceCodes(loc)` + `serviceLabel()`). Gõ "căn cước" khớp `IDENTITY`, "cư trú" khớp `RESIDENCE`, "đăng ký xe" khớp `VEHICLE_REGISTRATION` mà không hard-code taxonomy mới.
+- **Quyết định 4 — Trung thực dữ liệu giờ làm việc & tách biệt lưu ý thủ tục (P0):**
+  - `#detail-hours-container` chỉ hiển thị khi có `serviceSchedule` thật từ dữ liệu nguồn. Tuyệt đối không hiển thị giờ hành chính mặc định ("07h30–11h30 | 13h00–16h30").
+  - Lưu ý thủ tục (`procedureNote` và `cccdServiceMode`) được hiển thị độc lập tại `#detail-procedure-note`.
+- **Quyết định 5 — Kiểm định số điện thoại sử dụng được (`getUsablePublicPhone`):**
+  - Loại bỏ các giá trị không hợp lệ: chuỗi rỗng, "Cập nhật sau...", khoảng trắng và chuỗi không có số điện thoại hợp lệ (< 7 chữ số).
+  - Khi không có số điện thoại: ẩn link điện thoại và nút Gọi điện bằng `.detail-action--unavailable` (`display: none !important`), chuyển `#detail-actions-grid` sang `grid-cols-1` để nút Chỉ đường chiếm trọn bề ngang.
+- **Bảo toàn PR #70:** Giữ nguyên vẹn ranh giới `api/chat.js` và `lib/published-locations.js`, không gây conflict khi PR #70 được merge vào `main`.
+
 ## [2026-09-03] R3A: map-selection/panel/drag-dismiss state hardening is forward-ported onto PR #66's taxonomy/filter UX, not restored from the superseded branch
 
 - **Decision:** PR #66 (`f975702`, merged to `main`) is canonical for taxonomy/filter product

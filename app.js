@@ -19,6 +19,7 @@ const detailPhone = document.getElementById("detail-phone");
 const detailPhoneLink = document.getElementById("detail-phone-link");
 const detailHours = document.getElementById("detail-hours");
 const detailHoursContainer = document.getElementById("detail-hours-container");
+const detailProcedureNote = document.getElementById("detail-procedure-note");
 const detailServiceMeta = document.getElementById("detail-service-meta");
 const detailHero = document.getElementById("detail-hero");
 const detailImage = document.getElementById("detail-image");
@@ -29,6 +30,9 @@ const imageLightboxClose = document.getElementById("image-lightbox-close");
 const actionDirections = document.getElementById("action-directions");
 const actionCall = document.getElementById("action-call");
 const backToListBtn = document.getElementById("back-to-list-btn");
+const detailServicesList = document.getElementById("detail-services-list");
+const detailServicesContainer = document.getElementById("detail-services-container");
+const detailActionsGrid = document.getElementById("detail-actions-grid");
 
 
 const detailDistanceBadge = document.getElementById("detail-distance-badge");
@@ -353,6 +357,16 @@ function setMobileSearchOverlay(open) {
   }
 }
 
+function syncSearchPanelAccessibility(state = activePanelState) {
+  if (!searchPanel) return;
+  const isMobile = isMobileViewport();
+  const shouldBeInert = isMobile
+    ? state !== PANEL_STATES.MOBILE_SEARCH
+    : state === PANEL_STATES.DETAIL;
+  searchPanel.setAttribute("aria-hidden", shouldBeInert ? "true" : "false");
+  searchPanel.toggleAttribute("inert", shouldBeInert);
+}
+
 // R2a canonical panel-state writer: the only function allowed to decide which of BROWSING /
 // DETAIL / MOBILE_SEARCH owns the screen. Guarantees mutual exclusion by construction — the
 // mobile search overlay and the detail sheet can never both be open, because a single call here
@@ -361,7 +375,9 @@ function applyPanelChrome(state, { animate = true, restoreFocus = false, sheetSt
   activePanelState = state;
   document.body.dataset.panelState = state;
   setMobileSearchOverlay(state === PANEL_STATES.MOBILE_SEARCH);
-  const targetSheetState = state === PANEL_STATES.DETAIL
+  syncSearchPanelAccessibility(state);
+  const isDetail = state === PANEL_STATES.DETAIL;
+  const targetSheetState = isDetail
     ? (sheetState || (isMobileViewport() ? SHEET_STATES.COLLAPSED : SHEET_STATES.EXPANDED))
     : SHEET_STATES.HIDDEN;
   setSheetState(targetSheetState, { animate, restoreFocus });
@@ -506,16 +522,34 @@ function formatVietnameseDate(value) {
 }
 
 function renderLocationServiceMeta(loc) {
+  if (detailServicesContainer && detailServicesList) {
+    if (loc.services?.length) {
+      detailServicesContainer.hidden = false;
+      detailServicesList.innerHTML = loc.services
+        .map(service => `<span class="inline-flex items-center gap-1 rounded-full bg-blue-50/80 border border-blue-200/60 px-2.5 py-1 text-[12px] font-bold text-primary">${escapeHtml(serviceLabel(service))}</span>`)
+        .join("");
+    } else {
+      detailServicesContainer.hidden = true;
+      detailServicesList.innerHTML = "";
+    }
+  }
+
   if (!detailServiceMeta) return;
   const rows = [];
-  if (loc.services?.length) {
-    rows.push(`<div><p class="text-[12px] text-textMuted font-medium mb-1.5">Dịch vụ tại địa điểm</p><div class="flex flex-wrap gap-1.5">${loc.services.map(service => `<span class="inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-[13px] font-semibold text-slate-700">${escapeHtml(serviceLabel(service))}</span>`).join("")}</div></div>`);
+  if (loc.siteType) {
+    rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Phân loại:</span> ${escapeHtml(siteTypeLabel(loc.siteType))}</p>`);
   }
-  if (loc.siteType) rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Loại địa điểm:</span> ${escapeHtml(siteTypeLabel(loc.siteType))}</p>`);
-  if (loc.cccdServiceMode && loc.cccdServiceMode !== "NOT_PROVIDED" && loc.cccdServiceMode !== "UNKNOWN") rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Tiếp nhận căn cước:</span> ${escapeHtml(cccdModeLabel(loc.cccdServiceMode))}</p>`);
-  if (loc.servedUnits) rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Phục vụ:</span> ${escapeHtml(formatServedUnits(loc.servedUnits))}</p>`);
-  if (loc.verifiedAt) rows.push(`<p class="text-[12px] leading-relaxed text-textMuted">Xác minh: ${escapeHtml(formatVietnameseDate(loc.verifiedAt))}</p>`);
+  if (loc.cccdServiceMode && loc.cccdServiceMode !== "NOT_PROVIDED" && loc.cccdServiceMode !== "UNKNOWN") {
+    rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Tiếp nhận căn cước:</span> ${escapeHtml(cccdModeLabel(loc.cccdServiceMode))}</p>`);
+  }
+  if (loc.servedUnits && formatServedUnits(loc.servedUnits)) {
+    rows.push(`<p class="text-[13px] leading-relaxed text-slate-600"><span class="font-semibold text-slate-700">Khu vực phục vụ:</span> ${escapeHtml(formatServedUnits(loc.servedUnits))}</p>`);
+  }
+  if (loc.verifiedAt && formatVietnameseDate(loc.verifiedAt)) {
+    rows.push(`<p class="text-[12px] leading-relaxed text-textMuted"><span class="font-medium">Ngày xác minh:</span> ${escapeHtml(formatVietnameseDate(loc.verifiedAt))}</p>`);
+  }
   detailServiceMeta.innerHTML = rows.join("");
+  detailServiceMeta.hidden = rows.length === 0;
 }
 
 function isAllowedLocationImage(imageUrl) {
@@ -601,83 +635,101 @@ imageLightbox.addEventListener("keydown", event => {
   imageLightboxClose.focus();
 });
 
+function getUsablePublicPhone(phone) {
+  if (!phone) return null;
+  const raw = String(phone).trim();
+  if (!raw || raw === "Cập nhật sau..." || raw.toLowerCase().startsWith("cập nhật sau")) return null;
+  const digits = raw.replace(/\D/g, "");
+  if (digits.length < 7) return null;
+  return raw;
+}
+
 function openDetailPanel(loc, trigger = null) {
   detailTrigger = trigger;
   previousSelectedLocation = currentlySelectedLocation;
   currentlySelectedLocation = loc;
   detailSuspended = false;
 
-if (previousSelectedLocation && previousSelectedLocation.marker) {
+  if (previousSelectedLocation && previousSelectedLocation.marker) {
     refreshLocationMarker(previousSelectedLocation);
   }
   if (currentlySelectedLocation && currentlySelectedLocation.marker) {
     refreshLocationMarker(currentlySelectedLocation);
   }
 
-const isPolice = !isIdentityLocation(loc);
+  const isPolice = !isIdentityLocation(loc);
   renderLocationPreview(loc, isPolice);
 
-// site_type là nguồn sự thật cho "đây là đâu" (mô tả hình thái vật lý qua taxonomy); nhánh cũ chỉ
-// còn dùng khi bản ghi legacy chưa có site_type, để không đổi hành vi các bản ghi trước 2026-08-31.
-const legacyBadgeText = loc.services?.includes("POLICE_OFFICE") && loc.services?.includes("CITIZEN_ID") ? "Trụ sở và điểm CCCD" : (isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD");
+  // site_type là nguồn sự thật cho "đây là đâu" (mô tả hình thái vật lý qua taxonomy); nhánh cũ chỉ
+  // còn dùng khi bản ghi legacy chưa có site_type, để không đổi hành vi các bản ghi trước 2026-08-31.
+  const legacyBadgeText = loc.services?.includes("POLICE_OFFICE") && loc.services?.includes("CITIZEN_ID") ? "Trụ sở và điểm CCCD" : (isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD");
   detailBadge.textContent = window.LocationTaxonomy?.displaySiteType(loc.siteType) || legacyBadgeText;
   detailBadge.className = isPolice
     ? "inline-block px-3 py-1.5 bg-primary/90 backdrop-blur-md rounded-full text-[12px] font-bold uppercase tracking-widest mb-2 border border-blue-400/20 text-blue-50 shadow-lg transform-gpu"
     : "inline-block px-3 py-1.5 bg-accent/90 backdrop-blur-md rounded-full text-[12px] font-bold uppercase tracking-widest mb-2 border border-amber-400/20 text-amber-50 shadow-lg transform-gpu";
 
-detailTitle.textContent = loc.name;
+  detailTitle.textContent = loc.name;
   detailTitle.className = "font-display text-[26px] md:text-[28px] font-bold leading-tight drop-shadow-md text-white";
 
   applyDetailImage(loc);
 
-detailAddress.textContent = loc.address;
+  detailAddress.textContent = loc.address;
 
-if (loc.phone && loc.phone !== "Cập nhật sau...") {
-    detailPhone.textContent = loc.phone;
-    const cleanPhone = String(loc.phone).replace(/[^\d+]/g, "");
+  const usablePhone = getUsablePublicPhone(loc.phone);
+  if (usablePhone) {
+    detailPhone.textContent = usablePhone;
+    const cleanPhone = String(usablePhone).replace(/[^\d+]/g, "");
     detailPhoneLink.href = `tel:${cleanPhone}`;
-    detailPhoneLink.style.display = "flex";
+    detailPhoneLink.classList.remove("detail-action--unavailable");
+    detailPhoneLink.style.display = "";
     actionCall.href = `tel:${cleanPhone}`;
+    actionCall.classList.remove("detail-action--unavailable");
     actionCall.classList.remove("opacity-40", "pointer-events-none");
+    actionCall.style.display = "";
+    if (detailActionsGrid) {
+      detailActionsGrid.classList.remove("grid-cols-1");
+      detailActionsGrid.classList.add("grid-cols-2");
+    }
   } else {
-    detailPhone.textContent = "Chưa có SĐT";
-    detailPhoneLink.style.display = "flex";
+    detailPhone.textContent = "";
     detailPhoneLink.href = "#";
+    detailPhoneLink.classList.add("detail-action--unavailable");
     actionCall.href = "#";
+    actionCall.classList.add("detail-action--unavailable");
     actionCall.classList.add("opacity-40", "pointer-events-none");
+    if (detailActionsGrid) {
+      detailActionsGrid.classList.remove("grid-cols-2");
+      detailActionsGrid.classList.add("grid-cols-1");
+    }
   }
 
-const now = new Date();
-  const currentHour = now.getHours() + now.getMinutes() / 60;
-  const isWeekday = now.getDay() >= 1 && now.getDay() <= 5; 
-  const isMorning = currentHour >= 7.5 && currentHour <= 11.5;
-  const isAfternoon = currentHour >= 13 && currentHour <= 16.5;
-
-let statusText = "Đã nghỉ làm";
-  let statusColor = "text-danger"; 
-
-if (isWeekday && (isMorning || isAfternoon)) {
-    statusText = "Đang mở cửa";
-    statusColor = "text-secondary font-bold animate-pulse"; 
-  }
-
-const procedureNote =
+  const procedureNoteHtml =
     loc.cccdServiceMode === "TEMPORARILY_PAUSED"
-      ? `<div class="text-[13px] text-amber-800 mt-2.5 bg-amber-50 border border-amber-200/50 p-3 rounded-xl flex items-start gap-2 shadow-sm font-medium"><span class="material-symbols-outlined text-[18px] text-amber-600">info</span><span>Điểm cấp căn cước đang tạm dừng. Vui lòng liên hệ trước khi đến.</span></div>`
+      ? `<div class="text-[13px] text-amber-800 bg-amber-50 border border-amber-200/50 p-2.5 rounded-xl flex items-start gap-2 shadow-sm font-medium"><span class="material-symbols-outlined text-[18px] text-amber-600">info</span><span>Điểm cấp căn cước đang tạm dừng. Vui lòng liên hệ trước khi đến.</span></div>`
       : isIdentityLocation(loc)
-      ? `<div class="text-[13px] text-amber-800 mt-2.5 bg-amber-50 border border-amber-200/50 p-3 rounded-xl flex items-start gap-2 shadow-sm font-medium">
-        <span class="material-symbols-outlined text-[18px] text-amber-600">info</span>
-        <span>Lưu ý: Người dân nhớ mang theo CCCD/CMND cũ hoặc Giấy khai sinh.</span>
-       </div>`
+      ? `<div class="text-[13px] text-amber-800 bg-amber-50 border border-amber-200/50 p-2.5 rounded-xl flex items-start gap-2 shadow-sm font-medium"><span class="material-symbols-outlined text-[18px] text-amber-600">info</span><span>Lưu ý: Mang theo CCCD/CMND cũ hoặc Giấy khai sinh khi làm thủ tục.</span></div>`
       : "";
 
-detailHours.innerHTML = loc.serviceSchedule
-  ? `<span class="text-slate-600 font-medium">${escapeHtml(loc.serviceSchedule)}</span>${procedureNote}`
-  : `<span class="${statusColor} font-bold">${statusText}</span> <span class="text-slate-300 mx-1.5">•</span> Sáng: 07h30-11h30 | Chiều: 13h00-16h30 ${procedureNote}`;
-  detailHoursContainer.style.display = "flex";
+  if (detailProcedureNote) {
+    if (procedureNoteHtml) {
+      detailProcedureNote.innerHTML = procedureNoteHtml;
+      detailProcedureNote.hidden = false;
+    } else {
+      detailProcedureNote.innerHTML = "";
+      detailProcedureNote.hidden = true;
+    }
+  }
+
+  if (loc.serviceSchedule) {
+    detailHoursContainer.style.display = "flex";
+    detailHours.textContent = loc.serviceSchedule;
+  } else {
+    detailHoursContainer.style.display = "none";
+    detailHours.textContent = "";
+  }
   renderLocationServiceMeta(loc);
 
-if (loc._currentDistance != null) {
+  if (loc._currentDistance != null) {
     detailDistanceText.textContent = formatDistance(loc._currentDistance);
     detailDistanceBadge.style.display = "inline-flex";
   } else {
@@ -739,19 +791,29 @@ previewExpandBtn.addEventListener("click", () => {
 // active = hiện tất cả. State là một scalar đơn giản, không phải mảng/checkbox tổ hợp.
 let activeServiceFilter = null;
 
+function getServicesSearchText(loc) {
+  if (loc._servicesSearchTextLower !== undefined) return loc._servicesSearchTextLower;
+  const codes = canonicalServiceCodes(loc);
+  const labels = codes.map(code => serviceLabel(code).toLowerCase());
+  loc._servicesSearchTextLower = labels.join(" ");
+  return loc._servicesSearchTextLower;
+}
+
 function filterAndRender() {
   const searchTerm = searchInput.value.toLowerCase().trim();
   const visibleLocations = [];
 
-locations.forEach((loc) => {
+  locations.forEach((loc) => {
     const matchesFilter = matchesServiceFilter(loc, activeServiceFilter);
     const matchesSearch =
+      !searchTerm ||
       (loc._nameLower || loc.name.toLowerCase()).includes(searchTerm) ||
       (loc._addressLower || loc.address.toLowerCase()).includes(searchTerm) ||
       (loc._aliasesLower || "").includes(searchTerm) ||
-      (loc._servedUnitsLower || "").includes(searchTerm);
+      (loc._servedUnitsLower || "").includes(searchTerm) ||
+      getServicesSearchText(loc).includes(searchTerm);
 
-if (matchesFilter && matchesSearch) {
+    if (matchesFilter && matchesSearch) {
       setLocationVisible(loc, true);
       visibleLocations.push(loc);
     } else {
@@ -1153,6 +1215,7 @@ function syncPanelsToViewport() {
   if (isDragging) {
     endSheetDrag({ cancelled: true });
   }
+  syncSearchPanelAccessibility(activePanelState);
   if (activeSheetState === SHEET_STATES.HIDDEN) {
     setSheetState(SHEET_STATES.HIDDEN, { animate: false });
     return;

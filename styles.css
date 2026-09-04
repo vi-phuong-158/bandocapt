@@ -82,6 +82,62 @@
         visibility: visible;
         pointer-events: auto;
     }
+
+    #search-panel {
+        transition: opacity var(--dur-base) var(--ease-smooth), transform var(--dur-base) var(--ease-smooth), visibility 0s linear;
+    }
+    body[data-panel-state="detail"] #search-panel {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transform: translate3d(-12px, 0, 0);
+    }
+    body[data-panel-state="browsing"] #search-panel {
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+/* Service discovery chips */
+#service-filter-primary {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+}
+
+#service-filter-primary::-webkit-scrollbar {
+    display: none;
+}
+
+.service-chip {
+    min-height: 38px;
+    touch-action: manipulation;
+}
+
+@media (max-width: 767px) {
+    .service-chip {
+        min-height: 42px;
+    }
+}
+
+#detail-actions-grid {
+    display: grid;
+    gap: var(--space-3);
+}
+
+#detail-actions-grid.grid-cols-1 {
+    grid-template-columns: 1fr;
+}
+
+#detail-actions-grid.grid-cols-2 {
+    grid-template-columns: 1fr 1fr;
+}
+
+.detail-action--unavailable {
+    display: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

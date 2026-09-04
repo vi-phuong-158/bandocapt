@@ -1,5 +1,44 @@
 # 06 — AI Working Log
 
+## [2026-09-04] R1 — Map-First Design Closure & Desktop Reachability Closure
+- **Agent:** Antigravity (Google DeepMind)
+- **Bối cảnh:** Triển khai vòng thiết kế giao diện chính **Map-first civic app** trên repository `vi-phuong-158/bandocapt` theo Implementation Plan được phê duyệt có hiệu chỉnh (`R1_IMPLEMENTATION_PLAN_APPROVED_WITH_CORRECTIONS`).
+- **Branch / Worktree:** `feat/r1-map-first-design-closure` tạo từ `origin/main` (`7dab6d4`) tại worktree biệt lập `D:\04. Github\worktrees\bandocapt-r1-map-first` (bảo toàn 100% working tree bẩn của owner tại repo gốc). Rebase sạch lên `origin/main` (`6adbe5f`) sau khi PR #70 merge.
+- **Các thay đổi cốt lõi đã thực hiện:**
+  1. **Khám phá dịch vụ & tìm kiếm theo dịch vụ (P0-1):**
+     - Thêm tiêu đề gợi mở: `"Bạn cần làm thủ tục gì?"` trước ô tìm kiếm; 4 chip dịch vụ chính (`IDENTITY`, `RESIDENCE`, `VEHICLE_REGISTRATION`, `IMMIGRATION`) + nhóm mở rộng sinh động từ `LocationTaxonomy`.
+     - Cập nhật placeholder tìm kiếm: `"Tìm Công an xã/phường, địa chỉ hoặc dịch vụ"`.
+     - Mở rộng hàm `matchesSearch` trong `app.js` với `getServicesSearchText(loc)` derived từ `canonicalServiceCodes(loc)` + `serviceLabel()`. Tìm kiếm "căn cước" khớp dịch vụ `IDENTITY`, "cư trú" khớp `RESIDENCE`, v.v. mà không sinh taxonomy mới.
+  2. **Trợ năng đồng bộ theo Viewport (P0-2/Correction 2):**
+     - Tạo helper `syncSearchPanelAccessibility(state)` điều phối `inert` và `aria-hidden` trên `#search-panel` theo bảng ma trận (desktop browsing = active, desktop detail = inert, mobile browsing = inert/offscreen, mobile search = active, mobile detail = inert).
+     - Tích hợp duy nhất vào `applyPanelChrome` (sole state writer) và `syncPanelsToViewport` trên sự kiện resize qua 768px. Không tạo writer cạnh tranh.
+  3. **Cấu trúc thông tin & Trung thực giờ làm việc (P0-3):**
+     - Phân cấp thông tin tại `#detail-content`: Tên -> Dịch vụ & Phân loại -> Địa chỉ -> Giờ làm việc -> SĐT -> CTA Actions -> Lưu ý thủ tục -> Siêu dữ liệu xác minh.
+     - `#detail-hours-container` chỉ render khi có `serviceSchedule` thật từ dữ liệu nguồn. Tuyệt đối không hiển thị giờ hành chính giả định ("07h30–11h30 | 13h00–16h30").
+     - Tách riêng `#detail-procedure-note` cho `procedureNote` và cảnh báo `cccdServiceMode`.
+  4. **Kiểm định số điện thoại & CTA responsive (P0-4):**
+     - Thêm helper `getUsablePublicPhone(phone)` kiểm định độ dài chữ số (>= 7) và loại bỏ chuỗi rác/placeholder ("Cập nhật sau...").
+     - Thêm CSS modifier `.detail-action--unavailable { display: none !important; }` trong `styles.css` để vượt qua lỗi display:flex override.
+     - Khi thiếu phone: ẩn phone link và nút Gọi điện, chuyển `#detail-actions-grid` sang 1 cột để nút Chỉ đường chiếm toàn bộ chiều rộng.
+  5. **Bảo toàn Invariants:**
+     - Giữ nguyên `PANEL_STATES` (BROWSING, DETAIL, MOBILE_SEARCH); không tạo state `RESULTS`.
+     - Nút "Quay lại danh sách" trên desktop khôi phục trạng thái `BROWSING` với query và filter được bảo toàn.
+     - Đạt 0 horizontal overflow trên mobile (320px đến 430px).
+     - Giữ nguyên ranh giới an toàn của PR #70 (không đụng `api/chat.js` hay `lib/published-locations.js`).
+- **File đã sửa:**
+  - `index.html`: Cấu trúc lại header tìm kiếm với prompt dịch vụ, placeholder mới, nút quay lại danh sách có chữ trên desktop, thêm `#detail-procedure-note` và bố cục detail mới.
+  - `app.js`: Tích hợp tìm kiếm theo dịch vụ, `syncSearchPanelAccessibility`, `getUsablePublicPhone`, tách `procedureNote` khỏi `serviceSchedule`, quản lý CTA 1-cột / 2-cột.
+  - `styles.css`: Desktop single-sidebar transitions, service chip styling, `.detail-action--unavailable { display: none !important; }`, `#detail-actions-grid` responsive column rules.
+  - `output.css`: Biên dịch lại từ `npm run build:css`.
+  - `test/e2e/r1-design-closure.spec.js`: Bộ 10 test E2E tập trung kiểm chứng toàn diện các invariant mới.
+  - `docs/brain/00-project-overview.md`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Kiểm tra và nghiệm thu:**
+  - `npm test`: 652/652 pass (sau khi merge PR #70 thêm 10 unit test location-resolution).
+  - `npm run build`: pass (Tailwind CSS, Apps Script, syntax, staff, rate-limit, static build).
+  - Focused E2E (`r1-design-closure.spec.js`): 10/10 pass.
+  - Full E2E (`npx playwright test`): 96/96 pass với 0 regressions.
+  - Full CI Gate (`npm run ci`): pass hoàn toàn (exit code 0).
+
 ## [2026-09-03] R3D — Forward-port chatbot location-context fail-closed fix (`8403147`) from PR #65 onto current `main`
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** PR #65 (`fix: close chatbot location-context leak`) mở trên branch
