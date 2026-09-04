@@ -1,5 +1,29 @@
 # 01 - Architecture
 
+## R1 Map-First Design Closure & Desktop Reachability Closure (2026-09-04)
+
+- **Scope:** Hoàn thiện vòng thiết kế giao diện chính theo định hướng **Map-first civic app**; giải quyết triệt để desktop reachability gap được ghi nhận từ R2a/R3A; nâng cấp tìm kiếm hỗ trợ dịch vụ thủ tục hành chính; chuẩn hóa cấu trúc thông tin chi tiết (information hierarchy) và đảm bảo tính trung thực dữ liệu (không hiển thị giờ giả).
+- **Desktop single-sidebar lifecycle (`BROWSING` <-> `DETAIL`):**
+  - Giải quyết xung đột va chạm giao diện desktop: `#search-panel` và `#detail-panel` cùng chia sẻ không gian cột trái một cách loại trừ lẫn nhau (mutual exclusion).
+  - Khi ở `DETAIL`, `#search-panel` ẩn mượt mà (`opacity: 0; transform: translate3d(-12px, 0, 0); visibility: hidden; pointer-events: none`). Nút `#back-to-list-btn` ("Quay lại danh sách") cho phép người dùng quay lại trạng thái `BROWSING` một cách tự nhiên.
+  - Khi quay lại, query tìm kiếm, chip dịch vụ đang chọn và thứ tự kết quả tìm kiếm được bảo toàn trọn vẹn.
+- **Quản lý tiếp cận theo Viewport (`syncSearchPanelAccessibility`):**
+  - Quản lý tập trung trạng thái `inert` và `aria-hidden` của `#search-panel` phụ thuộc cả `activePanelState` và `isMobileViewport()`:
+    - Desktop + BROWSING: active (`inert=false, aria-hidden="false"`).
+    - Desktop + DETAIL: `inert=true, aria-hidden="true"`.
+    - Mobile + BROWSING: `inert=true, aria-hidden="true"` (search panel trôi ra ngoài viewport, tránh focus bàn phím/screen reader vào phần tử vô hình).
+    - Mobile + MOBILE_SEARCH: active (`inert=false, aria-hidden="false"`).
+    - Mobile + DETAIL: `inert=true, aria-hidden="true"`.
+  - Được gọi duy nhất từ `applyPanelChrome` (sole state writer) và `syncPanelsToViewport` khi co giãn màn hình qua mốc 768px. Tuyệt đối không tạo writer cạnh tranh.
+- **Tìm kiếm đa chiều theo dịch vụ thủ tục hành chính:**
+  - Copy tìm kiếm: `"Tìm Công an xã/phường, địa chỉ hoặc dịch vụ"`.
+  - `matchesSearch` mở rộng tìm kiếm theo nhãn dịch vụ canonical (`getServicesSearchText(loc)` từ `canonicalServiceCodes(loc)` + `serviceLabel()`). Người dân gõ "căn cước" khớp dịch vụ `IDENTITY`, "cư trú" khớp `RESIDENCE`, "đăng ký xe" khớp `VEHICLE_REGISTRATION` mà không hard-code taxonomy mới.
+- **Cấu trúc thông tin chi tiết & Trung thực dữ liệu:**
+  - Cấp bậc thông tin: Tên đơn vị -> Nhãn dịch vụ & Phân loại -> Địa chỉ -> Giờ làm việc thực tế -> Số điện thoại công khai -> Nút hành động chính (Chỉ đường, Gọi điện) -> Lưu ý thủ tục (`detail-procedure-note`) & Siêu dữ liệu (`servedUnits`, `verifiedAt`).
+  - **Giờ làm việc thực tế (P0 dữ liệu):** `#detail-hours-container` chỉ hiển thị khi có `serviceSchedule` thật từ dữ liệu nguồn. Tuyệt đối không hiển thị giờ hành chính mặc định giả ("07h30–11h30 | 13h00–16h30").
+  - **Lưu ý thủ tục tách biệt:** `procedureNote` và trạng thái `cccdServiceMode` được hiển thị độc lập tại `#detail-procedure-note`, không gộp vào khối giờ làm việc.
+  - **Kiểm định số điện thoại (`getUsablePublicPhone`):** Loại bỏ chuỗi rỗng, "Cập nhật sau...", khoảng trắng và chuỗi không có đủ độ dài số hợp lệ (< 7 chữ số). Khi không có số điện thoại hợp lệ: ẩn link điện thoại và nút Gọi điện bằng `.detail-action--unavailable` (`display: none !important`), chuyển `#detail-actions-grid` sang `grid-cols-1` để nút Chỉ đường chiếm toàn bộ chiều rộng.
+
 ## Location UI state hardening — R3A forward-port onto PR #66 taxonomy/filter UX (2026-09-03)
 
 - **Scope:** forward-ports the map-selection/panel-state/drag-dismiss safety invariants originally
