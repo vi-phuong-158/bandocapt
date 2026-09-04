@@ -57,6 +57,7 @@ let detailSuspended = false;
 // những chỗ khác: một URL hợp lệ vẫn có thể tải lỗi (404/mất quyền), khi đó hero đã rơi về logo.
 let detailImageIsPublic = false;
 let lightboxReturnFocus = null;
+if (typeof window !== "undefined") window.locations = locations;
 
 // Debounce utility
 function debounce(fn, delay) {
@@ -92,6 +93,7 @@ const map = L.map("map", {
   zoomSnap: 0.5,
   zoomDelta: 0.5,
 }).setView(CONFIG.center, CONFIG.defaultZoom);
+if (typeof window !== "undefined") window.map = map;
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
@@ -140,35 +142,69 @@ function matchesServiceFilter(loc, activeService) {
   return canonicalServiceCodes(loc).includes(activeService);
 }
 
+function getMarkerThumbnail(loc) {
+  const imageUrl = loc?.imageUrl;
+  if (imageUrl && isAllowedLocationImage(imageUrl)) {
+    return {
+      src: imageUrl,
+      isAllowed: true,
+    };
+  }
+  return {
+    src: "assets/logo.png",
+    isAllowed: false,
+  };
+}
+
 function createCustomIcon(loc) {
   const isPolice = !isIdentityLocation(loc);
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
 
-let wrapperClass = "marker-container";
+  let wrapperClass = "marker-container";
   if (isSelected) wrapperClass += " marker-selected";
   wrapperClass += isPolice ? " marker-police" : " marker-id";
 
-  let iconClass = "marker-icon";
+  const thumbnail = getMarkerThumbnail(loc);
+  const safeName = escapeHtml(loc.name);
+  const safeImgUrl = thumbnail.isAllowed ? escapeHtml(thumbnail.src) : "assets/logo.png";
+  const fallbackClass = thumbnail.isAllowed ? "" : " is-fallback";
 
-const html = `
+  const isMobile = isMobileViewport();
+  const iconWidth = isMobile ? 90 : 104;
+  const iconHeight = isMobile ? 100 : 110;
+  const anchorX = Math.round(iconWidth / 2);
+  const anchorY = isMobile ? 14 : 16;
+
+  const html = `
         <div class="${wrapperClass}">
-            <div class="${iconClass}">
+            <div class="marker-icon" aria-hidden="true">
                 <div class="marker-inner">
-                    <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">
+                    <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">
                         ${isPolice ? "shield" : "badge"}
                     </span>
                 </div>
             </div>
-            <div class="marker-label">${escapeHtml(loc.name)}</div>
+            <div class="marker-identity-card">
+                <div class="marker-identity-image-wrap${fallbackClass}">
+                    <img class="marker-identity-image${fallbackClass}"
+                         src="${safeImgUrl}"
+                         alt=""
+                         loading="lazy"
+                         decoding="async"
+                         aria-hidden="true"
+                         onerror="if(!this.dataset.errored){this.dataset.errored='1';this.src='assets/logo.png';this.classList.add('is-fallback');this.parentElement.classList.add('is-fallback');}else{this.style.display='none';}">
+                </div>
+                <div class="marker-identity-name marker-label" title="${safeName}">${safeName}</div>
+            </div>
         </div>
     `;
 
-return L.divIcon({
+  return L.divIcon({
     className: "transparent-leaflet-icon",
     html: html,
-    iconSize: [48, 48],
-    iconAnchor: [24, 48],
+    iconSize: [iconWidth, iconHeight],
+    iconAnchor: [anchorX, anchorY],
   });
 }
 
@@ -1184,10 +1220,14 @@ const marker = L.marker([loc.lat, loc.lng], {
       setLocationVisible(loc, true);
       marker.on("click", () => openDetailPanel(loc));
 
-locations.push(loc);
+      locations.push(loc);
     });
 
-filterAndRender();
+    if (typeof window !== "undefined") {
+      window.locations = locations;
+    }
+
+    filterAndRender();
 
 } catch (err) {
     console.warn("Google Sheets Headquarters Error: ", err.message);
@@ -1211,9 +1251,16 @@ document.addEventListener("keydown", event => {
   }
 });
 
+let lastViewportIsMobile = isMobileViewport();
+
 function syncPanelsToViewport() {
   if (isDragging) {
     endSheetDrag({ cancelled: true });
+  }
+  const currentIsMobile = isMobileViewport();
+  if (currentIsMobile !== lastViewportIsMobile) {
+    lastViewportIsMobile = currentIsMobile;
+    updateAllMarkersIcon();
   }
   syncSearchPanelAccessibility(activePanelState);
   if (activeSheetState === SHEET_STATES.HIDDEN) {

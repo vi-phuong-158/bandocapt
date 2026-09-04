@@ -1,5 +1,28 @@
 # 03 — Technical Decisions
 
+## [2026-09-05] R1.1: Marker Identity Cards — Presentation Layer for Standalone Markers
+
+- **Bối cảnh:** Người dùng cần nhận diện nhanh trụ sở/địa điểm ngay trên bản đồ trực quan bằng hình ảnh và tên đơn vị thay vì chỉ thấy pin icon hoặc tên khi zoom rất gần.
+- **Quyết định 1 — Marker Identity Card là presentation layer, không phải data model mới và không thay Detail Panel:**
+  - Marker card bao gồm: Pin vị trí (trên cùng) + Thumbnail trụ sở 16:9 (hoặc fallback logo ngành) + Tên đơn vị (giới hạn 2 dòng).
+  - Khung dữ liệu `loc` và data flow giữ nguyên vẹn; không biến đổi schema hoặc model.
+  - Detail Panel giữ vững vai trò là nguồn thông tin chi tiết đầy đủ (ảnh lớn full-size, địa chỉ, phân loại, dịch vụ, giờ tiếp nhận, số điện thoại, phạm vi phục vụ, các nút CTA chỉ đường/gọi điện). Marker card không chứa nút CTA, SĐT, giờ làm việc hay địa chỉ dài để tránh biến thành Detail Panel thu nhỏ.
+- **Quyết định 2 — Bất biến hình học tọa độ (Pin anchor geometry):**
+  - Tọa độ địa lý của địa điểm phải luôn trùng khớp với tâm vòng tròn của pin badge phía trên (`iconAnchor: [anchorX, 16]` trên desktop, `[anchorX, 14]` trên mobile).
+  - Thẻ nhận diện (card) mở rộng và treo xuống dưới chân pin mà không làm dịch chuyển tâm tọa độ địa lý của marker trên bản đồ khi zoom, pan hay thay đổi viewport.
+- **Quyết định 3 — Cơ chế an toàn ảnh và fallback không lặp vô hạn:**
+  - Ảnh chỉ được tải nếu URL vượt qua kiểm định `isAllowedLocationImage(loc.imageUrl)` (Google Drive preview, Googleusercontent, allowlist an toàn).
+  - Nếu thiếu ảnh hoặc URL không hợp lệ: dùng ngay `assets/logo.png`.
+  - Sự cố tải ảnh (lỗi mạng, 404, file bị xóa) được bắt bởi trình xử lý `onerror` phòng vệ: gán cờ `this.dataset.errored = '1'` để fallback về logo và tuyệt đối ngăn ngừa vòng lặp vô hạn nếu ảnh fallback cũng không tải được (`display: none`).
+- **Quyết định 4 — Bảo toàn toàn bộ các state arbiter và invariants sẵn có:**
+  - `setLocationVisible(loc, visible)` là nơi duy nhất được quyền ghi `loc._visible` và quản lý layer membership (`selectedLayer` / `clusterGroup`).
+  - `PANEL_STATES` (`BROWSING`, `DETAIL`, `MOBILE_SEARCH`) và `applyPanelChrome` giữ nguyên quyền kiểm soát các bề mặt giao diện.
+  - Vòng đời lựa chọn địa điểm (selection lifecycle) và thao tác click/chọn marker giữ nguyên vẹn (`openDetailPanel`, `closeDetailPanel`, `marker-selected`).
+  - Tính năng "Gần tôi" (`centerOnNearestVisible`) giữ nguyên hành vi hành động thuần túy, không ẩn bớt marker.
+- **Quyết định 5 — Phòng vệ hiệu năng bằng MarkerCluster:**
+  - Giữ nguyên Leaflet MarkerCluster (`disableClusteringAtZoom: 14`, `maxClusterRadius: zoom => zoom <= 9 ? 60 : zoom <= 11 ? 48 : 36`).
+  - MarkerCluster bảo vệ giao diện khỏi việc bùng nổ hàng ngàn thẻ DOM card và bùng nổ HTTP requests tải ảnh khi bản đồ ở mức zoom toàn tỉnh.
+
 ## [2026-09-04] R1: Map-First Civic App Design Closure & Accessibility Arbiter
 
 - **Bối cảnh:** Vòng thiết kế giao diện chính hoàn thiện theo hướng Map-first civic app. Cần giải quyết dứt điểm desktop reachability gap (vốn bị hoãn lại từ R2a/R3A), nâng cấp tìm kiếm hỗ trợ dịch vụ thủ tục hành chính, chuẩn hoá cấp bậc thông tin (information hierarchy) và loại bỏ hoàn toàn việc hiển thị giờ làm việc mặc định giả.
