@@ -138,6 +138,7 @@ test.describe('public location contribution form', () => {
         await expect(page.locator('[name=image]')).toHaveJSProperty('required', false);
         await page.locator('[name=address]').fill('Khu 2, Phú Thọ');
         await page.getByRole('button', { name: 'Gửi đóng góp' }).click();
+        await expect(page.locator('#public-contribution-status')).toContainText('Đã tiếp nhận yêu cầu');
         expect(submissions[0].requestType).toBe('Cập nhật địa điểm đang có');
         expect(submissions[0].targetRecordId).toBe('record-public-1');
         expect(submissions[0].image).toBeUndefined();
@@ -149,6 +150,7 @@ test.describe('public location contribution form', () => {
         await expect(page.locator('[name=image]')).toHaveJSProperty('required', false);
         await page.locator('[name=targetRecordId]').selectOption('record-public-1');
         await page.getByRole('button', { name: 'Gửi đóng góp' }).click();
+        await expect(page.locator('#public-contribution-status')).toContainText('Đã tiếp nhận yêu cầu');
         expect(submissions[1].requestType).toBe('Báo địa điểm ngừng hoạt động');
         expect(submissions[1].targetRecordId).toBe('record-public-1');
         expect(submissions[1].image).toBeUndefined();
