@@ -1,5 +1,28 @@
 # 01 - Architecture
 
+## R1.1 Marker Identity Cards — Presentation Layer (2026-09-05)
+
+- **Scope:** Nâng cấp marker trên bản đồ thành thẻ nhận diện (Marker Identity Card): **Pin vị trí (top) + ảnh trụ sở (hoặc fallback logo) + tên đơn vị (clamped 2 lines)**.
+- **Vai trò và ranh giới thông tin:**
+  - Marker Identity Card chỉ là **presentation layer** của standalone Leaflet marker trên bản đồ, hỗ trợ người dùng nhận diện nhanh địa điểm trực quan.
+  - Detail Panel vẫn là nguồn sự thật duy nhất cho thông tin chi tiết đầy đủ (ảnh lớn, địa chỉ, phân loại, dịch vụ, giờ tiếp nhận, số điện thoại, khu vực phục vụ, CTA chỉ đường/gọi điện). Không biến marker thành Detail Panel thu nhỏ.
+- **Bất biến hình học & tọa độ (Coordinate Anchor Invariant):**
+  - Khung marker card treo/mở rộng xuống dưới; `iconAnchor` của Leaflet divIcon được ghim chuẩn xác vào tâm vòng tròn của pin badge (`[anchorX, 16]` trên desktop 104x110px, `[anchorX, 14]` trên mobile 90x100px).
+  - Tọa độ địa lý trên bản đồ hoàn toàn bất biến, không bị lệch hoặc trôi khi card nở rộng hay thay đổi kích thước.
+- **An toàn hình ảnh & Fallback:**
+  - Ảnh trụ sở kiểm định qua `isAllowedLocationImage(loc.imageUrl)` (Google Drive preview, lh3 CDN, allowlist công khai).
+  - Khi không có ảnh hoặc ảnh không hợp lệ: fallback tức thì về `assets/logo.png` (`.marker-identity-image.is-fallback` hiển thị `object-fit: contain` trang nhã).
+  - Xử lý lỗi tải mạng phòng vệ: `onerror` sử dụng cờ `dataset.errored = '1'` chống vòng lặp vô hạn nếu fallback cũng gặp sự cố mạng (`display: none` an toàn).
+- **Trạng thái tương tác & Trợ năng:**
+  - Click vào bất kỳ điểm nào trên marker card (pin, ảnh, nhãn tên) kích hoạt `openDetailPanel(loc)`.
+  - Marker được chọn nhận class `.marker-selected` với border viền nổi bật (brand primary/amber), hiệu ứng phóng nhẹ `scale(1.06)` và bóng đổ sâu; không bao giờ sinh duplicate marker trên DOM.
+  - Typography: Tên đơn vị dùng `.marker-identity-name.marker-label` giới hạn tối đa 2 dòng (`line-clamp: 2`, `text-overflow: ellipsis`, `word-break: break-word`), có thuộc tính `title` hiển thị tooltip đầy đủ.
+- **Hiệu năng & Bảo vệ bằng MarkerCluster:**
+  - Leaflet MarkerCluster gom cụm các địa điểm ở mức zoom thấp và phân rã thành marker identity card ở mức zoom chi tiết (`disableClusteringAtZoom: 14`).
+  - Giữ vững kiểm định hiệu năng: bảo vệ khỏi bùng nổ DOM card và bùng nổ request tải ảnh (ở quy mô 5.000 địa điểm, chỉ 54 DOM marker và 31 ảnh request được nạp ban đầu).
+- **Đồng bộ Viewport:**
+  - `syncPanelsToViewport` lắng nghe co giãn qua ngưỡng 768px (`lastViewportIsMobile`), tự động gọi `updateAllMarkersIcon()` để tái tạo icon kích thước desktop (104x110) hoặc mobile (90x100) mượt mà.
+
 ## R1 Map-First Design Closure & Desktop Reachability Closure (2026-09-04)
 
 - **Scope:** Hoàn thiện vòng thiết kế giao diện chính theo định hướng **Map-first civic app**; giải quyết triệt để desktop reachability gap được ghi nhận từ R2a/R3A; nâng cấp tìm kiếm hỗ trợ dịch vụ thủ tục hành chính; chuẩn hóa cấu trúc thông tin chi tiết (information hierarchy) và đảm bảo tính trung thực dữ liệu (không hiển thị giờ giả).

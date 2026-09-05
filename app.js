@@ -100,15 +100,6 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
 }).addTo(map);
 
-// Hiện tên trụ sở khi zoom đủ gần (≥ LABEL_ZOOM) để nhãn không chồng chéo.
-// Toàn tỉnh (zoom thấp) chỉ thấy pin — giống Google Maps.
-const LABEL_ZOOM = 14;
-function updateMarkerLabels() {
-  map.getContainer().classList.toggle("show-marker-labels", map.getZoom() >= LABEL_ZOOM);
-}
-map.on("zoomend", updateMarkerLabels);
-updateMarkerLabels();
-
 document
   .getElementById("zoom-in-btn")
   .addEventListener("click", () => map.zoomIn());
@@ -140,37 +131,94 @@ function matchesServiceFilter(loc, activeService) {
   return canonicalServiceCodes(loc).includes(activeService);
 }
 
+function getMarkerThumbnail(loc) {
+  const imageUrl = loc?.imageUrl;
+  if (imageUrl && isAllowedLocationImage(imageUrl)) {
+    return {
+      src: imageUrl,
+      isAllowed: true,
+    };
+  }
+  return {
+    src: "assets/logo.png",
+    isAllowed: false,
+  };
+}
+
 function createCustomIcon(loc) {
   const isPolice = !isIdentityLocation(loc);
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
 
-let wrapperClass = "marker-container";
+  let wrapperClass = "marker-container";
   if (isSelected) wrapperClass += " marker-selected";
   wrapperClass += isPolice ? " marker-police" : " marker-id";
 
-  let iconClass = "marker-icon";
+  const thumbnail = getMarkerThumbnail(loc);
+  const safeName = escapeHtml(loc.name);
+  const safeImgUrl = thumbnail.isAllowed ? escapeHtml(thumbnail.src) : "assets/logo.png";
+  const fallbackClass = thumbnail.isAllowed ? "" : " is-fallback";
 
-const html = `
+  const isMobile = isMobileViewport();
+  const iconWidth = isMobile ? 90 : 104;
+  const iconHeight = isMobile ? 100 : 110;
+  const anchorX = Math.round(iconWidth / 2);
+  const anchorY = isMobile ? 14 : 16;
+
+  const html = `
         <div class="${wrapperClass}">
-            <div class="${iconClass}">
+            <div class="marker-icon" aria-hidden="true">
                 <div class="marker-inner">
-                    <span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">
+                    <span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">
                         ${isPolice ? "shield" : "badge"}
                     </span>
                 </div>
             </div>
-            <div class="marker-label">${escapeHtml(loc.name)}</div>
+            <div class="marker-identity-card">
+                <div class="marker-identity-image-wrap${fallbackClass}">
+                    <img class="marker-identity-image${fallbackClass}"
+                         src="${safeImgUrl}"
+                         alt=""
+                         loading="lazy"
+                         decoding="async"
+                         aria-hidden="true">
+                </div>
+                <div class="marker-identity-name marker-label" title="${safeName}">${safeName}</div>
+            </div>
         </div>
     `;
 
-return L.divIcon({
+  return L.divIcon({
     className: "transparent-leaflet-icon",
     html: html,
-    iconSize: [48, 48],
-    iconAnchor: [24, 48],
+    iconSize: [iconWidth, iconHeight],
+    iconAnchor: [anchorX, anchorY],
   });
 }
+
+// Xử lý lỗi tải ảnh marker tương thích 100% CSP (không dùng inline onerror trong HTML).
+// Sự kiện lỗi tài nguyên trên thẻ <img> không bubble nhưng kích hoạt đầy đủ ở capture phase.
+document.addEventListener(
+  "error",
+  (event) => {
+    const target = event.target;
+    if (
+      target &&
+      target.tagName === "IMG" &&
+      target.classList.contains("marker-identity-image")
+    ) {
+      if (!target.dataset.errored) {
+        target.dataset.errored = "1";
+        target.src = "assets/logo.png";
+        target.classList.add("is-fallback");
+        target.parentElement?.classList.add("is-fallback");
+      } else {
+        target.style.display = "none";
+      }
+    }
+  },
+  true
+);
 
 function createClusterIcon(cluster) {
   const count = cluster.getChildCount();
@@ -1184,10 +1232,10 @@ const marker = L.marker([loc.lat, loc.lng], {
       setLocationVisible(loc, true);
       marker.on("click", () => openDetailPanel(loc));
 
-locations.push(loc);
+      locations.push(loc);
     });
 
-filterAndRender();
+    filterAndRender();
 
 } catch (err) {
     console.warn("Google Sheets Headquarters Error: ", err.message);
@@ -1211,9 +1259,16 @@ document.addEventListener("keydown", event => {
   }
 });
 
+let lastViewportIsMobile = isMobileViewport();
+
 function syncPanelsToViewport() {
   if (isDragging) {
     endSheetDrag({ cancelled: true });
+  }
+  const currentIsMobile = isMobileViewport();
+  if (currentIsMobile !== lastViewportIsMobile) {
+    lastViewportIsMobile = currentIsMobile;
+    updateAllMarkersIcon();
   }
   syncSearchPanelAccessibility(activePanelState);
   if (activeSheetState === SHEET_STATES.HIDDEN) {

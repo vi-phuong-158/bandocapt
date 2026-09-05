@@ -26,8 +26,8 @@ function sseEvent(obj) {
 // tuần tự qua reader.read(); sau khi hết mảng, read() "treo" (chỉ resolve done sau `hangAfterMs`,
 // hoặc reject sớm khi AbortSignal của request bị abort — mô phỏng đúng hành vi fetch/undici thật).
 function installStreamFetch({ chunkSchedule = [], hangAfterMs = 999999999 } = {}) {
-    // Mốc để test biết fetch() đã thực sự được gọi, thay vì đoán số vòng event-loop.
-    const handle = { fetchCalled: false };
+    // Mốc để test biết fetch() đã thực sự được gọi, và stream reader đã bắt đầu đọc.
+    const handle = { fetchCalled: false, readCalled: false };
     let index = 0;
     let pendingReject = null;
     // Theo dõi timer đang chờ để clearTimeout khi bị abort — nếu không, timer giả lập
@@ -64,6 +64,7 @@ function installStreamFetch({ chunkSchedule = [], hangAfterMs = 999999999 } = {}
                 getReader() {
                     return {
                         read() {
+                            handle.readCalled = true;
                             if (index < chunkSchedule.length) {
                                 const { delayMs, text } = chunkSchedule[index++];
                                 return new Promise((resolve, reject) => {
@@ -108,23 +109,21 @@ async function tickAndFlush(t, ms, flushes = 2) {
 }
 
 // signRequestToken() ký HMAC bằng WebCrypto thật (không mock), hoàn tất qua nhiều vòng event
-// loop thật. Phải đợi fetch() được gọi RỒI mới bắt đầu tick, nếu không đồng hồ giả nhảy trước
-// khi code kịp đăng ký setTimeout và cả luồng đứng im.
-// Trước đây chỗ này đợi cứng 6 vòng `setImmediate`: đủ trên Node 24 nhưng không đủ trên Node 20
-// của CI, làm promise treo và node huỷ toàn bộ test còn lại trong file. Đợi theo mốc thật thì
-// không còn phụ thuộc phiên bản.
-async function waitForFetchCall(handle, maxRounds = 500) {
+// loop thật. Phải đợi fetch() và stream reader được gọi RỒI mới bắt đầu tick, nếu không đồng hồ giả
+// nhảy trước khi code kịp đăng ký setTimeout và cả luồng đứng im.
+// maxRounds tăng lên 5000 để an toàn dưới tải CPU cao của CI trên Node 24.
+async function waitForFetchCall(handle, maxRounds = 5000) {
     for (let round = 0; round < maxRounds; round++) {
-        if (handle.fetchCalled) return;
+        if (handle.readCalled) return;
         await yieldToEventLoop();
     }
-    throw new Error(`fetch() vẫn chưa được gọi sau ${maxRounds} vòng event loop — mock chưa vào guồng.`);
+    throw new Error(`stream reader vẫn chưa được gọi sau ${maxRounds} vòng event loop — mock chưa vào guồng.`);
 }
 
 // Chờ promise settle sau khi đã tick hết ngân sách thời gian giả của test. Nếu vẫn treo thì
 // ném lỗi nêu rõ test nào, thay vì để node bỏ dở cả file với thông báo khó lần
 // 'Promise resolution is still pending but the event loop has already resolved'.
-async function settled(promise, label, maxRounds = 500) {
+async function settled(promise, label, maxRounds = 5000) {
     let done = false;
     const tracked = promise.then(
         value => { done = true; return value; },

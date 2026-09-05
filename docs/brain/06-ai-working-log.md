@@ -1,5 +1,68 @@
 # 06 — AI Working Log
 
+## [2026-09-05] R1.1 — CSP-Compatible Marker Error Handler, Timing Test Hardening & Dead Code Cleanup
+- **Agent:** Antigravity (Google DeepMind)
+- **Bối cảnh:** Xử lý toàn diện danh sách phản hồi từ Owner cho PR #72:
+  1. Loại bỏ inline `onerror` trong chuỗi HTML của `createCustomIcon`, thay bằng listener sự kiện capture trên `document` hoàn toàn tương thích CSP (`script-src 'self'`).
+  2. Dọn dẹp dead code `LABEL_ZOOM = 14`, hàm `updateMarkerLabels()` và class `show-marker-labels` (nhãn nay được tích hợp trực tiếp vào thẻ marker).
+  3. Tránh lộ biến môi trường window ra ngoài production (`window.map` và `window.locations`).
+  4. Khắc phục triệt để các timing flakes trên Node 24 và full E2E suite:
+     - `test/gemini-stream-abort.test.js`: theo dõi `handle.readCalled` và tăng `maxRounds` lên 5000 để HMAC WebCrypto hoàn tất ổn định trong môi trường CI đa luồng.
+     - `test/e2e/staff-portal-modal.spec.js`: tăng delay in-flight submit từ 800ms lên 1800ms và backdrop timeout lên 6000ms.
+     - `test/e2e/public-location-contributions.spec.js`: tăng delay `failFirst` từ 100ms lên 500ms để assertion in-flight không bị race condition.
+     - `test/e2e/marker-identity-card.spec.js`: bổ sung `await expect(card).toBeVisible()` trước khi lấy `boundingBox` ở Test 5.
+  5. Nghiệm thu kỹ thuật:
+     - `npm test`: 652/652 PASS (6.9s).
+     - `npm run ci`: PASS (exit code 0).
+     - `npx playwright test`: 108/108 PASS (clean 100% pass run trên toàn bộ test suite).
+- **PR:** Giữ PR #72 ở trạng thái DRAFT chờ Owner visual review, không tự ý `gh pr ready` hay merge.
+
+## [2026-09-05] R1.1 — Marker Identity Cards with Station Previews
+- **Agent:** Antigravity (Google DeepMind)
+- **Bối cảnh:** Triển khai nâng cấp marker trên Bản đồ Công an số Phú Thọ (`vi-phuong-158/bandocapt`) theo yêu cầu TASK — R1.1 MARKER IDENTITY CARDS: Nâng cấp marker thành thẻ nhận diện trực quan gồm Pin vị trí + ảnh trụ sở + tên đơn vị.
+- **Branch / Worktree:** `feat/r1-1-marker-identity-cards` tạo từ `origin/main` (`8bc0187`) tại worktree độc lập `D:\04. Github\bandocapt-r1-1-marker-cards` (bảo toàn 100% working tree bẩn của owner tại repo gốc).
+- **Các thay đổi cốt lõi đã thực hiện:**
+  1. **Tạo Marker Identity Card trực quan (styles.css & app.js):**
+     - Cấu trúc DOM Leaflet divIcon: `.marker-container` bao gồm `.marker-icon` (circular civic badge 30px desktop / 28px mobile với shield/badge icon) và `.marker-identity-card` (104px desktop / 90px mobile).
+     - Khung ảnh `.marker-identity-image-wrap`: tỷ lệ chuẩn (56px chiều cao desktop / 48px mobile), ảnh `.marker-identity-image` dùng `object-fit: cover` sắc nét; khi fallback logo dùng `object-fit: contain`.
+     - Tên đơn vị `.marker-identity-name.marker-label`: font chữ rõ ràng, giới hạn tối đa 2 dòng với `line-clamp: 2`, `word-break: break-word` và `text-overflow: ellipsis`, kèm tooltip `title`.
+  2. **Bảo đảm Bất biến Tọa độ (Coordinate Anchor Invariant):**
+     - Tính toán chính xác `iconAnchor`: `[anchorX, 16]` trên desktop và `[anchorX, 14]` trên mobile.
+     - Vị trí địa lý trên bản đồ luôn gắn liền với tâm của pin badge phía trên; card mở rộng treo phía dưới mà không làm dịch chuyển tâm tọa độ thực tế.
+  3. **Cơ chế tải ảnh an toàn & Fallback chống vòng lặp vô hạn:**
+     - Hàm `getMarkerThumbnail(loc)` kiểm định URL qua `isAllowedLocationImage(loc.imageUrl)` (Google Drive, lh3, allowlist công khai an toàn).
+     - Khi URL rỗng hoặc không hợp lệ: fallback tức thì về `assets/logo.png`.
+     - Thẻ `<img>` tích hợp handler `onerror="if(!this.dataset.errored){this.dataset.errored='1';this.src='assets/logo.png';this.classList.add('is-fallback');this.parentElement.classList.add('is-fallback');}else{this.style.display='none';}"` loại bỏ triệt để nguy cơ vòng lặp retry vô hạn.
+  4. **Tương tác & Lựa chọn (Selection & Accessibility):**
+     - Click vào bất kỳ phần tử nào của card (pin, ảnh, text) kích hoạt `openDetailPanel(loc)`.
+     - Marker được chọn nhận `.marker-selected` với border màu vàng/amber đậm, viền nổi bật, độ sâu shadow lớn và hiệu ứng scale(1.06).
+     - Đồng bộ qua mốc 768px: `syncPanelsToViewport` gọi `updateAllMarkersIcon()` khi co giãn màn hình để chuyển đổi kích thước marker desktop <-> mobile mượt mà.
+  5. **Bảo vệ Hiệu năng & Chống bùng nổ DOM/Request:**
+     - Tận dụng Leaflet MarkerCluster gom cụm các địa điểm ở mức zoom thấp và phân rã thành marker identity card ở mức zoom chi tiết (`disableClusteringAtZoom: 14`).
+     - Benchmark 3 kịch bản:
+       - 100 locations: 60 DOM markers, 20 clusters, 33 image requests, load 3.3s.
+       - 1,000 locations: 60 DOM markers, 470 clusters, 33 image requests, load 3.1s.
+       - 5,000 locations: 54 DOM markers, 1710 clusters, 31 image requests, load 12.9s.
+       - Kết luận: PASS tuyệt đối, không bùng nổ thẻ card DOM hoặc image requests.
+  6. **Bảo toàn toàn bộ các state arbiter và invariants sẵn có:**
+     - `setLocationVisible` duy trì là sole writer của `loc._visible`.
+     - `PANEL_STATES` (`BROWSING`, `DETAIL`, `MOBILE_SEARCH`) và `applyPanelChrome` bảo toàn trọn vẹn.
+     - "Gần tôi" (`centerOnNearestVisible`) giữ nguyên hành vi không lọc bớt marker.
+- **File đã sửa / tạo:**
+  - `styles.css`: Thêm marker identity card, pin badge, thumbnail wrap, typography clamp, selected state, hover state.
+  - `app.js`: Tích hợp `createCustomIcon`, `getMarkerThumbnail`, an toàn `onerror`, đồng bộ viewport resize, expose `window.locations` và `window.map`.
+  - `scripts/benchmark-marker-card.js`: Script benchmark hiệu năng và network 100, 1000, 5000 locations.
+  - `scripts/capture-marker-screenshots.js`: Script tự động chụp 18 ảnh minh họa qua 6 viewports và các trạng thái A-G.
+  - `docs/screenshots/marker-identity-cards/*.png`: 18 ảnh chụp màn hình chi tiết.
+  - `test/e2e/marker-identity-card.spec.js`: 12 test E2E kiểm chứng toàn diện 12 kịch bản R1.1.
+  - `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Kiểm tra và nghiệm thu:**
+  - `npm test`: 652/652 pass (duration 7.7s).
+  - `npm run build`: pass (Tailwind CSS, Apps Script, syntax, staff, rate-limit, static build).
+  - Focused E2E (`marker-identity-card.spec.js`): 12/12 pass.
+  - Full E2E (`npx playwright test`): 106/108 pass (2 retry specs staff-portal-modal verify riêng 35/35 pass độc lập).
+  - Full CI Gate (`npm run ci`): pass hoàn toàn (exit code 0).
+
 ## [2026-09-04] R1 — Map-First Design Closure & Desktop Reachability Closure
 - **Agent:** Antigravity (Google DeepMind)
 - **Bối cảnh:** Triển khai vòng thiết kế giao diện chính **Map-first civic app** trên repository `vi-phuong-158/bandocapt` theo Implementation Plan được phê duyệt có hiệu chỉnh (`R1_IMPLEMENTATION_PLAN_APPROVED_WITH_CORRECTIONS`).
