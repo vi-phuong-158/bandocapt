@@ -1,5 +1,114 @@
 # 01 - Architecture
 
+## R1.1 Marker Identity Cards — Presentation Layer (2026-09-05)
+
+- **Scope:** Nâng cấp marker trên bản đồ thành thẻ nhận diện (Marker Identity Card): **Pin vị trí (top) + ảnh trụ sở (hoặc fallback logo) + tên đơn vị (clamped 2 lines)**.
+- **Vai trò và ranh giới thông tin:**
+  - Marker Identity Card chỉ là **presentation layer** của standalone Leaflet marker trên bản đồ, hỗ trợ người dùng nhận diện nhanh địa điểm trực quan.
+  - Detail Panel vẫn là nguồn sự thật duy nhất cho thông tin chi tiết đầy đủ (ảnh lớn, địa chỉ, phân loại, dịch vụ, giờ tiếp nhận, số điện thoại, khu vực phục vụ, CTA chỉ đường/gọi điện). Không biến marker thành Detail Panel thu nhỏ.
+- **Bất biến hình học & tọa độ (Coordinate Anchor Invariant):**
+  - Khung marker card treo/mở rộng xuống dưới; `iconAnchor` của Leaflet divIcon được ghim chuẩn xác vào tâm vòng tròn của pin badge (`[anchorX, 16]` trên desktop 104x110px, `[anchorX, 14]` trên mobile 90x100px).
+  - Tọa độ địa lý trên bản đồ hoàn toàn bất biến, không bị lệch hoặc trôi khi card nở rộng hay thay đổi kích thước.
+- **An toàn hình ảnh & Fallback:**
+  - Ảnh trụ sở kiểm định qua `isAllowedLocationImage(loc.imageUrl)` (Google Drive preview, lh3 CDN, allowlist công khai).
+  - Khi không có ảnh hoặc ảnh không hợp lệ: fallback tức thì về `assets/logo.png` (`.marker-identity-image.is-fallback` hiển thị `object-fit: contain` trang nhã).
+  - Xử lý lỗi tải mạng phòng vệ: `onerror` sử dụng cờ `dataset.errored = '1'` chống vòng lặp vô hạn nếu fallback cũng gặp sự cố mạng (`display: none` an toàn).
+- **Trạng thái tương tác & Trợ năng:**
+  - Click vào bất kỳ điểm nào trên marker card (pin, ảnh, nhãn tên) kích hoạt `openDetailPanel(loc)`.
+  - Marker được chọn nhận class `.marker-selected` với border viền nổi bật (brand primary/amber), hiệu ứng phóng nhẹ `scale(1.06)` và bóng đổ sâu; không bao giờ sinh duplicate marker trên DOM.
+  - Typography: Tên đơn vị dùng `.marker-identity-name.marker-label` giới hạn tối đa 2 dòng (`line-clamp: 2`, `text-overflow: ellipsis`, `word-break: break-word`), có thuộc tính `title` hiển thị tooltip đầy đủ.
+- **Hiệu năng & Bảo vệ bằng MarkerCluster:**
+  - Leaflet MarkerCluster gom cụm các địa điểm ở mức zoom thấp và phân rã thành marker identity card ở mức zoom chi tiết (`disableClusteringAtZoom: 14`).
+  - Giữ vững kiểm định hiệu năng: bảo vệ khỏi bùng nổ DOM card và bùng nổ request tải ảnh (ở quy mô 5.000 địa điểm, chỉ 54 DOM marker và 31 ảnh request được nạp ban đầu).
+- **Đồng bộ Viewport:**
+  - `syncPanelsToViewport` lắng nghe co giãn qua ngưỡng 768px (`lastViewportIsMobile`), tự động gọi `updateAllMarkersIcon()` để tái tạo icon kích thước desktop (104x110) hoặc mobile (90x100) mượt mà.
+
+## R1 Map-First Design Closure & Desktop Reachability Closure (2026-09-04)
+
+- **Scope:** Hoàn thiện vòng thiết kế giao diện chính theo định hướng **Map-first civic app**; giải quyết triệt để desktop reachability gap được ghi nhận từ R2a/R3A; nâng cấp tìm kiếm hỗ trợ dịch vụ thủ tục hành chính; chuẩn hóa cấu trúc thông tin chi tiết (information hierarchy) và đảm bảo tính trung thực dữ liệu (không hiển thị giờ giả).
+- **Desktop single-sidebar lifecycle (`BROWSING` <-> `DETAIL`):**
+  - Giải quyết xung đột va chạm giao diện desktop: `#search-panel` và `#detail-panel` cùng chia sẻ không gian cột trái một cách loại trừ lẫn nhau (mutual exclusion).
+  - Khi ở `DETAIL`, `#search-panel` ẩn mượt mà (`opacity: 0; transform: translate3d(-12px, 0, 0); visibility: hidden; pointer-events: none`). Nút `#back-to-list-btn` ("Quay lại danh sách") cho phép người dùng quay lại trạng thái `BROWSING` một cách tự nhiên.
+  - Khi quay lại, query tìm kiếm, chip dịch vụ đang chọn và thứ tự kết quả tìm kiếm được bảo toàn trọn vẹn.
+- **Quản lý tiếp cận theo Viewport (`syncSearchPanelAccessibility`):**
+  - Quản lý tập trung trạng thái `inert` và `aria-hidden` của `#search-panel` phụ thuộc cả `activePanelState` và `isMobileViewport()`:
+    - Desktop + BROWSING: active (`inert=false, aria-hidden="false"`).
+    - Desktop + DETAIL: `inert=true, aria-hidden="true"`.
+    - Mobile + BROWSING: `inert=true, aria-hidden="true"` (search panel trôi ra ngoài viewport, tránh focus bàn phím/screen reader vào phần tử vô hình).
+    - Mobile + MOBILE_SEARCH: active (`inert=false, aria-hidden="false"`).
+    - Mobile + DETAIL: `inert=true, aria-hidden="true"`.
+  - Được gọi duy nhất từ `applyPanelChrome` (sole state writer) và `syncPanelsToViewport` khi co giãn màn hình qua mốc 768px. Tuyệt đối không tạo writer cạnh tranh.
+- **Tìm kiếm đa chiều theo dịch vụ thủ tục hành chính:**
+  - Copy tìm kiếm: `"Tìm Công an xã/phường, địa chỉ hoặc dịch vụ"`.
+  - `matchesSearch` mở rộng tìm kiếm theo nhãn dịch vụ canonical (`getServicesSearchText(loc)` từ `canonicalServiceCodes(loc)` + `serviceLabel()`). Người dân gõ "căn cước" khớp dịch vụ `IDENTITY`, "cư trú" khớp `RESIDENCE`, "đăng ký xe" khớp `VEHICLE_REGISTRATION` mà không hard-code taxonomy mới.
+- **Cấu trúc thông tin chi tiết & Trung thực dữ liệu:**
+  - Cấp bậc thông tin: Tên đơn vị -> Nhãn dịch vụ & Phân loại -> Địa chỉ -> Giờ làm việc thực tế -> Số điện thoại công khai -> Nút hành động chính (Chỉ đường, Gọi điện) -> Lưu ý thủ tục (`detail-procedure-note`) & Siêu dữ liệu (`servedUnits`, `verifiedAt`).
+  - **Giờ làm việc thực tế (P0 dữ liệu):** `#detail-hours-container` chỉ hiển thị khi có `serviceSchedule` thật từ dữ liệu nguồn. Tuyệt đối không hiển thị giờ hành chính mặc định giả ("07h30–11h30 | 13h00–16h30").
+  - **Lưu ý thủ tục tách biệt:** `procedureNote` và trạng thái `cccdServiceMode` được hiển thị độc lập tại `#detail-procedure-note`, không gộp vào khối giờ làm việc.
+  - **Kiểm định số điện thoại (`getUsablePublicPhone`):** Loại bỏ chuỗi rỗng, "Cập nhật sau...", khoảng trắng và chuỗi không có đủ độ dài số hợp lệ (< 7 chữ số). Khi không có số điện thoại hợp lệ: ẩn link điện thoại và nút Gọi điện bằng `.detail-action--unavailable` (`display: none !important`), chuyển `#detail-actions-grid` sang `grid-cols-1` để nút Chỉ đường chiếm toàn bộ chiều rộng.
+
+## Location UI state hardening — R3A forward-port onto PR #66 taxonomy/filter UX (2026-09-03)
+
+- **Scope:** forward-ports the map-selection/panel-state/drag-dismiss safety invariants originally
+  built as R1 (`828a11c`), R2a (`fad4eb6`) and R2b (`0453e16`) — on a now-abandoned earlier branch
+  state — onto the taxonomy/filter UX that actually shipped to `main` via PR #66 ("fix: align map UX
+  with location taxonomy", `f975702`). R0.5's own taxonomy/filter implementation (checkbox filters,
+  `isPoliceLocation`/`isCccdLocation`) is **superseded** by PR #66 and was not restored; only the
+  state-lifecycle invariants were carried forward. No visual redesign, no taxonomy/filter UX change.
+- **Product decisions preserved from PR #66, unchanged by this port:** single-select service-filter
+  chips (`activeServiceFilter` scalar, `matchesServiceFilter`, `PRIMARY_SERVICE_CODES`); classification
+  via `isIdentityLocation`/`canonicalServiceCodes` (mutually-exclusive police-vs-identity boolean,
+  not R0.5's two independent, possibly-overlapping predicates); "Gần tôi" (`centerOnNearestVisible`)
+  as a pure sort/center action that never hides or removes a marker (no Top-5 cut).
+- **R1 port — visibility source of truth:** added `setLocationVisible(loc, visible)` as the only
+  function allowed to write `loc._visible` and touch marker layer membership
+  (`clusterGroup`/`selectedLayer`) together. Routed `filterAndRender`'s per-location decision and
+  `fetchHeadquarters`' initial load through it (main had these as two separate, non-atomic
+  statements — the exact structural risk R1 originally closed). `showMobileSearch`'s deselect path
+  fixed to call `refreshLocationMarker` instead of a bare `marker.setIcon(...)` (the concrete R1 bug:
+  a deselected marker stayed stuck in `selectedLayer`, exempt from clustering, until an unrelated
+  filter/search event happened to repair it — this exact bug was still present on `main`, unfixed,
+  before this port). `centerOnNearestVisible` (PR #66's near-me) was left untouched — it only reads
+  `loc._visible`, never writes it, so it was never part of the R1 risk class.
+- **R2a port — panel-state arbiter:** added `PANEL_STATES` (`BROWSING`/`DETAIL`/`MOBILE_SEARCH`) and
+  `applyPanelChrome(state, opts)` as the sole writer of `activePanelState` /
+  `document.body.dataset.panelState`, and the sole caller of `setSheetState` (whole-surface
+  transitions) and the new `setMobileSearchOverlay` (mobile-search-overlay DOM chrome, extracted from
+  the duplicated inline writes in `showMobileSearch`/`hideMobileSearch` that main still had).
+  `openDetailPanel`, `closeDetailPanel`, `showMobileSearch`, `hideMobileSearch`,
+  `suspendDetailSelection`, `resumeDetailSelection` and the initial page-load state all route through
+  it. Also fixed the Escape-key handler, which on `main` still read
+  `closeSearchBtn.offsetParent !== null` (a layout heuristic true whenever the viewport is
+  mobile-width, regardless of whether the overlay is actually open) — the exact R2a bug, still
+  present, unfixed, on `main` before this port; now reads `activePanelState === PANEL_STATES.MOBILE_SEARCH`.
+  Left as direct `setSheetState` calls (intra-surface mechanics, not panel-state transitions):
+  `previewExpandBtn`'s collapsed→expanded tap, `syncPanelsToViewport`'s resize resync, and
+  `endSheetDrag`'s non-dismiss resolutions (see R2b below).
+- **R2b port — drag-dismiss selection cleanup:** `endSheetDrag`, when a drag resolves to
+  `SHEET_STATES.HIDDEN` (a full dismiss, not a sheet-position tweak), now calls
+  `closeDetailPanel({ restoreFocus })` instead of a bare `setSheetState(HIDDEN, ...)` — the exact R2b
+  bug, still present, unfixed, on `main` before this port. A cancelled drag can never resolve to
+  `HIDDEN` (pointerdown refuses to start a drag while the sheet is already `HIDDEN`), so the cancelled
+  path is unaffected.
+- **Test-adaptation principle:** R1/R2a's original E2E specs asserted against the checkbox filter
+  (`#filter-police`/`#filter-id`/`#filter-nearby`), which no longer exists on `main`. Every such
+  assertion was rewritten against the current UI (`.service-chip[data-service="..."]`, real clicks)
+  — the *invariant* under test (no stale marker/panel/selection across a filter-driven visibility
+  change) is unchanged; only the interaction mechanism was updated. `test/location-ui.test.js`'s one
+  affected characterization assertion (`filterAndRender`'s visibility-write call site) was updated to
+  check for `setLocationVisible(loc, ` instead of a bare `addLocationMarker(loc)` — every other PR #66
+  taxonomy/filter characterization test in that file is untouched and still passes.
+- **New coverage, not carried over from the old branch:** `test/e2e/near-me-pure-action.spec.js` — PR
+  #66's "Gần tôi" pure-action contract (no Top-5 revival, respects the active service filter, does
+  not disturb a live selection) had no dedicated regression test before this port.
+- **Preserved as-is:** `canonicalServiceCodes`/`isIdentityLocation`/`matchesServiceFilter`/
+  `PRIMARY_SERVICE_CODES`/`centerOnNearestVisible` (PR #66) — untouched; `applyPanelChrome` and
+  `setLocationVisible` only ever decide panel chrome / marker-layer membership, never taxonomy
+  classification or filter matching. Schema/API, contribution flows, chatbot — untouched.
+- **Not re-opened:** the desktop reachability gap R2a already flagged (`#detail-panel` visually
+  covers `#search-panel` — including its filter chips now — whenever a location is selected on
+  desktop) is unchanged; it is a layout question, out of scope for a state-lifecycle port.
+
 ## Unified location form contract (2026-08-31)
 
 - `lib/location-taxonomy.js` is the UMD registry used by Node, static browser pages and the generated Apps Script bundle. It owns canonical site-type/service labels, ordering, write validation, legacy display mapping and deterministic display-name policy.
@@ -25,6 +134,11 @@
 
 Map data path: `Google GViz -> api/google-sheet schema guard -> js/location-data normalize -> map`.
 Chat location data path: `Google GViz -> lib/published-locations schema/dataset guard -> cache -> api/chat`.
+
+Chat location-resolution safety path: `current message + immediate assistant follow-up contract ->
+lib/published-locations resolver (matched/no_match/ambiguous) -> api/chat verified-location prompt ->
+server-side no_match output gate -> SSE`. Historical user messages are not location evidence; the
+published-location cache is data-only and never stores conversation state.
 
 The GViz request must include `headers=1`. Without this explicit parameter, Google can infer a
 second header row when the first public record is mostly text, folding that record's values into
@@ -403,7 +517,7 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 | `js/tthc-catalog.js` | UI danh muc TTHC duyet 2 tang (3 view): home search-first + luoi 17 linh vuc gom 4 cum -> danh sach thu tuc/ket qua tim kiem (hang chia dong) -> chi tiet (tom tat + note phi + accordion). `parseProcedureSections`/`classifySection` nhan CA nhan TTHC ("Ho so:") lan nhan wiki danh so cua guide ("15.1. Trinh tu:"). Public `resolveProcedureId`/`openProcedure`/`openByTitle` giu nguyen (deep-link tu chat mo thang chi tiet); chi warm index nhe, catalog day du chi fetch khi mo panel | `js/lazy-features.js`, `js/chatbot.js`, `js/app-navigation.js` | `data/tthc-index.json`, `data/tthc-catalog.json` |
 | `data/tthc-index.json` | Chi muc nhe `{procedure_id,title,aliases}` de chat doi chieu nhanh | `js/tthc-catalog.js` | `scripts/generate-tthc-catalog.js --index-only` |
 | `data/tthc-catalog.json` | Catalog TTHC tinh de nguoi dung doi chieu cau tra loi AI | `js/tthc-catalog.js` | sinh tu Pinecone live + audit phi, fallback backup khi local khong co key |
-| `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, hop nhat alias va match tru so theo hoi thoai. T1.9: cau tra loi quoc tich ("Nguoi Viet Nam"...) KHONG phai dia danh — `NATIONALITY_ANSWER_PATTERN` loai khoi heuristic cau ngan; `isNationalityAnswerContext` cho `api/chat.js` ne nhanh tat dinh no_match khi bot vua hoi quoc tich | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
+| `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, merge approved aliases and resolve only current-message evidence or an immediate assistant location follow-up. Historical user turns are excluded from location scoring; returns `matched`, `no_match`, `ambiguous_match` or `ambiguous_conflict`. T1.9: nationality answers remain outside location flow | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
 | `lib/location-workbooks.js` | Resolves public/private workbook IDs with fail-closed conflict and boundary checks; explicitly classifies sheet trust boundary | `api/google-sheet.js`, `lib/published-locations.js`, migration dry-run, test | environment contract only; never Google credentials |
 | `lib/operational-baseline.js` | Canonical private baseline projection, provenance validation, reconciliation and staging overlay for legacy published records | Apps Script adapter, dry-run tool, Gateway tests | `lib/staff-location-contract.js`; no Google API or private PII |
 | `lib/output-validator.js` | Fail-closed output guard: doi chieu va redact SDT/Maps/toa do/URL cong khai/so lieu phap ly khong co trong nguon xac minh; URL chi duoc giu khi xuat hien trong RAG/citation/tru so da duyet | `api/chat.js`, test | - |
@@ -418,7 +532,7 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 | `api/google-sheet.js` | Proxy chi cho phep `Published_Locations`, giu response payload hien tai | `app.js` | `lib/published-locations.js` |
 | `scripts/dual-workbook-dry-run.js` | Read-only JSON-export inventory and cutover comparison; validates P0 schema/coordinates and detects missing, unexpected or duplicate record IDs | Operator / test | `lib/location-workbooks.js`, `js/location-data.js` |
 | `scripts/reconcile-operational-baseline.js` | Read-only JSON-export planner for `Operational_Baseline`; rejects write flags and reports count/provenance/fidelity blockers | Operator / test | `lib/operational-baseline.js` |
-| `api/chat.js` | (2026-08-25 PR-1) Phan dieu phoi tu `isClearlyOutOfScope` tro di KHONG con cham `res`: moi output di qua sink (`sink.open/event/close/fail/isOpen/startHeartbeat`). Phan CORS/method/HMAC/Turnstile/rate-limit phia TREN diem do van giu `res` — do la transport rieng cua kenh website, khong dung chung. Serverless chinh: xac thuc, rate limit atomic chi theo IP/ngay (khong quota tong ngay/thang), RAG Pinecone; Gemini chi mot request embedding/cau hoi RAG, DeepSeek V4 Flash sinh cau tra loi va utility (rewrite/dich/rerank/tom tat/groundedness, utility tat thinking); strict default khong fallback, stable chi DeepSeek 429/5xx -> Gemini; T2C deadline/telemetry; stream model da validator. (2026-08-06) `startSseHeartbeat()` phat `status:generating` moi 5s trong luc cho generation, tranh client tu huy do idle timeout gia | `js/gemini.js` | Pinecone, Gemini/DeepSeek, Firebase, `@vercel/functions`, `data/tthc-catalog.json`, `lib/published-locations.js`, `lib/request-security.js` |
+| `api/chat.js` | (2026-09-01) location resolver status is traced in eval-only local output; `no_match`/`unavailable` answers are buffered and deterministically gated after generation so a model cannot stream a specific station/address/phone/Maps claim. (2026-08-25 PR-1) Phan dieu phoi tu `isClearlyOutOfScope` tro di KHONG con cham `res`: moi output di qua sink (`sink.open/event/close/fail/isOpen/startHeartbeat`). Phan CORS/method/HMAC/Turnstile/rate-limit phia TREN diem do van giu `res` — do la transport rieng cua kenh website, khong dung chung. Serverless chinh: xac thuc, rate limit atomic chi theo IP/ngay (khong quota tong ngay/thang), RAG Pinecone; Gemini chi mot request embedding/cau hoi RAG, DeepSeek V4 Flash sinh cau tra loi va utility (rewrite/dich/rerank/tom tat/groundedness, utility tat thinking); strict default khong fallback, stable chi DeepSeek 429/5xx -> Gemini; T2C deadline/telemetry; stream model da validator. (2026-08-06) `startSseHeartbeat()` phat `status:generating` moi 5s trong luc cho generation, tranh client tu huy do idle timeout gia | `js/gemini.js` | Pinecone, Gemini/DeepSeek, Firebase, `@vercel/functions`, `data/tthc-catalog.json`, `lib/published-locations.js`, `lib/request-security.js` |
 | `scripts/generate-tthc-catalog.js` | Sinh `data/tthc-catalog.json`; uu tien doc Pinecone live, mac dinh gom `tthc_*` + `guide_*` co noi dung (loc guide rong/noi bo), dedupe theo linh vuc+cap+ten, fallback backup khi local khong co env | Developer, test | `data/pinecone-backups/`, Pinecone, `.env`/`.env.local` |
 | `scripts/scrape-phutho-tthc.js` | Thu thap tuan tu 18 linh vuc/chi tiet TTHC Cong an Phu Tho; sinh snapshot co hash + CSV doi chieu 39 record HIGH, khong tu dong approved/ghi Pinecone | Developer / nguoi duyet T3.3 | `https://congan.phutho.gov.vn/TTHC.aspx`, `data/corpus-governance-draft.csv` |
 | `scripts/generate-phutho-xa-review.js` | Loc day du 43 muc cap xa tu snapshot; doi chieu corpus cu, de xuat tao moi/cap nhat/loai va sinh CSV + Markdown de nguoi dung duyet | Developer / nguoi duyet T3.3 mo rong | `data/tthc-phutho-source.json`, `data/corpus-governance-draft.csv` |

@@ -47,16 +47,20 @@ test.describe('Mobile Real-Device UX Fixes', () => {
 
             const bottomNav = page.locator('#mobile-bottom-nav');
             const findLocationBtn = page.locator('#find-location-btn');
-            const contributionCta = page.locator('#mobile-contribution-cta');
+            const contributionCta = page.locator('#public-contribution-cta');
 
             await expect(bottomNav).toBeVisible();
             await expect(findLocationBtn).toBeVisible();
             await expect(contributionCta).toBeVisible();
 
+            // Kiem tra khong bi duplicate CTA: khong ton tai #mobile-contribution-cta cu va chi co 1 canonical CTA
+            expect(await page.locator('#mobile-contribution-cta').count()).toBe(0);
+            await expect(page.locator('#public-contribution-cta')).toHaveCount(1);
+
             const boxes = await page.evaluate(() => {
                 const nav = document.getElementById('mobile-bottom-nav').getBoundingClientRect();
                 const fab = document.getElementById('find-location-btn').getBoundingClientRect();
-                const cta = document.getElementById('mobile-contribution-cta').getBoundingClientRect();
+                const cta = document.getElementById('public-contribution-cta').getBoundingClientRect();
                 return {
                     nav: { top: nav.top, bottom: nav.bottom, height: nav.height },
                     fab: { top: fab.top, bottom: fab.bottom, height: fab.height, left: fab.left, right: fab.right },
@@ -98,7 +102,7 @@ test.describe('Mobile Real-Device UX Fixes', () => {
         const boxes = await page.evaluate(() => {
             const preview = document.getElementById('location-preview').getBoundingClientRect();
             const fab = document.getElementById('find-location-btn').getBoundingClientRect();
-            const cta = document.getElementById('mobile-contribution-cta').getBoundingClientRect();
+            const cta = document.getElementById('public-contribution-cta').getBoundingClientRect();
             return {
                 preview: { top: preview.top, bottom: preview.bottom },
                 fab: { top: fab.top, bottom: fab.bottom },
@@ -129,14 +133,14 @@ test.describe('Mobile Real-Device UX Fixes', () => {
         const unselectedPins = page.locator('.marker-container.marker-mobile-compact:not(.marker-selected)');
         await expect(unselectedPins.first()).toBeVisible();
 
-        // Tren mobile o zoom thong thuong: unselected marker khong hien nhan to
-        const isLabelVisible = await page.evaluate(() => {
-            const label = document.querySelector('.marker-container.marker-mobile-compact:not(.marker-selected) .marker-label');
-            if (!label) return false;
-            const style = window.getComputedStyle(label);
+        // Tren mobile o zoom thong thuong: unselected marker khong hien card lon
+        const isCardVisible = await page.evaluate(() => {
+            const card = document.querySelector('.marker-container.marker-mobile-compact:not(.marker-selected) .marker-identity-card');
+            if (!card) return false;
+            const style = window.getComputedStyle(card);
             return style.display !== 'none' && style.opacity !== '0' && style.visibility !== 'hidden';
         });
-        expect(isLabelVisible).toBe(false);
+        expect(isCardVisible).toBe(false);
 
         // Click vao 1 marker tren ban do
         await unselectedPins.first().click({ force: true });
@@ -164,21 +168,18 @@ test.describe('Mobile Real-Device UX Fixes', () => {
         await page.setViewportSize({ width: 1280, height: 800 });
         await page.goto('/');
 
-        // Nut contribution cta noi cua mobile phai an tren desktop
-        await expect(page.locator('#mobile-contribution-cta')).toBeHidden();
+        // Bottom nav cua mobile phai an tren desktop
         await expect(page.locator('#mobile-bottom-nav')).toBeHidden();
 
         // Cho ban do va ket qua khoi tao hoan tat
         await expect(page.locator('#results-list .result-item').first()).toBeVisible();
 
-        // Zoom 14+ tren desktop hien marker labels binh thuong
+        // Zoom 14+ tren desktop: identity cards hien thi day du
         for (let i = 0; i < 8; i++) {
             await page.locator('#zoom-in-btn').click();
-            await page.waitForTimeout(300);
+            await page.waitForTimeout(100);
         }
 
-        await expect.poll(() => page.evaluate(() => {
-            return document.getElementById('map').classList.contains('show-marker-labels');
-        })).toBe(true);
+        await expect.poll(() => page.locator('.marker-identity-card').count()).toBeGreaterThan(0);
     });
 });

@@ -1,5 +1,19 @@
 # 06 — AI Working Log
 
+## [2026-09-06] Integration of origin/main into PR #73 & Semantic Conflict Resolution
+- **Agent:** Codex
+- **Bối cảnh & Mục tiêu:** Tích hợp `origin/main` mới nhất (`da2eb7db5c3810412b900caa800e61d6116a4cf6`) vào nhánh `fix/mobile-real-device-ux` để đóng blocker CI (PR dirty/conflicting không tạo được `refs/pull/73/merge`), đồng thời:
+  1. Hợp nhất cấu trúc thẻ marker: Giữ nguyên canonical marker identity card (PR #72) cho desktop (thẻ 104px có ảnh trụ sở + tên đơn vị đầy đủ); trên mobile: unselected markers giữ compact pin (34px, không thumbnail, không nhãn dài che khuất), selected marker hiển thị canonical identity card (90px) trong selectedLayer nổi bật.
+  2. Khử trùng lặp CTA: Loại bỏ `#mobile-contribution-cta`, hợp nhất vào `#public-contribution-cta` canonical của main, đảm bảo trên mobile chỉ có đúng 1 CTA đóng góp hiển thị ở góc trái dưới, ngang hàng với FAB GPS bên phải.
+  3. Bảo tồn 100% các sửa đổi chatbot (CDN timeout + fallback local vendor scripts + graceful degradation) và mobile FAB positioning.
+- **File đã sửa:**
+  - `app.js`: Tích hợp logic marker của PR #72 với mobile compact/selected toggle; loại bỏ xung đột.
+  - `styles.css`: Hợp nhất CSS marker và floating action tier; loại bỏ `#mobile-contribution-cta` trùng lặp; bảo đảm `#public-contribution-cta` và `#map-actions` cùng baseline an toàn trên bottom nav.
+  - `index.html`: Loại bỏ thẻ `#mobile-contribution-cta` trùng lặp; dùng `#public-contribution-cta` canonical.
+  - `output.css`: Biên dịch lại từ `npm run build:css`.
+  - `test/e2e/mobile-real-device-ux.spec.js`: Cập nhật bộ test E2E để kiểm thử `#public-contribution-cta` duy nhất, không duplicate, và marker canonical identity card.
+- **Kiểm tra:** Full unit test suite, full E2E test suite và exact-head GitHub Actions CI.
+
 ## [2026-09-06] Owner Mobile Acceptance & CI Trigger Recovery for PR #73
 - **Agent:** Codex
 - **Status:** Owner Mobile Acceptance = PASS (đã nghiệm thu trực tiếp trên Android thật qua Vercel Preview).
@@ -30,6 +44,210 @@
   - `npx playwright test test/e2e/civic-mobile-ui.spec.js`: 4/4 pass.
   - `npx playwright test test/e2e/chat-embed.spec.js`: 1/1 pass.
   - Chụp ảnh màn hình đối chứng post-fix tại `test/results/post-fix/` cho cả 4 màn hình yêu cầu.
+
+## [2026-09-05] R1.1 — CSP-Compatible Marker Error Handler, Timing Test Hardening & Dead Code Cleanup
+- **Agent:** Antigravity (Google DeepMind)
+- **Bối cảnh:** Xử lý toàn diện danh sách phản hồi từ Owner cho PR #72:
+  1. Loại bỏ inline `onerror` trong chuỗi HTML của `createCustomIcon`, thay bằng listener sự kiện capture trên `document` hoàn toàn tương thích CSP (`script-src 'self'`).
+  2. Dọn dẹp dead code `LABEL_ZOOM = 14`, hàm `updateMarkerLabels()` và class `show-marker-labels` (nhãn nay được tích hợp trực tiếp vào thẻ marker).
+  3. Tránh lộ biến môi trường window ra ngoài production (`window.map` và `window.locations`).
+  4. Khắc phục triệt để các timing flakes trên Node 24 và full E2E suite:
+     - `test/gemini-stream-abort.test.js`: theo dõi `handle.readCalled` và tăng `maxRounds` lên 5000 để HMAC WebCrypto hoàn tất ổn định trong môi trường CI đa luồng.
+     - `test/e2e/staff-portal-modal.spec.js`: tăng delay in-flight submit từ 800ms lên 1800ms và backdrop timeout lên 6000ms.
+     - `test/e2e/public-location-contributions.spec.js`: tăng delay `failFirst` từ 100ms lên 500ms để assertion in-flight không bị race condition.
+     - `test/e2e/marker-identity-card.spec.js`: bổ sung `await expect(card).toBeVisible()` trước khi lấy `boundingBox` ở Test 5.
+  5. Nghiệm thu kỹ thuật:
+     - `npm test`: 652/652 PASS (6.9s).
+     - `npm run ci`: PASS (exit code 0).
+     - `npx playwright test`: 108/108 PASS (clean 100% pass run trên toàn bộ test suite).
+- **PR:** Giữ PR #72 ở trạng thái DRAFT chờ Owner visual review, không tự ý `gh pr ready` hay merge.
+
+## [2026-09-05] R1.1 — Marker Identity Cards with Station Previews
+- **Agent:** Antigravity (Google DeepMind)
+- **Bối cảnh:** Triển khai nâng cấp marker trên Bản đồ Công an số Phú Thọ (`vi-phuong-158/bandocapt`) theo yêu cầu TASK — R1.1 MARKER IDENTITY CARDS: Nâng cấp marker thành thẻ nhận diện trực quan gồm Pin vị trí + ảnh trụ sở + tên đơn vị.
+- **Branch / Worktree:** `feat/r1-1-marker-identity-cards` tạo từ `origin/main` (`8bc0187`) tại worktree độc lập `D:\04. Github\bandocapt-r1-1-marker-cards` (bảo toàn 100% working tree bẩn của owner tại repo gốc).
+- **Các thay đổi cốt lõi đã thực hiện:**
+  1. **Tạo Marker Identity Card trực quan (styles.css & app.js):**
+     - Cấu trúc DOM Leaflet divIcon: `.marker-container` bao gồm `.marker-icon` (circular civic badge 30px desktop / 28px mobile với shield/badge icon) và `.marker-identity-card` (104px desktop / 90px mobile).
+     - Khung ảnh `.marker-identity-image-wrap`: tỷ lệ chuẩn (56px chiều cao desktop / 48px mobile), ảnh `.marker-identity-image` dùng `object-fit: cover` sắc nét; khi fallback logo dùng `object-fit: contain`.
+     - Tên đơn vị `.marker-identity-name.marker-label`: font chữ rõ ràng, giới hạn tối đa 2 dòng với `line-clamp: 2`, `word-break: break-word` và `text-overflow: ellipsis`, kèm tooltip `title`.
+  2. **Bảo đảm Bất biến Tọa độ (Coordinate Anchor Invariant):**
+     - Tính toán chính xác `iconAnchor`: `[anchorX, 16]` trên desktop và `[anchorX, 14]` trên mobile.
+     - Vị trí địa lý trên bản đồ luôn gắn liền với tâm của pin badge phía trên; card mở rộng treo phía dưới mà không làm dịch chuyển tâm tọa độ thực tế.
+  3. **Cơ chế tải ảnh an toàn & Fallback chống vòng lặp vô hạn:**
+     - Hàm `getMarkerThumbnail(loc)` kiểm định URL qua `isAllowedLocationImage(loc.imageUrl)` (Google Drive, lh3, allowlist công khai an toàn).
+     - Khi URL rỗng hoặc không hợp lệ: fallback tức thì về `assets/logo.png`.
+     - Thẻ `<img>` tích hợp handler `onerror="if(!this.dataset.errored){this.dataset.errored='1';this.src='assets/logo.png';this.classList.add('is-fallback');this.parentElement.classList.add('is-fallback');}else{this.style.display='none';}"` loại bỏ triệt để nguy cơ vòng lặp retry vô hạn.
+  4. **Tương tác & Lựa chọn (Selection & Accessibility):**
+     - Click vào bất kỳ phần tử nào của card (pin, ảnh, text) kích hoạt `openDetailPanel(loc)`.
+     - Marker được chọn nhận `.marker-selected` với border màu vàng/amber đậm, viền nổi bật, độ sâu shadow lớn và hiệu ứng scale(1.06).
+     - Đồng bộ qua mốc 768px: `syncPanelsToViewport` gọi `updateAllMarkersIcon()` khi co giãn màn hình để chuyển đổi kích thước marker desktop <-> mobile mượt mà.
+  5. **Bảo vệ Hiệu năng & Chống bùng nổ DOM/Request:**
+     - Tận dụng Leaflet MarkerCluster gom cụm các địa điểm ở mức zoom thấp và phân rã thành marker identity card ở mức zoom chi tiết (`disableClusteringAtZoom: 14`).
+     - Benchmark 3 kịch bản:
+       - 100 locations: 60 DOM markers, 20 clusters, 33 image requests, load 3.3s.
+       - 1,000 locations: 60 DOM markers, 470 clusters, 33 image requests, load 3.1s.
+       - 5,000 locations: 54 DOM markers, 1710 clusters, 31 image requests, load 12.9s.
+       - Kết luận: PASS tuyệt đối, không bùng nổ thẻ card DOM hoặc image requests.
+  6. **Bảo toàn toàn bộ các state arbiter và invariants sẵn có:**
+     - `setLocationVisible` duy trì là sole writer của `loc._visible`.
+     - `PANEL_STATES` (`BROWSING`, `DETAIL`, `MOBILE_SEARCH`) và `applyPanelChrome` bảo toàn trọn vẹn.
+     - "Gần tôi" (`centerOnNearestVisible`) giữ nguyên hành vi không lọc bớt marker.
+- **File đã sửa / tạo:**
+  - `styles.css`: Thêm marker identity card, pin badge, thumbnail wrap, typography clamp, selected state, hover state.
+  - `app.js`: Tích hợp `createCustomIcon`, `getMarkerThumbnail`, an toàn `onerror`, đồng bộ viewport resize, expose `window.locations` và `window.map`.
+  - `scripts/benchmark-marker-card.js`: Script benchmark hiệu năng và network 100, 1000, 5000 locations.
+  - `scripts/capture-marker-screenshots.js`: Script tự động chụp 18 ảnh minh họa qua 6 viewports và các trạng thái A-G.
+  - `docs/screenshots/marker-identity-cards/*.png`: 18 ảnh chụp màn hình chi tiết.
+  - `test/e2e/marker-identity-card.spec.js`: 12 test E2E kiểm chứng toàn diện 12 kịch bản R1.1.
+  - `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Kiểm tra và nghiệm thu:**
+  - `npm test`: 652/652 pass (duration 7.7s).
+  - `npm run build`: pass (Tailwind CSS, Apps Script, syntax, staff, rate-limit, static build).
+  - Focused E2E (`marker-identity-card.spec.js`): 12/12 pass.
+  - Full E2E (`npx playwright test`): 106/108 pass (2 retry specs staff-portal-modal verify riêng 35/35 pass độc lập).
+  - Full CI Gate (`npm run ci`): pass hoàn toàn (exit code 0).
+
+## [2026-09-04] R1 — Map-First Design Closure & Desktop Reachability Closure
+- **Agent:** Antigravity (Google DeepMind)
+- **Bối cảnh:** Triển khai vòng thiết kế giao diện chính **Map-first civic app** trên repository `vi-phuong-158/bandocapt` theo Implementation Plan được phê duyệt có hiệu chỉnh (`R1_IMPLEMENTATION_PLAN_APPROVED_WITH_CORRECTIONS`).
+- **Branch / Worktree:** `feat/r1-map-first-design-closure` tạo từ `origin/main` (`7dab6d4`) tại worktree biệt lập `D:\04. Github\worktrees\bandocapt-r1-map-first` (bảo toàn 100% working tree bẩn của owner tại repo gốc). Rebase sạch lên `origin/main` (`6adbe5f`) sau khi PR #70 merge.
+- **Các thay đổi cốt lõi đã thực hiện:**
+  1. **Khám phá dịch vụ & tìm kiếm theo dịch vụ (P0-1):**
+     - Thêm tiêu đề gợi mở: `"Bạn cần làm thủ tục gì?"` trước ô tìm kiếm; 4 chip dịch vụ chính (`IDENTITY`, `RESIDENCE`, `VEHICLE_REGISTRATION`, `IMMIGRATION`) + nhóm mở rộng sinh động từ `LocationTaxonomy`.
+     - Cập nhật placeholder tìm kiếm: `"Tìm Công an xã/phường, địa chỉ hoặc dịch vụ"`.
+     - Mở rộng hàm `matchesSearch` trong `app.js` với `getServicesSearchText(loc)` derived từ `canonicalServiceCodes(loc)` + `serviceLabel()`. Tìm kiếm "căn cước" khớp dịch vụ `IDENTITY`, "cư trú" khớp `RESIDENCE`, v.v. mà không sinh taxonomy mới.
+  2. **Trợ năng đồng bộ theo Viewport (P0-2/Correction 2):**
+     - Tạo helper `syncSearchPanelAccessibility(state)` điều phối `inert` và `aria-hidden` trên `#search-panel` theo bảng ma trận (desktop browsing = active, desktop detail = inert, mobile browsing = inert/offscreen, mobile search = active, mobile detail = inert).
+     - Tích hợp duy nhất vào `applyPanelChrome` (sole state writer) và `syncPanelsToViewport` trên sự kiện resize qua 768px. Không tạo writer cạnh tranh.
+  3. **Cấu trúc thông tin & Trung thực giờ làm việc (P0-3):**
+     - Phân cấp thông tin tại `#detail-content`: Tên -> Dịch vụ & Phân loại -> Địa chỉ -> Giờ làm việc -> SĐT -> CTA Actions -> Lưu ý thủ tục -> Siêu dữ liệu xác minh.
+     - `#detail-hours-container` chỉ render khi có `serviceSchedule` thật từ dữ liệu nguồn. Tuyệt đối không hiển thị giờ hành chính giả định ("07h30–11h30 | 13h00–16h30").
+     - Tách riêng `#detail-procedure-note` cho `procedureNote` và cảnh báo `cccdServiceMode`.
+  4. **Kiểm định số điện thoại & CTA responsive (P0-4):**
+     - Thêm helper `getUsablePublicPhone(phone)` kiểm định độ dài chữ số (>= 7) và loại bỏ chuỗi rác/placeholder ("Cập nhật sau...").
+     - Thêm CSS modifier `.detail-action--unavailable { display: none !important; }` trong `styles.css` để vượt qua lỗi display:flex override.
+     - Khi thiếu phone: ẩn phone link và nút Gọi điện, chuyển `#detail-actions-grid` sang 1 cột để nút Chỉ đường chiếm toàn bộ chiều rộng.
+  5. **Bảo toàn Invariants:**
+     - Giữ nguyên `PANEL_STATES` (BROWSING, DETAIL, MOBILE_SEARCH); không tạo state `RESULTS`.
+     - Nút "Quay lại danh sách" trên desktop khôi phục trạng thái `BROWSING` với query và filter được bảo toàn.
+     - Đạt 0 horizontal overflow trên mobile (320px đến 430px).
+     - Giữ nguyên ranh giới an toàn của PR #70 (không đụng `api/chat.js` hay `lib/published-locations.js`).
+- **File đã sửa:**
+  - `index.html`: Cấu trúc lại header tìm kiếm với prompt dịch vụ, placeholder mới, nút quay lại danh sách có chữ trên desktop, thêm `#detail-procedure-note` và bố cục detail mới.
+  - `app.js`: Tích hợp tìm kiếm theo dịch vụ, `syncSearchPanelAccessibility`, `getUsablePublicPhone`, tách `procedureNote` khỏi `serviceSchedule`, quản lý CTA 1-cột / 2-cột.
+  - `styles.css`: Desktop single-sidebar transitions, service chip styling, `.detail-action--unavailable { display: none !important; }`, `#detail-actions-grid` responsive column rules.
+  - `output.css`: Biên dịch lại từ `npm run build:css`.
+  - `test/e2e/r1-design-closure.spec.js`: Bộ 10 test E2E tập trung kiểm chứng toàn diện các invariant mới.
+  - `docs/brain/00-project-overview.md`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md`.
+- **Kiểm tra và nghiệm thu:**
+  - `npm test`: 652/652 pass (sau khi merge PR #70 thêm 10 unit test location-resolution).
+  - `npm run build`: pass (Tailwind CSS, Apps Script, syntax, staff, rate-limit, static build).
+  - Focused E2E (`r1-design-closure.spec.js`): 10/10 pass.
+  - Full E2E (`npx playwright test`): 96/96 pass với 0 regressions.
+  - Full CI Gate (`npm run ci`): pass hoàn toàn (exit code 0).
+
+## [2026-09-03] R3D — Forward-port chatbot location-context fail-closed fix (`8403147`) from PR #65 onto current `main`
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** PR #65 (`fix: close chatbot location-context leak`) mở trên branch
+  `fix/public-location-update-ux` cũ, cùng branch với chuỗi R0.5→R2b UI đã superseded bởi PR #66/#68.
+  PR #65 tự nó không mergeable (`CONFLICTING`) vì mang theo toàn bộ lịch sử branch cũ. Forensic riêng
+  commit `8403147` (`fix(chat): fail closed on missing location evidence`) cho thấy nó chỉ sửa
+  `api/chat.js`/`lib/published-locations.js`/test — không đụng `app.js`/taxonomy — nên độc lập hoàn
+  toàn với phần UI đã forward-port riêng ở R3A.
+- **Xác minh trước khi port:** `git diff 78f3268 693c80f -- api/chat.js lib/published-locations.js`
+  rỗng — `main` (sau PR #66) và cha của `8403147` giống hệt nhau ở hai file này, nên không có gì trên
+  `main` đã tình cờ implement lại cùng fix dưới tên khác; toàn bộ fix `STILL_MISSING` trên `main`
+  trước khi port.
+- **Thay đổi:** `git cherry-pick -x 8403147` lên branch mới `fix/chat-location-context-forward-port`
+  tạo từ `origin/main` tại `7dab6d4`. Cherry-pick áp code (`api/chat.js`, `lib/published-locations.js`,
+  `test/location-resolution-contract.test.js`) sạch không conflict; chỉ `docs/brain/03-decisions.md`
+  và `docs/brain/06-ai-working-log.md` conflict (hai bên cùng thêm entry ở đầu file) — resolve bằng
+  cách giữ cả hai entry, không bỏ nội dung bên nào.
+- **File đã sửa:** `api/chat.js`, `lib/published-locations.js`, `test/location-resolution-contract.test.js`
+  (cả ba từ `8403147`, không đổi so với PR #65), `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/06-ai-working-log.md` (merge nội dung, không viết lại
+  entry lịch sử nào).
+- **Lý do:** Đóng invariant an toàn "location evidence chỉ tính current-turn, fail-closed khi thiếu/
+  mơ hồ, không leak địa điểm cũ giữa các lượt hỏi" trên `main` hiện hành, không giữ nó kẹt trong một
+  PR không mergeable.
+- **Kiểm tra:** xem báo cáo R3D trong phiên làm việc cho kết quả `npm test`/`npm run ci`/E2E đầy đủ.
+- **An toàn:** không đụng branch `fix/public-location-update-ux` cũ, không đóng/merge/rebase PR #65,
+  không kéo lịch sử R0.5–R2b vào branch mới này, không commit/push cho tới khi acceptance PASS.
+
+## [2026-09-03] R3A — Forward-port map selection/panel/drag-dismiss state hardening onto PR #66 taxonomy UX
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Một chuỗi R0.5→R1→R2a→R2b từng được làm trên branch `fix/public-location-update-ux`
+  cũ (checkbox filter, `isPoliceLocation`/`isCccdLocation`). Trong lúc đó, PR #66 (`f975702`, đã
+  merge vào `main`) độc lập thay toàn bộ tầng taxonomy/filter: chip dịch vụ single-select,
+  `isIdentityLocation`, "Gần tôi" thành pure action. Hai bên xung đột thật (không phải merge
+  conflict hình thức) — owner quyết định PR #66 là canonical cho taxonomy/filter; R0.5 bị
+  superseded. Nhiệm vụ R3A: forward-port đúng phần state-lifecycle invariant (R1/R2a/R2b) lên trên
+  UX hiện hành của `main`, không phục hồi checkbox/predicate cũ.
+- **Branch:** `fix/location-ui-state-hardening`, tạo mới từ `origin/main` tại `693c80f`
+  (worktree sạch, không đụng working tree của owner).
+- **Phát hiện quan trọng:** `main`'s `app.js` **vẫn còn nguyên** cả 5 bug mà R1/R2a/R2b từng sửa
+  trên branch cũ — độc lập với câu hỏi taxonomy nào canonical: (1) `filterAndRender`/
+  `fetchHeadquarters` ghi `loc._visible` và đổi layer marker thành hai câu lệnh tách rời, không
+  atomic; (2) `showMobileSearch` deselect chỉ gọi `marker.setIcon()` trần, marker kẹt lại trong
+  `selectedLayer`; (3) chrome overlay mobile-search bị lặp code inline giữa
+  `showMobileSearch`/`hideMobileSearch`; (4) Escape handler đọc
+  `closeSearchBtn.offsetParent !== null` (dương tính sai bất cứ khi nào viewport mobile-width, bất
+  kể overlay có thật sự mở hay không); (5) `endSheetDrag` khi resolve về HIDDEN gọi thẳng
+  `setSheetState(HIDDEN, ...)`, bỏ qua toàn bộ cleanup selection.
+- **Port R1:** thêm `setLocationVisible(loc, visible)` làm writer duy nhất của `loc._visible`, route
+  `filterAndRender` (2 điểm) + `fetchHeadquarters` initial load (1 điểm) qua đó; sửa
+  `showMobileSearch` gọi `refreshLocationMarker` thay vì `.setIcon()` trần. Không tạo lại
+  `isPoliceLocation`/`isCccdLocation` — dùng nguyên `canonicalServiceCodes`/`isIdentityLocation` của
+  PR #66.
+- **Port R2a:** thêm `PANEL_STATES`/`activePanelState`/`setMobileSearchOverlay`/`applyPanelChrome`
+  làm writer duy nhất của panel chrome; route `openDetailPanel`/`closeDetailPanel`/
+  `showMobileSearch`/`hideMobileSearch`/`suspendDetailSelection`/`resumeDetailSelection`/initial
+  state qua đó; sửa Escape handler đọc `activePanelState` thay vì `offsetParent`.
+- **Port R2b:** `endSheetDrag` route nhánh resolve-về-HIDDEN qua `closeDetailPanel({restoreFocus})`
+  thay vì `setSheetState` trần.
+- **File đã sửa:** `app.js` (port R1+R2a+R2b, không đụng taxonomy/filter code của PR #66),
+  `test/location-ui.test.js` (1 assertion cập nhật cho `setLocationVisible`, các assertion taxonomy/
+  filter khác của PR #66 giữ nguyên), `test/e2e/location-visibility-arbiter.spec.js` (mới, adapt từ
+  R1, checkbox→chip), `test/e2e/panel-state-arbiter.spec.js` (mới, adapt từ R2a, checkbox→chip ở
+  đúng 1 test, 4 test còn lại không đổi), `test/e2e/mobile-sheet-dismiss.spec.js` (mới, port nguyên
+  văn từ R2b — không phụ thuộc UI filter), `test/e2e/near-me-pure-action.spec.js` (mới, coverage
+  chưa từng có cho hợp đồng "Gần tôi = pure action" của PR #66), `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`.
+- **Lý do:** Đóng đúng class bug state-lifecycle (stale selection, panel-state collision, Escape
+  misfire, drag-dismiss resurrection) trên UX taxonomy/filter thật sự đang chạy trên `main`, không
+  âm thầm mở rộng scope sang redesign taxonomy/filter.
+- **Kiểm tra:**
+  - `npm test`: 642/642 pass (baseline `main` cũng 642/642 trước khi sửa; 1 assertion trong
+    `test/location-ui.test.js` được cập nhật cho đúng cơ chế `setLocationVisible` mới, không đổi
+    assertion taxonomy/filter nào khác).
+  - Focused E2E (21 ca, 1 lần chạy sạch): `location-visibility-arbiter.spec.js` (4),
+    `panel-state-arbiter.spec.js` (5), `mobile-sheet-dismiss.spec.js` (6),
+    `near-me-pure-action.spec.js` (2), `civic-mobile-ui.spec.js` (4) — 21/21 pass.
+  - Revert-cycle proof cho 2 bug class bắt buộc: (A) Escape idle — revert riêng dòng Escape handler
+    về `closeSearchBtn.offsetParent !== null`, test "Escape while idle" fail đúng lý do
+    (`#mobile-search-btn` bị focus); phục hồi fix → pass lại. (B) Drag-dismiss residue — revert
+    riêng nhánh HIDDEN của `endSheetDrag` về `setSheetState` trần, test "full drag-dismiss" fail
+    đúng lý do (`data-panel-state` vẫn `"detail"`); phục hồi fix → pass lại, xác nhận thêm bằng
+    2 spec liên quan chạy lại 11/11 pass.
+  - Full Playwright suite một lần trên nhánh đã port (xem kết quả trong báo cáo R3A).
+- **An toàn:** không đổi API/schema/data, không phục hồi checkbox filter/predicate R0.5, không
+  đụng PR #65, không commit/push/merge/deploy cho tới khi acceptance PASS.
+
+## [2026-09-01] Hoàn thiện Public Location Contribution UX + Floating CTA
+- **Agent:** Codex
+- **Thay đổi:** Gom CTA `Đóng góp địa điểm` và launcher Hỏi đáp vào shared floating-actions trên trang bản đồ; responsive desktop/mobile, safe-area, focus-visible và touch target tối thiểu; không hiển thị CTA trên `/dong-gop/`. Giữ nguyên UPDATE UX partial đã hoàn tất ở entry ngay dưới.
+- **File đã sửa:** `index.html`, `styles.css`, `tokens.css`, `test/e2e/public-floating-cta.spec.js` cùng các file UPDATE UX và tài liệu liên quan.
+- **Lý do:** Làm chức năng đóng góp dễ tìm và dễ bấm hơn trên mobile mà không refactor navigation hoặc thay đổi behavior Hỏi đáp.
+- **Kiểm tra:** Floating CTA Playwright 3/3 PASS ở 320/375/390/430/768/1280 coverage; public contribution focused 9/9; full E2E 69/69; `npm run ci` PASS với 636/636 unit tests, build/syntax/staff checks và audit không có high/critical.
+- **Phạm vi an toàn:** Không gọi Apps Script, không submit contribution, không thay đổi workbook/dữ liệu Production, không merge/deploy Production.
+
+## [2026-09-01] Hoàn thiện UX cập nhật địa điểm công khai
+- **Agent:** Codex
+- **Thay đổi:** Đồng bộ trạng thái required/aria-required và dấu `*` theo CREATE/UPDATE/STOP; làm rõ help text cho địa chỉ, Google Maps và ảnh; hiển thị trạng thái ảnh hiện có; sửa selector wrapper ảnh; cho phép UPDATE không chọn lại dịch vụ khi backend sẽ giữ dữ liệu hiện tại.
+- **File đã sửa:** `dong-gop/index.html`, `js/public-location-contribution.js`, `test/e2e/public-location-contributions.spec.js`, `test/public-location-contributions.test.js`.
+- **Lý do:** Luồng partial update đã có ở backend nhưng UI còn khiến người dùng hiểu nhầm Maps, địa chỉ và ảnh luôn bắt buộc, đồng thời chưa phản ánh đúng accessibility state.
+- **Kiểm tra:** Public contribution unit 16/16; Playwright public contribution 6/6; build và full CI chạy sau khi hoàn tất. Không deploy, không gọi Apps Script, không thay đổi workbook/dữ liệu Production.
 
 ## [2026-08-31] Production Release — PR #63 Location Update Partial Patch
 - **Agent:** Antigravity (Gemini 2.5 Flash / Claude 3.7 Sonnet)
@@ -3538,3 +3756,95 @@
 - **Kiểm tra:** focused unreachable-image sau patch 10/10 PASS; `npm run ci` PASS (629 tests + build + audit high gate).
   Full E2E local 57/61: target case PASS; ba lỗi `location-image` còn lại là `ERR_CONNECTION_REFUSED` đã tái hiện
   y hệt trên base, cộng một catalog timing failure không liên quan. Không deploy, clasp push, merge hoặc mutate Production.
+
+## [2026-09-01] UI/UX polish + taxonomy synchronization (map filter, near-me, detail, contribution form)
+- **Agent:** Claude Code
+- **Bối cảnh:** Hai vòng review UI/UX trước phát hiện taxonomy 2026-08-31 (site_type/services canonical)
+  đã đi trước lớp trình bày: bộ lọc bản đồ và marker vẫn so khớp mã legacy `POLICE_OFFICE`/`CITIZEN_ID`/
+  `loc.type`, không nhận ra `IDENTITY` mà `/can-bo` và `/dong-gop` đã ghi từ ngày taxonomy hợp nhất; form
+  đóng góp có nhãn `*` tĩnh mâu thuẫn với `required` động ở chế độ UPDATE; panel chi tiết lộ mã enum thô
+  (`PUBLIC_SERVICE_CENTER`) và `servedUnits` nối bằng `|`.
+- **Thay đổi:**
+  - `app.js`: thêm `canonicalServiceCodes()`/`isIdentityLocation()` quy mọi mã dịch vụ (cũ lẫn mới) về
+    canonical qua `LocationTaxonomy.toCanonicalServices` trước khi phân loại — sửa cả 5 điểm dùng
+    `isPolice`/`isCccd` (marker, badge, danh sách kết quả, preview mobile, ghi chú CCCD). Bộ lọc
+    "Công an/Điểm CCCD/Gần tôi" (3 checkbox) thay bằng chip dịch vụ **single-select**
+    (`activeServiceFilter` scalar, hàm `matchesServiceFilter`), 4 chip chính (Căn cước/Cư trú/Đăng ký
+    xe/Xuất nhập cảnh) + nút mở rộng sinh động từ `LocationTaxonomy.SERVICES` (không hard-code). "Gần
+    tôi" (nút FAB `find-location-btn`) đổi từ lọc-Top-5-và-gỡ-marker sang action thuần: áp filter/search
+    hiện có rồi `fitBounds([user, nearest-trong-tập-đang-hiển-thị])`, không bao giờ ẩn/gỡ marker nào.
+    `siteTypeLabel()` xoá mã `SERVICE_POINT` (chưa từng tồn tại), badge và dòng "Loại địa điểm" dùng
+    `taxonomy.displaySiteType()`. Thêm `formatServedUnits()` (`|` → `, `) và `formatVietnameseDate()`
+    (ISO → `dd/mm/yyyy`) — chỉ định dạng hiển thị, không đổi giá trị lưu trữ. Nâng cỡ chữ chip dịch vụ
+    (11→13px) và badge (10→12px); di chuyển khối Dịch vụ lên trước Giờ làm việc trong `index.html`.
+  - `dong-gop/index.html` + `js/public-location-contribution.js`: **hợp nhất với PR #64** (merge vào
+    `main` cùng ngày, độc lập sửa đúng vấn đề P0 này bằng cơ chế `data-required-mark`/`data-optional-mark`
+    + `setRequiredState()` — bao phủ cả `target`/`siteType`/`services` và có `aria-required`, help-text
+    theo mode, `current-image-status`). Giữ nguyên cơ chế của PR #64 (không dựng `setDynamicLabel()` song
+    song); chỉ sửa đúng phần chữ trong `data-optional-mark` của `address`/`maps`/`image` từ
+    "(không bắt buộc)" sang "để trống nếu không thay đổi"/"để trống nếu vị trí không thay đổi"/"chỉ chọn
+    nếu muốn thay ảnh" — theo đúng semantics đã khoá (ô trống = giữ nguyên, không phải xoá; "không bắt
+    buộc" gợi ý sai). Lớp trên cơ chế đó, bổ sung phần PR #64 chưa có: dòng "Đang cập nhật:
+    `<tên đầy đủ>`" dưới ô chọn địa điểm (`updateTargetContext()`, không lặp lại loại địa điểm vì
+    `target.name` đã có sẵn tiền tố theo `generateDisplayName()`); `services-field` thu gọn còn 4 dịch vụ
+    chính + nút "Xem thêm N dịch vụ" (tự bung nếu dịch vụ đã prefill nằm trong nhóm ẩn); `fingerprint()`
+    bổ sung `serviceSchedule`/`servedUnits` (thiếu hai trường này khiến sửa xong gửi lại trúng
+    `IDEMPOTENCY_KEY_REUSED_WITH_DIFFERENT_PAYLOAD` vì `operationId` không đổi trong khi payload đã đổi
+    — PR #64 không chạm hàm này); dòng "Đã chọn: `<tên file>`" tiếng Việt cạnh input ảnh gốc, riêng biệt
+    với `current-image-status` của PR #64 (một nói về ảnh đã có trên bản ghi, một xác nhận file vừa chọn
+    ở máy — không thay input, không giảm a11y).
+  - `styles.css` / `styles/public-location-contribution.css`: phát hiện khi kiểm chứng runtime —
+    `#service-filter-more`/`#services-extra` mang cả `hidden` lẫn class `display:flex/grid`; do đặc thù
+    độ đặc hiệu CSS (Tailwind Preflight zero-out `[hidden]` qua `:where()`; CSS thường thì ID selector
+    thắng attribute selector), `display` từ class/ID luôn thắng `[hidden]{display:none}` bất kể thứ tự
+    nạp — hai khối "mở rộng dịch vụ" hiện sẵn ngay từ đầu thay vì ẩn. Thêm guard
+    `#service-filter-more[hidden]`/`#services-extra[hidden] { display: none; }`, đúng mẫu guard đã có
+    sẵn cho `#tthc-catalog-*[hidden]` trong file.
+  - `test/location-ui.test.js`: viết lại theo implementation mới — canonical classification (bao gồm
+    hành vi thật của `matchesServiceFilter` với dữ liệu IDENTITY/CITIZEN_ID/multi-service), single-select
+    (toggle on/off, không có state tổ hợp), 4 chip chính + mở rộng lấy từ taxonomy, "Gần tôi" không còn
+    `slice(0,5)`/gỡ marker, badge/site-type dùng taxonomy, `formatServedUnits`/`formatVietnameseDate`.
+- **Lý do:** Bản ghi tạo sau 31/08 (site_type/services canonical mới) trước đây bị bộ lọc "Điểm CCCD" bỏ
+  sót và bị vẽ marker/badge "Trụ sở Công an" sai — lỗi P0 vì làm sai kết quả tra cứu, không phải lỗi hình
+  thức. Form đóng góp UPDATE trước đây nói "bắt buộc" cho các trường thực ra là "giữ nguyên nếu để trống",
+  khiến người dùng tưởng phải chụp lại ảnh/lấy lại link Maps cho một thay đổi nhỏ.
+- **Kiểm tra:** `npm test` 642/642 PASS; `npm run ci` PASS (build + audit high gate, cùng 6 lỗ hổng
+  moderate từ trước ở `firebase-admin` transitive, không liên quan task). `npm run test:e2e` không chạy
+  được trong sandbox này vì `unpkg.com` (CDN Leaflet) bị chặn ở tầng mạng — xác minh đây là giới hạn môi
+  trường có sẵn từ trước, không phải regression, bằng cách build lại đúng baseline `933321f` (chưa sửa gì)
+  và tái hiện y hệt lỗi `ReferenceError: L is not defined`. Thay vào đó, kiểm chứng runtime trực tiếp trên
+  `dist/` build thật bằng Chromium (Leaflet vendor cục bộ ngoài repo, chỉ để render, không đụng CDN
+  reference trong `index.html` đã commit): xác nhận bằng dữ liệu hỗn hợp legacy+canonical rằng chip
+  "Căn cước" nhận đúng cả bản ghi mới (`IDENTITY`) lẫn bản ghi cũ (`CITIZEN_ID`); single-select
+  click/switch/toggle-off đúng; "Gần tôi" giữ nguyên toàn bộ marker (không còn Top-5); badge/detail hiện
+  nhãn taxonomy thật, không còn enum thô; form UPDATE hiện đúng nhãn/dấu `*` động và dòng "Đang cập nhật"
+  không trùng lặp; hàng chip mobile cuộn ngang một dòng, không tràn/không đè bottom nav.
+- **Không làm:** không đổi `js/app-navigation.js`, mobile bottom nav, thang `--z-*`/safe-area, bảng
+  màu/thang chữ toàn cục, layout sidebar desktop, cluster/`LABEL_ZOOM`, vị trí nút Chỉ đường/Gọi điện,
+  hành vi STOP (đã đúng từ trước), semantics "ô trống = giữ nguyên" ở Gateway, `buildStagingRecord`.
+  Không sửa `lib/location-taxonomy.js` (không thêm mã mới, chỉ sửa nơi tiêu thụ). Follow-up cố ý chưa
+  làm, ghi nhận riêng: (1) `publicPhone`/`serviceSchedule`/`servedUnits` chưa có cách xoá tường minh qua
+  UI (ô trống luôn nghĩa là giữ nguyên) — thiếu năng lực, không phải mơ hồ, cần sentinel rõ ràng nếu làm
+  sau; (2) `buildStagingRecord` trong `setup/apps-script.js` (khoá, không sửa trong task này) gọi
+  `normalizeServices(targetRecord.services, targetRecord.type)` thiếu tham số thứ 3
+  (`useLegacyFallback`), nên UPDATE một bản ghi legacy có `services` rỗng có thể tự suy ra
+  `POLICE_OFFICE` chưa ai xác nhận — đặt tên finding
+  `LEGACY_EMPTY_SERVICES_UPDATE_CAN_INFER_POLICE_OFFICE` cho việc theo dõi sau.
+
+## [2026-09-01] Sửa resolver tự chọn địa điểm khi thiếu địa bàn
+- **Agent:** Codex
+- **Thay đổi:** Location resolver chỉ dùng evidence từ current message hoặc immediate assistant
+  follow-up; loại history user cũ khỏi scoring. Thêm eval-only pipeline trace và server-side buffer/
+  gate cho `no_match`/`unavailable`, chặn station/address/phone/Maps hallucination trước SSE.
+- **File đã sửa:** `lib/published-locations.js`, `api/chat.js`, `test/location-resolution-contract.test.js`,
+  `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Lý do:** Câu hỏi chỉ có service intent "căn cước" không được phép tự biến thành địa bàn Hòa Bình;
+  history conversation không được tái sử dụng sau khi đổi chủ đề.
+- **Kiểm tra:** `node --test test/location-resolution-contract.test.js` (10/10; gồm no_match và
+  ambiguous public fallback), `npm test`
+  (646/646), `npm run build`, `npm run ci` (exit 0), và focused chat E2E
+  (`chat-embed.spec.js` + `chat-progressive-disclosure.spec.js`, 5/5). Mock Gemini trả địa chỉ
+  Hòa Bình bị fallback an toàn trước khi phát SSE; full E2E suite bị dừng do runner không kết thúc
+  sau khi khởi chạy 69 test.
+- **Phạm vi an toàn:** Chỉ fixture local; không gọi/sửa Google Sheet production, Pinecone production,
+  không bật content diagnostic logging, không deploy.

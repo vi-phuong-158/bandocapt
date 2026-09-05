@@ -1,5 +1,120 @@
 # 03 — Technical Decisions
 
+## [2026-09-05] R1.1: Marker Identity Cards — Presentation Layer for Standalone Markers
+
+- **Bối cảnh:** Người dùng cần nhận diện nhanh trụ sở/địa điểm ngay trên bản đồ trực quan bằng hình ảnh và tên đơn vị thay vì chỉ thấy pin icon hoặc tên khi zoom rất gần.
+- **Quyết định 1 — Marker Identity Card là presentation layer, không phải data model mới và không thay Detail Panel:**
+  - Marker card bao gồm: Pin vị trí (trên cùng) + Thumbnail trụ sở 16:9 (hoặc fallback logo ngành) + Tên đơn vị (giới hạn 2 dòng).
+  - Khung dữ liệu `loc` và data flow giữ nguyên vẹn; không biến đổi schema hoặc model.
+  - Detail Panel giữ vững vai trò là nguồn thông tin chi tiết đầy đủ (ảnh lớn full-size, địa chỉ, phân loại, dịch vụ, giờ tiếp nhận, số điện thoại, phạm vi phục vụ, các nút CTA chỉ đường/gọi điện). Marker card không chứa nút CTA, SĐT, giờ làm việc hay địa chỉ dài để tránh biến thành Detail Panel thu nhỏ.
+- **Quyết định 2 — Bất biến hình học tọa độ (Pin anchor geometry):**
+  - Tọa độ địa lý của địa điểm phải luôn trùng khớp với tâm vòng tròn của pin badge phía trên (`iconAnchor: [anchorX, 16]` trên desktop, `[anchorX, 14]` trên mobile).
+  - Thẻ nhận diện (card) mở rộng và treo xuống dưới chân pin mà không làm dịch chuyển tâm tọa độ địa lý của marker trên bản đồ khi zoom, pan hay thay đổi viewport.
+- **Quyết định 3 — Cơ chế an toàn ảnh và fallback không lặp vô hạn:**
+  - Ảnh chỉ được tải nếu URL vượt qua kiểm định `isAllowedLocationImage(loc.imageUrl)` (Google Drive preview, Googleusercontent, allowlist an toàn).
+  - Nếu thiếu ảnh hoặc URL không hợp lệ: dùng ngay `assets/logo.png`.
+  - Sự cố tải ảnh (lỗi mạng, 404, file bị xóa) được bắt bởi trình xử lý `onerror` phòng vệ: gán cờ `this.dataset.errored = '1'` để fallback về logo và tuyệt đối ngăn ngừa vòng lặp vô hạn nếu ảnh fallback cũng không tải được (`display: none`).
+- **Quyết định 4 — Bảo toàn toàn bộ các state arbiter và invariants sẵn có:**
+  - `setLocationVisible(loc, visible)` là nơi duy nhất được quyền ghi `loc._visible` và quản lý layer membership (`selectedLayer` / `clusterGroup`).
+  - `PANEL_STATES` (`BROWSING`, `DETAIL`, `MOBILE_SEARCH`) và `applyPanelChrome` giữ nguyên quyền kiểm soát các bề mặt giao diện.
+  - Vòng đời lựa chọn địa điểm (selection lifecycle) và thao tác click/chọn marker giữ nguyên vẹn (`openDetailPanel`, `closeDetailPanel`, `marker-selected`).
+  - Tính năng "Gần tôi" (`centerOnNearestVisible`) giữ nguyên hành vi hành động thuần túy, không ẩn bớt marker.
+- **Quyết định 5 — Phòng vệ hiệu năng bằng MarkerCluster:**
+  - Giữ nguyên Leaflet MarkerCluster (`disableClusteringAtZoom: 14`, `maxClusterRadius: zoom => zoom <= 9 ? 60 : zoom <= 11 ? 48 : 36`).
+  - MarkerCluster bảo vệ giao diện khỏi việc bùng nổ hàng ngàn thẻ DOM card và bùng nổ HTTP requests tải ảnh khi bản đồ ở mức zoom toàn tỉnh.
+
+## [2026-09-04] R1: Map-First Civic App Design Closure & Accessibility Arbiter
+
+- **Bối cảnh:** Vòng thiết kế giao diện chính hoàn thiện theo hướng Map-first civic app. Cần giải quyết dứt điểm desktop reachability gap (vốn bị hoãn lại từ R2a/R3A), nâng cấp tìm kiếm hỗ trợ dịch vụ thủ tục hành chính, chuẩn hoá cấp bậc thông tin (information hierarchy) và loại bỏ hoàn toàn việc hiển thị giờ làm việc mặc định giả.
+- **Quyết định 1 — Desktop single-sidebar lifecycle:**
+  - `#search-panel` và `#detail-panel` loại trừ lẫn nhau (mutual exclusion). Khi vào `DETAIL`, `#search-panel` ẩn với transition mượt mà (`opacity: 0; pointer-events: none; transform: translate3d(-12px,0,0)`).
+  - Nút `#back-to-list-btn` ("Quay lại danh sách") cho phép quay lại `BROWSING` với query tìm kiếm, chip lọc đang chọn và danh sách kết quả được bảo toàn nguyên vẹn.
+  - Không bổ sung `PANEL_STATES.RESULTS`: SEARCH và RESULTS đều thuộc bề mặt `BROWSING`.
+- **Quyết định 2 — Đồng bộ trợ năng theo Viewport (`syncSearchPanelAccessibility`):**
+  - Trạng thái `inert` và `aria-hidden` của `#search-panel` phụ thuộc chặt chẽ vào cả `activePanelState` và `isMobileViewport()`:
+    - Desktop + BROWSING: active (`inert=false, aria-hidden="false"`).
+    - Desktop + DETAIL: `inert=true, aria-hidden="true"`.
+    - Mobile + BROWSING: `inert=true, aria-hidden="true"` (search panel ở ngoài màn hình, chặn focus bàn phím/screen reader).
+    - Mobile + MOBILE_SEARCH: active (`inert=false, aria-hidden="false"`).
+    - Mobile + DETAIL: `inert=true, aria-hidden="true"`.
+  - Được gọi từ `applyPanelChrome` (sole state writer) và `syncPanelsToViewport` khi co giãn qua 768px.
+- **Quyết định 3 — Tìm kiếm theo nhãn dịch vụ chuẩn hóa:**
+  - Copy placeholder: `"Tìm Công an xã/phường, địa chỉ hoặc dịch vụ"`.
+  - `matchesSearch` tìm kiếm trên nhãn dịch vụ canonical (`canonicalServiceCodes(loc)` + `serviceLabel()`). Gõ "căn cước" khớp `IDENTITY`, "cư trú" khớp `RESIDENCE`, "đăng ký xe" khớp `VEHICLE_REGISTRATION` mà không hard-code taxonomy mới.
+- **Quyết định 4 — Trung thực dữ liệu giờ làm việc & tách biệt lưu ý thủ tục (P0):**
+  - `#detail-hours-container` chỉ hiển thị khi có `serviceSchedule` thật từ dữ liệu nguồn. Tuyệt đối không hiển thị giờ hành chính mặc định ("07h30–11h30 | 13h00–16h30").
+  - Lưu ý thủ tục (`procedureNote` và `cccdServiceMode`) được hiển thị độc lập tại `#detail-procedure-note`.
+- **Quyết định 5 — Kiểm định số điện thoại sử dụng được (`getUsablePublicPhone`):**
+  - Loại bỏ các giá trị không hợp lệ: chuỗi rỗng, "Cập nhật sau...", khoảng trắng và chuỗi không có số điện thoại hợp lệ (< 7 chữ số).
+  - Khi không có số điện thoại: ẩn link điện thoại và nút Gọi điện bằng `.detail-action--unavailable` (`display: none !important`), chuyển `#detail-actions-grid` sang `grid-cols-1` để nút Chỉ đường chiếm trọn bề ngang.
+- **Bảo toàn PR #70:** Giữ nguyên vẹn ranh giới `api/chat.js` và `lib/published-locations.js`, không gây conflict khi PR #70 được merge vào `main`.
+
+## [2026-09-03] R3A: map-selection/panel/drag-dismiss state hardening is forward-ported onto PR #66's taxonomy/filter UX, not restored from the superseded branch
+
+- **Decision:** PR #66 (`f975702`, merged to `main`) is canonical for taxonomy/filter product
+  behavior — single-select service-filter chips, `isIdentityLocation`-based classification, "Gần
+  tôi" as a pure sort/center action with no Top-N hiding. The R0.5/R1/R2a/R2b work built on the
+  earlier `fix/public-location-update-ux` branch diverged from this (different checkbox filter,
+  different classification predicates) and cannot be merged as-is (see the R3 conflict review this
+  decision follows). Only the **state-lifecycle invariants** R1/R2a/R2b proved — not their UI or
+  taxonomy assumptions — are carried forward, onto a fresh branch based on current `main`.
+- **What was actually wrong on `main` before this port, independent of the taxonomy question:**
+  `main`'s `app.js` had the *exact* R1/R2a/R2b bugs already fixed once on the abandoned branch: (1)
+  `filterAndRender`/`fetchHeadquarters` wrote `loc._visible` and touched marker layer membership as
+  two separate, non-atomic statements at each call site; (2) `showMobileSearch`'s deselect called a
+  bare `marker.setIcon(...)`, never moving the marker out of `selectedLayer`; (3) the mobile
+  search-overlay's DOM chrome was duplicated inline across `showMobileSearch`/`hideMobileSearch`
+  with every entry point manually remembering to close other surfaces first; (4) the Escape handler
+  read `closeSearchBtn.offsetParent !== null`, true whenever the viewport is mobile-width regardless
+  of whether the overlay is open; (5) `endSheetDrag` resolved a full dismiss by calling
+  `setSheetState(HIDDEN, ...)` directly, bypassing selection cleanup. None of these are related to
+  which taxonomy/filter model is canonical — they are the same structural risk class regardless of
+  what decides a location's visibility.
+- **Mechanism:** `setLocationVisible(loc, visible)` (R1) is the sole writer of `loc._visible`;
+  `applyPanelChrome(state, opts)` (R2a) is the sole writer of `activePanelState`/
+  `document.body.dataset.panelState` and mutual-exclusion arbiter between browsing/detail/mobile-search;
+  `endSheetDrag` (R2b) routes a resolved-to-HIDDEN drag through the existing `closeDetailPanel()`
+  instead of a bare sheet-state write. None of the three touch `canonicalServiceCodes`,
+  `isIdentityLocation`, `matchesServiceFilter`, or `centerOnNearestVisible` — the taxonomy/filter
+  layer and the state-lifecycle layer are orthogonal by construction, which is what made this port
+  possible without redesigning PR #66's UX.
+- **Test policy:** old E2E assertions written against `#filter-police`/`#filter-id`/`#filter-nearby`
+  checkboxes were rewritten against the current `.service-chip[data-service]` chips — the invariant
+  under test is unchanged, only the interaction target. No product behavior was changed to make an
+  old test pass; where a test's own mechanism no longer matched reality, the test was updated, not
+  the product.
+- **Not decided here:** the desktop `#detail-panel`-covers-`#search-panel` reachability gap (R2a) is
+  unchanged — a layout question, explicitly out of scope. PR #65 (`fix: close chatbot
+  location-context leak`) carried this UI chain plus one independent chat-safety commit
+  (`8403147`); the safety commit is forward-ported separately below (R3D) since it never touched
+  UI/taxonomy code, and PR #65 itself is left open for the owner to close as superseded.
+
+## [2026-09-03] R3D: chatbot location-context fail-closed fix forward-ported from PR #65's `8403147` onto current `main`
+
+- **Decision:** `8403147` (`fix(chat): fail closed on missing location evidence`) never touched
+  `app.js`/taxonomy code — it is a self-contained `api/chat.js` + `lib/published-locations.js` fix,
+  independent of the R0.5–R2b UI chain it happened to share a branch with. `main`'s copies of both
+  files were byte-identical to `8403147`'s parent (PR #66 never touched them), so it cherry-picks
+  cleanly with zero code conflict; only this doc's own concurrent entries conflicted, resolved by
+  keeping both.
+- See the `[2026-09-01]` entry immediately below for the fix's own content (current-turn-scoped
+  location evidence, fail-closed output buffering, ambiguous-match refusal).
+
+## [2026-09-01] Location evidence is current-turn scoped and fail-closed
+
+- **Decision:** A service intent such as `CITIZEN_ID`/CCCD only requests the location-resolution
+  branch; it never supplies a location. A concrete location may be resolved only from the current
+  user message or from a short immediate answer after the assistant's explicit location question.
+- **History boundary:** Arbitrary recent user turns are not location evidence. This prevents an old
+  location from being reused after a topic change and keeps conversation state request-scoped.
+- **Safety boundary:** `no_match` and `unavailable` are passed to the model as structured status,
+  but generation is buffered and checked server-side before SSE. A specific station/address/phone/
+  Maps claim causes a deterministic generic location-evidence fallback. `ambiguous_*` never selects
+  an option automatically.
+- **Isolation:** `lib/published-locations.js` may cache only the shared published dataset. It does
+  not cache messages, history, or last-location state; `/api/chat` has no module-level conversation
+  state.
+
 ## [2026-08-31] One location marker with unified site/service taxonomy
 
 - **Decision:** One physical location has one stable `record_id` and one marker; it may have N services. `site_type` is physical (HEADQUARTERS, PUBLIC_SERVICE_CENTER, SECONDARY_OFFICE, MOBILE_POINT, OTHER) while `services` is capability data.

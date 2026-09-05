@@ -116,6 +116,7 @@
 
   --control-h: 46px;
   --fab-size: 56px;
+  --chat-launcher-height: 64px;
   --hit-min: 44px;
   --panel-w: 420px;
   --mobile-nav-content-height: 64px;
@@ -128,6 +129,7 @@
   --z-overlay: 200;
   --z-panel: 300;
   --z-navigation: 400;
+  --z-floating: 2000;
   /* Trên cùng: phải phủ cả nhóm launcher/cửa sổ chat + catalog vốn dùng z-index cũ 1999-2001
      nằm ngoài thang token này. Hạ xuống 500 sẽ để nút chat nổi đè lên ảnh đang xem. */
   --z-lightbox: 2100;

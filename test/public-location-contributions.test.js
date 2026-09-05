@@ -423,6 +423,13 @@ test('public static entry contains required fields and no staff login surface', 
     assert.match(html, /name="address"[^>]+required/);
     assert.match(html, /name="mapsUrl"[^>]+required/);
     assert.match(html, /name="image"[^>]+required/);
+    assert.match(html, /data-required-mark="address"/);
+    assert.match(html, /data-required-mark="maps"/);
+    assert.match(html, /data-required-mark="image"/);
+    assert.match(html, /data-optional-mark="address"/);
+    assert.match(html, /id="address-help"/);
+    assert.match(html, /id="maps-help"/);
+    assert.match(html, /id="current-image-status"/);
     assert.match(html, /public-turnstile-widget/);
     assert.match(html, /data-sitekey=""/);
     assert.doesNotMatch(html, /data-sitekey="0x/);

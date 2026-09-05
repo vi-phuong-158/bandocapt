@@ -11,9 +11,12 @@
         submitterName: document.getElementById('submitter-name'), submitterPhone: document.getElementById('submitter-phone'), note: document.getElementById('note'),
         requestType: document.getElementById('request-type'), target: document.getElementById('target-record-id'), targetField: document.getElementById('target-location-field'),
         siteType: document.getElementById('site-type'), services: document.getElementById('services-field'), locationFields: document.getElementById('location-fields'),
-        serviceSchedule: document.getElementById('service-schedule'), servedUnits: document.getElementById('served-units'), imageField: document.getElementById('location-image-field'),
+        serviceSchedule: document.getElementById('service-schedule'), servedUnits: document.getElementById('served-units'), mapsField: document.getElementById('maps-field'), imageField: document.getElementById('location-image-field'),
+        addressHelp: document.getElementById('address-help'), mapsHelp: document.getElementById('maps-help'), imageHelp: document.getElementById('image-help'), currentImageStatus: document.getElementById('current-image-status'),
         captcha: document.getElementById('public-turnstile-widget'), status: document.getElementById('public-contribution-status'), submit: document.getElementById('public-contribution-submit'),
+        targetContext: document.getElementById('target-context'), imageFilename: document.getElementById('location-image-filename'),
     };
+    const PRIMARY_SERVICE_CODES = ['IDENTITY', 'RESIDENCE', 'VEHICLE_REGISTRATION', 'IMMIGRATION'];
     let units = [];
     let targets = [];
     let unitsReady = false;
@@ -59,18 +62,49 @@
             (kind !== 'CREATE' && !elements.target.value) || (kind === 'CREATE' && !selectedServices.length);
     }
 
+    function setRequiredState(element, required, fieldName) {
+        element.required = required;
+        element.setAttribute('aria-required', String(required));
+        const requiredMark = form.querySelector(`[data-required-mark="${fieldName}"]`);
+        const optionalMark = form.querySelector(`[data-optional-mark="${fieldName}"]`);
+        if (requiredMark) requiredMark.hidden = !required;
+        if (optionalMark) optionalMark.hidden = required;
+    }
+
+    function appendServiceOption(item, container) {
+        const label = document.createElement('label');
+        label.className = 'public-contribution-service';
+        const input = document.createElement('input');
+        input.type = 'checkbox'; input.name = 'services'; input.value = item.code;
+        const text = document.createElement('span'); text.textContent = item.label;
+        label.append(input, text); container.appendChild(label);
+    }
+
+    // 4 dịch vụ hay dùng nhất hiện trực tiếp; phần còn lại (lấy nguyên từ taxonomy, không hard-code
+    // trùng danh sách) gấp gọn sau nút "Xem thêm" để form đỡ dài — vẫn hỗ trợ chọn nhiều dịch vụ.
     function renderTaxonomy() {
         elements.siteType.replaceChildren(new Option('Chọn loại địa điểm', ''));
         taxonomy.SITE_TYPES.forEach(item => elements.siteType.add(new Option(item.label, item.code)));
         elements.services.replaceChildren();
-        taxonomy.SERVICES.forEach(item => {
-            const label = document.createElement('label');
-            label.className = 'public-contribution-service';
-            const input = document.createElement('input');
-            input.type = 'checkbox'; input.name = 'services'; input.value = item.code;
-            const text = document.createElement('span'); text.textContent = item.label;
-            label.append(input, text); elements.services.appendChild(label);
+        const primary = taxonomy.SERVICES.filter(item => PRIMARY_SERVICE_CODES.includes(item.code));
+        const extra = taxonomy.SERVICES.filter(item => !PRIMARY_SERVICE_CODES.includes(item.code));
+        primary.forEach(item => appendServiceOption(item, elements.services));
+        if (!extra.length) return;
+        const extraContainer = document.createElement('div');
+        extraContainer.id = 'services-extra';
+        extraContainer.hidden = true;
+        extra.forEach(item => appendServiceOption(item, extraContainer));
+        const toggle = document.createElement('button');
+        toggle.type = 'button'; toggle.id = 'services-toggle'; toggle.className = 'public-contribution-services-toggle';
+        toggle.setAttribute('aria-expanded', 'false'); toggle.setAttribute('aria-controls', 'services-extra');
+        toggle.textContent = `Xem thêm ${extra.length} dịch vụ`;
+        toggle.addEventListener('click', () => {
+            const expanded = toggle.getAttribute('aria-expanded') === 'true';
+            toggle.setAttribute('aria-expanded', String(!expanded));
+            extraContainer.hidden = expanded;
+            toggle.textContent = expanded ? `Xem thêm ${extra.length} dịch vụ` : 'Thu gọn';
         });
+        elements.services.append(toggle, extraContainer);
     }
 
     function updateRequestMode() {
@@ -79,32 +113,78 @@
         const stop = kind === 'STOP';
         elements.targetField.hidden = isCreate;
         elements.target.disabled = isCreate || !elements.unit.value || !targets.length;
+        setRequiredState(elements.target, !isCreate, 'target');
         elements.locationFields.hidden = stop;
-        elements.siteType.required = isCreate;
-        elements.address.required = isCreate;
-        elements.maps.required = isCreate;
-        elements.image.required = isCreate;
+        setRequiredState(elements.siteType, isCreate, 'siteType');
+        elements.services.setAttribute('aria-required', String(isCreate));
+        const servicesRequiredMark = form.querySelector('[data-required-mark="services"]');
+        const servicesOptionalMark = form.querySelector('[data-optional-mark="services"]');
+        if (servicesRequiredMark) servicesRequiredMark.hidden = !isCreate;
+        if (servicesOptionalMark) servicesOptionalMark.hidden = isCreate;
+        setRequiredState(elements.address, isCreate, 'address');
+        setRequiredState(elements.maps, isCreate, 'maps');
+        setRequiredState(elements.image, isCreate, 'image');
         elements.imageField.hidden = stop;
+        elements.mapsField.hidden = stop;
+        elements.addressHelp.textContent = isCreate
+            ? 'Bắt buộc với địa điểm mới.'
+            : 'Giữ nguyên nếu địa chỉ không thay đổi.';
+        elements.mapsHelp.textContent = isCreate
+            ? 'Dùng đường dẫn Google Maps của địa điểm tại Phú Thọ.'
+            : 'Thông tin hiện tại đang được hiển thị. Chỉ thay đổi khi vị trí trên bản đồ đã thay đổi.';
+        elements.imageHelp.textContent = isCreate
+            ? 'Ảnh được giữ riêng tư trong thời gian chờ kiểm tra.'
+            : 'Chỉ tải ảnh mới nếu muốn thay ảnh hiện tại.';
         refreshSubmitState();
+    }
+
+    // `target.name` đã là tên hiển thị đầy đủ — với site_type khác HEADQUARTERS,
+    // `taxonomy.generateDisplayName()` tự sinh tên theo đúng dạng "<loại địa điểm> – <đơn vị>"
+    // (xem lib/location-taxonomy.js), nên KHÔNG được prepend lại typeLabel ở đây kẻo lặp đôi.
+    function updateTargetContext(target) {
+        if (!elements.targetContext) return;
+        if (!target) { elements.targetContext.hidden = true; elements.targetContext.textContent = ''; return; }
+        elements.targetContext.textContent = `Đang cập nhật: ${target.name}`;
+        elements.targetContext.hidden = false;
     }
 
     function prefillTarget() {
         const target = targets.find(item => item.recordId === elements.target.value);
+        updateTargetContext(target);
         if (!target) return;
         elements.siteType.value = taxonomy.isWritableSiteType(target.siteType) ? target.siteType : '';
         const services = taxonomy.toCanonicalServices(target.services) || [];
         elements.services.querySelectorAll('input').forEach(input => { input.checked = services.includes(input.value); });
+        // Một dịch vụ prefill có thể nằm trong nhóm đã gấp gọn — bung ra để người dùng thấy đúng
+        // những gì đang chọn, không để checkbox đã tick ẩn sau nút "Xem thêm".
+        const extraContainer = document.getElementById('services-extra');
+        const toggle = document.getElementById('services-toggle');
+        if (extraContainer && toggle && extraContainer.querySelector('input:checked')) {
+            extraContainer.hidden = false;
+            toggle.setAttribute('aria-expanded', 'true');
+            toggle.textContent = 'Thu gọn';
+        }
         elements.name.value = target.name || '';
         elements.address.value = target.address || '';
         elements.maps.value = target.googleMapsUrl || '';
         elements.publicPhone.value = target.phone || '';
         elements.serviceSchedule.value = target.serviceSchedule || '';
         elements.servedUnits.value = target.servedUnits || '';
+        if (target.imageUrl) {
+            elements.currentImageStatus.hidden = false;
+            elements.currentImageStatus.textContent = 'Địa điểm này đã có ảnh. Không cần tải lại ảnh nếu ảnh hiện tại vẫn đúng.';
+        } else {
+            elements.currentImageStatus.hidden = true;
+            elements.currentImageStatus.textContent = '';
+        }
         refreshSubmitState();
     }
 
     async function loadTargets() {
         targets = [];
+        elements.currentImageStatus.hidden = true;
+        elements.currentImageStatus.textContent = '';
+        updateTargetContext(null);
         elements.target.replaceChildren(new Option(elements.unit.value ? 'Đang tải địa điểm…' : 'Chọn đơn vị trước', ''));
         if (!elements.unit.value) return updateRequestMode();
         try {
@@ -167,6 +247,7 @@
         return JSON.stringify({
             unit: inputValue(elements.unit), requestType: inputValue(elements.requestType), target: inputValue(elements.target), siteType: inputValue(elements.siteType),
             services: Array.from(elements.services.querySelectorAll('input:checked')).map(input => input.value), name: inputValue(elements.name), address: inputValue(elements.address), maps: inputValue(elements.maps),
+            serviceSchedule: inputValue(elements.serviceSchedule), servedUnits: inputValue(elements.servedUnits),
             publicPhone: inputValue(elements.publicPhone), submitterName: inputValue(elements.submitterName), submitterPhone: inputValue(elements.submitterPhone),
             note: inputValue(elements.note), file: file ? [file.name, file.size, file.lastModified, file.type] : [],
         });
@@ -200,7 +281,7 @@
         if (!form.checkValidity()) { form.reportValidity(); return; }
         const requestKind = taxonomy.requestKind(elements.requestType.value);
         const selectedServices = Array.from(elements.services.querySelectorAll('input:checked')).map(input => input.value);
-        if (requestKind !== 'STOP' && !selectedServices.length) { setStatus('Vui lòng chọn ít nhất một dịch vụ.', 'error'); return; }
+        if (requestKind === 'CREATE' && !selectedServices.length) { setStatus('Vui lòng chọn ít nhất một dịch vụ.', 'error'); return; }
         const file = elements.image.files?.[0];
         const nextFingerprint = fingerprint(file);
         if (nextFingerprint !== operationFingerprint) { operationId = createOperationId(); operationFingerprint = nextFingerprint; }
@@ -228,6 +309,8 @@
             form.reset();
             renderTaxonomy();
             targets = [];
+            updateTargetContext(null);
+            if (elements.imageFilename) elements.imageFilename.textContent = 'Chưa chọn ảnh';
             updateRequestMode();
             operationId = createOperationId();
             operationFingerprint = '';
@@ -246,6 +329,11 @@
     elements.unit.addEventListener('change', loadTargets);
     elements.requestType.addEventListener('change', updateRequestMode);
     elements.target.addEventListener('change', prefillTarget);
+    elements.image.addEventListener('change', () => {
+        if (!elements.imageFilename) return;
+        const file = elements.image.files?.[0];
+        elements.imageFilename.textContent = file ? `Đã chọn: ${file.name}` : 'Chưa chọn ảnh';
+    });
     form.addEventListener('submit', submit);
     renderTaxonomy();
     updateRequestMode();

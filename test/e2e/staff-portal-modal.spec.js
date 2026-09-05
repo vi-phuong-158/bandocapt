@@ -507,7 +507,7 @@ test.describe('staff portal submit progress UX', () => {
     test('CREATE submit gives immediate busy feedback in a centered viewport overlay', async ({ page }) => {
         const mutations = [];
         await mockStaffApi(page, mutations);
-        await mockDelayedRequestsRoute(page, mutations, 800);
+        await mockDelayedRequestsRoute(page, mutations, 1800);
         await page.goto('/can-bo');
         await expect(page.locator('.staff-location-list')).toBeVisible();
 
@@ -533,7 +533,7 @@ test.describe('staff portal submit progress UX', () => {
         expect(box.y + box.height).toBeLessThan(viewport.height);
         expect(await panel.evaluate(node => node.closest('form'))).toBeNull();
 
-        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 6000 });
     });
 
     test('elapsed seconds counter increments while the request is still in flight', async ({ page }) => {
@@ -552,7 +552,7 @@ test.describe('staff portal submit progress UX', () => {
         await expect(elapsed).toHaveText('Đã chờ: 0 giây');
         await expect(elapsed).toHaveText(/Đã chờ: [1-9]\d* giây/, { timeout: 3000 });
 
-        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 6000 });
     });
 
     test('rapid double form-submit fires exactly one Gateway request', async ({ page }) => {
@@ -567,14 +567,14 @@ test.describe('staff portal submit progress UX', () => {
         await fillValidCreateForm(form);
         await form.evaluate(node => { node.requestSubmit(); node.requestSubmit(); });
 
-        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 6000 });
         expect(mutations.filter(mutation => mutation.path === '/api/staff/requests')).toHaveLength(1);
     });
 
     test('UPDATE submit without a replacement image shows the centered overlay', async ({ page }) => {
         const mutations = [];
         await mockStaffApi(page, mutations);
-        await mockDelayedRequestsRoute(page, mutations, 800);
+        await mockDelayedRequestsRoute(page, mutations, 1800);
         await page.goto('/can-bo');
         await expect(page.locator('.staff-location-list')).toBeVisible();
 
@@ -584,7 +584,7 @@ test.describe('staff portal submit progress UX', () => {
         await form.locator('button.staff-button-primary').click();
         await expect(page.locator('.staff-processing-overlay')).toBeVisible();
         await expect(page.locator('.staff-processing-panel')).toBeVisible();
-        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 6000 });
         expect(mutations).toHaveLength(1);
         expect('image' in mutations[0].body).toBe(false);
     });
@@ -592,7 +592,7 @@ test.describe('staff portal submit progress UX', () => {
     test('every interactive control is disabled while a request is in flight', async ({ page }) => {
         const mutations = [];
         await mockStaffApi(page, mutations);
-        await mockDelayedRequestsRoute(page, mutations, 800);
+        await mockDelayedRequestsRoute(page, mutations, 1800);
         await page.goto('/can-bo');
         await expect(page.locator('.staff-location-list')).toBeVisible();
 
@@ -609,13 +609,13 @@ test.describe('staff portal submit progress UX', () => {
         await expect(form.locator('button.staff-button').filter({ hasText: 'Hủy' })).toBeDisabled();
         await expect(backdrop.locator('.staff-modal-header button')).toBeDisabled();
 
-        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 6000 });
     });
 
     test('success clears the processing panel, closes the modal and shows the success notice', async ({ page }) => {
         const mutations = [];
         await mockStaffApi(page, mutations);
-        await mockDelayedRequestsRoute(page, mutations, 800);
+        await mockDelayedRequestsRoute(page, mutations, 1800);
         await page.goto('/can-bo');
         await expect(page.locator('.staff-location-list')).toBeVisible();
 
@@ -625,7 +625,7 @@ test.describe('staff portal submit progress UX', () => {
         await form.locator('button.staff-button-primary').click();
         await expect(page.locator('.staff-processing-overlay')).toBeVisible();
 
-        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 5000 });
+        await expect(page.locator('.staff-modal-backdrop')).toHaveCount(0, { timeout: 6000 });
         await expect(page.locator('.staff-notice-success')).toContainText('Yêu cầu đã được gửi và đang chờ duyệt.');
     });
 
