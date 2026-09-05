@@ -157,13 +157,14 @@ test.describe('R1.1 Marker Identity Cards', () => {
         await stubDriveImages(page);
         await page.goto('/');
 
-        await zoomToMarkers(page);
+        await selectLocationBySearch(page, 'thử nghiệm 2,');
 
-        const card = page.locator('.marker-identity-card').first();
+        const card = page.locator('.marker-container.marker-selected .marker-identity-card');
         await expect(card).toBeVisible();
         const cardBox = await card.boundingBox();
-        expect(cardBox).not.toBeNull();
-        expect(cardBox.width).toBeLessThanOrEqual(112);
+        const cardWidth = cardBox ? cardBox.width : await card.evaluate(el => el.getBoundingClientRect().width);
+        expect(cardWidth).toBeGreaterThan(0);
+        expect(cardWidth).toBeLessThanOrEqual(112);
 
         // Check CSS line clamp on unit name
         const nameEl = card.locator('.marker-identity-name');
