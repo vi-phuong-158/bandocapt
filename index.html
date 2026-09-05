@@ -249,6 +249,12 @@
         </span>
     </button>
 
+    <!-- Mobile Contribution Floating CTA (Bottom Left on Mobile) -->
+    <a id="mobile-contribution-cta" href="dong-gop/" class="md:hidden pointer-events-auto z-20" aria-label="Đóng góp địa điểm mới">
+        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">add_location_alt</span>
+        <span>Đóng góp địa điểm</span>
+    </a>
+
     <!-- Map Actions (Bottom Right) -->
     <div id="map-actions" class="absolute bottom-8 right-5 md:right-8 flex flex-col gap-3 pointer-events-auto z-20">
 
@@ -337,12 +343,11 @@
             <input
                 type="text"
                 id="fakeChatInput"
-                placeholder="Vui lòng xác minh Turnstile trước..."
+                placeholder="Nhập câu hỏi..."
                 autocomplete="off"
                 maxlength="1000"
-                disabled
             >
-            <button id="chatSendBtn" type="button" aria-label="Gửi tin nhắn" disabled>
+            <button id="chatSendBtn" type="button" aria-label="Gửi tin nhắn">
                 <span class="material-symbols-outlined" aria-hidden="true">send</span>
             </button>
         </div>

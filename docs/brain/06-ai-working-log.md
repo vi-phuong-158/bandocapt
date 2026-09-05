@@ -1,5 +1,29 @@
 # 06 — AI Working Log
 
+## [2026-09-05] Mobile Real-Device UX Fix: Chatbot Resilience, Location FAB & Marker Decluttering
+- **Agent:** Codex
+- **Thay đổi:**
+  1. Fix Chatbot lazy-load resilience: Thêm timeout cho script loader, cơ chế CDN fallback local bundle (vendor marked.min.js & purify.min.js), graceful degradation nếu thiếu thư viện ngoài. Cho phép người dùng gõ câu hỏi và bấm chip gợi ý mà không bị chặn khi Turnstile đang khởi tạo. Thêm nút "Thử lại" khi gặp sự cố tải.
+  2. Fix Location FAB & Floating Action Tier: Định vị `#map-actions` bằng `position: fixed !important;` trên mobile, đảm bảo luôn nằm trên `#mobile-bottom-nav` an toàn (gap 16px) trên tất cả các kích thước màn hình Android (360x800, 375x812, 390x844, 412x915, 430x932). Bổ sung nút floating CTA `[ Đóng góp địa điểm ]` ở mép trái, cùng hàng với FAB GPS ở mép phải. Khi mở preview địa điểm, cả floating tier dạt lên trên card thông tin một cách mượt mà.
+  3. Giảm độ rối của marker trên mobile: Unselected marker hiển thị pin nhỏ gọn (32-34px) với icon phân loại rõ ràng, không hiển thị card nhãn chữ dài hoặc ảnh thumbnail che khuất bản đồ. Khi marker được chạm/chọn, hiển thị Identity Card nổi bật (pin + ảnh thumbnail + tên đầy đủ + badge) với top z-index trong selectedLayer (không bị cluster nuốt). Bấm ra ngoài hoặc đóng preview quay lại compact pin. Desktop giữ nguyên 100% hiển thị đầy đủ và không bị hồi quy.
+- **File đã sửa:**
+  - `js/lazy-features.js`: Thêm timeout, loadScriptWithFallback, graceful degradation, state machine IDLE/LOADING/READY/DEGRADED_READY/ERROR, nút "Thử lại".
+  - `js/vendor/marked.min.js`, `js/vendor/purify.min.js`: Vendored fallback cục bộ.
+  - `scripts/build-static.js`: Thêm vendor scripts vào manifest để hash & cache.
+  - `js/chatbot.js`: Hỗ trợ waitForTurnstileToken, không khóa cứng input trên app chính, mở khóa click chip gợi ý.
+  - `index.html`: Thêm nút floating `#mobile-contribution-cta`, cập nhật `#fakeChatInput` placeholder & enabled.
+  - `app.js`: Phân biệt `marker-mobile-compact` cho mobile và `marker-identity-card` cho selected marker; cập nhật `updateMarkerLabels`.
+  - `styles.css`: Quy tắc CSS cho `#mobile-contribution-cta`, `#map-actions` fixed, `.lazy-feature-retry-btn`, `.marker-mobile-compact`, `.marker-identity-card`.
+  - `test/e2e/mobile-real-device-ux.spec.js`: 9 E2E tests kiểm thử toàn diện mobile UX trên các viewport Android, CDN failure mock, và visual density.
+- **Lý do:** Khắc phục lỗi thực tế trên thiết bị di động Android: chatbot không mở được khi CDN chập chờn, nút vị trí bị che khuất và bản đồ bị phủ kín bởi nhãn marker dày đặc.
+- **Kiểm tra:**
+  - `npm test`: 636/636 pass.
+  - `npm run check:syntax`, `npm run check:staff`, `npm run check:rate-limit`: PASS.
+  - `npx playwright test test/e2e/mobile-real-device-ux.spec.js`: 9/9 pass.
+  - `npx playwright test test/e2e/civic-mobile-ui.spec.js`: 4/4 pass.
+  - `npx playwright test test/e2e/chat-embed.spec.js`: 1/1 pass.
+  - Chụp ảnh màn hình đối chứng post-fix tại `test/results/post-fix/` cho cả 4 màn hình yêu cầu.
+
 ## [2026-08-31] Production Release — PR #63 Location Update Partial Patch
 - **Agent:** Antigravity (Gemini 2.5 Flash / Claude 3.7 Sonnet)
 - **PR:** #63 (`fix: preserve unchanged fields on location updates`)

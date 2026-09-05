@@ -511,6 +511,27 @@
     font-family: var(--font-body);
     font-size: var(--text-sm);
     font-weight: var(--weight-medium);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+}
+
+.lazy-feature-retry-btn {
+    padding: 4px var(--space-3);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--warn-border);
+    background: var(--white);
+    color: var(--warn-fg);
+    font-size: var(--text-xs);
+    font-weight: var(--weight-bold);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background var(--dur-fast) var(--ease-smooth);
+}
+
+.lazy-feature-retry-btn:active {
+    background: var(--warn-border);
 }
 
 .ai-chat-label {
@@ -1734,7 +1755,9 @@ body.tthc-catalog-modal-open { overflow: hidden; }
    CIVIC MODERN MOBILE NAVIGATION + MAP PREVIEW
    ========================================== */
 
-#mobile-bottom-nav {
+#mobile-bottom-nav,
+#mobile-contribution-cta,
+.marker-identity-card {
     display: none;
 }
 
@@ -1930,7 +1953,43 @@ body.tthc-catalog-modal-open { overflow: hidden; }
         z-index: var(--z-map-control);
     }
 
+    #mobile-contribution-cta {
+        position: fixed !important;
+        left: var(--space-4);
+        bottom: calc(var(--mobile-nav-total-height) + var(--space-4));
+        z-index: var(--z-map-control);
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
+        height: 48px;
+        padding: 0 var(--space-4);
+        border-radius: var(--radius-pill);
+        background: var(--glass-fill-strong);
+        border: 1px solid var(--border-hairline);
+        box-shadow: var(--shadow-fab);
+        color: var(--color-primary);
+        font-family: var(--font-body);
+        font-size: var(--text-sm);
+        font-weight: var(--weight-bold);
+        text-decoration: none;
+        backdrop-filter: var(--blur-md);
+        -webkit-backdrop-filter: var(--blur-md);
+        visibility: visible;
+        transition: bottom var(--dur-base) var(--ease-smooth), opacity var(--dur-fast) var(--ease-smooth), transform var(--dur-fast) var(--ease-smooth);
+        transform: translateZ(0);
+    }
+
+    #mobile-contribution-cta:active {
+        transform: scale(0.96) translateZ(0);
+    }
+
+    #mobile-contribution-cta:focus-visible {
+        outline: 3px solid var(--color-accent);
+        outline-offset: 2px;
+    }
+
     #map-actions {
+        position: fixed !important;
         right: var(--space-4);
         bottom: calc(var(--mobile-nav-total-height) + var(--space-4));
         z-index: var(--z-map-control);
@@ -1938,16 +1997,138 @@ body.tthc-catalog-modal-open { overflow: hidden; }
         transition: bottom var(--dur-base) var(--ease-smooth), opacity var(--dur-fast) var(--ease-smooth);
     }
 
-    body.location-preview-open #map-actions {
+    body.location-preview-open #map-actions,
+    body.location-preview-open #mobile-contribution-cta {
         bottom: calc(var(--mobile-nav-total-height) + var(--location-preview-height) + var(--space-3));
     }
 
     body.location-detail-expanded #map-actions,
+    body.location-detail-expanded #mobile-contribution-cta,
     body:not([data-active-tab="map"]) #map-actions,
+    body:not([data-active-tab="map"]) #mobile-contribution-cta,
     body:not([data-active-tab="map"]) #mobile-search-btn {
         opacity: 0;
         pointer-events: none;
         visibility: hidden;
+    }
+
+    /* Mobile Compact Markers: unselected pins are compact (32-34px), NO image, NO large labels */
+    .marker-mobile-compact:not(.marker-selected) {
+        width: 34px !important;
+        height: 34px !important;
+    }
+
+    .marker-mobile-compact:not(.marker-selected) .marker-icon {
+        width: 32px !important;
+        height: 32px !important;
+    }
+
+    .marker-mobile-compact:not(.marker-selected) .marker-inner .material-symbols-outlined {
+        font-size: 16px !important;
+    }
+
+    .marker-mobile-compact:not(.marker-selected) .marker-label {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+    }
+
+    /* Khi zoom rất sâu trên mobile (>= 16.5, cấp đường phố), nhãn ngắn gọn */
+    .show-marker-labels-deep .marker-mobile-compact:not(.marker-selected) .marker-label {
+        display: block !important;
+        opacity: 0.92 !important;
+        visibility: visible !important;
+        font-size: 11px;
+        padding: 2px 8px;
+        max-width: 140px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        top: -26px;
+    }
+
+    /* Selected Marker trên mobile: nổi bật, viền sáng, kích thước to hơn, top z-index */
+    .marker-selected {
+        z-index: 1000 !important;
+    }
+
+    .marker-selected .marker-icon {
+        width: 44px !important;
+        height: 44px !important;
+        box-shadow: 0 0 0 3px var(--white), 0 0 16px rgba(30, 58, 138, 0.45) !important;
+    }
+
+    /* Identity Card trên marker được chọn (pin + thumbnail ảnh + tên đầy đủ) */
+    .marker-identity-card {
+        position: absolute;
+        bottom: 52px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1001;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 180px;
+        max-width: 250px;
+        padding: 6px 10px;
+        border-radius: var(--radius-lg);
+        background: var(--white);
+        border: 1px solid var(--border-hairline);
+        box-shadow: var(--shadow-pop);
+        pointer-events: none;
+        animation: marker-card-pop 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .marker-identity-card::after {
+        content: '';
+        position: absolute;
+        bottom: -5px;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px 5px 0;
+        border-style: solid;
+        border-color: var(--white) transparent transparent transparent;
+    }
+
+    .marker-identity-thumb {
+        width: 36px;
+        height: 36px;
+        border-radius: var(--radius-md);
+        object-fit: cover;
+        flex-shrink: 0;
+        border: 1px solid var(--border-hairline);
+    }
+
+    .marker-identity-content {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .marker-identity-badge {
+        font-size: 9px;
+        font-weight: var(--weight-extrabold);
+        color: var(--color-primary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        line-height: 1.1;
+    }
+
+    .marker-identity-name {
+        font-size: 12px;
+        font-weight: var(--weight-bold);
+        color: var(--text-strong);
+        line-height: 1.25;
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    @keyframes marker-card-pop {
+        from { opacity: 0; transform: translate3d(-50%, 6px, 0); }
+        to { opacity: 1; transform: translate3d(-50%, 0, 0); }
     }
 
     #mobile-overlay {

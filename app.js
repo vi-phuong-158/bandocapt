@@ -86,10 +86,16 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 // Hiện tên trụ sở khi zoom đủ gần (≥ LABEL_ZOOM) để nhãn không chồng chéo.
 // Toàn tỉnh (zoom thấp) chỉ thấy pin — giống Google Maps.
 const LABEL_ZOOM = 14;
+const LABEL_ZOOM_DEEP = 16.5;
 function updateMarkerLabels() {
-  map.getContainer().classList.toggle("show-marker-labels", map.getZoom() >= LABEL_ZOOM);
+  const zoom = map.getZoom();
+  const isMobile = isMobileViewport();
+  map.getContainer().classList.toggle("show-marker-labels", !isMobile && zoom >= LABEL_ZOOM);
+  map.getContainer().classList.toggle("show-marker-labels-deep", isMobile && zoom >= LABEL_ZOOM_DEEP);
 }
 map.on("zoomend", updateMarkerLabels);
+map.on("resize", updateMarkerLabels);
+window.addEventListener("resize", updateMarkerLabels);
 updateMarkerLabels();
 
 document
@@ -103,14 +109,30 @@ function createCustomIcon(loc) {
   const isPolice = loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
+  const isMobile = isMobileViewport();
 
-let wrapperClass = "marker-container";
+  let wrapperClass = "marker-container";
   if (isSelected) wrapperClass += " marker-selected";
   wrapperClass += isPolice ? " marker-police" : " marker-id";
+  if (isMobile) wrapperClass += " marker-mobile-compact";
 
   let iconClass = "marker-icon";
 
-const html = `
+  let identityCardHtml = "";
+  if (isSelected) {
+    const hasImage = isAllowedLocationImage(loc.imageUrl);
+    identityCardHtml = `
+      <div class="marker-identity-card">
+        ${hasImage ? `<img src="${escapeHtml(loc.imageUrl)}" class="marker-identity-thumb" alt="" loading="lazy" />` : ""}
+        <div class="marker-identity-content">
+          <span class="marker-identity-badge">${isPolice ? "Trụ sở Công an" : "Điểm cấp CCCD"}</span>
+          <span class="marker-identity-name">${escapeHtml(loc.name)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  const html = `
         <div class="${wrapperClass}">
             <div class="${iconClass}">
                 <div class="marker-inner">
@@ -120,10 +142,11 @@ const html = `
                 </div>
             </div>
             <div class="marker-label">${escapeHtml(loc.name)}</div>
+            ${identityCardHtml}
         </div>
     `;
 
-return L.divIcon({
+  return L.divIcon({
     className: "transparent-leaflet-icon",
     html: html,
     iconSize: [48, 48],
