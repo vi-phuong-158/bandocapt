@@ -33,7 +33,7 @@ async function mockContributionApi(page, submissions, { failFirst = false } = {}
         postCount += 1;
         submissions.push(route.request().postDataJSON());
         if (failFirst && postCount === 1) {
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 500));
             return route.fulfill({ status: 503, json: { error: 'SERVICE_UNAVAILABLE' } });
         }
         return route.fulfill({ json: { ok: true, data: { status: 'PENDING', receiptId: 'receipt-e2e' } } });

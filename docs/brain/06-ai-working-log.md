@@ -1,5 +1,22 @@
 # 06 — AI Working Log
 
+## [2026-09-05] R1.1 — CSP-Compatible Marker Error Handler, Timing Test Hardening & Dead Code Cleanup
+- **Agent:** Antigravity (Google DeepMind)
+- **Bối cảnh:** Xử lý toàn diện danh sách phản hồi từ Owner cho PR #72:
+  1. Loại bỏ inline `onerror` trong chuỗi HTML của `createCustomIcon`, thay bằng listener sự kiện capture trên `document` hoàn toàn tương thích CSP (`script-src 'self'`).
+  2. Dọn dẹp dead code `LABEL_ZOOM = 14`, hàm `updateMarkerLabels()` và class `show-marker-labels` (nhãn nay được tích hợp trực tiếp vào thẻ marker).
+  3. Tránh lộ biến môi trường window ra ngoài production (`window.map` và `window.locations`).
+  4. Khắc phục triệt để các timing flakes trên Node 24 và full E2E suite:
+     - `test/gemini-stream-abort.test.js`: theo dõi `handle.readCalled` và tăng `maxRounds` lên 5000 để HMAC WebCrypto hoàn tất ổn định trong môi trường CI đa luồng.
+     - `test/e2e/staff-portal-modal.spec.js`: tăng delay in-flight submit từ 800ms lên 1800ms và backdrop timeout lên 6000ms.
+     - `test/e2e/public-location-contributions.spec.js`: tăng delay `failFirst` từ 100ms lên 500ms để assertion in-flight không bị race condition.
+     - `test/e2e/marker-identity-card.spec.js`: bổ sung `await expect(card).toBeVisible()` trước khi lấy `boundingBox` ở Test 5.
+  5. Nghiệm thu kỹ thuật:
+     - `npm test`: 652/652 PASS (6.9s).
+     - `npm run ci`: PASS (exit code 0).
+     - `npx playwright test`: 108/108 PASS (clean 100% pass run trên toàn bộ test suite).
+- **PR:** Giữ PR #72 ở trạng thái DRAFT chờ Owner visual review, không tự ý `gh pr ready` hay merge.
+
 ## [2026-09-05] R1.1 — Marker Identity Cards with Station Previews
 - **Agent:** Antigravity (Google DeepMind)
 - **Bối cảnh:** Triển khai nâng cấp marker trên Bản đồ Công an số Phú Thọ (`vi-phuong-158/bandocapt`) theo yêu cầu TASK — R1.1 MARKER IDENTITY CARDS: Nâng cấp marker thành thẻ nhận diện trực quan gồm Pin vị trí + ảnh trụ sở + tên đơn vị.

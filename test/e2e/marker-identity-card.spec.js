@@ -160,7 +160,9 @@ test.describe('R1.1 Marker Identity Cards', () => {
         await zoomToMarkers(page);
 
         const card = page.locator('.marker-identity-card').first();
+        await expect(card).toBeVisible();
         const cardBox = await card.boundingBox();
+        expect(cardBox).not.toBeNull();
         expect(cardBox.width).toBeLessThanOrEqual(112);
 
         // Check CSS line clamp on unit name

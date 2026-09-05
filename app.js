@@ -57,7 +57,6 @@ let detailSuspended = false;
 // những chỗ khác: một URL hợp lệ vẫn có thể tải lỗi (404/mất quyền), khi đó hero đã rơi về logo.
 let detailImageIsPublic = false;
 let lightboxReturnFocus = null;
-if (typeof window !== "undefined") window.locations = locations;
 
 // Debounce utility
 function debounce(fn, delay) {
@@ -93,7 +92,6 @@ const map = L.map("map", {
   zoomSnap: 0.5,
   zoomDelta: 0.5,
 }).setView(CONFIG.center, CONFIG.defaultZoom);
-if (typeof window !== "undefined") window.map = map;
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
@@ -101,15 +99,6 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   // Bắt buộc theo ToS của OpenStreetMap — không được ẩn attribution.
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
 }).addTo(map);
-
-// Hiện tên trụ sở khi zoom đủ gần (≥ LABEL_ZOOM) để nhãn không chồng chéo.
-// Toàn tỉnh (zoom thấp) chỉ thấy pin — giống Google Maps.
-const LABEL_ZOOM = 14;
-function updateMarkerLabels() {
-  map.getContainer().classList.toggle("show-marker-labels", map.getZoom() >= LABEL_ZOOM);
-}
-map.on("zoomend", updateMarkerLabels);
-updateMarkerLabels();
 
 document
   .getElementById("zoom-in-btn")
@@ -192,8 +181,7 @@ function createCustomIcon(loc) {
                          alt=""
                          loading="lazy"
                          decoding="async"
-                         aria-hidden="true"
-                         onerror="if(!this.dataset.errored){this.dataset.errored='1';this.src='assets/logo.png';this.classList.add('is-fallback');this.parentElement.classList.add('is-fallback');}else{this.style.display='none';}">
+                         aria-hidden="true">
                 </div>
                 <div class="marker-identity-name marker-label" title="${safeName}">${safeName}</div>
             </div>
@@ -207,6 +195,30 @@ function createCustomIcon(loc) {
     iconAnchor: [anchorX, anchorY],
   });
 }
+
+// Xử lý lỗi tải ảnh marker tương thích 100% CSP (không dùng inline onerror trong HTML).
+// Sự kiện lỗi tài nguyên trên thẻ <img> không bubble nhưng kích hoạt đầy đủ ở capture phase.
+document.addEventListener(
+  "error",
+  (event) => {
+    const target = event.target;
+    if (
+      target &&
+      target.tagName === "IMG" &&
+      target.classList.contains("marker-identity-image")
+    ) {
+      if (!target.dataset.errored) {
+        target.dataset.errored = "1";
+        target.src = "assets/logo.png";
+        target.classList.add("is-fallback");
+        target.parentElement?.classList.add("is-fallback");
+      } else {
+        target.style.display = "none";
+      }
+    }
+  },
+  true
+);
 
 function createClusterIcon(cluster) {
   const count = cluster.getChildCount();
@@ -1222,10 +1234,6 @@ const marker = L.marker([loc.lat, loc.lng], {
 
       locations.push(loc);
     });
-
-    if (typeof window !== "undefined") {
-      window.locations = locations;
-    }
 
     filterAndRender();
 
