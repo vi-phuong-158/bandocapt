@@ -41,6 +41,8 @@ const files = [
     'js/staff-image.js',
     'js/staff-portal.js',
     'js/public-location-contribution.js',
+    'js/vendor/marked.min.js',
+    'js/vendor/purify.min.js',
 ];
 
 const TEXT_EXTENSIONS = new Set(['.css', '.html', '.js', '.json']);

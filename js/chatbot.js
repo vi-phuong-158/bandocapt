@@ -603,7 +603,7 @@ function renderStarterChips() {
         btn.textContent = q.label;
         btn.addEventListener('click', () => {
             const { input } = getChatElements();
-            if (!input || input.disabled) return;
+            if (!input) return;
             input.value = q.send;
             handleChatSend();
         });
@@ -627,7 +627,7 @@ function appendQuickReplies(row, fullText) {
         btn.textContent = reply.label;
         btn.addEventListener('click', () => {
             const { input } = getChatElements();
-            if (!input || input.disabled) return;
+            if (!input) return;
             input.value = reply.send;
             handleChatSend();
         });
@@ -691,19 +691,63 @@ function handleChatEnter(event) {
     }
 }
 
+function waitForTurnstileToken(timeoutMs = 3500) {
+    return new Promise((resolve) => {
+        if (turnstileToken) return resolve(turnstileToken);
+        let timer = null;
+        const prevCallback = window._onNewTurnstileToken;
+        const onToken = (token) => {
+            if (timer) clearTimeout(timer);
+            if (typeof prevCallback === 'function') prevCallback(token);
+            resolve(token);
+        };
+        window._onNewTurnstileToken = onToken;
+        timer = setTimeout(() => {
+            if (window._onNewTurnstileToken === onToken) {
+                window._onNewTurnstileToken = prevCallback || null;
+            }
+            resolve(turnstileToken || window._turnstileToken || null);
+        }, timeoutMs);
+    });
+}
+
 async function handleChatSend() {
     // Nút gửi hoạt động như nút Dừng khi đang stream.
     if (isChatSending) {
         stopActiveStream('stop');
         return;
     }
-    if (!turnstileVerified || !turnstileToken) return;
 
     const { input, send } = getChatElements();
     if (!input) return;
 
     const text = input.value.trim();
     if (!text) return;
+
+    // Nếu Turnstile chưa kịp nạp token trên thiết bị di động / mạng yếu:
+    // Đợi token ngầm trong 3.5s, không khóa cứng giao diện.
+    if (!isLocalHost && (!turnstileVerified || !turnstileToken)) {
+        const { turnstileContainer } = getChatElements();
+        if (turnstileContainer) turnstileContainer.style.display = 'flex';
+        setChatInputEnabled(false, 'Đang chuẩn bị phiên bảo mật...');
+        const token = await waitForTurnstileToken(3500);
+        if (token) {
+            turnstileToken = token;
+            turnstileVerified = true;
+            window._turnstileToken = token;
+            if (turnstileContainer) turnstileContainer.style.display = 'none';
+        }
+        setChatInputEnabled(true, CHATBOT_TEXT.placeholder);
+        if (!turnstileToken) {
+            appendUserMessage(text);
+            input.value = '';
+            const { bubble, content } = appendAssistantShell();
+            bubble.classList.add('ai-chat-bubble--error');
+            content.textContent = 'Hệ thống đang chuẩn bị phiên bảo mật hoặc chưa hoàn tất xác minh Turnstile. Vui lòng kiểm tra kết nối mạng rồi gửi lại câu hỏi.';
+            window.onTurnstileError?.();
+            return;
+        }
+    }
 
     isChatSending = true;
     activeCancelController = new AbortController();
@@ -925,7 +969,12 @@ function initChatbotWidget() {
     input?.addEventListener('keydown', handleChatEnter);
     const { send } = getChatElements();
     send?.addEventListener('click', handleChatSend);
-    setChatInputEnabled(isLocalHost, isLocalHost ? CHATBOT_TEXT.placeholder : CHATBOT_TEXT.captchaPlaceholder);
+    const isEmbedHost = Boolean(document.getElementById('chatEmbedStatus'));
+    if (isEmbedHost) {
+        setChatInputEnabled(isLocalHost, isLocalHost ? CHATBOT_TEXT.placeholder : CHATBOT_TEXT.captchaPlaceholder);
+    } else {
+        setChatInputEnabled(true, CHATBOT_TEXT.placeholder);
+    }
     window.addEventListener('resize', () => {
         if (isChatWindowVisible()) syncChatWindowPresentation(true);
     });

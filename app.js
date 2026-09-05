@@ -100,6 +100,17 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
 }).addTo(map);
 
+const LABEL_ZOOM_DEEP = 16.5;
+function updateMarkerLabels() {
+  const zoom = map.getZoom();
+  const isMobile = isMobileViewport();
+  map.getContainer().classList.toggle("show-marker-labels-deep", isMobile && zoom >= LABEL_ZOOM_DEEP);
+}
+map.on("zoomend", updateMarkerLabels);
+map.on("resize", updateMarkerLabels);
+window.addEventListener("resize", updateMarkerLabels);
+updateMarkerLabels();
+
 document
   .getElementById("zoom-in-btn")
   .addEventListener("click", () => map.zoomIn());
@@ -149,21 +160,37 @@ function createCustomIcon(loc) {
   const isPolice = !isIdentityLocation(loc);
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
+  const isMobile = isMobileViewport();
 
   let wrapperClass = "marker-container";
   if (isSelected) wrapperClass += " marker-selected";
   wrapperClass += isPolice ? " marker-police" : " marker-id";
+  if (isMobile) wrapperClass += " marker-mobile-compact";
 
   const thumbnail = getMarkerThumbnail(loc);
   const safeName = escapeHtml(loc.name);
   const safeImgUrl = thumbnail.isAllowed ? escapeHtml(thumbnail.src) : "assets/logo.png";
   const fallbackClass = thumbnail.isAllowed ? "" : " is-fallback";
 
-  const isMobile = isMobileViewport();
-  const iconWidth = isMobile ? 90 : 104;
-  const iconHeight = isMobile ? 100 : 110;
-  const anchorX = Math.round(iconWidth / 2);
-  const anchorY = isMobile ? 14 : 16;
+  let iconWidth, iconHeight, anchorX, anchorY;
+  if (isMobile) {
+    if (isSelected) {
+      iconWidth = 90;
+      iconHeight = 100;
+      anchorX = 45;
+      anchorY = 14;
+    } else {
+      iconWidth = 34;
+      iconHeight = 34;
+      anchorX = 17;
+      anchorY = 17;
+    }
+  } else {
+    iconWidth = 104;
+    iconHeight = 110;
+    anchorX = 52;
+    anchorY = 16;
+  }
 
   const html = `
         <div class="${wrapperClass}">
