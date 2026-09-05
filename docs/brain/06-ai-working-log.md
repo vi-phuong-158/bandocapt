@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-09-06] Owner Mobile Acceptance & CI Trigger Recovery for PR #73
+- **Agent:** Codex
+- **Status:** Owner Mobile Acceptance = PASS (đã nghiệm thu trực tiếp trên Android thật qua Vercel Preview).
+- **Lý do:** Kích hoạt synchronize event trên PR #73 để GitHub Actions CI khởi chạy trên exact commit HEAD mà không thay đổi bất kỳ mã nguồn production UX nào đã được nghiệm thu.
+- **File đã sửa:** `docs/brain/06-ai-working-log.md`
+- **Kiểm tra:** Theo dõi GitHub Actions run trên commit HEAD mới.
+
 ## [2026-09-05] Mobile Real-Device UX Fix: Chatbot Resilience, Location FAB & Marker Decluttering
 - **Agent:** Codex
 - **Thay đổi:**
