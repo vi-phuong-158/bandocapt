@@ -1,5 +1,50 @@
 # 03 — Technical Decisions
 
+## [2026-09-06] P0 chatbot location leak — Layer 1 RAG context sanitization added; leak NOT reproducible on current `main`
+
+- **Bối cảnh:** Task P0 báo cáo Production (`https://bandocapt.vercel.app`, commit `5c720ed`) tự chọn
+  "Công an Phường Hòa Bình" (tên/địa chỉ/SĐT/Google Maps) khi người dùng CHƯA nói xã/phường, cho hai
+  câu: "Tôi muốn làm căn cước thì đến đâu và cần giấy tờ gì?" và "Tôi muốn làm thủ tục cấp căn cước".
+- **Điều tra:** `git log 34a06bb..origin/main -- api/chat.js lib/published-locations.js
+  lib/output-validator.js lib/response-sink.js lib/retrieval-governance.js` rỗng — không commit nào
+  chạm các file này sau PR #70 (`fix(chat): fail closed on missing location evidence`, forward-port từ
+  `8403147`, xem `06-ai-working-log.md` 2026-09-01/2026-09-03). PR #70 đã thêm đúng cơ chế fail-closed
+  cần thiết: `locationLookupRequested`/`findVerifiedLocationMatches` xác định `locationResolutionStatus`
+  chỉ từ tin nhắn hiện tại + follow-up tức thời (không phụ thuộc RAG); khi status thuộc
+  `no_match`/`unavailable`/`ambiguous_match`/`ambiguous_conflict`, output được đệm lại
+  (`deferLocationOutput`) và quét bằng `containsSpecificLocationClaim` (so khớp theo dataset
+  Published_Locations THẬT SỰ + regex cấu trúc độc lập dataset) trước khi phát SSE, thay bằng câu trả
+  lời tất định nếu phát hiện location claim cụ thể.
+- **Test tái hiện (`test/location-rag-leak-repro.test.js`, MỚI, Pinecone ACTIVE — không xóa
+  `PINECONE_API_KEY`):** mock `@pinecone-database/pinecone` trả về đúng nội dung leak mô tả trong báo
+  cáo (tên/địa chỉ/SĐT của "Công an Phường Hòa Bình" nhúng trong một chunk thủ tục CCCD, giống
+  "G. CCCD xa 2025.docx"), mock Gemini/DeepSeek generation trả nguyên văn leak đó, chạy đúng 2 câu
+  Production. **Kết quả: KHÔNG tái hiện được leak ở client** — `deferLocationOutput` + fallback tất
+  định của PR #70 chặn đúng cả hai câu, cả 2 provider (Gemini/DeepSeek), governance on/off. Do đó
+  KHÔNG có bằng chứng code regression nào ở lớp output gate (Layer 3) trên `main` hiện hành.
+- **Gap thật tìm thấy (không phải regression, là thiếu lớp phòng thủ theo đúng section 5 của task):**
+  `sanitizeRetrievedDocumentText` (dùng để build `matchedDocs`/`<retrieved_documents>`) trước đây CHỈ
+  lọc dòng prompt-injection, không lọc nội dung định danh địa điểm — nghĩa là toàn bộ an toàn phụ
+  thuộc DUY NHẤT vào Layer 3 (output gate) + Layer 2 (chỉ dẫn system prompt, vốn task đã cảnh báo
+  "không dùng prompt instruction làm security boundary"). Không có Layer 1 (context sanitization).
+- **Quyết định:** Thêm `stripLocationAuthorityFromRagText()` trong `api/chat.js`, áp dụng VÔ ĐIỀU KIỆN
+  (không phụ thuộc `locationResolutionStatus`, tránh vấn đề thứ tự vì Pinecone retrieval chạy trước khi
+  location status được biết) lên `matchedDocs` — loại các dòng "Công an/trụ sở/nơi thực hiện/nơi nộp +
+  [phường/xã cụ thể]" (dùng đúng danh sách loại trừ generic wording như `containsSpecificLocationClaim`
+  đã có, để không phá "Công an xã/phường nơi cư trú"), dòng "Địa chỉ:"/"Điện thoại:"/"SĐT:", và Google
+  Maps URL — TRƯỚC khi text đi vào prompt sinh câu trả lời. Hồ sơ/Trình tự/lệ phí/căn cứ pháp lý được
+  giữ nguyên. Đã chứng minh bằng test: revert `api/chat.js` (`git stash`) → test Layer 1 FAIL đúng ở
+  dòng kiểm tra prompt (bằng chứng before/after thật, không phải test tự động pass).
+- **Vì sao không phải prompt-only patch:** đây là biến đổi TEXT CỨNG trước khi ghép prompt (regex loại
+  bỏ dòng), không phải thêm câu chỉ dẫn cho model — model không còn nhìn thấy nội dung đó nữa, thay vì
+  chỉ được dặn đừng dùng nó.
+- **Không làm:** không tắt Pinecone/RAG, không hard-code riêng "Hòa Bình", không sửa Published_Locations
+  Production, không đổi luồng resolver/fail-closed hiện có của PR #70, không merge.
+- **Còn treo (cần chủ dự án xác nhận, ngoài khả năng đọc của phiên này):** phiên này không có
+  Vercel/Google Sheets credentials để đọc Production runtime logs/deployment metadata thật theo yêu cầu
+  mục 7 của task — không loại trừ khả năng báo cáo leak dựa trên quan sát TRƯỚC khi PR #70 merge
+  (2026-09-01/03) hoặc một lệch pha triển khai Vercel ngoài phạm vi source code.
+
 ## [2026-09-05] R1.1: Marker Identity Cards — Presentation Layer for Standalone Markers
 
 - **Bối cảnh:** Người dùng cần nhận diện nhanh trụ sở/địa điểm ngay trên bản đồ trực quan bằng hình ảnh và tên đơn vị thay vì chỉ thấy pin icon hoặc tên khi zoom rất gần.

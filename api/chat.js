@@ -1549,6 +1549,33 @@ function sanitizeRetrievedDocumentText(text) {
         .trim();
 }
 
+// [P0 location-leak hardening] LAYER 1 — retrieval/context sanitization.
+// A procedural document (RAG) can legitimately mention a specific commune/ward's reception
+// office (a source doc written for one commune, or duplicated per-commune guide content) even
+// though it is retrieved for a user who never named their own ward. Location AUTHORITY must
+// come exclusively from <verified_locations> (see lib/published-locations.js resolver) — the
+// system prompt already says so, but a prompt instruction alone is not a security boundary
+// (a model can still copy text it can see). These two patterns strip the office-identifying
+// lines (station name declaration, address, phone) out of RAG text BEFORE it ever reaches the
+// prompt, so Layer 2 (prompt rule) and Layer 3 (containsSpecificLocationClaim output gate)
+// are backed by a structural boundary instead of being the only defense. Generic wording like
+// "Công an cấp xã nơi cư trú" is intentionally NOT matched (same exclusion list as
+// containsSpecificLocationClaim's fallback in api/chat.js) so procedural guidance is preserved.
+const RAG_LOCATION_AUTHORITY_LINE_PATTERN = /(?:công an|cong an|trụ sở|tru so|nơi thực hiện|noi thuc hien|nơi nộp|noi nop|nộp\s+(?:hồ sơ\s+)?tại|nop\s+(?:ho so\s+)?tai)\s+(?:phường|phuong|xã|xa|thị trấn|thi tran)\s+(?!nơi\b|noi\b|phù hợp\b|phu hop\b|gần\b|gan\b|địa phương\b|dia phuong\b)[^\n]{2,}/iu;
+const RAG_LOCATION_DETAIL_LINE_PATTERN = /^\s*(?:địa chỉ|dia chi|số điện thoại|so dien thoai|điện thoại|dien thoai|sđt|sdt)\s*[:：]/iu;
+const RAG_MAPS_URL_PATTERN = /https?:\/\/(?:www\.)?google\.[a-z.]+\/maps\S*|https?:\/\/maps\.app\.goo\.gl\S*/iu;
+
+function stripLocationAuthorityFromRagText(text) {
+    return String(text || '')
+        .split(/\r?\n/)
+        .filter(line =>
+            !RAG_LOCATION_AUTHORITY_LINE_PATTERN.test(line) &&
+            !RAG_LOCATION_DETAIL_LINE_PATTERN.test(line) &&
+            !RAG_MAPS_URL_PATTERN.test(line))
+        .join('\n')
+        .trim();
+}
+
 function isLikelyVietnamese(text) {
     // Có dấu tiếng Việt → chắc chắn.
     if (/[àáảãạăâấầẩẫậêếềểễệíìỉĩịóòỏõọôốồổỗộơớờởỡợúùủũụưứừửữựýỳỷỹỵđ]/i.test(text)) return true;
@@ -2450,7 +2477,7 @@ module.exports = async function handler(req, res) {
                             m.metadata?.cap ? `Cấp xử lý: ${m.metadata.cap}` : '',
                             m.metadata?.source_decision ? `Nguồn: ${m.metadata.source_decision}` : ''
                         ].filter(Boolean).join('\n');
-                        const text = sanitizeRetrievedDocumentText(rawText);
+                        const text = stripLocationAuthorityFromRagText(sanitizeRetrievedDocumentText(rawText));
                         const factsLine = buildVerifiedFactsLine(m.metadata, governanceEnabled);
                         const factsSuffix = factsLine ? `\n${factsLine}` : '';
                         const roleLabel = governanceEnabled ? ` - Vai trò: ${m.metadata?.source_priority || 'unknown'}` : '';
@@ -3305,6 +3332,7 @@ module.exports.isRetryableProviderError = isRetryableProviderError;
 module.exports.getRemainingDeadlineMs = getRemainingDeadlineMs;
 module.exports.detectUserLanguage = detectUserLanguage;
 module.exports.containsSpecificLocationClaim = containsSpecificLocationClaim;
+module.exports.stripLocationAuthorityFromRagText = stripLocationAuthorityFromRagText;
 module.exports.getMissingLocationEvidenceReply = getMissingLocationEvidenceReply;
 module.exports.getAmbiguousLocationReply = getAmbiguousLocationReply;
 module.exports.translateQueryForRetrieval = translateQueryForRetrieval;
