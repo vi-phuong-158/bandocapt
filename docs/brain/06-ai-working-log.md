@@ -1,5 +1,59 @@
 # 06 — AI Working Log
 
+## [2026-09-06] Secure Eval Bypass on Vercel Preview & Live Preview Acceptance
+- **Agent:** Codex
+- **Thay đổi:**
+  - `api/chat.js`:
+    1. Bổ sung `isEvalBypassPermitted(env)`: Trả về `true` trên Vercel Preview (`VERCEL_ENV === 'preview'`), trả về `false` tuyệt đối trên Production (`VERCEL_ENV === 'production'`), fallback về `NODE_ENV !== 'production'` cho môi trường local/CI.
+    2. Bổ sung `isEvalBypassRequest(token, env)`: Kiểm tra `isEvalBypassPermitted(env)` và so sánh token với `EVAL_BYPASS_TOKEN` qua `crypto.timingSafeEqual` chuẩn constant-time.
+    3. Cập nhật `verifyTurnstile`, `isEvalCaptchaBypass`, `isEvalRun`, và `shouldAttachEvalDebug` sang dùng thống nhất hợp đồng `isEvalBypassRequest`.
+    4. Cập nhật warning khởi động `isExplicitProduction` để tránh false warning trên Preview trong khi giữ trọn vẹn cảnh báo và chặn đứng rủi ro rò rỉ trên Production.
+  - `test/eval-debug-output.test.js`: Bổ sung 4 unit test mới xác minh nghiêm ngặt ma trận môi trường (`VERCEL_ENV === 'preview'` cho phép khi đủ token + flag, `VERCEL_ENV === 'production'` cấm tuyệt đối, không có đường vòng).
+  - `docs/brain/01-architecture.md` & `docs/brain/03-decisions.md`: Cập nhật đặc tả bảo mật và quyết định kỹ thuật.
+- **Lý do:** Cho phép chạy bộ kiểm thử chấp nhận trực tiếp (deterministic Live Preview API Acceptance) trên URL Vercel Preview thực tế mà không bị chặn bởi Cloudflare Turnstile, đồng thời bảo đảm an ninh Production không bị suy giảm.
+- **Kiểm tra:**
+  - `test/eval-debug-output.test.js`: 11/11 tests PASS.
+  - `npm test`: 672/672 tests PASS.
+  - `npm run ci`: Toàn bộ linter, syntax, test suite, build artifacts PASS (exit code 0).
+
+## [2026-09-06] P0 Follow-up: Preposition Evidence Hardening & Single-Token Alias Safety Invariant
+- **Agent:** Codex
+- **Thay đổi:**
+  - `lib/published-locations.js`:
+    1. Loại bỏ các pattern nhận diện giới từ lỏng lẻo (`PREPOSITION_LOCATION_PATTERN`, `PREPOSITION_LOCATION_NORM_PATTERN`) vốn coi mọi từ sau "ở/tại" là bằng chứng địa bàn.
+    2. Thiết lập hợp đồng 2 lớp (Dual-Layer Safety Gate):
+       - **Layer 1 (`resolveLocationCandidateFromDataset` / `extractLocationEvidence`)**: Cụm giới từ chỉ được công nhận là bằng chứng địa bàn nếu phần văn bản sau giới từ thực sự khớp với một bí danh đa âm tiết (`tokens.length >= 2`) của một trụ sở có trong dataset. Các cụm từ hỏi ("tại công an nào", "ở công an nào", "tại đơn vị nào", "ở cơ quan nào", "tại điểm nào", "ở trụ sở nào", "ở đâu", "tại đâu") bị loại trừ triệt để.
+       - **Layer 2 (`scoreLocationMatch` / `buildLookupTexts`)**: Thiết lập bất biến an toàn bí danh đơn âm tiết (Generic Single-Token Alias Safety Rule): Các bí danh đơn từ (`tokens.length < 2`, ví dụ "bo", "lam", "an") bị CẤM TUYỆT ĐỐI không được khớp trong bất kỳ câu thủ tục hoặc câu hỏi tự do nào. Chúng CHỈ được phép đánh giá trong ngữ cảnh hỏi-đáp ngắn hạn hẹp khi bot vừa chủ động hỏi địa bàn (`assistant_location_followup`).
+    3. Bổ sung `/\b(?:don vi|co quan|tru so|diem|dia diem|noi)\s+nao\b/i` vào `LOCATION_TRIGGER_PATTERNS` để nhận diện đầy đủ ý định hỏi nơi nộp hồ sơ.
+  - `test/chat-location-evidence-gate.test.js`: Thêm ma trận kiểm thử hồi quy cho toàn bộ 10 câu truy vấn hỏi nơi nộp/làm thủ tục (bao gồm "Tôi cần nộp bộ hồ sơ căn cước tại công an nào?"), kiểm tra tích hợp chống leak Công an Xã Kim Bôi (bí danh "bo"), và kiểm tra follow-up hợp lệ.
+  - `docs/brain/01-architecture.md` & `docs/brain/03-decisions.md`: Cập nhật kiến trúc và quyết định kỹ thuật.
+- **Lý do:** Khắc phục nguy cơ xung đột vị trí thứ hai do bí danh đơn từ "bo" của Công an Xã Kim Bôi khớp với từ "bộ" trong "bộ hồ sơ", kết hợp với regex giới từ lỏng lẻo nhận diện "tại công an nào" thành location evidence.
+- **Kiểm tra:**
+  - `test/chat-location-evidence-gate.test.js`: 10/10 tests PASS.
+  - `npm test`: 669/669 tests PASS (0 fail).
+  - `npm run check:syntax`, `npm run check:staff`, `npm run check:rate-limit`: PASS.
+  - `npm run build`: PASS.
+  - `npm run ci`: PASS (exit code 0).
+  - Playwright E2E: `chat-embed.spec.js` (1/1 PASS), `chat-progressive-disclosure.spec.js` (4/4 PASS).
+
+## [2026-09-06] P0 Resolution: Location Evidence Contract & Hard Security Gate
+- **Agent:** Codex
+- **Thay đổi:**
+  - `lib/published-locations.js`: Khắc phục lỗi strip tiền tố hành chính khiến "Phương Lâm" bị biến thành bare alias "Lâm" (`lam`) khớp với động từ "làm". Thiết lập hợp đồng tường minh `hasLocationEvidence(currentMessage, history)` và `extractLocationEvidence(currentMessage, history)`. Cấm thêm `current-loose` vào lookupTexts khi thiếu bằng chứng địa bàn. Trả về `status: 'missing_location_evidence'` và `matches: []`.
+  - `api/chat.js`: Cưỡng chế `verifiedLocationMatches = []` khi `!hasLocationEvidence`. Kích hoạt `deferLocationOutput = true` đệm SSE token khi không có verified match hợp lệ. Thiết lập cổng hậu kiểm Hard Security Gate: nếu LLM tự sinh địa danh cụ thể khi chưa có bằng chứng địa bàn, bóc tách dòng địa danh qua `stripLocationAuthorityFromRagText(fullText)` và fallback tất định `getMissingLocationEvidenceReply(userLang)`. Cưỡng chế `verifiedLocations: []` trong SSE event `done`. Thêm các trường `hasLocationEvidence`, `locationEvidenceSource`, `locationSafetyFallback` vào `evalTrace`.
+  - `test/fixtures/published-locations-snapshot.json`: Snapshot toàn diện 142 dòng từ production Google Sheets để kiểm thử tất định.
+  - `test/chat-location-evidence-gate.test.js`: Suite kiểm thử hồi quy P0 độc lập kiểm tra tái hiện lỗi thất bại trước khi sửa và thành công sau khi sửa, kèm đầy đủ ma trận kiểm thử (negative, positive case 1 & 2, explicit query, multi-turn follow-up, contract tests).
+  - `test/location-resolution-contract.test.js` & `test/location-rag-leak-repro.test.js`: Cập nhật kỳ vọng theo đúng hợp đồng mới (`missing_location_evidence`).
+  - `docs/brain/01-architecture.md` & `docs/brain/03-decisions.md`: Cập nhật kiến trúc và quyết định kỹ thuật.
+- **Lý do:** Khắc phục triệt để lỗi chatbot tự chọn sai Công an Phường Hòa Bình khi người dùng hỏi làm căn cước nhưng chưa cung cấp địa bàn ("Tôi muốn làm căn cước thì đến đâu").
+- **Kiểm tra:**
+  - `test/chat-location-evidence-gate.test.js`: 7/7 tests PASS.
+  - `npm test`: 666/666 tests PASS (0 fail).
+  - `npm run check:syntax`, `npm run check:staff`, `npm run check:rate-limit`: PASS.
+  - `npm run build`: PASS.
+  - `npm run ci`: PASS (exit code 0).
+  - Playwright E2E: `chat-embed.spec.js` (1/1 PASS), `chat-progressive-disclosure.spec.js` (4/4 PASS).
+
 ## [2026-09-06] P0 investigation — chatbot location leak, Layer 1 RAG sanitization hardening
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** Task P0 báo cáo Production leak "Công an Phường Hòa Bình" (tên/địa chỉ/SĐT/Maps) khi

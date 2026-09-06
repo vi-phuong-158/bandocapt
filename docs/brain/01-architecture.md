@@ -1,5 +1,47 @@
 # 01 - Architecture
 
+## P0: Location-Evidence Contract & Hard Security Gate (2026-09-06)
+
+- **Nguyên nhân gốc rễ (Root Cause Analysis):**
+  - Trong dataset `Published_Locations` thực tế của production (dòng 49: Công an Phường Hòa Bình), cột `search_aliases` chứa giá trị `"phương lâm"`.
+  - Hàm `createAliasVariants("phương lâm")` chuẩn hóa thành `"phuong lam"`.
+  - Hàm `stripAdministrativePrefix("phuong lam")` nhận diện tiền tố `/^phuong\s+/` và cắt bỏ `"phuong"`, để lại từ đơn `"lam"` ("Lâm").
+  - Từ `"lam"` được đưa vào danh sách `approvedAliases` của Công an Phường Hòa Bình.
+  - Khi người dùng hỏi: *"Tôi muốn làm căn cước thì đến đâu"*, cụm từ "căn cước" kích hoạt `isLocationLookupRequested = true`.
+  - Khi `lookupRequested = true`, cờ `allowLooseAlias = true` được bật mà **không kiểm tra người dùng có cung cấp địa bàn hay không**.
+  - `scoreLocationMatch` so khớp từ đơn `"làm"` (động từ) trong câu hỏi của người dùng với approved alias `"lam"` của Công an Phường Hòa Bình với điểm số 60.
+  - Trạng thái trả về là `status: 'matched'` với duy nhất Công an Phường Hòa Bình.
+  - Do `status === 'matched'`, `deferLocationOutput` nhận giá trị `false`, `containsSpecificLocationClaim` bị bỏ qua, và khối `<verified_locations>` chứa Công an Phường Hòa Bình được nạp trực tiếp vào prompt của LLM.
+  - PR #74 trước đó lầm tưởng lỗi do Pinecone RAG leak và đã mock `search_aliases: ''` trong fixture test của họ, khiến bug thực tế trên production bị che giấu hoàn toàn.
+- **Bất biến kiến trúc mới (Core Invariants):**
+  1. *"Location lookup intent is not location evidence."* (Ý định hỏi nơi làm thủ tục KHÔNG ĐỒNG NGHĨA với việc người dùng đã cung cấp địa bàn).
+  2. *"No specific public location may be emitted without explicit location evidence, regardless of RAG, model, or resolver output."* (Không một địa chỉ, SĐT, link Google Maps hay tên trụ sở cụ thể nào được phép xuất xưởng nếu thiếu bằng chứng địa bàn từ người dùng).
+- **Hợp đồng phân giải (Resolution Contract - `lib/published-locations.js`):**
+  - Tách biệt rành mạch giữa `isLocationLookupRequested(currentMessage, history)` và `hasLocationEvidence(currentMessage, history, dataset)`.
+  - Thiết lập cơ chế bảo vệ 2 lớp (Dual-Layer Safety Gate):
+    + **Layer 1 (Location Evidence Detector)**: `extractLocationEvidence(currentMessage, history, dataset)`:
+      * Nhận diện cấu trúc địa bàn hành chính rõ ràng (`STRUCTURED_ADMIN_LOCATION_PATTERN`: xã/phường/thị trấn), địa chỉ (`STRUCTURED_ADDRESS_LOCATION_PATTERN`: đường, thôn, xóm, tổ N), tiếng Anh (`ENGLISH_LOCATION_PATTERN`), và ngữ cảnh hỏi-đáp nhiều lượt (`assistant_location_followup`).
+      * Với các cụm giới từ/khai báo cư trú không có tiền tố hành chính ("ở [X]", "tại [X]", "cư trú tại [X]"): loại bỏ regex lỏng lẻo; thay bằng hàm `resolveLocationCandidateFromDataset(raw, dataset)` — CHỈ công nhận bằng chứng vị trí nếu cụm từ sau giới từ khớp với một bí danh đa âm tiết (`tokens.length >= 2`) của một trụ sở có trong dataset. Mọi cụm từ hỏi ("tại công an nào", "ở đâu", "tại đơn vị nào", "ở cơ quan nào", "tại điểm nào", "ở trụ sở nào") và động từ thủ tục ("làm", "nộp") đều bị loại trừ và không được xem là bằng chứng địa bàn.
+    + **Layer 2 (Generic Single-Token Alias Safety Rule)**: Trong `scoreLocationMatch`, các bí danh đơn từ (`aliasTokens.length < 2`, e.g. "bo", "lam", "an") bị CẤM TUYỆT ĐỐI không được khớp trong bất kỳ câu thủ tục hoặc câu hỏi tự do nào. Chúng CHỈ được kích hoạt (`allowSingleTokenAlias = true`) trong câu trả lời ngắn theo sau câu hỏi địa bàn trực tiếp của bot (`assistant_location_followup`).
+  - Sửa hàm `stripAdministrativePrefix`: bảo vệ tên riêng (proper names) như "Phương Lâm" không bị cắt cụt thành từ đơn "Lâm" (`lam`).
+  - Nếu `lookupRequested = true` và `hasLocationEvidence = false`:
+    - `matches: []`
+    - `status: 'missing_location_evidence'`
+    - Cấm tuyệt đối thêm `current-loose` vào `lookupTexts` (cấm loose alias matching và cấm servicePriority auto-pick).
+- **Lớp bảo vệ tầng sâu (Defense-in-depth Hard Security Gate - `api/chat.js`):**
+  - Kiểm tra `hasLocationEvidenceFlag`: nếu `false`, cưỡng chế `verifiedLocationMatches = []`.
+  - Cờ `deferLocationOutput`: kích hoạt (`true`) khi `!hasVerifiedLocationMatch` và có nhu cầu tra cứu địa điểm (`locationLookupRequested` hoặc status thuộc `missing_location_evidence`, `no_match`, `unavailable`, `ambiguous_match`, `ambiguous_conflict`). Toàn bộ SSE stream token trung gian bị đệm lại, ngăn rò rỉ token địa điểm ra client trong lúc sinh câu trả lời.
+  - Cổng hậu kiểm sau sinh (Post-generation Gate):
+    - Nếu `containsSpecificLocationClaim(fullText, locationSafetyDataset)` kích hoạt khi không có verified match hợp lệ:
+      + Bóc tách dòng địa danh định danh cụ thể qua `stripLocationAuthorityFromRagText(fullText)`.
+      + Nếu nội dung thủ tục còn lại và chưa có câu hỏi địa bàn: ghép nối câu trả lời tất định `getMissingLocationEvidenceReply(userLang)`.
+      + Nếu nội dung rỗng hoặc vẫn chứa claim cụ thể: thay thế toàn bộ bằng `getMissingLocationEvidenceReply(userLang)`.
+  - Cưỡng chế `verifiedLocations` trong event `done` của SSE: luôn là mảng rỗng `[]` khi `!hasVerifiedLocationMatch`.
+- **Code Graph impact:**
+  - `lib/published-locations.js` -> exports: `findVerifiedLocationMatches`, `hasLocationEvidence`, `extractLocationEvidence`, `formatVerifiedLocationsPrompt`, `buildLookupTexts`.
+  - `api/chat.js` -> tiêu thụ `hasLocationEvidence`, `extractLocationEvidence`, `findVerifiedLocationMatches`, `formatVerifiedLocationsPrompt`, `stripLocationAuthorityFromRagText`, `containsSpecificLocationClaim`.
+  - `test/chat-location-evidence-gate.test.js` -> tích hợp snapshot 142 trụ sở production, kiểm thử trọn vẹn cả tầng resolver và tầng HTTP SSE handler.
+
 ## P0 chatbot location leak — RAG context sanitization Layer 1 (2026-09-06)
 
 - Chat location-resolution safety path (đã có từ PR #70, xem entry Published_Locations phía dưới) có
@@ -751,7 +793,7 @@ tinh chua nam trong matcher `Published_Locations` van khong duoc dua vao truong 
 Client (`js/gemini.js`) parse `done` chung nên field `abstentionReason` được bỏ qua an toàn, text vẫn render.
 
 **Eval-mode output (T1.3):** event `done` đính thêm trường `eval` (trace retrieval cho bộ chấm
-grounding) CHỈ khi đủ 3 điều kiện AND: `NODE_ENV !== 'production'` + `captchaToken === EVAL_BYPASS_TOKEN`
+grounding) CHỈ khi đủ 3 điều kiện AND: môi trường cho phép (`VERCEL_ENV === 'preview'` hoặc `NODE_ENV !== 'production'`; `VERCEL_ENV === 'production'` luôn cấm tuyệt đối) + `captchaToken === EVAL_BYPASS_TOKEN`
 + body `evalDebug: true` (`shouldAttachEvalDebug` trong `api/chat.js`). Production KHÔNG BAO GIỜ trả
 `eval`. Cấu trúc: `{ standaloneQuery, classifyQuery, category, matchesRaw[], matchesFinal[] (kèm rank),
 excluded[] (id + lý do: location_vector/wrong_branch/below_threshold/rerank_or_topk_cut), matchedDocs }`.

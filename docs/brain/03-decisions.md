@@ -1,5 +1,54 @@
 # 03 — Technical Decisions
 
+## [2026-09-06] P0 Follow-up: Preposition Location Evidence Hardening & Single-Token Alias Safety Invariant
+
+- **Bối cảnh:** Sau khi sửa lỗi "Phương Lâm" -> bare alias "Lâm" (`lam`) khớp với động từ "làm", review P0 phát hiện nguy cơ xung đột thứ hai:
+  1. Câu hỏi: *"Tôi cần nộp bộ hồ sơ căn cước tại công an nào?"*
+  2. Normalize: "bộ" -> "bo".
+  3. Cụm "tại công an nào" chứa "tai cong", bị regex giới từ cũ (`PREPOSITION_LOCATION_NORM_PATTERN`) nhận định nhầm là có bằng chứng địa bàn (`preposition_location`).
+  4. Trong dataset production, Công an Xã Kim Bôi có `search_aliases: "bo|vĩnh đồng|kim bôi"`. Alias `'bo'` (1 từ) khớp với từ "bộ" trong "bộ hồ sơ", dẫn đến việc tự chọn sai sang Công an Xã Kim Bôi với score 60!
+  5. Đồng thời, các câu hỏi dạng "ở/tại + [đơn vị/cơ quan/trụ sở/điểm/đâu]" đều bị coi nhầm là có bằng chứng địa bàn do coi "ở/tại + từ bất kỳ" là địa danh.
+- **Quyết định 1 — Không coi "ở/tại + từ bất kỳ" là bằng chứng địa bàn (Layer 1 Gate):**
+  - Xóa bỏ regex giới từ lỏng lẻo `PREPOSITION_LOCATION_PATTERN`.
+  - Phân loại rõ:
+    + Cấu trúc hành chính rõ ràng (`phường/xã/thị trấn...`, `đường/thôn/xóm...`) được coi là bằng chứng cấu trúc (`structured_admin_unit`).
+    + Các câu hỏi hỏi địa điểm ("ở đâu", "tại đâu", "tại công an nào", "ở công an nào", "tại đơn vị nào", "ở cơ quan nào", "tại trụ sở nào", "tại điểm nào", "ở chỗ nào") và động từ hành động ("làm", "nộp") bị cấm tuyệt đối, KHÔNG ĐƯỢC PHÉP coi là bằng chứng địa bàn.
+    + Với giới từ/khai báo cư trú không có tiền tố hành chính ("ở Hòa Bình", "ở Thanh Miếu", "cư trú tại Bạch Hạc"): Triển khai `resolveLocationCandidateFromDataset(raw, dataset)`. CHỈ công nhận bằng chứng địa bàn nếu phần văn bản sau giới từ thực sự khớp với một bí danh đa âm tiết (`tokens.length >= 2`) của một trụ sở đã xuất bản trong dataset.
+- **Quyết định 2 — Thiết lập bất biến an toàn bí danh đơn từ (Layer 2 Gate):**
+  - Trong `scoreLocationMatch`, các bí danh chỉ có 1 từ (`aliasTokens.length < 2`, ví dụ "bo", "lam", "an") bị CẤM TUYỆT ĐỐI không được khớp trong bất kỳ câu thủ tục hoặc câu hỏi dài nào (`tokens.length > MAX_SHORT_LOCATION_TOKENS = 4` hoặc không phải immediate location followup).
+  - Bí danh đơn từ CHỈ được kích hoạt (`allowSingleTokenAlias = true`) khi bot vừa trực tiếp hỏi địa bàn ("Bạn ở xã/phường nào...") và người dùng trả lời câu ngắn ("Bo").
+  - Quy tắc này mang tính generic invariant, ngăn chặn triệt để mọi va chạm từ ngữ thường nhật ("bộ", "làm", "an") với bất kỳ alias đơn từ nào trong tương lai mà không cần blacklist thủ công.
+- **Quyết định 3 — Bổ sung Trigger Pattern cho ý định hỏi đơn vị:**
+  - Thêm `/\b(?:don vi|co quan|tru so|diem|dia diem|noi)\s+nao\b/i` vào `LOCATION_TRIGGER_PATTERNS` để các câu hỏi như "Tôi phải nộp hồ sơ tại đơn vị nào?" được ghi nhận đúng `lookupRequested: true` và rơi chuẩn vào nhánh `missing_location_evidence`.
+
+## [2026-09-06] P0 Chatbot Location Leak: True Root Cause Discovery (Alias "Lâm" Collision) & Dual-Layer Resolution
+
+- **Bối cảnh:** Báo cáo P0 Production (`https://bandocapt.vercel.app`): Câu hỏi *"Tôi muốn làm căn cước thì đến đâu"* khiến bot tự động chọn "Công an Phường Hòa Bình" kèm địa chỉ, SĐT và Google Maps, dù người dùng chưa hề cung cấp địa bàn. PR #74 trước đó cho rằng lỗi do RAG context leak và mock `search_aliases: ''`, nên không tìm thấy bug thật.
+- **Phát hiện pháp y (Root Cause):**
+  1. Trong dữ liệu thật `Published_Locations` (dòng 49: Công an Phường Hòa Bình), cột `search_aliases` có giá trị `phương lâm`.
+  2. `normalizeLabel('phương lâm')` -> `'phuong lam'`.
+  3. `stripAdministrativePrefix('phuong lam')` bị dính regex `/^phuong\s+/`, lột bỏ chữ `phuong` và để lại từ đơn `'lam'` ("Lâm").
+  4. `'lam'` được nạp vào `approvedAliases` của Công an Phường Hòa Bình.
+  5. Khi user hỏi *"Tôi muốn **làm** căn cước thì đến đâu"*, cụm từ "căn cước" bật `isLocationLookupRequested = true`.
+  6. Resolver cũ tự động kích hoạt `allowLooseAlias = true` khi `lookupRequested = true` mà không kiểm tra bằng chứng địa bàn.
+  7. Động từ *"làm"* trong câu hỏi khớp hoàn hảo với alias `'lam'`, mang lại 60 điểm cho Công an Phường Hòa Bình, khiến resolver trả về `status: 'matched'`.
+  8. Do `status === 'matched'`, `deferLocationOutput` nhận `false`, bỏ qua `containsSpecificLocationClaim`, dẫn đến việc inject thẳng trạm Hòa Bình vào prompt sinh của LLM.
+- **Quyết định 1 — Sửa `stripAdministrativePrefix` bảo vệ tên riêng:**
+  - Quy định tên riêng như "Phương Lâm" không được phép bị bóc tiền tố thành từ đơn "Lâm" (`lam`). Chỉ bóc tiền tố hành chính khi phần còn lại có >= 2 từ (đối với chuỗi không dấu) hoặc có dấu tiếng Việt rõ ràng.
+- **Quyết định 2 — Thiết lập hợp đồng tường minh `hasLocationEvidence`:**
+  - Phân tách rõ ràng giữa `isLocationLookupRequested` (người dùng muốn tìm nơi làm thủ tục) và `hasLocationEvidence` (người dùng đã cung cấp xã/phường/địa bàn cụ thể).
+  - Bổ sung `extractLocationEvidence(currentMessage, history)` và `hasLocationEvidence(currentMessage, history)`.
+  - Nếu `lookupRequested && !hasLocationEvidence`:
+    + `matches = []`
+    + `status = 'missing_location_evidence'`
+    + Không bổ sung `current-loose` vào `lookupTexts` (cấm loose alias matching và cấm servicePriority auto-pick).
+- **Quyết định 3 — Hard Security Gate tại `api/chat.js`:**
+  - `deferLocationOutput`: kích hoạt khi `!hasVerifiedLocationMatch` và có nhu cầu vị trí, đệm hoàn toàn các token SSE trung gian.
+  - Cổng hậu kiểm sau generation: Nếu model tự ý sinh ra địa danh cụ thể khi chưa có verified match, hệ thống tự động bóc tách dòng địa danh qua `stripLocationAuthorityFromRagText(fullText)`. Nếu còn nội dung thủ tục hợp lệ, ghép nối thông báo thiếu địa bàn `getMissingLocationEvidenceReply(userLang)`. Nếu rỗng hoặc còn claim, thay thế toàn bộ bằng câu trả lời tất định yêu cầu cung cấp xã/phường.
+  - Payload SSE `done`: `verifiedLocations` bắt buộc là `[]` khi `!hasVerifiedLocationMatch`.
+- **Quyết định 4 — Bộ test snapshot độc lập:**
+  - Tạo `test/fixtures/published-locations-snapshot.json` từ payload GViz 142 dòng của production để đảm bảo mọi alias thật (bao gồm "phương lâm") đều được kiểm thử hồi quy tất định, độc lập với mạng ngoài.
+
 ## [2026-09-06] P0 chatbot location leak — Layer 1 RAG context sanitization added; leak NOT reproducible on current `main`
 
 - **Bối cảnh:** Task P0 báo cáo Production (`https://bandocapt.vercel.app`, commit `5c720ed`) tự chọn
@@ -1977,4 +2026,22 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - **Reason:** Firebase project quota blocked a safe dedicated TEST RTDB, while Upstash provides a
   Vercel-native atomic key/value resource with a TEST-only Preview binding and no architecture change
   to the contribution workflow.
+
+## [2026-09-06] Eval bypass supported on Vercel Preview while locking down Production
+
+- **Context:** Automated end-to-end acceptance testing of chatbot location-evidence and RAG behavior
+  against live Vercel Preview was blocked by Cloudflare Turnstile CAPTCHA. Vercel Preview sets
+  `NODE_ENV === 'production'` during preview execution, making the previous `NODE_ENV !== 'production'`
+  guard unusable on preview environments.
+- **Decision:**
+  - Introduce `isEvalBypassPermitted(env)`: returns `true` if `VERCEL_ENV === 'preview'`; returns `false`
+    unconditionally if `VERCEL_ENV === 'production'`; falls back to `NODE_ENV !== 'production'` for local/CI.
+  - Introduce `isEvalBypassRequest(token, env)`: validates `isEvalBypassPermitted(env)`, checks non-empty
+    `EVAL_BYPASS_TOKEN`, and performs constant-time comparison via `crypto.timingSafeEqual`.
+  - Update `verifyTurnstile`, `isEvalCaptchaBypass`, `isEvalRun`, and `shouldAttachEvalDebug` to delegate
+    strictly to this contract.
+  - Production security is strictly maintained: `VERCEL_ENV === 'production'` can NEVER bypass Turnstile,
+    skip rate limiting, or expose `evalDebug` retrieval traces.
+- **Decider:** user / Antigravity
+
 
