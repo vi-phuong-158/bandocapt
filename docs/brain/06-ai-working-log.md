@@ -1,5 +1,51 @@
 # 06 — AI Working Log
 
+## [2026-09-06] P0 investigation — chatbot location leak, Layer 1 RAG sanitization hardening
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Task P0 báo cáo Production leak "Công an Phường Hòa Bình" (tên/địa chỉ/SĐT/Maps) khi
+  người dùng chưa nói xã/phường, cho 2 câu Production cụ thể. Yêu cầu tái hiện trước khi sửa.
+- **Điều tra:** Đọc toàn bộ pipeline `api/chat.js`/`lib/published-locations.js`/
+  `lib/output-validator.js`/`lib/retrieval-governance.js`/`lib/response-sink.js`, git history PR #70/#73
+  (`git log 34a06bb..origin/main -- <5 file trên>` rỗng — không commit nào chạm các file này sau PR #70).
+  Xác nhận thực nghiệm `isLocationLookupRequested()` trả `true` cho cả 2 câu Production (không rơi vào
+  `not_requested`). PR #70 (2026-09-01/03, xem entry cũ) đã thêm `deferLocationOutput` +
+  `containsSpecificLocationClaim` — đệm output tới khi generation xong rồi quét location claim cụ thể
+  trước khi phát SSE, thay bằng câu tất định nếu phát hiện.
+- **Test tái hiện Pinecone ACTIVE (Phase A bắt buộc):** viết `test/location-rag-leak-repro.test.js` —
+  mock `@pinecone-database/pinecone` (không xóa `PINECONE_API_KEY` như test cũ), trả về chunk RAG chứa
+  đúng nội dung leak thật (tên/địa chỉ/SĐT "Công an Phường Hòa Bình" trong context thủ tục CCCD, giống
+  "G. CCCD xa 2025.docx"), mock Gemini/DeepSeek generation trả nguyên văn leak. Chạy đúng 2 câu Production
+  + thêm case fictional station, Published_Locations unavailable, RAG chỉ có địa chỉ/SĐT không tên.
+  **Kết quả: KHÔNG tái hiện được leak ở phía client** trên `main` hiện hành (commit `5c720ed`) — Layer 3
+  của PR #70 chặn đúng mọi trường hợp, cả 2 provider, governance on/off. Không có regression code ở
+  output gate để sửa.
+- **Gap thật (không phải bug tái hiện được, là thiếu lớp phòng thủ):** `sanitizeRetrievedDocumentText`
+  chỉ lọc dòng prompt-injection, không lọc nội dung định danh địa điểm khỏi `<retrieved_documents>` —
+  an toàn phụ thuộc hoàn toàn vào 1 lớp gate cuối (Layer 3) + system prompt (Layer 2, không phải security
+  boundary theo đúng cảnh báo của task). Chứng minh bằng test: assert nội dung leak (địa chỉ/SĐT/tên trụ
+  sở) không được xuất hiện trong `finalGenerationPrompt` — FAIL trên code trước khi sửa (`git stash` xác
+  nhận), PASS sau khi thêm `stripLocationAuthorityFromRagText()`.
+- **Thay đổi:** `api/chat.js` — thêm `stripLocationAuthorityFromRagText()` (3 regex: tên trụ sở cụ thể có
+  loại trừ generic wording, dòng Địa chỉ/Điện thoại/SĐT, Google Maps URL), gọi ngay sau
+  `sanitizeRetrievedDocumentText(rawText)` khi build `matchedDocs`, export cho test. Áp dụng vô điều kiện
+  (không phụ thuộc `locationResolutionStatus` — Pinecone chạy trước khi status được biết trong luồng
+  hiện tại). Không đổi `deferLocationOutput`/`containsSpecificLocationClaim`/resolver/system prompt.
+- **File đã sửa:** `api/chat.js`, `test/location-rag-leak-repro.test.js` (mới, 5 test), `test/location-resolution-contract.test.js`
+  (thêm 2 test unit cho `stripLocationAuthorityFromRagText`), `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`.
+- **Kiểm tra:** `npm test` 659/659 PASS (652 gốc + 7 test mới); `npm run build` sạch; `npm run ci` exit 0
+  (5 lỗ hổng moderate `firebase-admin` transitive từ trước, không liên quan); focused E2E
+  `chat-progressive-disclosure.spec.js` 4/4 PASS; `chat-embed.spec.js` có 1 fail `ERR_CONNECTION_RESET`
+  — xác nhận PRE-EXISTING bằng cách chạy lại đúng test đó trên code CHƯA sửa (`git stash`), fail giống
+  hệt → giới hạn mạng sandbox (egress proxy chặn tài nguyên ngoài), không phải regression. Full
+  `npx playwright test` không chạy hết được vì `unpkg.com` bị chặn ở tầng mạng sandbox này (giống ghi
+  nhận trước đó ngày 2026-09-01).
+- **Chưa làm được (ngoài khả năng phiên này):** không có Vercel/Google Sheets credentials để đọc
+  Production runtime logs/deployment metadata thật (mục 7 của task yêu cầu) — không loại trừ khả năng
+  báo cáo leak dựa trên quan sát trước khi PR #70 merge, hoặc lệch triển khai Vercel ngoài source code.
+- **An toàn:** không mutate Production Sheet/Pinecone, không tắt RAG, không hard-code riêng "Hòa Bình",
+  không merge, không deploy Production.
+
 ## [2026-09-06] Integration of origin/main into PR #73 & Semantic Conflict Resolution
 - **Agent:** Codex
 - **Bối cảnh & Mục tiêu:** Tích hợp `origin/main` mới nhất (`da2eb7db5c3810412b900caa800e61d6116a4cf6`) vào nhánh `fix/mobile-real-device-ux` để đóng blocker CI (PR dirty/conflicting không tạo được `refs/pull/73/merge`), đồng thời:

@@ -121,6 +121,30 @@ test('no_match output safety detects both published and newly hallucinated locat
     ), true);
 });
 
+test('stripLocationAuthorityFromRagText removes office-identifying lines but keeps procedure content', () => {
+    const ragChunk = [
+        'Thủ tục: Cấp, đổi, cấp lại thẻ Căn cước công dân',
+        'Hồ sơ: Tờ khai CC01, giấy tờ tuỳ thân, ảnh chân dung.',
+        'Trình tự: Nộp hồ sơ, chụp ảnh, thu nhận vân tay, nhận giấy hẹn trả kết quả.',
+        'Nơi thực hiện: Công an Phường Hòa Bình',
+        'Địa chỉ: Số 97, đường Thịnh Lang, tổ 5, phường Hòa Bình, tỉnh Phú Thọ',
+        'Điện thoại: 0973740838',
+        'Chỉ đường: https://www.google.com/maps/search/?api=1&query=20.8,105.3',
+    ].join('\n');
+    const sanitized = chatHandler.stripLocationAuthorityFromRagText(ragChunk);
+    assert.match(sanitized, /Tờ khai CC01/);
+    assert.match(sanitized, /Trình tự: Nộp hồ sơ/);
+    assert.doesNotMatch(sanitized, /Hòa Bình/);
+    assert.doesNotMatch(sanitized, /Thịnh Lang/);
+    assert.doesNotMatch(sanitized, /0973740838/);
+    assert.doesNotMatch(sanitized, /google\.com\/maps/i);
+});
+
+test('stripLocationAuthorityFromRagText keeps generic wording without a specific unit name', () => {
+    const genericLine = 'Nơi nộp: Công an cấp xã nơi cư trú hoặc địa phương phù hợp.';
+    assert.equal(chatHandler.stripLocationAuthorityFromRagText(genericLine), genericLine);
+});
+
 function buildLocationPayload(records = [LOCATION]) {
     return {
         table: {

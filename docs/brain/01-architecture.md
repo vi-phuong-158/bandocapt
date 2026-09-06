@@ -1,5 +1,26 @@
 # 01 - Architecture
 
+## P0 chatbot location leak — RAG context sanitization Layer 1 (2026-09-06)
+
+- Chat location-resolution safety path (đã có từ PR #70, xem entry Published_Locations phía dưới) có
+  Layer 2 (chỉ dẫn system prompt) và Layer 3 (`containsSpecificLocationClaim` output gate, đệm output
+  qua `deferLocationOutput` trước SSE). Path đó KHÔNG có Layer 1 (context sanitization) — RAG content
+  đi thẳng vào `<retrieved_documents>` sau khi chỉ lọc prompt-injection (`sanitizeRetrievedDocumentText`).
+- Thêm `stripLocationAuthorityFromRagText()` trong `api/chat.js`: lọc khỏi `matchedDocs` các dòng định
+  danh trụ sở cụ thể ("Công an/trụ sở/nơi thực hiện/nơi nộp + phường/xã <tên cụ thể>", "Địa chỉ:",
+  "Điện thoại:"/"SĐT:", Google Maps URL) TRƯỚC khi text vào prompt sinh câu trả lời — áp dụng vô điều
+  kiện (không phụ thuộc `locationResolutionStatus`, vì Pinecone retrieval chạy trước khi location status
+  được biết trong `module.exports = async function handler`). Giữ nguyên hồ sơ/trình tự/lệ phí/căn cứ.
+  Dùng chung logic loại trừ generic wording ("Công an xã/phường nơi cư trú") với
+  `containsSpecificLocationClaim` để không phá nội dung thủ tục hợp lệ.
+- Code Graph: gọi ngay sau `sanitizeRetrievedDocumentText(rawText)` tại điểm build `matchedDocs`
+  trong `api/chat.js` (vòng lặp `topMatches.map(...)`) — chỉ một điểm gọi duy nhất trong file.
+- Không thay đổi luồng resolver (`lib/published-locations.js`), `deferLocationOutput`/
+  `containsSpecificLocationClaim` (Layer 3, vẫn là lớp chặn cuối, không bị thay thế) hay system prompt
+  (Layer 2). Đây là lớp phòng thủ bổ sung (defense-in-depth), không phải fix cho một regression đã xác
+  nhận — xem `03-decisions.md` (2026-09-06) để biết chi tiết điều tra và vì sao không tái hiện được leak
+  trên `main` hiện hành.
+
 ## R1.1 Marker Identity Cards — Presentation Layer (2026-09-05)
 
 - **Scope:** Nâng cấp marker trên bản đồ thành thẻ nhận diện (Marker Identity Card): **Pin vị trí (top) + ảnh trụ sở (hoặc fallback logo) + tên đơn vị (clamped 2 lines)**.
