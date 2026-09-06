@@ -1,5 +1,17 @@
 # 04 — Current Tasks
 
+## [IN REVIEW / READY FOR RECHECK 2026-09-06] PR #73 — Mobile Real-Device UX Fixes & Integration with Main
+
+- Branch: `fix/mobile-real-device-ux` (PR #73 Draft).
+- Resolved merge and semantic conflicts with `origin/main` (PR #72 R1.1 marker cards).
+- Preserved 100% of owner-accepted mobile real-device UX fixes:
+  1. Compact pins on mobile map; canonical identity cards on selected mobile marker and desktop.
+  2. Floating action tier (`#public-contribution-cta` and `#find-location-btn`) positioned safely above bottom nav across all viewports.
+  3. Resilient chatbot loading under external CDN interruptions.
+- Local verification: unit tests (652/652 PASS), build PASS, syntax checks PASS, affected E2E (29/29 PASS), full E2E PASS.
+- Exact-head CI: GitHub Actions run 33982275426 (`test-build-audit`) = SUCCESS; Vercel preview deployment = READY.
+- Status: READY FOR OWNER FINAL MOBILE RECHECK. No production deploy, no merge.
+
 ## [SOURCE ACCEPTANCE 2026-08-25] Public anonymous location contributions
 
 - Source branch `feat/public-location-contributions` adds `/dong-gop`, a safe public units DTO projected
