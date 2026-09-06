@@ -752,11 +752,13 @@ function isEvalBypassPermitted(env = process.env) {
 
 function isEvalBypassRequest(token, env = process.env) {
     if (!isEvalBypassPermitted(env)) return false;
-    const expected = env.EVAL_BYPASS_TOKEN;
-    if (!expected || typeof expected !== 'string' || expected.length === 0) return false;
-    if (!token || typeof token !== 'string' || token.length === 0) return false;
+    const expected = typeof env.EVAL_BYPASS_TOKEN === 'string' ? env.EVAL_BYPASS_TOKEN.trim() : '';
+    if (!expected || expected.length === 0) return false;
+    if (!token || typeof token !== 'string') return false;
+    const cleanToken = token.trim();
+    if (cleanToken.length === 0) return false;
     const expectedBuf = Buffer.from(expected);
-    const tokenBuf = Buffer.from(token);
+    const tokenBuf = Buffer.from(cleanToken);
     if (tokenBuf.length !== expectedBuf.length) return false;
     try {
         return crypto.timingSafeEqual(tokenBuf, expectedBuf);
