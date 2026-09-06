@@ -29,7 +29,10 @@ const { requestedCap, filterGovernedMatches, buildGovernanceFilter, buildCurrent
 const { createSseSink, startSseHeartbeat } = require('../lib/response-sink');
 
 // Kiểm tra biến môi trường nhạy cảm không được phép tồn tại ở production.
-if (process.env.NODE_ENV === 'production' && process.env.EVAL_BYPASS_TOKEN) {
+// Vercel Preview (VERCEL_ENV === 'preview') được phép dùng EVAL_BYPASS_TOKEN cho acceptance/eval test,
+// nhưng Production (VERCEL_ENV === 'production' hoặc NODE_ENV === 'production' thuần) tuyệt đối không được phép.
+const isExplicitProduction = process.env.VERCEL_ENV === 'production' || (!process.env.VERCEL_ENV && process.env.NODE_ENV === 'production');
+if (isExplicitProduction && process.env.EVAL_BYPASS_TOKEN) {
     console.error('[security] CRITICAL: EVAL_BYPASS_TOKEN is set in production. Remove it from Vercel environment immediately.');
 }
 
@@ -741,13 +744,33 @@ function setFaqCache(key, fullText, sources) {
 // [BẢO MẬT #1] CORS WHITELIST — Chỉ cho phép đúng domain production
 // =====================================================================
 // =====================================================================
+function isEvalBypassPermitted(env = process.env) {
+    if (env.VERCEL_ENV === 'production') return false;
+    if (env.VERCEL_ENV === 'preview') return true;
+    return env.NODE_ENV !== 'production';
+}
+
+function isEvalBypassRequest(token, env = process.env) {
+    if (!isEvalBypassPermitted(env)) return false;
+    const expected = env.EVAL_BYPASS_TOKEN;
+    if (!expected || typeof expected !== 'string' || expected.length === 0) return false;
+    if (!token || typeof token !== 'string' || token.length === 0) return false;
+    const expectedBuf = Buffer.from(expected);
+    const tokenBuf = Buffer.from(token);
+    if (tokenBuf.length !== expectedBuf.length) return false;
+    try {
+        return crypto.timingSafeEqual(tokenBuf, expectedBuf);
+    } catch (_) {
+        return false;
+    }
+}
+
+// =====================================================================
 // [BẢO MẬT #5] TURNSTILE CAPTCHA — Chống bot tự động spam
 // =====================================================================
 async function verifyTurnstile(token, ip, deadlineAt = Date.now() + 8000) {
     const secret = process.env.TURNSTILE_SECRET_KEY;
-    if (process.env.NODE_ENV !== 'production' &&
-        process.env.EVAL_BYPASS_TOKEN &&
-        token === process.env.EVAL_BYPASS_TOKEN) {
+    if (isEvalBypassRequest(token)) {
         return true;
     }
     if (!secret) return false;
@@ -1875,15 +1898,17 @@ function validateChatRequestBody(body) {
 }
 
 // [EVAL-DEBUG T1.3] Cổng bật eval-mode output. Chỉ true khi ĐỦ CẢ 3 điều kiện AND:
-//   1. NODE_ENV !== 'production'  — production KHÔNG BAO GIỜ lộ trường `eval`.
-//   2. EVAL_BYPASS_TOKEN được cấu hình và captchaToken khớp đúng token đó (cùng cổng eval-run).
+//   1. Môi trường cho phép eval bypass (VERCEL_ENV === 'preview' hoặc NODE_ENV !== 'production'; VERCEL_ENV === 'production' luôn cấm).
+//   2. EVAL_BYPASS_TOKEN được cấu hình và captchaToken khớp đúng token đó.
 //   3. Body request có cờ evalDebug === true.
 // Tách thành hàm thuần để unit test được ranh giới bảo mật mà không cần dựng cả pipeline.
-function shouldAttachEvalDebug({ nodeEnv, evalBypassToken, captchaToken, evalDebugFlag }) {
-    return nodeEnv !== 'production'
-        && !!evalBypassToken
-        && captchaToken === evalBypassToken
-        && evalDebugFlag === true;
+function shouldAttachEvalDebug({ nodeEnv, vercelEnv, evalBypassToken, captchaToken, evalDebugFlag }) {
+    if (evalDebugFlag !== true) return false;
+    return isEvalBypassRequest(captchaToken, {
+        NODE_ENV: nodeEnv,
+        VERCEL_ENV: vercelEnv,
+        EVAL_BYPASS_TOKEN: evalBypassToken,
+    });
 }
 
 // [EVAL-DEBUG T1.3] Rút gọn một match Pinecone thành các trường bộ chấm grounding (T1.5) cần:
@@ -2008,9 +2033,7 @@ module.exports = async function handler(req, res) {
         }
     }
 
-    const isEvalCaptchaBypass = process.env.NODE_ENV !== 'production' &&
-        process.env.EVAL_BYPASS_TOKEN &&
-        captchaToken === process.env.EVAL_BYPASS_TOKEN;
+    const isEvalCaptchaBypass = isEvalBypassRequest(captchaToken);
     if (!process.env.TURNSTILE_SECRET_KEY && !isEvalCaptchaBypass) {
         console.error('[api/chat] TURNSTILE_SECRET_KEY is not configured.');
         return res.status(503).json({
@@ -2028,16 +2051,13 @@ module.exports = async function handler(req, res) {
         });
     }
 
-
-
     // --- [EVAL BYPASS] Bỏ qua rate limit khi chạy bộ kiểm thử nội bộ ---
-    const isEvalRun = process.env.NODE_ENV !== 'production' &&
-                      process.env.EVAL_BYPASS_TOKEN &&
-                      captchaToken === process.env.EVAL_BYPASS_TOKEN;
+    const isEvalRun = isEvalBypassRequest(captchaToken);
 
     // [EVAL-DEBUG T1.3] Bật trace retrieval trong event `done` — chỉ cho eval-run có cờ evalDebug.
     const evalMode = shouldAttachEvalDebug({
         nodeEnv: process.env.NODE_ENV,
+        vercelEnv: process.env.VERCEL_ENV,
         evalBypassToken: process.env.EVAL_BYPASS_TOKEN,
         captchaToken,
         evalDebugFlag: req.body && req.body.evalDebug,
@@ -3324,6 +3344,8 @@ module.exports.shouldSkipFaqCache = shouldSkipFaqCache;
 module.exports.shouldCacheFaqResponse = shouldCacheFaqResponse;
 module.exports.verifyRequestSignature = verifyRequestSignature;
 module.exports.validateChatRequestBody = validateChatRequestBody;
+module.exports.isEvalBypassPermitted = isEvalBypassPermitted;
+module.exports.isEvalBypassRequest = isEvalBypassRequest;
 module.exports.shouldAttachEvalDebug = shouldAttachEvalDebug;
 module.exports.summarizeMatchForEval = summarizeMatchForEval;
 module.exports.isChatLogSaltConfigured = isChatLogSaltConfigured;

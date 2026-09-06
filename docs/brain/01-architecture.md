@@ -793,7 +793,7 @@ tinh chua nam trong matcher `Published_Locations` van khong duoc dua vao truong 
 Client (`js/gemini.js`) parse `done` chung nên field `abstentionReason` được bỏ qua an toàn, text vẫn render.
 
 **Eval-mode output (T1.3):** event `done` đính thêm trường `eval` (trace retrieval cho bộ chấm
-grounding) CHỈ khi đủ 3 điều kiện AND: `NODE_ENV !== 'production'` + `captchaToken === EVAL_BYPASS_TOKEN`
+grounding) CHỈ khi đủ 3 điều kiện AND: môi trường cho phép (`VERCEL_ENV === 'preview'` hoặc `NODE_ENV !== 'production'`; `VERCEL_ENV === 'production'` luôn cấm tuyệt đối) + `captchaToken === EVAL_BYPASS_TOKEN`
 + body `evalDebug: true` (`shouldAttachEvalDebug` trong `api/chat.js`). Production KHÔNG BAO GIỜ trả
 `eval`. Cấu trúc: `{ standaloneQuery, classifyQuery, category, matchesRaw[], matchesFinal[] (kèm rank),
 excluded[] (id + lý do: location_vector/wrong_branch/below_threshold/rerank_or_topk_cut), matchedDocs }`.

@@ -56,13 +56,66 @@ test('không bật khi thiếu cờ evalDebug (mặc định)', () => {
     }
 });
 
-test('BẢO MẬT: production + token trống + evalDebug vẫn false (không có đường vòng)', () => {
+test('BẢO MẬT: VERCEL_ENV === production KHÔNG BAO GIỜ cho phép eval bypass', () => {
     assert.equal(shouldAttachEvalDebug({
         nodeEnv: 'production',
-        evalBypassToken: '',
-        captchaToken: '',
+        vercelEnv: 'production',
+        evalBypassToken: TOKEN,
+        captchaToken: TOKEN,
         evalDebugFlag: true,
     }), false);
+    assert.equal(shouldAttachEvalDebug({
+        nodeEnv: 'development',
+        vercelEnv: 'production',
+        evalBypassToken: TOKEN,
+        captchaToken: TOKEN,
+        evalDebugFlag: true,
+    }), false);
+});
+
+test('VERCEL_ENV === preview cho phép eval bypass kể cả khi NODE_ENV === production', () => {
+    assert.equal(shouldAttachEvalDebug({
+        nodeEnv: 'production',
+        vercelEnv: 'preview',
+        evalBypassToken: TOKEN,
+        captchaToken: TOKEN,
+        evalDebugFlag: true,
+    }), true);
+});
+
+test('VERCEL_ENV === preview từ chối nếu sai token hoặc thiếu evalDebug', () => {
+    assert.equal(shouldAttachEvalDebug({
+        nodeEnv: 'production',
+        vercelEnv: 'preview',
+        evalBypassToken: TOKEN,
+        captchaToken: 'wrong-token',
+        evalDebugFlag: true,
+    }), false);
+    assert.equal(shouldAttachEvalDebug({
+        nodeEnv: 'production',
+        vercelEnv: 'preview',
+        evalBypassToken: TOKEN,
+        captchaToken: TOKEN,
+        evalDebugFlag: false,
+    }), false);
+});
+
+test('isEvalBypassPermitted và isEvalBypassRequest tuân thủ nghiêm ngặt ma trận môi trường', () => {
+    const { isEvalBypassPermitted, isEvalBypassRequest } = require('../api/chat');
+    // Production cấm tuyệt đối
+    assert.equal(isEvalBypassPermitted({ VERCEL_ENV: 'production', NODE_ENV: 'production' }), false);
+    assert.equal(isEvalBypassPermitted({ VERCEL_ENV: 'production', NODE_ENV: 'development' }), false);
+    assert.equal(isEvalBypassRequest(TOKEN, { VERCEL_ENV: 'production', EVAL_BYPASS_TOKEN: TOKEN }), false);
+
+    // Preview cho phép
+    assert.equal(isEvalBypassPermitted({ VERCEL_ENV: 'preview', NODE_ENV: 'production' }), true);
+    assert.equal(isEvalBypassRequest(TOKEN, { VERCEL_ENV: 'preview', EVAL_BYPASS_TOKEN: TOKEN }), true);
+    assert.equal(isEvalBypassRequest('wrong', { VERCEL_ENV: 'preview', EVAL_BYPASS_TOKEN: TOKEN }), false);
+
+    // Local / default
+    assert.equal(isEvalBypassPermitted({ NODE_ENV: 'production' }), false);
+    assert.equal(isEvalBypassPermitted({ NODE_ENV: 'development' }), true);
+    assert.equal(isEvalBypassRequest(TOKEN, { NODE_ENV: 'development', EVAL_BYPASS_TOKEN: TOKEN }), true);
 });
 
 // --------------------------------------------------------------------

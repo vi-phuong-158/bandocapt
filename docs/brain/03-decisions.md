@@ -2027,3 +2027,21 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
   Vercel-native atomic key/value resource with a TEST-only Preview binding and no architecture change
   to the contribution workflow.
 
+## [2026-09-06] Eval bypass supported on Vercel Preview while locking down Production
+
+- **Context:** Automated end-to-end acceptance testing of chatbot location-evidence and RAG behavior
+  against live Vercel Preview was blocked by Cloudflare Turnstile CAPTCHA. Vercel Preview sets
+  `NODE_ENV === 'production'` during preview execution, making the previous `NODE_ENV !== 'production'`
+  guard unusable on preview environments.
+- **Decision:**
+  - Introduce `isEvalBypassPermitted(env)`: returns `true` if `VERCEL_ENV === 'preview'`; returns `false`
+    unconditionally if `VERCEL_ENV === 'production'`; falls back to `NODE_ENV !== 'production'` for local/CI.
+  - Introduce `isEvalBypassRequest(token, env)`: validates `isEvalBypassPermitted(env)`, checks non-empty
+    `EVAL_BYPASS_TOKEN`, and performs constant-time comparison via `crypto.timingSafeEqual`.
+  - Update `verifyTurnstile`, `isEvalCaptchaBypass`, `isEvalRun`, and `shouldAttachEvalDebug` to delegate
+    strictly to this contract.
+  - Production security is strictly maintained: `VERCEL_ENV === 'production'` can NEVER bypass Turnstile,
+    skip rate limiting, or expose `evalDebug` retrieval traces.
+- **Decider:** user / Antigravity
+
+

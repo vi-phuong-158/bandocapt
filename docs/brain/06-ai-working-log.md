@@ -1,5 +1,21 @@
 # 06 — AI Working Log
 
+## [2026-09-06] Secure Eval Bypass on Vercel Preview & Live Preview Acceptance
+- **Agent:** Codex
+- **Thay đổi:**
+  - `api/chat.js`:
+    1. Bổ sung `isEvalBypassPermitted(env)`: Trả về `true` trên Vercel Preview (`VERCEL_ENV === 'preview'`), trả về `false` tuyệt đối trên Production (`VERCEL_ENV === 'production'`), fallback về `NODE_ENV !== 'production'` cho môi trường local/CI.
+    2. Bổ sung `isEvalBypassRequest(token, env)`: Kiểm tra `isEvalBypassPermitted(env)` và so sánh token với `EVAL_BYPASS_TOKEN` qua `crypto.timingSafeEqual` chuẩn constant-time.
+    3. Cập nhật `verifyTurnstile`, `isEvalCaptchaBypass`, `isEvalRun`, và `shouldAttachEvalDebug` sang dùng thống nhất hợp đồng `isEvalBypassRequest`.
+    4. Cập nhật warning khởi động `isExplicitProduction` để tránh false warning trên Preview trong khi giữ trọn vẹn cảnh báo và chặn đứng rủi ro rò rỉ trên Production.
+  - `test/eval-debug-output.test.js`: Bổ sung 4 unit test mới xác minh nghiêm ngặt ma trận môi trường (`VERCEL_ENV === 'preview'` cho phép khi đủ token + flag, `VERCEL_ENV === 'production'` cấm tuyệt đối, không có đường vòng).
+  - `docs/brain/01-architecture.md` & `docs/brain/03-decisions.md`: Cập nhật đặc tả bảo mật và quyết định kỹ thuật.
+- **Lý do:** Cho phép chạy bộ kiểm thử chấp nhận trực tiếp (deterministic Live Preview API Acceptance) trên URL Vercel Preview thực tế mà không bị chặn bởi Cloudflare Turnstile, đồng thời bảo đảm an ninh Production không bị suy giảm.
+- **Kiểm tra:**
+  - `test/eval-debug-output.test.js`: 11/11 tests PASS.
+  - `npm test`: 672/672 tests PASS.
+  - `npm run ci`: Toàn bộ linter, syntax, test suite, build artifacts PASS (exit code 0).
+
 ## [2026-09-06] P0 Follow-up: Preposition Evidence Hardening & Single-Token Alias Safety Invariant
 - **Agent:** Codex
 - **Thay đổi:**
