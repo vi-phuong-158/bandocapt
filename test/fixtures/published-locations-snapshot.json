@@ -1,0 +1,7761 @@
+{
+  "table": {
+    "cols": [
+      {
+        "id": "A",
+        "label": "record_id",
+        "type": "string"
+      },
+      {
+        "id": "B",
+        "label": "unit_code",
+        "type": "string"
+      },
+      {
+        "id": "C",
+        "label": "name",
+        "type": "string"
+      },
+      {
+        "id": "D",
+        "label": "type",
+        "type": "string"
+      },
+      {
+        "id": "E",
+        "label": "address",
+        "type": "string"
+      },
+      {
+        "id": "F",
+        "label": "phone",
+        "type": "string"
+      },
+      {
+        "id": "G",
+        "label": "coordinates",
+        "type": "string"
+      },
+      {
+        "id": "H",
+        "label": "image_url",
+        "type": "string"
+      },
+      {
+        "id": "I",
+        "label": "search_aliases",
+        "type": "string"
+      },
+      {
+        "id": "J",
+        "label": "updated_at",
+        "type": "number",
+        "pattern": "General"
+      },
+      {
+        "id": "K",
+        "label": "site_type",
+        "type": "string"
+      },
+      {
+        "id": "L",
+        "label": "services",
+        "type": "string"
+      },
+      {
+        "id": "M",
+        "label": "google_maps_url",
+        "type": "string"
+      },
+      {
+        "id": "N",
+        "label": "cccd_service_mode",
+        "type": "string"
+      },
+      {
+        "id": "O",
+        "label": "service_schedule",
+        "type": "string"
+      },
+      {
+        "id": "P",
+        "label": "served_units",
+        "type": "string"
+      },
+      {
+        "id": "Q",
+        "label": "status",
+        "type": "string"
+      },
+      {
+        "id": "R",
+        "label": "verified_at",
+        "type": "number",
+        "pattern": "General"
+      }
+    ],
+    "rows": [
+      {
+        "c": [
+          {
+            "v": "LEGACY_0001"
+          },
+          {
+            "v": "CA_TINH_PHU_THO"
+          },
+          {
+            "v": "Công an tỉnh Phú Thọ (Khu A)"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Số 51, đường Trần Phú"
+          },
+          {
+            "v": "0692837556"
+          },
+          {
+            "v": "21.327883,105.403052"
+          },
+          {
+            "v": "https://drive.google.com/file/d/1MKBpMEdjpqMOkDuv94TJQprSjdB5wQJf/view?usp=drive_link"
+          },
+          null,
+          null,
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          {
+            "v": "https://www.google.com/maps/search/?api=1&query=21.327883,105.403052"
+          },
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": null
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0002"
+          },
+          {
+            "v": "CA_XA_TRUNG_SON"
+          },
+          {
+            "v": "Công an Xã Trung Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Nai xã Trung Sơn, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103622128"
+          },
+          {
+            "v": "21.340580,104.954940"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1hNBo7DFY5C-AemPI2yw3Ph94JkmncnQP"
+          },
+          null,
+          {
+            "v": 46113.1012962963,
+            "f": "46113,1013"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.1012962963,
+            "f": "46113,1013"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0003"
+          },
+          {
+            "v": "CA_XA_NGUYET_DUC"
+          },
+          {
+            "v": "Công an Xã Nguyệt Đức"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Yên Nội, xã Nguyệt Đức, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696172"
+          },
+          {
+            "v": "21.219890,105.622610"
+          },
+          {
+            "v": "https://drive.google.com/open?id=14Yi5oct0hULKioOyg8L1HH_um-O_ukWi"
+          },
+          {
+            "v": "văn tiến|trung kiên|trung hà|nguyệt đức"
+          },
+          {
+            "v": 46113.101539351854,
+            "f": "46113,10154"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.101539351854,
+            "f": "46113,10154"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0004"
+          },
+          {
+            "v": "CA_XA_HUONG_CAN"
+          },
+          {
+            "v": "Công an Xã Hương Cần"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "khu 5, xã Hương Cần, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103888689"
+          },
+          {
+            "v": "20.996390,105.249810"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1HrpZgtRTrJsguBl0TtDtc5uly9kFunQ0"
+          },
+          {
+            "v": "yên lương|yên lãng|hương cần"
+          },
+          {
+            "v": 46113.10203703704,
+            "f": "46113,10204"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.10203703704,
+            "f": "46113,10204"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0005"
+          },
+          {
+            "v": "CA_XA_THANH_SON"
+          },
+          {
+            "v": "Công an Xã Thanh Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Số 02A, Phố Tân Tiến, Thanh Sơn, Phú Thọ"
+          },
+          {
+            "v": "02102220099"
+          },
+          {
+            "v": "21.222667,105.186079"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1kpZzMWykpEDxp5047MaL48y-LKY6Oyz2"
+          },
+          {
+            "v": "thanh sơn|sơn hùng|giáp lai|thạch khoán|thục luyện"
+          },
+          {
+            "v": 46113.102314814816,
+            "f": "46113,10231"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.102314814816,
+            "f": "46113,10231"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0006"
+          },
+          {
+            "v": "CA_XA_VINH_AN"
+          },
+          {
+            "v": "Công an Xã Vĩnh An"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Nội, xã Vĩnh An, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696191"
+          },
+          {
+            "v": "21.282521,105.516501"
+          },
+          {
+            "v": "https://drive.google.com/open?id=11y872en0JD18x5SN6vYVN3nMMjV9S0Xu"
+          },
+          {
+            "v": "kim xá|yên bình|chấn hưng"
+          },
+          {
+            "v": 46113.102638888886,
+            "f": "46113,10264"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.102638888886,
+            "f": "46113,10264"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0007"
+          },
+          {
+            "v": "CA_XA_SONG_LO"
+          },
+          {
+            "v": "Công an Xã Sông Lô"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Yên Kiều, xã Sông Lô, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696338"
+          },
+          {
+            "v": "21.379340,105.397830"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1-zHp7xCnBRRc3dINTZOPTCV3NnW1_jFD"
+          },
+          {
+            "v": "đồng thịnh|tứ yên|đức bác|yên thạch|đồng thịnh sông lô"
+          },
+          {
+            "v": 46113.10451388889,
+            "f": "46113,10451"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.10451388889,
+            "f": "46113,10451"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0008"
+          },
+          {
+            "v": "CA_XA_YEN_LAP"
+          },
+          {
+            "v": "Công an Xã Yên Lập"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Tân An 2, xã Yên Lập, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103870113"
+          },
+          {
+            "v": "21.348194,105.057333"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1CbbQ-MHPVf8P0vQs1JfUF5LlTprheQlK"
+          },
+          {
+            "v": "yên lập|đồng thịnh|hưng long|đồng lạc|đồng thịnh yên lập"
+          },
+          {
+            "v": 46113.10505787037,
+            "f": "46113,10506"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.10505787037,
+            "f": "46113,10506"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0009"
+          },
+          {
+            "v": "CA_XA_QUANG_YEN"
+          },
+          {
+            "v": "Công an Xã Quảng Yên"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Xóm Chợ, xã Quảng Yên, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103885898"
+          },
+          {
+            "v": "21.513030,105.161390"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1mlNygcDGdsj42atlnbuV925WDKSYZWB-"
+          },
+          {
+            "v": "đại an|đông lĩnh|quảng yên"
+          },
+          {
+            "v": 46113.107939814814,
+            "f": "46113,10794"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.107939814814,
+            "f": "46113,10794"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0010"
+          },
+          {
+            "v": "CA_XA_NGOC_SON"
+          },
+          {
+            "v": "Công an Xã Ngọc Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "XÓM HẦU, XÃ NGỌC SƠN, TỈNH PHÚ THỌ"
+          },
+          {
+            "v": "02183902534"
+          },
+          {
+            "v": "20.423885,105.394824"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Yd2aW2lNZiPbPC-_5Pn8MaB3g-HU7ylA"
+          },
+          {
+            "v": "ngọc lâu|tự do|ngọc sơn"
+          },
+          {
+            "v": 46113.11107638889,
+            "f": "46113,11108"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.11107638889,
+            "f": "46113,11108"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0011"
+          },
+          {
+            "v": "CA_XA_LAI_DONG"
+          },
+          {
+            "v": "Công an Xã Lai Đồng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Thừ 2, xã Lai Đồng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103838889"
+          },
+          {
+            "v": "21.206443,104.938650"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1mi-uL5_dtm5SzuHIEHS8yEhtF8HWHG3x"
+          },
+          {
+            "v": "kiệt sơn|tân sơn|đồng sơn|lai đồng"
+          },
+          {
+            "v": 46113.11138888889,
+            "f": "46113,11139"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.11138888889,
+            "f": "46113,11139"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0012"
+          },
+          {
+            "v": "CA_PHUONG_VAN_PHU"
+          },
+          {
+            "v": "Công an Phường Vân Phú"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 4 - Phượng Lâu, phường Vân Phú, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02106286223"
+          },
+          {
+            "v": "21.360632,105.382340"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1jvsDKKC9BvVSf5vHIhCIejFQA5VNVmiQ"
+          },
+          {
+            "v": "vân phú|phượng lâu|hùng lô|kim đức"
+          },
+          {
+            "v": 46113.11206018519,
+            "f": "46113,11206"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.11206018519,
+            "f": "46113,11206"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0013"
+          },
+          {
+            "v": "CA_XA_YEN_TRI"
+          },
+          {
+            "v": "Công an Xã Yên Trị"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "xóm Á Đồng, xã Yên Trị, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183939113"
+          },
+          {
+            "v": "20.358755,105.657343"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1ZZa1uNeoRPBRHbGqfyXlUYZ2oJDg2IPL"
+          },
+          {
+            "v": "đoàn kết|hữu lợi|ngọc lương|yên trị"
+          },
+          {
+            "v": 46113.11524305555,
+            "f": "46113,11524"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.11524305555,
+            "f": "46113,11524"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0014"
+          },
+          {
+            "v": "CA_XA_TAY_COC"
+          },
+          {
+            "v": "Công an Xã Tây Cốc"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Trung Tâm, xã Tây Cốc, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103881113"
+          },
+          {
+            "v": "21.668988,105.134538"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1OMSK5c_l9EY-g8rJT9l3Hcd5MjDU3JVa"
+          },
+          {
+            "v": "phú lâm|ca đình|tây cốc"
+          },
+          {
+            "v": 46113.11708333333,
+            "f": "46113,11708"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.11708333333,
+            "f": "46113,11708"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0015"
+          },
+          {
+            "v": "CA_XA_DAN_THUONG"
+          },
+          {
+            "v": "Công an Xã Đan Thượng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 4 Đại Phạm, xã Đan Thượng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103883227"
+          },
+          {
+            "v": "21.651033,104.999958"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1LtrH2sjLVv5EmnAGkJMpHGqiqn2QRQmU"
+          },
+          {
+            "v": "tứ hiệp|đại phạm|hà lương|đan thượng"
+          },
+          {
+            "v": 46113.1187037037,
+            "f": "46113,1187"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.1187037037,
+            "f": "46113,1187"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0016"
+          },
+          {
+            "v": "CA_PHUONG_THONG_NHAT"
+          },
+          {
+            "v": "Công an Phường Thống Nhất"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Tổ 5, phường Thống Nhất, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183907007"
+          },
+          {
+            "v": "20.789609,105.345223"
+          },
+          {
+            "v": "https://drive.google.com/open?id=10laglyJDvXWKHdphYdgnDHu8IysUhNVS"
+          },
+          {
+            "v": "dân chủ|thái bình|thống nhất|vầy nưa"
+          },
+          {
+            "v": 46113.1219212963,
+            "f": "46113,12192"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.1219212963,
+            "f": "46113,12192"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0017"
+          },
+          {
+            "v": "CA_XA_HIEN_LUONG"
+          },
+          {
+            "v": "Công an Xã Hiền Lương"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 6, xã Hiền Lương, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103883347"
+          },
+          {
+            "v": "21.607307,104.920015"
+          },
+          {
+            "v": "https://drive.google.com/open?id=18WGkrZmFkxO7PEbIFQp3_xK0PtnXuN-k"
+          },
+          {
+            "v": "hiền lương|xuân áng|hiền lương hạ hòa"
+          },
+          {
+            "v": 46113.125243055554,
+            "f": "46113,12524"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.125243055554,
+            "f": "46113,12524"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0018"
+          },
+          {
+            "v": "CA_XA_TOAN_THANG"
+          },
+          {
+            "v": "Công an Xã Toàn Thắng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "xóm Rên, xã Toàn Thắng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183904569"
+          },
+          {
+            "v": "20.518800,105.281820"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1BT-wfO84ZG4IeEQzVM91rmqtaNkVACGU"
+          },
+          {
+            "v": "gia mô|lỗ sơn|nhân mỹ"
+          },
+          {
+            "v": 46113.12583333333,
+            "f": "46113,12583"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.12583333333,
+            "f": "46113,12583"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0019"
+          },
+          {
+            "v": "CA_XA_XUAN_LUNG"
+          },
+          {
+            "v": "Công an Xã Xuân Lũng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 4 (Xuân Huy cũ), Xã Xuân Lũng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0364818122"
+          },
+          {
+            "v": "21.369010,105.264418"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1AvJgDZXwAY_0Ac6SzfWshjaxr8k5KfnJ"
+          },
+          {
+            "v": "tiên kiên|xuân huy|xuân lũng"
+          },
+          {
+            "v": 46113.13178240741,
+            "f": "46113,13178"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.13178240741,
+            "f": "46113,13178"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0020"
+          },
+          {
+            "v": "CA_XA_LAC_THUY"
+          },
+          {
+            "v": "Công an Xã Lạc Thủy"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Số 1, Đường Trần Hưng Đạo, xã Lạc Thủy, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183889113"
+          },
+          {
+            "v": "20.491199,105.777772"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1mUaigg34xPDUYskdx8HRWFwo9rwkRFau"
+          },
+          {
+            "v": "chi nê|đồng tâm|khoan dụ|yên bồng"
+          },
+          {
+            "v": 46113.13302083333,
+            "f": "46113,13302"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.13302083333,
+            "f": "46113,13302"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0021"
+          },
+          {
+            "v": "CA_PHUONG_VINH_YEN"
+          },
+          {
+            "v": "Công an Phường Vĩnh Yên"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "đường Trương Định, phường Vĩnh Yên, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113867580"
+          },
+          {
+            "v": "21.295220,105.557077"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1xqCSkE0SLZHXbSZiO2f-bfkKxwgy2fMA"
+          },
+          {
+            "v": "tích sơn|hội hợp|đồng tâm|thanh trù"
+          },
+          {
+            "v": 46113.14774305555,
+            "f": "46113,14774"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.14774305555,
+            "f": "46113,14774"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0022"
+          },
+          {
+            "v": "CA_XA_TAN_SON"
+          },
+          {
+            "v": "Công an Xã Tân Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 9, xã Tân Sơn, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103828333"
+          },
+          {
+            "v": "21.216740,105.016930"
+          },
+          {
+            "v": "https://drive.google.com/open?id=10I4fDS5Pj-YSe4rTUXBAzHfZDcbp-dwq"
+          },
+          {
+            "v": "tân phú|thu ngạc|thạch kiệt"
+          },
+          {
+            "v": 46113.15846064815,
+            "f": "46113,15846"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.15846064815,
+            "f": "46113,15846"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0023"
+          },
+          {
+            "v": "CA_XA_MINH_HOA"
+          },
+          {
+            "v": "Công an Xã Minh Hòa"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 13, xã Minh Hoà, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103622124"
+          },
+          {
+            "v": "21.248460,105.111880"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1sMCElPHVfu2vrdDta6P7NOm0nOa4EKzt"
+          },
+          {
+            "v": "ngọc lập|ngọc đồng|minh hòa"
+          },
+          {
+            "v": 46113.160046296296,
+            "f": "46113,16005"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.160046296296,
+            "f": "46113,16005"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0024"
+          },
+          {
+            "v": "CA_XA_TE_LO"
+          },
+          {
+            "v": "Công an Xã Tề Lỗ"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Lạc Trung, xã Tề Lỗ, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696170"
+          },
+          {
+            "v": "21.250483,105.564029"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Py8-8Aj40lARDAlj3F_Aub57KE5Yqd_Y"
+          },
+          {
+            "v": "đồng văn|trung nguyên|tề lỗ"
+          },
+          {
+            "v": 46113.16201388889,
+            "f": "46113,16201"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.16201388889,
+            "f": "46113,16201"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0025"
+          },
+          {
+            "v": "CA_XA_HAI_LUU"
+          },
+          {
+            "v": "Công an Xã Hải Lựu"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "thôn Tiền phong, xã Hải Lựu, tỉnh phú Thọ"
+          },
+          {
+            "v": "02113696305"
+          },
+          {
+            "v": "21.458277,105.368586"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1QZGp8zcuvZ--s364Qnr6U1zydxAbtvt5"
+          },
+          {
+            "v": "nhân đạo|đôn nhân|phương khoan|hải lựu"
+          },
+          {
+            "v": 46113.17486111111,
+            "f": "46113,17486"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.17486111111,
+            "f": "46113,17486"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0026"
+          },
+          {
+            "v": "CA_XA_HY_CUONG"
+          },
+          {
+            "v": "Công an Xã Hy Cương"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 4 Chu Hoá, xã Hy Cương, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103663389"
+          },
+          {
+            "v": "21.342680,105.304099"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1hLGabBMRjdjk4FfCqyBMH0twaFsJLX3i"
+          },
+          {
+            "v": "thanh đình|chu hóa|hy cương"
+          },
+          {
+            "v": 46113.29446759259,
+            "f": "46113,29447"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.29446759259,
+            "f": "46113,29447"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0027"
+          },
+          {
+            "v": "CA_XA_DUNG_TIEN"
+          },
+          {
+            "v": "Công an Xã Dũng Tiến"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Má Mư, xã Dũng Tiến, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183818689"
+          },
+          {
+            "v": "20.603874,105.551893"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1MH8_VGeYs83Tp1yQ6fglLzkjfR18rMKe"
+          },
+          {
+            "v": "cuối hạ|mỵ hòa|nuông dăm"
+          },
+          {
+            "v": 46113.29510416667,
+            "f": "46113,2951"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.29510416667,
+            "f": "46113,2951"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0028"
+          },
+          {
+            "v": "CA_PHUONG_PHU_THO"
+          },
+          {
+            "v": "Công an Phường Phú Thọ"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu An Ninh Trung, phường Phú Thọ, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02106288588"
+          },
+          {
+            "v": "21.545500,105.249400"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1ywscQoPc1TsqdyMXOxP0KWQ3anwU7rjz"
+          },
+          {
+            "v": "hùng vương|văn lung|hà lộc"
+          },
+          {
+            "v": 46113.29813657407,
+            "f": "46113,29814"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.29813657407,
+            "f": "46113,29814"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0029"
+          },
+          {
+            "v": "CA_XA_AN_BINH"
+          },
+          {
+            "v": "Công an Xã An Bình"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Đồng Huống - xã An Bình - tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183889268"
+          },
+          {
+            "v": "20.514202,105.732455"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1jdXchcDALTD03RRzuIIjsB4XKm6UgxvS"
+          },
+          {
+            "v": "hưng thi|thống nhất|an bình"
+          },
+          {
+            "v": 46113.311689814815,
+            "f": "46113,31169"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.311689814815,
+            "f": "46113,31169"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0030"
+          },
+          {
+            "v": "CA_XA_SON_LUONG"
+          },
+          {
+            "v": "Công an Xã Sơn Lương"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 5, xã Sơn Lương, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103622120"
+          },
+          {
+            "v": "21.518778,104.911094"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1YbjOkuZXq1G5YjsgQzK9HqXdzSG54xCy"
+          },
+          {
+            "v": "mỹ lương|mỹ lung|lương sơn"
+          },
+          {
+            "v": 46113.37704861111,
+            "f": "46113,37705"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.37704861111,
+            "f": "46113,37705"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0031"
+          },
+          {
+            "v": "CA_PHUONG_VIET_TRI"
+          },
+          {
+            "v": "Công an Phường Việt Trì"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Đường Vũ Thê Lang, phường Việt Trì, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103846589"
+          },
+          {
+            "v": "21.319722,105.420000"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1q6FzZixwXTntcn-iStc9UnwOkKSEpNBs"
+          },
+          {
+            "v": "tân dân|gia cẩm|minh nông|dữu lâu|trưng vương"
+          },
+          {
+            "v": 46113.39623842593,
+            "f": "46113,39624"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.39623842593,
+            "f": "46113,39624"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0032"
+          },
+          {
+            "v": "CA_XA_YEN_THUY"
+          },
+          {
+            "v": "Công an Xã Yên Thủy"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Số 22, đường Hùng Vương, xã Yên Thuỷ, tỉnh Phú Thọ"
+          },
+          {
+            "v": "01283939899"
+          },
+          {
+            "v": "20.393247,105.623313"
+          },
+          {
+            "v": "https://drive.google.com/open?id=106YH88yUZeFBfOjArbdCBOG0Ow5Tztwl"
+          },
+          {
+            "v": "hàng trạm|lạc thịnh|phú lai"
+          },
+          {
+            "v": 46113.48296296296,
+            "f": "46113,48296"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46113.48296296296,
+            "f": "46113,48296"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0033"
+          },
+          {
+            "v": "CA_XA_PA_CO"
+          },
+          {
+            "v": "Công an Xã Pà Cò"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Hang Kia, xã Pà Cò, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183903523"
+          },
+          {
+            "v": "20.743717,104.888168"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1gBSS0MpCKKU2WdbXj_zLsdWndvTkAOJ9"
+          },
+          {
+            "v": "cun pheo|hang kia|pà cò|đồng tân"
+          },
+          {
+            "v": 46114.05435185185,
+            "f": "46114,05435"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46114.05435185185,
+            "f": "46114,05435"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0034"
+          },
+          {
+            "v": "CA_PHUONG_XUAN_HOA"
+          },
+          {
+            "v": "Công an Phường Xuân Hòa"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Đường Tô Hiến Thành, TDP Xuân Hòa 1- phường Xuân Hòa- tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113877249"
+          },
+          {
+            "v": "21.289488,105.711040"
+          },
+          {
+            "v": "https://drive.google.com/open?id=14METGzjA5OsbmcRT_9J-mSbibngnU60I"
+          },
+          {
+            "v": "đồng xuân|xuân hòa|cao minh|ngọc thanh"
+          },
+          {
+            "v": 46114.10359953704,
+            "f": "46114,1036"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46114.10359953704,
+            "f": "46114,1036"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0035"
+          },
+          {
+            "v": "CA_XA_NAT_SON"
+          },
+          {
+            "v": "Công an Xã Nật Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Rộc, xã Nật Sơn, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183816869"
+          },
+          {
+            "v": "20.753008,105.540308"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1r_JRhezGavqkYsGRKxsfA_-mdbm8Unqw"
+          },
+          {
+            "v": "xuân thủy|bình sơn|đú sáng|hùng sơn"
+          },
+          {
+            "v": 46114.147152777776,
+            "f": "46114,14715"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46114.147152777776,
+            "f": "46114,14715"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0036"
+          },
+          {
+            "v": "CA_XA_DONG_LUONG"
+          },
+          {
+            "v": "Công an Xã Đồng Lương"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Dốc Thặng, xã Đồng Lương, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103822228"
+          },
+          {
+            "v": "21.337334,105.152068"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1bfQS_qGbaA-tU_mQUg7V0mqP8ODjwSAz"
+          },
+          {
+            "v": "điêu lương|yên dưỡng|đồng lương"
+          },
+          {
+            "v": 46114.31582175926,
+            "f": "46114,31582"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46114.31582175926,
+            "f": "46114,31582"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0037"
+          },
+          {
+            "v": "CA_XA_VAN_LANG"
+          },
+          {
+            "v": "Công an Xã Văn Lang"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 3, xã Văn Lang, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103883346"
+          },
+          {
+            "v": "21.542599,104.997978"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1fKWU1l8RW9gHBWny3rplH0Dkr1M80BKG"
+          },
+          {
+            "v": "vô tranh|bằng giã|minh côi|văn lang"
+          },
+          {
+            "v": 46114.32030092592,
+            "f": "46114,3203"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46114.32030092592,
+            "f": "46114,3203"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0038"
+          },
+          {
+            "v": "CA_XA_THUONG_LONG"
+          },
+          {
+            "v": "Công an Xã Thượng Long"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Trung Lợi, xã Thượng Long, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103622116"
+          },
+          {
+            "v": "21.352089,105.021101"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1V7HV6FPga9_nyif6ZwBUunX28iqYE4yx"
+          },
+          {
+            "v": "phúc khánh|nga hoàng|thượng long"
+          },
+          {
+            "v": 46114.329733796294,
+            "f": "46114,32973"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46114.329733796294,
+            "f": "46114,32973"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0039"
+          },
+          {
+            "v": "CA_XA_QUY_DUC"
+          },
+          {
+            "v": "Công an Xã Quy Đức"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "xóm Cang, xã Quy Đức, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183901541"
+          },
+          {
+            "v": "20.895241,105.060474"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1C-Jl3PYM0BY0p00T9OL2nCQxa0C9KNZH"
+          },
+          {
+            "v": "đoàn kết|đồng ruộng|trung thành|yên hoà"
+          },
+          {
+            "v": 46114.33692129629,
+            "f": "46114,33692"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46114.33692129629,
+            "f": "46114,33692"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0040"
+          },
+          {
+            "v": "CA_XA_LAM_THAO"
+          },
+          {
+            "v": "Công an Xã Lâm Thao"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Lâm Thao, xã Lâm Thao, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103886696"
+          },
+          {
+            "v": "21.317244,105.287246"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1ZCGN7egTfe9T52xyh-oxv5By5SoGCFIB"
+          },
+          {
+            "v": "hùng sơn|lâm thao|thạch sơn"
+          },
+          {
+            "v": 46115.07059027778,
+            "f": "46115,07059"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46115.07059027778,
+            "f": "46115,07059"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0041"
+          },
+          {
+            "v": "CA_XA_THU_CUC"
+          },
+          {
+            "v": "Công an Xã Thu Cúc"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Trung Tâm 1, xã Thu Cúc, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103786222"
+          },
+          {
+            "v": "21.276270,104.906580"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1CldRA9fSpqYpkFkbMQF2JCUqZQAx-lnm"
+          },
+          null,
+          {
+            "v": 46115.10915509259,
+            "f": "46115,10916"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46115.10915509259,
+            "f": "46115,10916"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0042"
+          },
+          {
+            "v": "CA_XA_DA_BAC"
+          },
+          {
+            "v": "Công an Xã Đà Bắc"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Tiểu khu Liên Phương, xã Đà Bắc, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183827265"
+          },
+          {
+            "v": "20.875620,105.253760"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1JWkPBIaqOg1-FXnjCB7nl6PBMDJAbL33"
+          },
+          {
+            "v": "đà bắc|hiền lương|toàn sơn|tú lý|hiền lương đà bắc"
+          },
+          {
+            "v": 46115.11888888889,
+            "f": "46115,11889"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46115.11888888889,
+            "f": "46115,11889"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0043"
+          },
+          {
+            "v": "CA_XA_TRAM_THAN"
+          },
+          {
+            "v": "Công an Xã Trạm Thản"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 3, xã Trạm Thản, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103833276"
+          },
+          {
+            "v": "21.497501,105.236318"
+          },
+          {
+            "v": "https://drive.google.com/open?id=15hS2nrnZJ2kEOGM5At-gGEweLny1ZF-c"
+          },
+          {
+            "v": "tiên phú|trung giáp|trạm thản"
+          },
+          {
+            "v": 46115.122777777775,
+            "f": "46115,12278"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46115.122777777775,
+            "f": "46115,12278"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0044"
+          },
+          {
+            "v": "CA_XA_TIEN_PHONG"
+          },
+          {
+            "v": "Công an xã Tiền Phong"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "xóm Phiếu xã Tiền Phong"
+          },
+          {
+            "v": "02183901504"
+          },
+          {
+            "v": "20.795509,105.132164"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1ZI96qVwD2xVyFZQgapzCRtqAqLv99EQi"
+          },
+          {
+            "v": "tiền phong|vầy nưa"
+          },
+          {
+            "v": 46115.16841435185,
+            "f": "46115,16841"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46115.16841435185,
+            "f": "46115,16841"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0045"
+          },
+          {
+            "v": "CA_XA_TAM_DAO"
+          },
+          {
+            "v": "Công an Xã Tam Đảo"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Tích Cực, xã Tam Đảo, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696080"
+          },
+          {
+            "v": "21.396975,105.614989"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1QQnu7Ik9AmM5T-ThFQYz5lmyanKcpYK3"
+          },
+          {
+            "v": "hợp châu|tam đảo|hồ sơn|minh quang"
+          },
+          {
+            "v": 46115.28836805555,
+            "f": "46115,28837"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46115.28836805555,
+            "f": "46115,28837"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0046"
+          },
+          {
+            "v": "CA_XA_CAO_SON"
+          },
+          {
+            "v": "Công an Xã Cao Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Sơn Phú, xã Cao Sơn, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183901530"
+          },
+          {
+            "v": "20.865278,105.171944"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1xaC4abkFuy2Hyq6BV0b-Vbm_KwIaG8zC"
+          },
+          {
+            "v": "tân minh|cao sơn|cao sơn đà bắc|tân minh đà bắc"
+          },
+          {
+            "v": 46115.30837962963,
+            "f": "46115,30838"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46115.30837962963,
+            "f": "46115,30838"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0047"
+          },
+          {
+            "v": "CA_PHUONG_PHUC_YEN"
+          },
+          {
+            "v": "Công an Phường Phúc Yên"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Số 1 Dương Tông, phường Phúc Yên, Tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113872879"
+          },
+          {
+            "v": "21.229958,105.701875"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1tfm0Yn8iD6tvgAmI6CgGDf9N1T_qKXRi"
+          },
+          {
+            "v": "hùng vương|hai bà trưng|phúc thắng|tiền châu|nam viêm"
+          },
+          {
+            "v": 46115.45479166666,
+            "f": "46115,45479"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46115.45479166666,
+            "f": "46115,45479"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0048"
+          },
+          {
+            "v": "CA_XA_TAN_LAC"
+          },
+          {
+            "v": "Công an Xã Tân Lạc"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Tân Thịnh, xã Tân Lạc, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183834012"
+          },
+          {
+            "v": "20.611420,105.280622"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1DI3LIPAwzk-FMwnf8gwRyxsXYoCUg5Vd"
+          },
+          {
+            "v": "mãn đức|ngọc mỹ|đông lai|thanh hối|tử nê"
+          },
+          {
+            "v": 46115.65015046296,
+            "f": "46115,65015"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46115.65015046296,
+            "f": "46115,65015"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0049"
+          },
+          {
+            "v": "CA_PHUONG_HOA_BINH"
+          },
+          {
+            "v": "Công an Phường Hòa Bình"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Số 97, đường thịnh lang, tổ 5 phường hoà bình, tỉnh phú thọ"
+          },
+          {
+            "v": "0973740838"
+          },
+          {
+            "v": "20.836060,105.342180"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1QBnaeu5k2vkt6Y7_BjRWIPx5zt75HyOU"
+          },
+          {
+            "v": "đồng tiến|hữu nghị|phương lâm|quỳnh lâm|tân thịnh|thịnh lang|trung minh"
+          },
+          {
+            "v": 46116.168761574074,
+            "f": "46116,16876"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46116.168761574074,
+            "f": "46116,16876"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0050"
+          },
+          {
+            "v": "CA_XA_CAO_PHONG"
+          },
+          {
+            "v": "Công an Xã Cao Phong"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 2, xã Cao Phong, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183904086"
+          },
+          {
+            "v": "20.722873,105.323009"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1pgoly93cB_lAxo_yleRu1NPwrlB4jQwi"
+          },
+          {
+            "v": "cao phong|hợp phong|thu phong"
+          },
+          {
+            "v": 46116.553819444445,
+            "f": "46116,55382"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46116.553819444445,
+            "f": "46116,55382"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0051"
+          },
+          {
+            "v": "CA_XA_VAN_SON"
+          },
+          {
+            "v": "Công an Xã Vân Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Bò, xã Vân Sơn, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183904556"
+          },
+          {
+            "v": "20.561140,105.179575"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1ZTvPc9o0u5FI8PeTDu_Tfa8pIMLRH5_X"
+          },
+          {
+            "v": "ngổ luông|quyết chiến|vân sơn"
+          },
+          {
+            "v": 46116.68586805555,
+            "f": "46116,68587"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46116.68586805555,
+            "f": "46116,68587"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0052"
+          },
+          {
+            "v": "CA_XA_TAM_NONG"
+          },
+          {
+            "v": "Công an Xã Tam Nông"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 6 Hưng Hóa, xã Tam Nông, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103686002"
+          },
+          {
+            "v": "21.251488,105.291130"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1KDZTVan63zMhnoytKmT4RFb0MLZSjQ5G"
+          },
+          {
+            "v": "hưng hóa|dân quyền|hương nộn"
+          },
+          {
+            "v": 46117.08763888889,
+            "f": "46117,08764"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46117.08763888889,
+            "f": "46117,08764"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0053"
+          },
+          {
+            "v": "CA_XA_TAM_HONG"
+          },
+          {
+            "v": "Công an Xã Tam Hồng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Yên Tâm, xã Tam Hồng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696175"
+          },
+          {
+            "v": "21.215130,105.545730"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1nAVrDvuc-YsFgj6utwIwSqpRtKBYnzSS"
+          },
+          {
+            "v": "tam hồng|yên phương|yên đồng"
+          },
+          {
+            "v": 46117.30701388889,
+            "f": "46117,30701"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46117.30701388889,
+            "f": "46117,30701"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0054"
+          },
+          {
+            "v": "CA_XA_KIM_BOI"
+          },
+          {
+            "v": "Công an Xã Kim Bôi"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Đoàn Kết, xã Kim Bôi tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183871114"
+          },
+          {
+            "v": "20.674245,105.534351"
+          },
+          {
+            "v": "https://drive.google.com/open?id=10DKz1OcOGps5TZEpZ--1l3M39n3EChhU"
+          },
+          {
+            "v": "bo|vĩnh đồng|kim bôi"
+          },
+          {
+            "v": 46117.36685185185,
+            "f": "46117,36685"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46117.36685185185,
+            "f": "46117,36685"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0055"
+          },
+          {
+            "v": "CA_XA_HOANG_AN"
+          },
+          {
+            "v": "Công an Xã Hoàng An"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Hương Đình, xã Hoàng An, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696106"
+          },
+          {
+            "v": "21.372080,105.526573"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1PNfUc9nsSz6agsb-rxVwglmKbTwaH3F0"
+          },
+          {
+            "v": "hoàng đan|hoàng lâu|an hòa"
+          },
+          {
+            "v": 46118.0596875,
+            "f": "46118,05969"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.0596875,
+            "f": "46118,05969"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0056"
+          },
+          {
+            "v": "CA_XA_DAI_DONG"
+          },
+          {
+            "v": "Công an Xã Đại Đồng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "xóm Khao, xã Đại Đồng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183902533"
+          },
+          {
+            "v": "20.421120,105.477050"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1sXyxdSx8o-4JFR-Vc1xCBk9YyrdYGGcl"
+          },
+          {
+            "v": "ân nghĩa|tân mỹ|yên nghiệp"
+          },
+          {
+            "v": 46118.06009259259,
+            "f": "46118,06009"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.06009259259,
+            "f": "46118,06009"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0057"
+          },
+          {
+            "v": "CA_XA_TAN_MAI"
+          },
+          {
+            "v": "Công an Xã Tân Mai"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Sạn Sộp, xã Tân Mai, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183903524"
+          },
+          {
+            "v": "20.743964,105.040846"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1JXLCLXcIj6tA8Ivwiotuvb44abhlYJUY"
+          },
+          {
+            "v": "sơn thủy|tân thành"
+          },
+          {
+            "v": 46118.06087962963,
+            "f": "46118,06088"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.06087962963,
+            "f": "46118,06088"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0058"
+          },
+          {
+            "v": "CA_XA_CHAN_MONG"
+          },
+          {
+            "v": "Công an Xã Chân Mộng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 2 Chân Mộng, xã Chân Mộng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103881004"
+          },
+          {
+            "v": "21.530500,105.209770"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1UyoKx5B4sloNtDgaR26Vi_uwM3cm-b0o"
+          },
+          {
+            "v": "hùng long|yên kiện|chân mộng"
+          },
+          {
+            "v": 46118.0612962963,
+            "f": "46118,0613"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.0612962963,
+            "f": "46118,0613"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0059"
+          },
+          {
+            "v": "CA_XA_XUAN_DAI"
+          },
+          {
+            "v": "Công an Xã Xuân Đài"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Dù, xã Xuân Đài, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103868222"
+          },
+          {
+            "v": "21.119552,104.955818"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1gSKJGWy88ZHAZ4HIwExVq7Y_LBFtx3BQ"
+          },
+          {
+            "v": "kim thượng|xuân sơn|xuân đài"
+          },
+          {
+            "v": 46118.06222222222,
+            "f": "46118,06222"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.06222222222,
+            "f": "46118,06222"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0060"
+          },
+          {
+            "v": "CA_XA_VINH_THANH"
+          },
+          {
+            "v": "Công an Xã Vĩnh Thành"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Đình, xã Vĩnh Thành, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113839568"
+          },
+          {
+            "v": "21.281510,105.454216"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1P-cmtI-6Y1FjdAav_rWzq-hNj9nUvxJy"
+          },
+          {
+            "v": "sao đại việt|lũng hòa|tân phú"
+          },
+          {
+            "v": 46118.06261574074,
+            "f": "46118,06262"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.06261574074,
+            "f": "46118,06262"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0061"
+          },
+          {
+            "v": "CA_XA_DAN_CHU"
+          },
+          {
+            "v": "Công an Xã Dân Chủ"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 5, xã Dân Chủ, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103833267"
+          },
+          {
+            "v": "21.471399,105.327117"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1vEkwrKHx5wtO_UFmERp00Bqgv32A9l5H"
+          },
+          {
+            "v": "bảo thanh|trị quận|hạ giáp|gia thanh"
+          },
+          {
+            "v": 46118.064733796295,
+            "f": "46118,06473"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.064733796295,
+            "f": "46118,06473"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0062"
+          },
+          {
+            "v": "CA_XA_VINH_CHAN"
+          },
+          {
+            "v": "Công an Xã Vĩnh Chân"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 3 (xã Lang Sơn cũ) xã Vĩnh Chân, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103883343"
+          },
+          {
+            "v": "21.531272,105.032021"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1cvpymDA-pzSy9ZoXm4VLNBcEnWp3AVx2"
+          },
+          {
+            "v": "lang sơn|yên luật|vĩnh chân"
+          },
+          {
+            "v": 46118.065046296295,
+            "f": "46118,06505"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.065046296295,
+            "f": "46118,06505"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0063"
+          },
+          {
+            "v": "CA_XA_DOAN_HUNG"
+          },
+          {
+            "v": "Công an xã Đoan Hùng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Tân Long, xã Đoan Hùng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103641113"
+          },
+          {
+            "v": "21.630444,105.180556"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1A6dorDfK8vEOGIQJiqsivYaukR2teWbM"
+          },
+          {
+            "v": "đoan hùng|hợp nhất|ngọc quan"
+          },
+          {
+            "v": 46118.06699074074,
+            "f": "46118,06699"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.06699074074,
+            "f": "46118,06699"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0064"
+          },
+          {
+            "v": "CA_XA_YEN_LAC"
+          },
+          {
+            "v": "Công an Xã Yên Lạc"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Số 222, đường Dương Tĩnh, thôn vĩnh đoài 3, xã Yên Lạc, tỉnh phú thọ"
+          },
+          {
+            "v": "02113696145"
+          },
+          {
+            "v": "21.231921,105.573347"
+          },
+          {
+            "v": "https://drive.google.com/open?id=12rmTkvMu6GS64IwZg6p1YR80fuBa0N1L"
+          },
+          {
+            "v": "yên lạc|bình định|đồng cương"
+          },
+          {
+            "v": 46118.06711805556,
+            "f": "46118,06712"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.06711805556,
+            "f": "46118,06712"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0065"
+          },
+          {
+            "v": "CA_XA_HOANG_CUONG"
+          },
+          {
+            "v": "Công an Xã Hoàng Cương"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 13, xã Hoàng Cương, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103885565"
+          },
+          {
+            "v": "21.478420,105.140533"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1kqPlxJql_YL-C74joJePJRm5DdOX1X3P"
+          },
+          {
+            "v": "ninh dân|mạn lạn|hoàng cương"
+          },
+          {
+            "v": 46118.067881944444,
+            "f": "46118,06788"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.067881944444,
+            "f": "46118,06788"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0066"
+          },
+          {
+            "v": "CA_XA_DAO_XA"
+          },
+          {
+            "v": "Công an Xã Đào Xá"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 3, xã đào xá, tỉnh phú thọ"
+          },
+          {
+            "v": "02102221123"
+          },
+          {
+            "v": "21.201228,105.310144"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1WGslZ27CDrzfphCWoyqI7ZUYu5YvMLEb"
+          },
+          {
+            "v": "xuân lộc|thạch đồng|tân phương|đào xá"
+          },
+          {
+            "v": 46118.06927083333,
+            "f": "46118,06927"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.06927083333,
+            "f": "46118,06927"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0067"
+          },
+          {
+            "v": "CA_XA_LONG_COC"
+          },
+          {
+            "v": "Công an Xã Long Cốc"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "khu Mận Gạo, xã Long Cốc, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103888111"
+          },
+          {
+            "v": "21.063033,105.061803"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Gfi5YVag9LvCxvLBKAO44Ajl048WyUem"
+          },
+          {
+            "v": "tam thanh|vinh tiền|long cốc"
+          },
+          {
+            "v": 46118.0705787037,
+            "f": "46118,07058"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.0705787037,
+            "f": "46118,07058"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0068"
+          },
+          {
+            "v": "CA_XA_DONG_THANH"
+          },
+          {
+            "v": "Công an Xã Đông Thành"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "khu 5 Võ Lao, xã Đông Thành, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103885561"
+          },
+          {
+            "v": "21.462532,105.185137"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1dCEbXgEcoqMvjiTmv2aB6WJzUfLe-Fjo"
+          },
+          {
+            "v": "khải xuân|võ lao|đông thành"
+          },
+          {
+            "v": 46118.07105324074,
+            "f": "46118,07105"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.07105324074,
+            "f": "46118,07105"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0069"
+          },
+          {
+            "v": "CA_XA_SON_DONG"
+          },
+          {
+            "v": "Công an Xã Sơn Đông"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Nông Xanh, xã Sơn Đông, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113966281"
+          },
+          {
+            "v": "21.349937,105.444434"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1vev5Z4FHaF9ihBsvxe_b_XjemFFKEg3I"
+          },
+          {
+            "v": "tây sơn|cao phong|sơn đông"
+          },
+          {
+            "v": 46118.071597222224,
+            "f": "46118,0716"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.071597222224,
+            "f": "46118,0716"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0070"
+          },
+          {
+            "v": "CA_XA_YEN_KY"
+          },
+          {
+            "v": "Công an Xã Yên Kỳ"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 5 Hương Xạ, xã Yên Kỳ, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02193883330"
+          },
+          {
+            "v": "21.557842,105.077663"
+          },
+          {
+            "v": "https://drive.google.com/open?id=10jOgUPkdEISwOjNsLU2LEAiQWtEje1aM"
+          },
+          {
+            "v": "hương xạ|phương viên|yên kỳ"
+          },
+          {
+            "v": 46118.07582175926,
+            "f": "46118,07582"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.07582175926,
+            "f": "46118,07582"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0071"
+          },
+          {
+            "v": "CA_XA_VINH_HUNG"
+          },
+          {
+            "v": "Công an Xã Vĩnh Hưng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Đồng Đình, xã Vĩnh Hưng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696242"
+          },
+          {
+            "v": "21.286155,105.483329"
+          },
+          {
+            "v": "https://drive.google.com/open?id=10mGuxfJT8WLivoCyXcPl4LW3BrZgY9mg"
+          },
+          {
+            "v": "nghĩa hưng|yên lập|đại đồng|yên lập vĩnh tường"
+          },
+          {
+            "v": 46118.078206018516,
+            "f": "46118,07821"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.078206018516,
+            "f": "46118,07821"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0072"
+          },
+          {
+            "v": "CA_XA_THUNG_NAI"
+          },
+          {
+            "v": "Công an Xã Thung Nai"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "xóm Nai, xã Thung Nai, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0966108012"
+          },
+          {
+            "v": "20.756727,105.26515"
+          },
+          {
+            "v": "https://drive.google.com/file/d/1FVQVhgD6Oipd4Sj3UYmAKuw2JCqdZ74c/view?usp=sharing"
+          },
+          {
+            "v": "bắc phong|bình thanh|thung nai"
+          },
+          {
+            "v": 46118.07837962963,
+            "f": "46118,07838"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.07837962963,
+            "f": "46118,07838"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0073"
+          },
+          {
+            "v": "CA_XA_TAM_SON"
+          },
+          {
+            "v": "Công an Xã Tam Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "thôn Then, xã Tam Sơn, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696308"
+          },
+          {
+            "v": "21.436155,105.418704"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1hkQHN8GffsEsIQkx8XTTEuvAasuxkjD3"
+          },
+          {
+            "v": "tân lập|đồng quế|tam sơn|tân lập sông lô|tam sơn sông lô"
+          },
+          {
+            "v": 46118.0803125,
+            "f": "46118,08031"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.0803125,
+            "f": "46118,08031"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0074"
+          },
+          {
+            "v": "CA_XA_THO_TANG"
+          },
+          {
+            "v": "Công an Xã Thổ Tang"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Đông, xã Thổ Tang, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0967810364"
+          },
+          {
+            "v": "21.210702,105.486865"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1vZ9Fjc3Eun2pFfdIhwZM8ZVhgrRZN8V0"
+          },
+          {
+            "v": "thổ tang|thượng trưng|tuân chính"
+          },
+          {
+            "v": 46118.082870370374,
+            "f": "46118,08287"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.082870370374,
+            "f": "46118,08287"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0075"
+          },
+          {
+            "v": "CA_XA_BAN_NGUYEN"
+          },
+          {
+            "v": "Công an Xã Bản Nguyên"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 6 Vĩnh Lại, xã Bản Nguyên, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103886635"
+          },
+          {
+            "v": "21.261046,105.341187"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1MllOmPzB--sbelZj2F-VFD7tTOcLGkzV"
+          },
+          {
+            "v": "cao xá|vĩnh lại|bản nguyên"
+          },
+          {
+            "v": 46118.084814814814,
+            "f": "46118,08481"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.084814814814,
+            "f": "46118,08481"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0076"
+          },
+          {
+            "v": "CA_XA_MUONG_BI"
+          },
+          {
+            "v": "Công an Xã Mường Bi"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "xóm Tân Phú, xã Mường Bi, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183904560"
+          },
+          {
+            "v": "20.626317,105.224907"
+          },
+          {
+            "v": "https://drive.google.com/file/d/1-zWLF6dEWWnxsi0AwihOtkT1KNx3IyoF"
+          },
+          {
+            "v": "mỹ hòa|phong phú|phú cường"
+          },
+          {
+            "v": 46118.086388888885,
+            "f": "46118,08639"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.086388888885,
+            "f": "46118,08639"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0077"
+          },
+          {
+            "v": "CA_XA_LIEN_CHAU"
+          },
+          {
+            "v": "Công an Xã Liên Châu"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn 5, xã Liên Châu, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696152"
+          },
+          {
+            "v": "21.174030,105.580730"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1rX1NJFt3jReOVq6lujARH4mf4h-KisVe"
+          },
+          {
+            "v": "đại tự|hồng châu|liên châu"
+          },
+          {
+            "v": 46118.09106481481,
+            "f": "46118,09106"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.09106481481,
+            "f": "46118,09106"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0078"
+          },
+          {
+            "v": "CA_XA_TAM_DUONG"
+          },
+          {
+            "v": "Công an Xã Tam Dương"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Phố Me, xã Tam Dương, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696135"
+          },
+          {
+            "v": "21.379168,105.541318"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1-lzMDqQuFx4Q-VRtFMa-HyHpPiV8m2OT"
+          },
+          {
+            "v": "hợp hòa|kim long|hướng đạo|đạo tú"
+          },
+          {
+            "v": 46118.09153935185,
+            "f": "46118,09154"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.09153935185,
+            "f": "46118,09154"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0079"
+          },
+          {
+            "v": "CA_XA_DAI_DINH"
+          },
+          {
+            "v": "Công an Xã Đại Đình"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Sơn Phong, xã Đại Đình, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696081"
+          },
+          {
+            "v": "21.447790,105.563932"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1kktE7mKiaKS1elboQ_6te8xK-7o1qQBl"
+          },
+          {
+            "v": "đại đình|bồ lý"
+          },
+          {
+            "v": 46118.09248842593,
+            "f": "46118,09249"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.09248842593,
+            "f": "46118,09249"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0080"
+          },
+          {
+            "v": "CA_XA_TIEN_LUONG"
+          },
+          {
+            "v": "Công an Xã Tiên Lương"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Xóm Giữa, xã Tiên Lương, tỉnh Phú Thọ (trụ sở UBND xã Thụy Liễu cũ)"
+          },
+          {
+            "v": "02103793979"
+          },
+          {
+            "v": "21.482778,105.512056"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1zPQDsimw95UvvjHtUgI34knf40vZkdVq"
+          },
+          {
+            "v": "phượng vĩ|minh thắng|tiên lương"
+          },
+          {
+            "v": 46118.092627314814,
+            "f": "46118,09263"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.092627314814,
+            "f": "46118,09263"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0081"
+          },
+          {
+            "v": "CA_XA_TAM_DUONG_BAC"
+          },
+          {
+            "v": "Công an Xã Tam Dương Bắc"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Ngọc Thạch, xã Tam Dương Bắc"
+          },
+          {
+            "v": "02113696127"
+          },
+          {
+            "v": "21.418793,105.532600"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1DsakfyUr7eOqmJsLkk8ZmQreNsZIjrAE"
+          },
+          {
+            "v": "đồng tĩnh|hoàng hoa|tam quan"
+          },
+          {
+            "v": 46118.09520833333,
+            "f": "46118,09521"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.09520833333,
+            "f": "46118,09521"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0082"
+          },
+          {
+            "v": "CA_XA_CAM_KHE"
+          },
+          {
+            "v": "Công an Xã Cẩm Khê"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Thành Công, xã Cẩm Khê, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103822119"
+          },
+          {
+            "v": "21.420602,105.133658"
+          },
+          {
+            "v": "https://drive.google.com/open?id=124nNA2edoZbNU3q7IPpB7wnM6EDicGfx"
+          },
+          {
+            "v": "cẩm khê|minh tân|phong thịnh"
+          },
+          {
+            "v": 46118.09652777778,
+            "f": "46118,09653"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.09652777778,
+            "f": "46118,09653"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0083"
+          },
+          {
+            "v": "CA_XA_XUAN_VIEN"
+          },
+          {
+            "v": "Công an Xã Xuân Viên"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "khu An Thọ, xã Xuân Viên, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0332692024"
+          },
+          {
+            "v": "21.420380,104.982450"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1YwQFIqm-PYeZ4hHyLwKp19w73Ov-zHHO"
+          },
+          {
+            "v": "xuân thủy|xuân an|xuân viên"
+          },
+          {
+            "v": 46118.09836805556,
+            "f": "46118,09837"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.09836805556,
+            "f": "46118,09837"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0084"
+          },
+          {
+            "v": "CA_XA_TAN_PHEO"
+          },
+          {
+            "v": "Công an Xã Tân Pheo"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "xóm Mới, xã Tân Pheo, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183901531"
+          },
+          {
+            "v": "20.973390,104.906810"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1IiG3QbB1ocFpvqVFdcJww9b0ucdpJhOP"
+          },
+          {
+            "v": "đồng chum|giáp đắt|tân pheo"
+          },
+          {
+            "v": 46118.10428240741,
+            "f": "46118,10428"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.10428240741,
+            "f": "46118,10428"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0085"
+          },
+          {
+            "v": "CA_XA_QUYET_THANG"
+          },
+          {
+            "v": "Công an Xã Quyết Thắng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Châu Tróng, Quyết Thắng, Phú Thọ"
+          },
+          {
+            "v": "0973866360"
+          },
+          {
+            "v": "20.491167,105.347053"
+          },
+          {
+            "v": "https://drive.google.com/open?id=15K4rhWJYNDWv-cB1lMGqcjqli6fusJL0"
+          },
+          {
+            "v": "chí đạo|định cư|quyết thắng"
+          },
+          {
+            "v": 46118.10839120371,
+            "f": "46118,10839"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.10839120371,
+            "f": "46118,10839"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0086"
+          },
+          {
+            "v": "CA_XA_LUONG_SON"
+          },
+          {
+            "v": "Công an Xã Lương Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Tiểu khu 11, xã Lương Sơn, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183824114"
+          },
+          {
+            "v": "20.873459,105.522815"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1pDDZEnlAkiygI6Dc26VOcfaRDsiRIb98"
+          },
+          {
+            "v": "lương sơn|hòa sơn|lâm sơn|nhuận trạch|tân vinh|cao sơn|cao sơn lương sơn"
+          },
+          {
+            "v": 46118.11038194445,
+            "f": "46118,11038"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.11038194445,
+            "f": "46118,11038"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0087"
+          },
+          {
+            "v": "CA_XA_VO_MIEU"
+          },
+          {
+            "v": "Công an Xã Võ Miếu"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Suối Nai, Xã Võ Miếu, Tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103555338"
+          },
+          {
+            "v": "21.188594,105.125458"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1-Z9zvUi6bvSUDB6K7Taez3HIHkf9LrlF"
+          },
+          {
+            "v": "địch quả|cự thắng|võ miếu"
+          },
+          {
+            "v": 46118.114803240744,
+            "f": "46118,1148"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.114803240744,
+            "f": "46118,1148"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0088"
+          },
+          {
+            "v": "CA_XA_MINH_DAI"
+          },
+          {
+            "v": "Công an Xã Minh Đài"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Bến Gạo, xã Minh Đài, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103791666"
+          },
+          {
+            "v": "21.155865,105.086265"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Vt_V25QHhNPlVj-NagSApp8getIZUW_8"
+          },
+          {
+            "v": "mỹ thuận|văn luông|minh đài"
+          },
+          {
+            "v": 46118.115069444444,
+            "f": "46118,11507"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.115069444444,
+            "f": "46118,11507"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0089"
+          },
+          {
+            "v": "CA_XA_THAI_HOA"
+          },
+          {
+            "v": "Công an Xã Thái Hòa"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Bình Long, xã Thái Hòa, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696261"
+          },
+          {
+            "v": "21.482778,105.512056"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1OftSM-NjZ6sLfL_Jsedvqq7ljYprQlPv"
+          },
+          {
+            "v": "bắc bình|liễn sơn|thái hòa"
+          },
+          {
+            "v": 46118.11733796296,
+            "f": "46118,11734"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.11733796296,
+            "f": "46118,11734"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0090"
+          },
+          {
+            "v": "CA_XA_VAN_MIEU"
+          },
+          {
+            "v": "Công an Xã Văn Miếu"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Gằn, xã Văn Miếu, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103872113"
+          },
+          {
+            "v": "21.067711,105.172320"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1ivOKckKLSs-LmTkv2y2VvlD_As-6aa0O"
+          },
+          {
+            "v": "tân lập|tân minh|văn miếu|tân lập thanh sơn|tân minh thanh sơn"
+          },
+          {
+            "v": 46118.121412037035,
+            "f": "46118,12141"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.121412037035,
+            "f": "46118,12141"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0091"
+          },
+          {
+            "v": "CA_XA_THANH_THUY"
+          },
+          {
+            "v": "Công an Xã Thanh Thủy"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 5 (thị trấn Thanh Thủy cũ), xã Thanh Thủy, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103512568"
+          },
+          {
+            "v": "21.179728,105.282814"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1_IW2MPNNFTVPSmXt6pkuPVgyJbm72V1L"
+          },
+          {
+            "v": "sơn thủy|đoan hạ|bảo yên|thanh thủy"
+          },
+          {
+            "v": 46118.128912037035,
+            "f": "46118,12891"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.128912037035,
+            "f": "46118,12891"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0092"
+          },
+          {
+            "v": "CA_XA_LIEN_MINH"
+          },
+          {
+            "v": "Công an Xã Liên Minh"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Đỗ Sơn 3, xã Liên Minh, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103822898"
+          },
+          {
+            "v": "21.375358,105.192333"
+          },
+          {
+            "v": "https://drive.google.com/open?id=187cGh4JreZKkqJNiSdWa12t-Aj42bFHD"
+          },
+          {
+            "v": "đỗ sơn|đỗ xuyên|lương lỗ"
+          },
+          {
+            "v": 46118.16517361111,
+            "f": "46118,16517"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.16517361111,
+            "f": "46118,16517"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0093"
+          },
+          {
+            "v": "CA_XA_LIEN_SON"
+          },
+          {
+            "v": "Công an Xã Liên Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Đồn Vận, Liên Sơn, Phú Thọ"
+          },
+          {
+            "v": "02183863113"
+          },
+          {
+            "v": "20.840158,105.599152"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1j0HwnzisEQr4wRdP926sBMo-fLhTOQH1"
+          },
+          {
+            "v": "cư yên|liên sơn|cao sơn|cao sơn lương sơn"
+          },
+          {
+            "v": 46118.17938657408,
+            "f": "46118,17939"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.17938657408,
+            "f": "46118,17939"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0094"
+          },
+          {
+            "v": "CA_XA_DUC_NHAN"
+          },
+          {
+            "v": "Công an Xã Đức Nhàn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Chúm Nưa. Xã Đức Nhàn. Tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183901532"
+          },
+          {
+            "v": "21.010766,104.959586"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1DFSpakb3N6fj63LGMLaK2UUYHEPqX93r"
+          },
+          {
+            "v": "mường chiềng|nánh nghê"
+          },
+          {
+            "v": 46118.2,
+            "f": "46118,2"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.2,
+            "f": "46118,2"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0095"
+          },
+          {
+            "v": "CA_XA_HA_HOA"
+          },
+          {
+            "v": "Công an Xã Hạ Hòa"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "khu 8, xã Hạ Hoà, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0210388335"
+          },
+          {
+            "v": "21.561917,105.003750"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1HZX18FR1AqDfClIBloLaceadQ7TWLwfQ"
+          },
+          {
+            "v": "hạ hòa|minh hạc|ấm hạ|gia điền"
+          },
+          {
+            "v": 46118.239328703705,
+            "f": "46118,23933"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.239328703705,
+            "f": "46118,23933"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0096"
+          },
+          {
+            "v": "CA_XA_KHA_CUU"
+          },
+          {
+            "v": "Công an Xã Khả Cửu"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Bái, xã Khả Cửu, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103683979"
+          },
+          {
+            "v": "21.028444,105.091667"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1SVvPJMjzzs3ckXvR4UltjeqctxnxOEvS"
+          },
+          {
+            "v": "đông cửu|thượng cửu|khả cửu"
+          },
+          {
+            "v": 46118.31306712963,
+            "f": "46118,31307"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.31306712963,
+            "f": "46118,31307"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0097"
+          },
+          {
+            "v": "CA_PHUONG_VINH_PHUC"
+          },
+          {
+            "v": "Công an Phường Vĩnh Phúc"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "số 1, phố lê xoay, phường vĩnh phúc, tỉnh phú thọ"
+          },
+          {
+            "v": "02113631888"
+          },
+          {
+            "v": "21.308798,105.594962"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Fe5O_6xlLjqn5gmy0JPHQN7Cc0wFoZep"
+          },
+          {
+            "v": "định trung|liên bảo|khai quang|ngô quyền|đống đa"
+          },
+          {
+            "v": 46118.31380787037,
+            "f": "46118,31381"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.31380787037,
+            "f": "46118,31381"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0098"
+          },
+          {
+            "v": "CA_XA_MAI_CHAU"
+          },
+          {
+            "v": "Công an Xã Mai Châu"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Tiểu khu 2, xã Mai Châu, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183838689"
+          },
+          {
+            "v": "20.666868,105.082925"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1uKHjf417C8GqC9-BvA_AkggCYe7NkfV0"
+          },
+          {
+            "v": "mai châu|nà phòn|thành sơn|tòng đậu|đồng tân"
+          },
+          {
+            "v": 46118.31384259259,
+            "f": "46118,31384"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.31384259259,
+            "f": "46118,31384"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0099"
+          },
+          {
+            "v": "CA_XA_HIEN_QUAN"
+          },
+          {
+            "v": "Công an Xã Hiền Quan"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 8, xã Hiền Quan, tỉnh Phú thọ"
+          },
+          {
+            "v": "02103686010"
+          },
+          {
+            "v": "21.375687,105.240668"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1yz5xvxmK8tY88XB0F5H6PnY9izZsGo6P"
+          },
+          {
+            "v": "thanh uyên|bắc sơn|hiền quan"
+          },
+          {
+            "v": 46118.31469907407,
+            "f": "46118,3147"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.31469907407,
+            "f": "46118,3147"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0100"
+          },
+          {
+            "v": "CA_XA_LIEN_HOA"
+          },
+          {
+            "v": "Công an Xã Liên Hòa"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Đông Lai, xã Liên Hoà, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696245"
+          },
+          {
+            "v": "21.388639,105.503278"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1p1kbh6_hk_kQ3-4G8ag4BbELiRJibaUK"
+          },
+          {
+            "v": "hoa sơn|bàn giản|liên hòa"
+          },
+          {
+            "v": 46118.31704861111,
+            "f": "46118,31705"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.31704861111,
+            "f": "46118,31705"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0101"
+          },
+          {
+            "v": "CA_XA_HOI_THINH"
+          },
+          {
+            "v": "Công an Xã Hội Thịnh"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Vân Sau, xã Hội Thịnh"
+          },
+          {
+            "v": "02113696144"
+          },
+          {
+            "v": "21.310857,105.548406"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Yro4EzLo_nn_F4_MCKrHKEh884EdyYSN"
+          },
+          {
+            "v": "duy phiên|thanh vân|hội thịnh"
+          },
+          {
+            "v": 46118.317465277774,
+            "f": "46118,31747"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.317465277774,
+            "f": "46118,31747"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0102"
+          },
+          {
+            "v": "CA_XA_PHU_MY"
+          },
+          {
+            "v": "Công an Xã Phú Mỹ"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 8, xã Phú Mỹ, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103833275"
+          },
+          {
+            "v": "21.532854,105.291948"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1s3gf7VmbyBpVQqPQZwNVT2ko_xDZMzA2"
+          },
+          {
+            "v": "liên hoa|lệ mỹ|phú mỹ"
+          },
+          {
+            "v": 46118.3178587963,
+            "f": "46118,31786"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.3178587963,
+            "f": "46118,31786"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0103"
+          },
+          {
+            "v": "CA_XA_LAC_LUONG"
+          },
+          {
+            "v": "Công an Xã Lạc Lương"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "xóm Hợp Thành, xã Lạc Lương, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0972632194"
+          },
+          {
+            "v": "20.446639,105.636442"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1JtADyXzh61eHvVRMVPxplocNu9yzLChk"
+          },
+          {
+            "v": "bảo hiệu|đa phúc|lạc sỹ|lạc lương"
+          },
+          {
+            "v": 46118.31878472222,
+            "f": "46118,31878"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.31878472222,
+            "f": "46118,31878"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0104"
+          },
+          {
+            "v": "CA_XA_PHUNG_NGUYEN"
+          },
+          {
+            "v": "Công an Xã Phùng Nguyên"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "khu 5, xã phùng nguyên, tỉnh phú thọ"
+          },
+          {
+            "v": "0866581868"
+          },
+          {
+            "v": "21.287582,105.301787"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1tOd_4bBL47J_yLXtt0VeqZST3X2IRD8f"
+          },
+          {
+            "v": "tứ xã|sơn vi|phùng nguyên"
+          },
+          {
+            "v": 46118.31893518518,
+            "f": "46118,31894"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.31893518518,
+            "f": "46118,31894"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0105"
+          },
+          {
+            "v": "CA_PHUONG_KY_SON"
+          },
+          {
+            "v": "Công an Phường Kỳ Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Tổ 2, phường Kỳ Sơn, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183842114"
+          },
+          {
+            "v": "20.886530,105.353825"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1deVyMr8Z2SQwmO_ql1j1C42Nut3aqShY"
+          },
+          {
+            "v": "kỳ sơn|độc lập|mông hóa"
+          },
+          {
+            "v": 46118.320185185185,
+            "f": "46118,32019"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.320185185185,
+            "f": "46118,32019"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0106"
+          },
+          {
+            "v": "CA_XA_THO_VAN"
+          },
+          {
+            "v": "Công an Xã Thọ Văn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "khu 5, xã Dị Nậu cũ, xã Thọ Văn, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103686006"
+          },
+          {
+            "v": "21.241820,105.264140"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Yd-emqSAuONniE_t0f6D1BAufKTPLG9P"
+          },
+          {
+            "v": "dị nậu|tề lễ|thọ văn"
+          },
+          {
+            "v": 46118.32164351852,
+            "f": "46118,32164"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.32164351852,
+            "f": "46118,32164"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0107"
+          },
+          {
+            "v": "CA_XA_VAN_XUAN"
+          },
+          {
+            "v": "Công an Xã Vạn Xuân"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 4, xã Quang Húc cũ, xã Vạn Xuân, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02106511113"
+          },
+          {
+            "v": "21.290192,105.194915"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1t5O8_N_HkdUlc8ZThe1j0t8wMQqdSwJI"
+          },
+          {
+            "v": "quang húc|lam sơn|vạn xuân"
+          },
+          {
+            "v": 46118.32642361111,
+            "f": "46118,32642"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.32642361111,
+            "f": "46118,32642"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0108"
+          },
+          {
+            "v": "CA_XA_THANH_BA"
+          },
+          {
+            "v": "Công an Xã Thanh Ba"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Số 147 đường Hàn Thuyên, khu 9 Thị trấn Thanh Ba, xã Thanh Ba, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103885569"
+          },
+          {
+            "v": "21.497071,105.143487"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Prb8ZikX3qUFmRAKUNGoWFmByltveADO"
+          },
+          {
+            "v": "thanh ba|đồng xuân|hanh cù|vân lĩnh"
+          },
+          {
+            "v": 46118.32837962963,
+            "f": "46118,32838"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.32837962963,
+            "f": "46118,32838"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0109"
+          },
+          {
+            "v": "CA_XA_MUONG_VANG"
+          },
+          {
+            "v": "Công an Xã Mường Vang"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Tôm Trên, xã Mường Vang, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183902531"
+          },
+          {
+            "v": "20.535567,105.447032"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1bU6-N5lRsaAEsTGTTkF29dnbvi5rSIDH"
+          },
+          {
+            "v": "tân lập|quý hòa|tuân đạo|tân lập lạc sơn"
+          },
+          {
+            "v": 46118.32984953704,
+            "f": "46118,32985"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.32984953704,
+            "f": "46118,32985"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0110"
+          },
+          {
+            "v": "CA_XA_HOP_LY"
+          },
+          {
+            "v": "Công an Xã Hợp Lý"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Nghệ Oản Trung, xã Hợp Lý, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0335484000"
+          },
+          {
+            "v": "21.471547,105.460226"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1wnrzubP8-QMin0nERSYqqaLRXzXmOwcL"
+          },
+          {
+            "v": "ngọc mỹ|quang sơn|hợp lý"
+          },
+          {
+            "v": 46118.330717592595,
+            "f": "46118,33072"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.330717592595,
+            "f": "46118,33072"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0111"
+          },
+          {
+            "v": "CA_XA_BINH_NGUYEN"
+          },
+          {
+            "v": "Công an Xã Bình Nguyên"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn 1, xã Bình Nguyên, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0965146111"
+          },
+          {
+            "v": "21.279073,105.646738"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1wv8lGPbDlJupKRcpNUWMW0L3_770M0H7"
+          },
+          {
+            "v": "hương canh|tam hợp|quất lưu|sơn lôi"
+          },
+          {
+            "v": 46118.33084490741,
+            "f": "46118,33084"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.33084490741,
+            "f": "46118,33084"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0112"
+          },
+          {
+            "v": "CA_XA_PHU_NINH"
+          },
+          {
+            "v": "Công an Xã Phù Ninh"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Núi Voi, xã Phù Ninh, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103829376"
+          },
+          {
+            "v": "21.413263,105.303338"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Zk3ZhB5UsRapvkhKtqJOQ_Pk4cKw46GB"
+          },
+          {
+            "v": "phong châu|phú nham|phú lộc|phù ninh"
+          },
+          {
+            "v": 46118.332604166666,
+            "f": "46118,3326"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.332604166666,
+            "f": "46118,3326"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0113"
+          },
+          {
+            "v": "CA_XA_YEN_LANG"
+          },
+          {
+            "v": "Công an Xã Yên Lãng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Quang Viễn, xã Yên Lãng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696312"
+          },
+          {
+            "v": "21.506610,105.362550"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1cJoTeSm7s2q7zNXiqv_FcepilsJX_Xit"
+          },
+          {
+            "v": "quang yên|lãng công"
+          },
+          {
+            "v": 46118.33383101852,
+            "f": "46118,33383"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.33383101852,
+            "f": "46118,33383"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0114"
+          },
+          {
+            "v": "CA_XA_DAO_TRU"
+          },
+          {
+            "v": "Công an Xã Đạo Trù"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Đồng Thành, xã Đạo Trù, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696098"
+          },
+          {
+            "v": "21.496128,105.507050"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1aJG6H74GHsT4WCha7za2jAQuc6iSCPsS"
+          },
+          {
+            "v": "yên dương|đạo trù"
+          },
+          {
+            "v": 46118.33736111111,
+            "f": "46118,33736"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.33736111111,
+            "f": "46118,33736"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0115"
+          },
+          {
+            "v": "CA_XA_XUAN_LANG"
+          },
+          {
+            "v": "Công an Xã Xuân Lãng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Nam Bản, xã Xuân Lãng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696071"
+          },
+          {
+            "v": "21.252700,105.634291"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1eYjKjhbFvszo-goEVk8FxV091JdjmJtd"
+          },
+          {
+            "v": "thanh lãng|đạo đức|tân phong|phú xuân"
+          },
+          {
+            "v": 46118.33974537037,
+            "f": "46118,33975"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.33974537037,
+            "f": "46118,33975"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0116"
+          },
+          {
+            "v": "CA_XA_BINH_PHU"
+          },
+          {
+            "v": "Công an Xã Bình Phú"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 3 (xã Bình Phú cũ), xã Bình Phú, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103770077"
+          },
+          {
+            "v": "21.419623362301525, 105.38093621534557"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1c7pd2ueJ7q12acc3znehnmESRlpnw9ZU"
+          },
+          {
+            "v": "tiên du|an đạo|bình phú"
+          },
+          {
+            "v": 46118.35873842592,
+            "f": "46118,35874"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.35873842592,
+            "f": "46118,35874"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0117"
+          },
+          {
+            "v": "CA_XA_MUONG_THANG"
+          },
+          {
+            "v": "Công an Xã Mường Thàng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Ngái"
+          },
+          {
+            "v": "02183904099"
+          },
+          {
+            "v": "20.641356,105.351547"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1skp2aOupMgokUsBonI3QNUvxzw-L2ze3"
+          },
+          {
+            "v": "dũng phong|nam phong|tây phong|thạch yên"
+          },
+          {
+            "v": 46118.35994212963,
+            "f": "46118,35994"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.35994212963,
+            "f": "46118,35994"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0118"
+          },
+          {
+            "v": "CA_XA_VINH_TUONG"
+          },
+          {
+            "v": "Công an Xã Vĩnh Tường"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Hồ Xuân Hương, xã Vĩnh Tường, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113839120"
+          },
+          {
+            "v": "21.225222,105.502806"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1qNK37Y-vGQlWxqb8wPwRVnCCUnpXvRrM"
+          },
+          {
+            "v": "vĩnh tường|tứ trưng|lương điền|vũ di"
+          },
+          {
+            "v": 46118.36483796296,
+            "f": "46118,36484"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.36483796296,
+            "f": "46118,36484"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0119"
+          },
+          {
+            "v": "CA_XA_HOP_KIM"
+          },
+          {
+            "v": "Công an Xã Hợp Kim"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Sào Đông, xã Hợp Kim, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183868008"
+          },
+          {
+            "v": "20.599827,105.602809"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Kj9996oB6TQgCiJC3Kka6-m7SchPqvSA"
+          },
+          {
+            "v": "kim lập|nam thượng|sào báy"
+          },
+          {
+            "v": 46118.36827546296,
+            "f": "46118,36828"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.36827546296,
+            "f": "46118,36828"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0120"
+          },
+          {
+            "v": "CA_PHUONG_THANH_MIEU"
+          },
+          {
+            "v": "Công an Phường Thanh Miếu"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Số 1028 Đường Hùng Vương, phường Thanh Miếu, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103863928"
+          },
+          {
+            "v": "21.304528,105.415528"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1U4GE_HxIRicJjnFcOcgSAq30tQB6_Kbv"
+          },
+          {
+            "v": "thọ sơn|tiên cát|bạch hạc|thanh miếu|sông lô"
+          },
+          {
+            "v": 46118.38856481481,
+            "f": "46118,38856"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.38856481481,
+            "f": "46118,38856"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0121"
+          },
+          {
+            "v": "CA_XA_CU_DONG"
+          },
+          {
+            "v": "Công an Xã Cự Đồng"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Giếng Ống, xã Cự Đồng, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103676686"
+          },
+          {
+            "v": "21.096836,105.265312"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1zv3S1fkmoq2x-e1F5dm3mk75D0SqcNCN"
+          },
+          {
+            "v": "tất thắng|thắng sơn|cự đồng"
+          },
+          {
+            "v": 46118.48542824074,
+            "f": "46118,48543"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.48542824074,
+            "f": "46118,48543"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0122"
+          },
+          {
+            "v": "CA_PHUONG_NONG_TRANG"
+          },
+          {
+            "v": "Công an Phường Nông Trang"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "26 Gò Mun, Khu 5, P. Nông Trang, T. Phú Thọ"
+          },
+          {
+            "v": "02103846252"
+          },
+          {
+            "v": "21.337535,105.367383"
+          },
+          {
+            "v": "https://drive.google.com/open?id=10AcIY_5lANbrjVt-gavZ6ErxQPElh9f5"
+          },
+          {
+            "v": "minh phương|nông trang|thụy vân"
+          },
+          {
+            "v": 46118.619050925925,
+            "f": "46118,61905"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.619050925925,
+            "f": "46118,61905"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0123"
+          },
+          {
+            "v": "CA_XA_BAO_LA"
+          },
+          {
+            "v": "Công an Xã Bao La"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Hịch 2, xã Bao La, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0367218635"
+          },
+          {
+            "v": "20.612990,105.009980"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1VFOP4RpqZFn5wpr0Lk4fE29-3DAyXlDF"
+          },
+          {
+            "v": "mai hịch|xăm khòe|bao la"
+          },
+          {
+            "v": 46118.68822916667,
+            "f": "46118,68823"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.68822916667,
+            "f": "46118,68823"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0124"
+          },
+          {
+            "v": "CA_XA_CHI_TIEN"
+          },
+          {
+            "v": "Công an Xã Chí Tiên"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 3, xã Chí Tiên, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103868883"
+          },
+          {
+            "v": "21.436635,105.154091"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1YVwI0bGKRucisW5zlSeuREcatOly7V3b"
+          },
+          {
+            "v": "sơn cương|thanh hà|chí tiên"
+          },
+          {
+            "v": 46119.02515046296,
+            "f": "46119,02515"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46119.02515046296,
+            "f": "46119,02515"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0125"
+          },
+          {
+            "v": "CA_XA_TU_VU"
+          },
+          {
+            "v": "Công an Xã Tu Vũ"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 5 (Đồng Trung), xã Tu Vũ, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0972293216"
+          },
+          {
+            "v": "21.083707,105.297405"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Sod492QueZldTbVD_L08bMJerLW-Pi4D"
+          },
+          {
+            "v": "đồng trung|hoàng xá|tu vũ"
+          },
+          {
+            "v": 46119.05829861111,
+            "f": "46119,0583"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46119.05829861111,
+            "f": "46119,0583"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0126"
+          },
+          {
+            "v": "CA_XA_CHI_DAM"
+          },
+          {
+            "v": "Công an Xã Chí Đám"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Vân Tiến 3, xã Chí Đám, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103881026"
+          },
+          {
+            "v": "21.647740,105.185020"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1AYsJQMsblBcIHeahPwwHaCWA6vKoHXF8"
+          },
+          {
+            "v": "hùng xuyên|chí đám"
+          },
+          {
+            "v": 46119.084965277776,
+            "f": "46119,08497"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46119.084965277776,
+            "f": "46119,08497"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0127"
+          },
+          {
+            "v": "CA_XA_MAI_HA"
+          },
+          {
+            "v": "Công an Xã Mai Hạ"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Chiềng Hạ, xã Mai Hạ, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02183903511"
+          },
+          {
+            "v": "20.622162,105.043886"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Kv_o0sGgsJZ8KWQZID2J815OvQYdMDKK"
+          },
+          {
+            "v": "chiềng châu|vạn mai|mai hạ"
+          },
+          {
+            "v": 46119.08849537037,
+            "f": "46119,0885"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46119.08849537037,
+            "f": "46119,0885"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0128"
+          },
+          {
+            "v": "CA_XA_VAN_BAN"
+          },
+          {
+            "v": "Công an Xã Vân Bán"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Xóm Chùa, xã Vân Bán, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103900113"
+          },
+          {
+            "v": "21.437030,105.073410"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1RnwtJAJpeNCJJVcRyEf1nwq1w6vBbvPk"
+          },
+          {
+            "v": "tùng khê|tam sơn|văn bán|tam sơn cẩm khê"
+          },
+          {
+            "v": 46119.09159722222,
+            "f": "46119,0916"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46119.09159722222,
+            "f": "46119,0916"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0129"
+          },
+          {
+            "v": "CA_XA_YEN_SON"
+          },
+          {
+            "v": "Công an Xã Yên Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm vũ - yên sơn- phú thọ"
+          },
+          {
+            "v": "02103888779"
+          },
+          {
+            "v": "21.002551,105.311797"
+          },
+          {
+            "v": "https://drive.google.com/open?id=16ks_S-i6gbhBkMmRKQ9KWC1W8m-haRYs"
+          },
+          {
+            "v": "tinh nhuệ|lương nha|yên sơn"
+          },
+          {
+            "v": 46119.109768518516,
+            "f": "46119,10977"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46119.109768518516,
+            "f": "46119,10977"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0130"
+          },
+          {
+            "v": "CA_XA_BANG_LUAN"
+          },
+          {
+            "v": "Công an Xã Bằng Luân"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 9, xã Bằng Luân, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103881020"
+          },
+          {
+            "v": "21.677870,105.067735"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1wUbhKa1tLiwXpOmXaxkdGxe_VJ8DluJ9"
+          },
+          {
+            "v": "bằng doãn|phúc lai|bằng luân"
+          },
+          {
+            "v": 46119.111909722225,
+            "f": "46119,11191"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46119.111909722225,
+            "f": "46119,11191"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0131"
+          },
+          {
+            "v": "CA_XA_LAC_SON"
+          },
+          {
+            "v": "Công an Xã Lạc Sơn"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Phố Hữu Nghị, xã Lạc Sơn, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0347994689"
+          },
+          {
+            "v": "20.465503,105.442533"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1aFClIfT83xH2bpQ6edhkL1JpAEOYIih5"
+          },
+          {
+            "v": "vụ bản|hương nhượng|vũ bình"
+          },
+          {
+            "v": 46119.117268518516,
+            "f": "46119,11727"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46119.117268518516,
+            "f": "46119,11727"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0132"
+          },
+          {
+            "v": "CA_PHUONG_PHONG_CHAU"
+          },
+          {
+            "v": "Công an Phường Phong Châu"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Phú Hưng, phường Phong Châu, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02106501007"
+          },
+          {
+            "v": "21.399702274617088, 105.24762898069126"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1X3tes3yLqOwVc_slnOmKft50MB-qlrr0"
+          },
+          {
+            "v": "phong châu|phú hộ|hà thạch"
+          },
+          {
+            "v": 46119.335625,
+            "f": "46119,33563"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46119.335625,
+            "f": "46119,33563"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0133"
+          },
+          {
+            "v": "CA_XA_LAP_THACH"
+          },
+          {
+            "v": "Công an Xã Lập Thạch"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Tân Chiền, xã Lập Thạch, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696243"
+          },
+          {
+            "v": "21.417110,105.464740"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1Y35Fsn_EWkixZZJZZyjBHEzsNo4LxfaL"
+          },
+          {
+            "v": "lập thạch|xuân hòa|tử du|vân trục"
+          },
+          {
+            "v": 46119.37712962963,
+            "f": "46119,37713"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46119.37712962963,
+            "f": "46119,37713"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0134"
+          },
+          {
+            "v": "CA_XA_BINH_TUYEN"
+          },
+          {
+            "v": "Công an Xã Bình Tuyền"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "thôn Ba Gò, xã Bình Tuyền, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696077"
+          },
+          {
+            "v": "21.354521,105.686795"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1P0yR4w6ao19RZN8FttKQw_fY90EIm1Uz"
+          },
+          {
+            "v": "bá hiến|trung mỹ"
+          },
+          {
+            "v": 46119.992939814816,
+            "f": "46119,99294"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46119.992939814816,
+            "f": "46119,99294"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0135"
+          },
+          {
+            "v": "CA_PHUONG_AU_CO"
+          },
+          {
+            "v": "Công an Phường Âu Cơ"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu 1, phường Âu Cơ, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103820353"
+          },
+          {
+            "v": "21.396010,105.201560"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1w0FbZM-Vt1kClZ1UHZpeQRGbotCdKFL_"
+          },
+          {
+            "v": "thanh vinh|âu cơ|thanh minh"
+          },
+          {
+            "v": 46120.113344907404,
+            "f": "46120,11334"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46120.113344907404,
+            "f": "46120,11334"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0136"
+          },
+          {
+            "v": "CA_XA_MUONG_DONG"
+          },
+          {
+            "v": "Công an Xã Mường Động"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "xóm Đồng Ngoài, xã Mường Động, tỉnh Phú Thọ"
+          },
+          {
+            "v": "0339707967"
+          },
+          {
+            "v": "20.734944,105.455972"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1FT1T2Y5fWm1cFTQGU9AyK6pEkYalAqSX"
+          },
+          {
+            "v": "đông bắc|hợp tiến|tú sơn|vĩnh tiến"
+          },
+          {
+            "v": 46120.11993055556,
+            "f": "46120,11993"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46120.11993055556,
+            "f": "46120,11993"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0137"
+          },
+          {
+            "v": "CA_XA_PHU_KHE"
+          },
+          {
+            "v": "Công an Xã Phú Khê"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Luông Lữu, xã Phú Khê, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02103812689"
+          },
+          {
+            "v": "21.410894,105.134305"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1U-hQN4S4nQBx_PB94KMmCpbwZCCr9nHq"
+          },
+          {
+            "v": "hương lung|phú khê"
+          },
+          {
+            "v": 46120.1396875,
+            "f": "46120,13969"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46120.1396875,
+            "f": "46120,13969"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0138"
+          },
+          {
+            "v": "CA_XA_BINH_XUYEN"
+          },
+          {
+            "v": "Công an Xã Bình Xuyên"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Thiện Kế, xã Bình Xuyên"
+          },
+          {
+            "v": "02113696057"
+          },
+          {
+            "v": "21.322647, 105.664271"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1HTOY3D7N_RmL4jBc6MqtWriaweBod2sL"
+          },
+          {
+            "v": "gia khánh|hương sơn|thiện kế"
+          },
+          {
+            "v": 46121.126979166664,
+            "f": "46121,12698"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46121.126979166664,
+            "f": "46121,12698"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0139"
+          },
+          {
+            "v": "CA_XA_TIEN_LU"
+          },
+          {
+            "v": "Công an Xã Tiên Lữ"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Thôn Xuân Quang, xã Tiên Lữ, tỉnh Phú Thọ"
+          },
+          {
+            "v": "02113696259"
+          },
+          {
+            "v": "21.3618715, 105.4568376"
+          },
+          {
+            "v": "https://drive.google.com/open?id=1gbJ4_eApgDRX2tOuWskO27sobsBX3Ei5"
+          },
+          {
+            "v": "xuân lôi|văn quán|đồng ích|tiên lữ"
+          },
+          {
+            "v": 46121.36525462963,
+            "f": "46121,36525"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46121.36525462963,
+            "f": "46121,36525"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0140"
+          },
+          {
+            "v": "CA_XA_HUNG_VIET"
+          },
+          {
+            "v": "Công an xã Hùng Việt"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Khu Trung Tiến 2, xã Hùng Việt"
+          },
+          {
+            "v": "02103816113"
+          },
+          {
+            "v": "21.375170,105.143214"
+          },
+          {
+            "v": "https://drive.google.com/file/d/1JUN2ucCgKaurQF5ZeaEuBBz33z_mdx0o"
+          },
+          {
+            "v": "nhật tiến|hùng việt"
+          },
+          {
+            "v": 46118.619050925925,
+            "f": "46118,61905"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46118.619050925925,
+            "f": "46118,61905"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0141"
+          },
+          {
+            "v": "CA_XA_THINH_MINH"
+          },
+          {
+            "v": "Công an xã Thịnh Minh"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "xã Thịnh Minh, Phú Thọ"
+          },
+          {
+            "v": "02183901016"
+          },
+          {
+            "v": "20.990868845438563,105.35491348650915"
+          },
+          {
+            "v": "https://drive.google.com/file/d/1y3LFXaJAaZUaTw9aewZTU_1dSgNq0ThT/view?usp=drive_link"
+          },
+          {
+            "v": "hợp thành|quang tiến|thịnh minh"
+          },
+          {
+            "v": 46254.708333333336,
+            "f": "46254,70833"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46254.708333333336,
+            "f": "46254,70833"
+          }
+        ]
+      },
+      {
+        "c": [
+          {
+            "v": "LEGACY_0142"
+          },
+          {
+            "v": "CA_XA_THUONG_COC"
+          },
+          {
+            "v": "Công an xã Thượng Cốc"
+          },
+          {
+            "v": "police_station"
+          },
+          {
+            "v": "Xóm Hữu Nghị, Xã Thượng Cốc, Phú Thọ"
+          },
+          {
+            "v": "02183902536"
+          },
+          {
+            "v": "20.49769111772358, 105.38784065767277"
+          },
+          {
+            "v": "https://drive.google.com/file/d/1estDvJByCpYKMLjaIidMBZCwwUo-LUIM/view?usp=drive_link"
+          },
+          {
+            "v": "hữu nghị|thượng cốc"
+          },
+          {
+            "v": 46254.708333333336,
+            "f": "46254,70833"
+          },
+          {
+            "v": "HEADQUARTERS"
+          },
+          {
+            "v": "POLICE_OFFICE"
+          },
+          null,
+          {
+            "v": "NOT_PROVIDED"
+          },
+          null,
+          null,
+          {
+            "v": "published"
+          },
+          {
+            "v": 46254.708333333336,
+            "f": "46254,70833"
+          }
+        ]
+      }
+    ],
+    "parsedNumHeaders": 1
+  }
+}

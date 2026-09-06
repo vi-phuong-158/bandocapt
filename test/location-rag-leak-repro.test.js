@@ -212,7 +212,7 @@ for (const [label, userMessage] of PRODUCTION_CASES) {
             // named), must have found no verified match — otherwise this test would not be
             // exercising the no_match/RAG-leak scenario at all.
             assert.equal(done.eval.locationLookupRequested, true);
-            assert.equal(done.eval.locationResolutionStatus, 'no_match');
+            assert.equal(done.eval.locationResolutionStatus, 'missing_location_evidence');
             assert.deepEqual(done.eval.verifiedLocationMatches, []);
 
             // Ground truth: Pinecone really was queried and really did return the contaminated
@@ -282,7 +282,7 @@ test('Case 5 — RAG contains a fictional/unpublished station: must not leak it 
             evalDebug: true,
         });
         const done = getDone(result.body);
-        assert.equal(done.eval.locationResolutionStatus, 'no_match');
+        assert.equal(done.eval.locationResolutionStatus, 'missing_location_evidence');
         assert.doesNotMatch(done.fullText, /Không Tồn Tại|Bịa Đặt|0900000000/i,
             `a fictional/hallucinated station leaked: ${done.fullText}`);
     } finally {

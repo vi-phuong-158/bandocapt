@@ -43,17 +43,16 @@ function resolve(currentMessage, history = []) {
 
 test('fresh session service intent has no location match', () => {
     const result = resolve(CITIZEN_ID_QUESTION);
-    assert.equal(result.status, 'no_match');
+    assert.equal(result.status, 'missing_location_evidence');
     assert.deepEqual(result.matches, []);
-    assert.equal(result.lookupTexts.length, 2);
+    assert.equal(result.lookupTexts.length, 1);
     assert.equal(result.lookupTexts[0].source, 'current');
-    assert.equal(result.lookupTexts[1].source, 'current-loose');
 });
 
 test('old location in same session is not reused after topic change', () => {
     const history = [user('Tôi ở phường Hòa Bình'), model('Đã hiểu, tôi sẽ ghi nhận thông tin đó.')];
     const result = resolve(CITIZEN_ID_QUESTION, history);
-    assert.equal(result.status, 'no_match');
+    assert.equal(result.status, 'missing_location_evidence');
     assert.deepEqual(result.matches, []);
     assert.equal(result.lookupTexts.some(item => item.source === 'history'), false);
 });
@@ -73,8 +72,10 @@ test('immediate assistant location follow-up allows a short location answer', ()
 });
 
 test('citizen ID words alone never become location evidence', () => {
-    assert.equal(resolve('Tôi muốn làm căn cước ở đâu?').status, 'no_match');
-    assert.equal(resolve('Tôi muốn làm căn cước').status, 'no_match');
+    assert.equal(resolve('Tôi muốn làm căn cước ở đâu?').status, 'missing_location_evidence');
+    assert.equal(resolve('Tôi muốn làm căn cước').status, 'missing_location_evidence');
+    assert.equal(locations.hasLocationEvidence('Tôi muốn làm căn cước ở đâu?'), false);
+    assert.equal(locations.hasLocationEvidence('Tôi muốn làm căn cước'), false);
 });
 
 test('unknown explicit location is no_match and never falls back to another station', () => {
@@ -105,7 +106,7 @@ test('request A state cannot affect request B, including concurrent calls', asyn
     const requestB = Promise.resolve().then(() => resolve(CITIZEN_ID_QUESTION, []));
     const [a, b] = await Promise.all([requestA, requestB]);
     assert.equal(a.status, 'matched');
-    assert.equal(b.status, 'no_match');
+    assert.equal(b.status, 'missing_location_evidence');
     assert.deepEqual(b.matches, []);
 });
 
@@ -206,7 +207,7 @@ function getEvents(body) {
         .map(part => JSON.parse(part.slice(6)));
 }
 
-test('handler traces no_match before generation and blocks a hallucinated station', async () => {
+test('handler traces missing_location_evidence before generation and blocks a hallucinated station', async () => {
     const envBackup = Object.fromEntries([
         'NODE_ENV', 'EVAL_BYPASS_TOKEN', 'CHAT_LOG_HASH_SALT', 'GEMINI_API_KEY',
         'PUBLIC_LOCATION_SPREADSHEET_ID', 'PINECONE_API_KEY', 'FIREBASE_DB_URL',
@@ -217,12 +218,19 @@ test('handler traces no_match before generation and blocks a hallucinated statio
         EVAL_BYPASS_TOKEN: 'test-bypass-token',
         CHAT_LOG_HASH_SALT: 'test-only-hash-salt',
         GEMINI_API_KEY: 'test-key',
-        PUBLIC_LOCATION_SPREADSHEET_ID: 'local-fixture-workbook',
+        PUBLIC_LOCATION_SPREADSHEET_ID: 'test-sheet-id',
+        PINECONE_API_KEY: '',
+        FIREBASE_DB_URL: '',
+        RAG_FAIL_CLOSED: '0',
         EVAL_SKIP_FAQ_CACHE: '1',
     });
-    delete process.env.PINECONE_API_KEY;
-    delete process.env.FIREBASE_DB_URL;
-    delete process.env.RAG_FAIL_CLOSED;
+    delete process.env.PINECONE_INDEX_HOST;
+    delete process.env.PINECONE_NAMESPACE;
+    delete process.env.DEEPSEEK_API_KEY;
+    delete process.env.LLM_PRIMARY;
+    delete process.env.LLM_FALLBACK;
+    delete process.env.RAG_GOVERNANCE_FILTER;
+
     locations.resetPublishedLocationsCache();
     const originalFetch = global.fetch;
     let fixtureLocations = [LOCATION];
@@ -256,17 +264,17 @@ test('handler traces no_match before generation and blocks a hallucinated statio
         assert.equal(done.eval.currentMessage, CITIZEN_ID_QUESTION);
         assert.deepEqual(done.eval.sanitizedHistory, []);
         assert.equal(done.eval.locationLookupRequested, true);
-        assert.equal(done.eval.locationResolutionStatus, 'no_match');
+        assert.equal(done.eval.locationResolutionStatus, 'missing_location_evidence');
         assert.equal(done.eval.locationLookupTexts.some(item => item.source === 'history'), false);
         assert.deepEqual(done.eval.verifiedLocationMatches, []);
-        assert.match(done.eval.verifiedLocationPrompt, /STATUS: no_match/);
+        assert.match(done.eval.verifiedLocationPrompt, /STATUS: missing_location_evidence/);
         assert.deepEqual(done.eval.retrievedDocuments, []);
         assert.equal(done.eval.locationSafetyFallback, true);
         assert.match(done.fullText, /chưa thể chỉ một trụ sở cụ thể/);
         assert.doesNotMatch(done.fullText, /Hòa Bình|Thịnh Lang|0973740838|google\.com\/maps/i);
         const emittedText = getEvents(result.body).filter(event => event.text).map(event => event.text).join('\n');
         assert.doesNotMatch(emittedText, /Hòa Bình|Thịnh Lang|0973740838|google\.com\/maps/i);
-        assert.equal(done.eval.finalGenerationPrompt.system.includes('STATUS: no_match'), true);
+        assert.equal(done.eval.finalGenerationPrompt.system.includes('STATUS: missing_location_evidence'), true);
         assert.equal(done.eval.finalGenerationPrompt.contents.some(item =>
             item.parts?.some(part => /Hòa Bình|Thịnh Lang|0973740838|google\.com\/maps/i.test(part.text || ''))
         ), false);

@@ -2309,10 +2309,13 @@ module.exports = async function handler(req, res) {
         currentMessage: userMessage.trim(),
         sanitizedHistory: safeHistory,
         locationLookupRequested,
+        hasLocationEvidence: false,
+        locationEvidenceSource: 'none',
         locationResolutionStatus: 'not_requested',
         locationLookupTexts: [],
         verifiedLocationMatches: [],
         verifiedLocationPrompt: '',
+        locationSafetyFallback: false,
         standaloneQuery,                // T2A: query độc lập dùng chung embedding/classify/rerank/XNC
         classifyQuery: standaloneQuery, // đã hợp nhất — trace giữ lại để soi
         category: null,
@@ -2540,12 +2543,16 @@ module.exports = async function handler(req, res) {
             locationResolutionStatus = 'unavailable';
         } else if (locationDataset) {
             const verifiedLocationResult = findVerifiedLocationMatches(userMessage, safeHistory, locationDataset);
-            verifiedLocationMatches = verifiedLocationResult.matches || [];
+            const hasLocationEvidenceFlag = Boolean(verifiedLocationResult.hasLocationEvidence);
+            // Invariant: No specific public location may be emitted without explicit location evidence.
+            verifiedLocationMatches = hasLocationEvidenceFlag ? (verifiedLocationResult.matches || []) : [];
             verifiedLocationPrompt = formatVerifiedLocationsPrompt(verifiedLocationResult, locationDataset);
             locStatus = verifiedLocationResult.status;
             locationResolutionStatus = locStatus;
             locationSafetyDataset = locationDataset;
             if (evalTrace) {
+                evalTrace.hasLocationEvidence = hasLocationEvidenceFlag;
+                evalTrace.locationEvidenceSource = verifiedLocationResult.locationEvidenceSource || 'none';
                 evalTrace.locationResolutionStatus = locStatus;
                 evalTrace.locationLookupTexts = verifiedLocationResult.lookupTexts || [];
                 evalTrace.verifiedLocationMatches = verifiedLocationMatches.map(match => ({
@@ -2968,10 +2975,14 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             legalCorpus: `${matchedDocs}\n${verifiedLocationPrompt}`,
             allowedConstants: ['12 giờ', '24 giờ', '12 hours', '24 hours', '12小时', '24小时', '12시간', '24시간', 'Điều 33'],
         });
-        // A no_match/unavailable result is a security boundary, not merely a prompt hint.
+        // A no_match/unavailable/missing_location_evidence result is a security boundary, not merely a prompt hint.
         // Buffer that answer until generation ends so a later hallucinated station cannot have
         // already been streamed to the browser before the deterministic gate sees it.
-        const deferLocationOutput = ['no_match', 'unavailable', 'ambiguous_match', 'ambiguous_conflict'].includes(locationResolutionStatus);
+        const hasVerifiedLocationMatch = verifiedLocationMatches.length > 0 && locationResolutionStatus === 'matched';
+        const deferLocationOutput = !hasVerifiedLocationMatch && (
+            locationLookupRequested ||
+            ['missing_location_evidence', 'no_match', 'unavailable', 'ambiguous_match', 'ambiguous_conflict'].includes(locationResolutionStatus)
+        );
         const emitValidatedSegments = ({ flush = false } = {}) => {
             const { segment, remainder } = takeCompleteSegment(pendingText, { flush });
             pendingText = remainder;
@@ -3156,14 +3167,21 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
                 action: 'fallback',
             });
             fullText = getAmbiguousLocationReply(userLang);
-        } else if (deferLocationOutput && containsSpecificLocationClaim(fullText, locationSafetyDataset)) {
+        } else if ((deferLocationOutput || !hasVerifiedLocationMatch) && containsSpecificLocationClaim(fullText, locationSafetyDataset)) {
             locationSafetyFallback = true;
             outputValidatorViolations.push({
                 tier: 1,
                 type: 'unverified_location_claim',
                 action: 'fallback',
             });
-            fullText = getMissingLocationEvidenceReply(userLang);
+            const strippedText = stripLocationAuthorityFromRagText(fullText);
+            if (!strippedText || containsSpecificLocationClaim(strippedText, locationSafetyDataset)) {
+                fullText = getMissingLocationEvidenceReply(userLang);
+            } else if (!/xã\/phường|xa\/phuong|commune|ward|坊|社|코뮌|방/i.test(strippedText)) {
+                fullText = `${strippedText}\n\n${getMissingLocationEvidenceReply(userLang)}`;
+            } else {
+                fullText = strippedText;
+            }
         } else if (deferLocationOutput && !fullText.trim()) {
             // All generated content may have been removed by the existing validator. Keep the
             // response deterministic and useful instead of ending with an empty SSE payload.
@@ -3197,7 +3215,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             fullText,
             history: historyToClient,
             sources: matchedSources,
-            verifiedLocations: buildVerifiedLocationLinks(verifiedLocationMatches),
+            verifiedLocations: hasVerifiedLocationMatch ? buildVerifiedLocationLinks(verifiedLocationMatches) : [],
             truncated: wasTruncatedByTokenLimit,
             finishReason,
             ...(locationSafetyFallback ? { locationSafetyFallback: true } : {}),

@@ -1,5 +1,33 @@
 # 03 — Technical Decisions
 
+## [2026-09-06] P0 Chatbot Location Leak: True Root Cause Discovery (Alias "Lâm" Collision) & Dual-Layer Resolution
+
+- **Bối cảnh:** Báo cáo P0 Production (`https://bandocapt.vercel.app`): Câu hỏi *"Tôi muốn làm căn cước thì đến đâu"* khiến bot tự động chọn "Công an Phường Hòa Bình" kèm địa chỉ, SĐT và Google Maps, dù người dùng chưa hề cung cấp địa bàn. PR #74 trước đó cho rằng lỗi do RAG context leak và mock `search_aliases: ''`, nên không tìm thấy bug thật.
+- **Phát hiện pháp y (Root Cause):**
+  1. Trong dữ liệu thật `Published_Locations` (dòng 49: Công an Phường Hòa Bình), cột `search_aliases` có giá trị `phương lâm`.
+  2. `normalizeLabel('phương lâm')` -> `'phuong lam'`.
+  3. `stripAdministrativePrefix('phuong lam')` bị dính regex `/^phuong\s+/`, lột bỏ chữ `phuong` và để lại từ đơn `'lam'` ("Lâm").
+  4. `'lam'` được nạp vào `approvedAliases` của Công an Phường Hòa Bình.
+  5. Khi user hỏi *"Tôi muốn **làm** căn cước thì đến đâu"*, cụm từ "căn cước" bật `isLocationLookupRequested = true`.
+  6. Resolver cũ tự động kích hoạt `allowLooseAlias = true` khi `lookupRequested = true` mà không kiểm tra bằng chứng địa bàn.
+  7. Động từ *"làm"* trong câu hỏi khớp hoàn hảo với alias `'lam'`, mang lại 60 điểm cho Công an Phường Hòa Bình, khiến resolver trả về `status: 'matched'`.
+  8. Do `status === 'matched'`, `deferLocationOutput` nhận `false`, bỏ qua `containsSpecificLocationClaim`, dẫn đến việc inject thẳng trạm Hòa Bình vào prompt sinh của LLM.
+- **Quyết định 1 — Sửa `stripAdministrativePrefix` bảo vệ tên riêng:**
+  - Quy định tên riêng như "Phương Lâm" không được phép bị bóc tiền tố thành từ đơn "Lâm" (`lam`). Chỉ bóc tiền tố hành chính khi phần còn lại có >= 2 từ (đối với chuỗi không dấu) hoặc có dấu tiếng Việt rõ ràng.
+- **Quyết định 2 — Thiết lập hợp đồng tường minh `hasLocationEvidence`:**
+  - Phân tách rõ ràng giữa `isLocationLookupRequested` (người dùng muốn tìm nơi làm thủ tục) và `hasLocationEvidence` (người dùng đã cung cấp xã/phường/địa bàn cụ thể).
+  - Bổ sung `extractLocationEvidence(currentMessage, history)` và `hasLocationEvidence(currentMessage, history)`.
+  - Nếu `lookupRequested && !hasLocationEvidence`:
+    + `matches = []`
+    + `status = 'missing_location_evidence'`
+    + Không bổ sung `current-loose` vào `lookupTexts` (cấm loose alias matching và cấm servicePriority auto-pick).
+- **Quyết định 3 — Hard Security Gate tại `api/chat.js`:**
+  - `deferLocationOutput`: kích hoạt khi `!hasVerifiedLocationMatch` và có nhu cầu vị trí, đệm hoàn toàn các token SSE trung gian.
+  - Cổng hậu kiểm sau generation: Nếu model tự ý sinh ra địa danh cụ thể khi chưa có verified match, hệ thống tự động bóc tách dòng địa danh qua `stripLocationAuthorityFromRagText(fullText)`. Nếu còn nội dung thủ tục hợp lệ, ghép nối thông báo thiếu địa bàn `getMissingLocationEvidenceReply(userLang)`. Nếu rỗng hoặc còn claim, thay thế toàn bộ bằng câu trả lời tất định yêu cầu cung cấp xã/phường.
+  - Payload SSE `done`: `verifiedLocations` bắt buộc là `[]` khi `!hasVerifiedLocationMatch`.
+- **Quyết định 4 — Bộ test snapshot độc lập:**
+  - Tạo `test/fixtures/published-locations-snapshot.json` từ payload GViz 142 dòng của production để đảm bảo mọi alias thật (bao gồm "phương lâm") đều được kiểm thử hồi quy tất định, độc lập với mạng ngoài.
+
 ## [2026-09-06] P0 chatbot location leak — Layer 1 RAG context sanitization added; leak NOT reproducible on current `main`
 
 - **Bối cảnh:** Task P0 báo cáo Production (`https://bandocapt.vercel.app`, commit `5c720ed`) tự chọn

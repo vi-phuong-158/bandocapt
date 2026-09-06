@@ -1,5 +1,23 @@
 # 06 — AI Working Log
 
+## [2026-09-06] P0 Resolution: Location Evidence Contract & Hard Security Gate
+- **Agent:** Codex
+- **Thay đổi:**
+  - `lib/published-locations.js`: Khắc phục lỗi strip tiền tố hành chính khiến "Phương Lâm" bị biến thành bare alias "Lâm" (`lam`) khớp với động từ "làm". Thiết lập hợp đồng tường minh `hasLocationEvidence(currentMessage, history)` và `extractLocationEvidence(currentMessage, history)`. Cấm thêm `current-loose` vào lookupTexts khi thiếu bằng chứng địa bàn. Trả về `status: 'missing_location_evidence'` và `matches: []`.
+  - `api/chat.js`: Cưỡng chế `verifiedLocationMatches = []` khi `!hasLocationEvidence`. Kích hoạt `deferLocationOutput = true` đệm SSE token khi không có verified match hợp lệ. Thiết lập cổng hậu kiểm Hard Security Gate: nếu LLM tự sinh địa danh cụ thể khi chưa có bằng chứng địa bàn, bóc tách dòng địa danh qua `stripLocationAuthorityFromRagText(fullText)` và fallback tất định `getMissingLocationEvidenceReply(userLang)`. Cưỡng chế `verifiedLocations: []` trong SSE event `done`. Thêm các trường `hasLocationEvidence`, `locationEvidenceSource`, `locationSafetyFallback` vào `evalTrace`.
+  - `test/fixtures/published-locations-snapshot.json`: Snapshot toàn diện 142 dòng từ production Google Sheets để kiểm thử tất định.
+  - `test/chat-location-evidence-gate.test.js`: Suite kiểm thử hồi quy P0 độc lập kiểm tra tái hiện lỗi thất bại trước khi sửa và thành công sau khi sửa, kèm đầy đủ ma trận kiểm thử (negative, positive case 1 & 2, explicit query, multi-turn follow-up, contract tests).
+  - `test/location-resolution-contract.test.js` & `test/location-rag-leak-repro.test.js`: Cập nhật kỳ vọng theo đúng hợp đồng mới (`missing_location_evidence`).
+  - `docs/brain/01-architecture.md` & `docs/brain/03-decisions.md`: Cập nhật kiến trúc và quyết định kỹ thuật.
+- **Lý do:** Khắc phục triệt để lỗi chatbot tự chọn sai Công an Phường Hòa Bình khi người dùng hỏi làm căn cước nhưng chưa cung cấp địa bàn ("Tôi muốn làm căn cước thì đến đâu").
+- **Kiểm tra:**
+  - `test/chat-location-evidence-gate.test.js`: 7/7 tests PASS.
+  - `npm test`: 666/666 tests PASS (0 fail).
+  - `npm run check:syntax`, `npm run check:staff`, `npm run check:rate-limit`: PASS.
+  - `npm run build`: PASS.
+  - `npm run ci`: PASS (exit code 0).
+  - Playwright E2E: `chat-embed.spec.js` (1/1 PASS), `chat-progressive-disclosure.spec.js` (4/4 PASS).
+
 ## [2026-09-06] P0 investigation — chatbot location leak, Layer 1 RAG sanitization hardening
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** Task P0 báo cáo Production leak "Công an Phường Hòa Bình" (tên/địa chỉ/SĐT/Maps) khi
