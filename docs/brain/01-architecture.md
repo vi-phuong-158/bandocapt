@@ -17,8 +17,12 @@
   1. *"Location lookup intent is not location evidence."* (Ý định hỏi nơi làm thủ tục KHÔNG ĐỒNG NGHĨA với việc người dùng đã cung cấp địa bàn).
   2. *"No specific public location may be emitted without explicit location evidence, regardless of RAG, model, or resolver output."* (Không một địa chỉ, SĐT, link Google Maps hay tên trụ sở cụ thể nào được phép xuất xưởng nếu thiếu bằng chứng địa bàn từ người dùng).
 - **Hợp đồng phân giải (Resolution Contract - `lib/published-locations.js`):**
-  - Tách biệt rành mạch giữa `isLocationLookupRequested(currentMessage, history)` và `hasLocationEvidence(currentMessage, history)`.
-  - Bổ sung `extractLocationEvidence(currentMessage, history)`: nhận diện cấu trúc địa bàn hành chính (xã/phường/thị trấn), địa chỉ (đường, thôn, xóm, tổ N), giới từ vị trí (ở/tại/in/at [địa danh cụ thể], loại trừ câu hỏi "ở đâu", "tại đâu"), khai báo cư trú, và ngữ cảnh hỏi-đáp nhiều lượt (`assistant_location_followup`).
+  - Tách biệt rành mạch giữa `isLocationLookupRequested(currentMessage, history)` và `hasLocationEvidence(currentMessage, history, dataset)`.
+  - Thiết lập cơ chế bảo vệ 2 lớp (Dual-Layer Safety Gate):
+    + **Layer 1 (Location Evidence Detector)**: `extractLocationEvidence(currentMessage, history, dataset)`:
+      * Nhận diện cấu trúc địa bàn hành chính rõ ràng (`STRUCTURED_ADMIN_LOCATION_PATTERN`: xã/phường/thị trấn), địa chỉ (`STRUCTURED_ADDRESS_LOCATION_PATTERN`: đường, thôn, xóm, tổ N), tiếng Anh (`ENGLISH_LOCATION_PATTERN`), và ngữ cảnh hỏi-đáp nhiều lượt (`assistant_location_followup`).
+      * Với các cụm giới từ/khai báo cư trú không có tiền tố hành chính ("ở [X]", "tại [X]", "cư trú tại [X]"): loại bỏ regex lỏng lẻo; thay bằng hàm `resolveLocationCandidateFromDataset(raw, dataset)` — CHỈ công nhận bằng chứng vị trí nếu cụm từ sau giới từ khớp với một bí danh đa âm tiết (`tokens.length >= 2`) của một trụ sở có trong dataset. Mọi cụm từ hỏi ("tại công an nào", "ở đâu", "tại đơn vị nào", "ở cơ quan nào", "tại điểm nào", "ở trụ sở nào") và động từ thủ tục ("làm", "nộp") đều bị loại trừ và không được xem là bằng chứng địa bàn.
+    + **Layer 2 (Generic Single-Token Alias Safety Rule)**: Trong `scoreLocationMatch`, các bí danh đơn từ (`aliasTokens.length < 2`, e.g. "bo", "lam", "an") bị CẤM TUYỆT ĐỐI không được khớp trong bất kỳ câu thủ tục hoặc câu hỏi tự do nào. Chúng CHỈ được kích hoạt (`allowSingleTokenAlias = true`) trong câu trả lời ngắn theo sau câu hỏi địa bàn trực tiếp của bot (`assistant_location_followup`).
   - Sửa hàm `stripAdministrativePrefix`: bảo vệ tên riêng (proper names) như "Phương Lâm" không bị cắt cụt thành từ đơn "Lâm" (`lam`).
   - Nếu `lookupRequested = true` và `hasLocationEvidence = false`:
     - `matches: []`

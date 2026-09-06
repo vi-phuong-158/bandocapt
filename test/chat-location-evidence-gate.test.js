@@ -294,6 +294,19 @@ test('Contract tests: hasLocationEvidence returns false for service/procedural-o
         'Hồ sơ đăng ký thường trú gồm giấy tờ gì',
         'Đăng ký tạm trú làm thế nào',
         'Thủ tục cấp hộ chiếu phổ thông',
+        'Tôi cần nộp bộ hồ sơ căn cước tại công an nào?',
+        'Tôi cần nộp bộ hồ sơ tại công an nào?',
+        'Tôi chuẩn bị bộ hồ sơ rồi thì nộp ở công an nào?',
+        'Tôi phải nộp hồ sơ căn cước tại đơn vị nào?',
+        'Tôi làm căn cước tại công an nào?',
+        'Tôi nộp ở công an nào?',
+        'Tôi cần đến trụ sở nào?',
+        'Công an nào làm căn cước?',
+        'Tôi chuẩn bị bộ hồ sơ rồi thì nộp ở đâu?',
+        'Tôi phải đến đơn vị nào?',
+        'Tôi ở công an nào',
+        'Tôi ở đâu',
+        'Tôi ở Bo thì làm căn cước ở đâu?',
     ];
 
     for (const query of nonLocationQueries) {
@@ -303,4 +316,80 @@ test('Contract tests: hasLocationEvidence returns false for service/procedural-o
             `Expected hasLocationEvidence to be false for query: "${query}"`
         );
     }
+});
+
+test('P0 FOLLOW-UP REPRODUCER (pure resolver): generic preposition questions must NOT match Kim Bôi or any station', async () => {
+    const dataset = await locations.getPublishedLocations({
+        fetchImpl: async () => new Response(`google.visualization.Query.setResponse(${JSON.stringify(SNAPSHOT_PAYLOAD)});`),
+        forceRefresh: true,
+    });
+
+    const queries = [
+        'Tôi cần nộp bộ hồ sơ căn cước tại công an nào?',
+        'Tôi cần nộp bộ hồ sơ tại công an nào?',
+        'Tôi chuẩn bị bộ hồ sơ rồi thì nộp ở công an nào?',
+        'Tôi phải nộp hồ sơ căn cước tại đơn vị nào?',
+        'Tôi làm căn cước tại công an nào?',
+        'Tôi nộp ở công an nào?',
+        'Tôi cần đến trụ sở nào?',
+        'Công an nào làm căn cước?',
+        'Tôi chuẩn bị bộ hồ sơ rồi thì nộp ở đâu?',
+        'Tôi phải đến đơn vị nào?',
+        'Tôi ở công an nào',
+        'Tôi ở đâu',
+        'Tôi ở Bo thì làm căn cước ở đâu?',
+    ];
+
+    for (const q of queries) {
+        const result = locations.findVerifiedLocationMatches(q, [], dataset);
+        assert.equal(result.lookupRequested, true, `lookupRequested must be true for: "${q}"`);
+        assert.equal(result.hasLocationEvidence, false, `hasLocationEvidence must be false for: "${q}"`);
+        assert.equal(result.status, 'missing_location_evidence', `status must be missing_location_evidence for: "${q}"`);
+        assert.deepEqual(result.matches, [], `matches must be empty for: "${q}"`);
+    }
+});
+
+test('P0 FOLLOW-UP (integration): "Tôi cần nộp bộ hồ sơ căn cước tại công an nào?" must NOT leak Kim Bôi or any station', async () => {
+    const MODEL_OUTPUT = [
+        'Để nộp bộ hồ sơ làm căn cước, bạn có thể đến Công an Xã Kim Bôi để làm thủ tục.',
+    ].join('\n');
+
+    const restoreFetch = mockFetchForSnapshot(MODEL_OUTPUT);
+    try {
+        const result = await runHandler({
+            captchaToken: 'test-bypass-token',
+            userMessage: 'Tôi cần nộp bộ hồ sơ căn cước tại công an nào?',
+            history: [],
+            evalDebug: true,
+        });
+
+        const done = getDone(result.body);
+        assert.ok(done, 'Stream did not finish with a done event');
+        assert.deepEqual(done.verifiedLocations, [], 'verifiedLocations must be empty when no location evidence');
+
+        const FORBIDDEN_ANY_LEAK = /Kim Bôi|Kim Boi|Vĩnh Đồng|Vinh Dong|Hòa Bình|Hoa Binh|Thịnh Lang|google\.com\/maps|Google Maps/i;
+        assert.doesNotMatch(done.fullText, FORBIDDEN_ANY_LEAK, `done.fullText leaked location: ${done.fullText}`);
+        assert.match(done.fullText, /xã\/phường|xa\/phuong/i, 'Response must ask for commune/ward');
+    } finally {
+        restoreFetch();
+    }
+});
+
+test('P0 FOLLOW-UP: single-token alias "Bo" matches Kim Bôi only during immediate assistant location follow-up', async () => {
+    const dataset = await locations.getPublishedLocations({
+        fetchImpl: async () => new Response(`google.visualization.Query.setResponse(${JSON.stringify(SNAPSHOT_PAYLOAD)});`),
+        forceRefresh: true,
+    });
+
+    const followupHistory = [
+        { role: 'user', parts: [{ text: 'Tôi muốn làm căn cước thì đến đâu' }] },
+        { role: 'model', parts: [{ text: 'Bạn ở xã/phường nào để mình chỉ đúng trụ sở Công an và đường đi nhé?' }] },
+    ];
+
+    const result = locations.findVerifiedLocationMatches('Bo', followupHistory, dataset);
+    assert.equal(result.hasLocationEvidence, true);
+    assert.equal(result.locationEvidenceSource, 'assistant_location_followup');
+    assert.equal(result.status, 'matched');
+    assert.ok(result.matches.length > 0);
+    assert.equal(result.matches[0].name, 'Công an Xã Kim Bôi');
 });

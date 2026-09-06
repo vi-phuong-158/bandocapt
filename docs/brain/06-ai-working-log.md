@@ -1,5 +1,25 @@
 # 06 — AI Working Log
 
+## [2026-09-06] P0 Follow-up: Preposition Evidence Hardening & Single-Token Alias Safety Invariant
+- **Agent:** Codex
+- **Thay đổi:**
+  - `lib/published-locations.js`:
+    1. Loại bỏ các pattern nhận diện giới từ lỏng lẻo (`PREPOSITION_LOCATION_PATTERN`, `PREPOSITION_LOCATION_NORM_PATTERN`) vốn coi mọi từ sau "ở/tại" là bằng chứng địa bàn.
+    2. Thiết lập hợp đồng 2 lớp (Dual-Layer Safety Gate):
+       - **Layer 1 (`resolveLocationCandidateFromDataset` / `extractLocationEvidence`)**: Cụm giới từ chỉ được công nhận là bằng chứng địa bàn nếu phần văn bản sau giới từ thực sự khớp với một bí danh đa âm tiết (`tokens.length >= 2`) của một trụ sở có trong dataset. Các cụm từ hỏi ("tại công an nào", "ở công an nào", "tại đơn vị nào", "ở cơ quan nào", "tại điểm nào", "ở trụ sở nào", "ở đâu", "tại đâu") bị loại trừ triệt để.
+       - **Layer 2 (`scoreLocationMatch` / `buildLookupTexts`)**: Thiết lập bất biến an toàn bí danh đơn âm tiết (Generic Single-Token Alias Safety Rule): Các bí danh đơn từ (`tokens.length < 2`, ví dụ "bo", "lam", "an") bị CẤM TUYỆT ĐỐI không được khớp trong bất kỳ câu thủ tục hoặc câu hỏi tự do nào. Chúng CHỈ được phép đánh giá trong ngữ cảnh hỏi-đáp ngắn hạn hẹp khi bot vừa chủ động hỏi địa bàn (`assistant_location_followup`).
+    3. Bổ sung `/\b(?:don vi|co quan|tru so|diem|dia diem|noi)\s+nao\b/i` vào `LOCATION_TRIGGER_PATTERNS` để nhận diện đầy đủ ý định hỏi nơi nộp hồ sơ.
+  - `test/chat-location-evidence-gate.test.js`: Thêm ma trận kiểm thử hồi quy cho toàn bộ 10 câu truy vấn hỏi nơi nộp/làm thủ tục (bao gồm "Tôi cần nộp bộ hồ sơ căn cước tại công an nào?"), kiểm tra tích hợp chống leak Công an Xã Kim Bôi (bí danh "bo"), và kiểm tra follow-up hợp lệ.
+  - `docs/brain/01-architecture.md` & `docs/brain/03-decisions.md`: Cập nhật kiến trúc và quyết định kỹ thuật.
+- **Lý do:** Khắc phục nguy cơ xung đột vị trí thứ hai do bí danh đơn từ "bo" của Công an Xã Kim Bôi khớp với từ "bộ" trong "bộ hồ sơ", kết hợp với regex giới từ lỏng lẻo nhận diện "tại công an nào" thành location evidence.
+- **Kiểm tra:**
+  - `test/chat-location-evidence-gate.test.js`: 10/10 tests PASS.
+  - `npm test`: 669/669 tests PASS (0 fail).
+  - `npm run check:syntax`, `npm run check:staff`, `npm run check:rate-limit`: PASS.
+  - `npm run build`: PASS.
+  - `npm run ci`: PASS (exit code 0).
+  - Playwright E2E: `chat-embed.spec.js` (1/1 PASS), `chat-progressive-disclosure.spec.js` (4/4 PASS).
+
 ## [2026-09-06] P0 Resolution: Location Evidence Contract & Hard Security Gate
 - **Agent:** Codex
 - **Thay đổi:**

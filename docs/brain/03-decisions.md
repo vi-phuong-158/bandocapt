@@ -1,5 +1,26 @@
 # 03 — Technical Decisions
 
+## [2026-09-06] P0 Follow-up: Preposition Location Evidence Hardening & Single-Token Alias Safety Invariant
+
+- **Bối cảnh:** Sau khi sửa lỗi "Phương Lâm" -> bare alias "Lâm" (`lam`) khớp với động từ "làm", review P0 phát hiện nguy cơ xung đột thứ hai:
+  1. Câu hỏi: *"Tôi cần nộp bộ hồ sơ căn cước tại công an nào?"*
+  2. Normalize: "bộ" -> "bo".
+  3. Cụm "tại công an nào" chứa "tai cong", bị regex giới từ cũ (`PREPOSITION_LOCATION_NORM_PATTERN`) nhận định nhầm là có bằng chứng địa bàn (`preposition_location`).
+  4. Trong dataset production, Công an Xã Kim Bôi có `search_aliases: "bo|vĩnh đồng|kim bôi"`. Alias `'bo'` (1 từ) khớp với từ "bộ" trong "bộ hồ sơ", dẫn đến việc tự chọn sai sang Công an Xã Kim Bôi với score 60!
+  5. Đồng thời, các câu hỏi dạng "ở/tại + [đơn vị/cơ quan/trụ sở/điểm/đâu]" đều bị coi nhầm là có bằng chứng địa bàn do coi "ở/tại + từ bất kỳ" là địa danh.
+- **Quyết định 1 — Không coi "ở/tại + từ bất kỳ" là bằng chứng địa bàn (Layer 1 Gate):**
+  - Xóa bỏ regex giới từ lỏng lẻo `PREPOSITION_LOCATION_PATTERN`.
+  - Phân loại rõ:
+    + Cấu trúc hành chính rõ ràng (`phường/xã/thị trấn...`, `đường/thôn/xóm...`) được coi là bằng chứng cấu trúc (`structured_admin_unit`).
+    + Các câu hỏi hỏi địa điểm ("ở đâu", "tại đâu", "tại công an nào", "ở công an nào", "tại đơn vị nào", "ở cơ quan nào", "tại trụ sở nào", "tại điểm nào", "ở chỗ nào") và động từ hành động ("làm", "nộp") bị cấm tuyệt đối, KHÔNG ĐƯỢC PHÉP coi là bằng chứng địa bàn.
+    + Với giới từ/khai báo cư trú không có tiền tố hành chính ("ở Hòa Bình", "ở Thanh Miếu", "cư trú tại Bạch Hạc"): Triển khai `resolveLocationCandidateFromDataset(raw, dataset)`. CHỈ công nhận bằng chứng địa bàn nếu phần văn bản sau giới từ thực sự khớp với một bí danh đa âm tiết (`tokens.length >= 2`) của một trụ sở đã xuất bản trong dataset.
+- **Quyết định 2 — Thiết lập bất biến an toàn bí danh đơn từ (Layer 2 Gate):**
+  - Trong `scoreLocationMatch`, các bí danh chỉ có 1 từ (`aliasTokens.length < 2`, ví dụ "bo", "lam", "an") bị CẤM TUYỆT ĐỐI không được khớp trong bất kỳ câu thủ tục hoặc câu hỏi dài nào (`tokens.length > MAX_SHORT_LOCATION_TOKENS = 4` hoặc không phải immediate location followup).
+  - Bí danh đơn từ CHỈ được kích hoạt (`allowSingleTokenAlias = true`) khi bot vừa trực tiếp hỏi địa bàn ("Bạn ở xã/phường nào...") và người dùng trả lời câu ngắn ("Bo").
+  - Quy tắc này mang tính generic invariant, ngăn chặn triệt để mọi va chạm từ ngữ thường nhật ("bộ", "làm", "an") với bất kỳ alias đơn từ nào trong tương lai mà không cần blacklist thủ công.
+- **Quyết định 3 — Bổ sung Trigger Pattern cho ý định hỏi đơn vị:**
+  - Thêm `/\b(?:don vi|co quan|tru so|diem|dia diem|noi)\s+nao\b/i` vào `LOCATION_TRIGGER_PATTERNS` để các câu hỏi như "Tôi phải nộp hồ sơ tại đơn vị nào?" được ghi nhận đúng `lookupRequested: true` và rơi chuẩn vào nhánh `missing_location_evidence`.
+
 ## [2026-09-06] P0 Chatbot Location Leak: True Root Cause Discovery (Alias "Lâm" Collision) & Dual-Layer Resolution
 
 - **Bối cảnh:** Báo cáo P0 Production (`https://bandocapt.vercel.app`): Câu hỏi *"Tôi muốn làm căn cước thì đến đâu"* khiến bot tự động chọn "Công an Phường Hòa Bình" kèm địa chỉ, SĐT và Google Maps, dù người dùng chưa hề cung cấp địa bàn. PR #74 trước đó cho rằng lỗi do RAG context leak và mock `search_aliases: ''`, nên không tìm thấy bug thật.
