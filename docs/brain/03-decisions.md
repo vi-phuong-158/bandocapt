@@ -1,5 +1,85 @@
 # 03 — Technical Decisions
 
+## [2026-09-09] Zalo Bot integration: shared core stays inside `api/chat.js`, Zalo route bridges through `api/feedback.js`
+
+- **Bối cảnh:** Nhiệm vụ yêu cầu Zalo Bot dùng chung "một lõi nghiệp vụ" với website
+  (`ONE BRAIN — MULTIPLE CHANNELS`), đề xuất một module như `lib/chat-service.js`, và một
+  endpoint mới `api/zalo-bot.js`. Task cũng minh thị cho phép đổi tên/vị trí nếu kiến trúc
+  repo cho thấy lựa chọn khác hợp lý hơn, và ưu tiên thay đổi nhỏ/không rewrite `api/chat.js`
+  nếu tách lõi có nguy cơ regression lớn.
+- **Phát hiện quan trọng trước khi code:** Quyết định `[2026-08-25] PR-1: sink inversion`
+  đã CHỦ ĐỘNG chuẩn bị sẵn đúng ranh giới này cho một kênh thứ hai (lúc đó dự tính là
+  Messenger): toàn bộ orchestration RAG/AI/location/validator trong `api/chat.js` đã được
+  chuyển sang ghi qua một `sink` trừu tượng (`lib/response-sink.js`), với `createBufferSink()`
+  đã tồn tại sẵn nhưng "chưa được wire vào handler — đó là việc của PR-4". Việc tách
+  `runChatCore` cho Zalo chính là hoàn thành "PR-4" đó.
+- **Quyết định 1 — Giữ `runChatCore` bên trong `api/chat.js`, không chuyển sang
+  `lib/chat-service.js` riêng.** Đoạn orchestration (~1200 dòng) phụ thuộc vào hàng chục hằng
+  số/hàm module-scope đã định nghĩa trong `api/chat.js` (`classifyQuestion`,
+  `GEMINI_EMBED_API_URL`, `SYSTEM_PROMPT_BASE`, v.v.). Di chuyển toàn bộ sang file khác đòi
+  hỏi export/import lại tất cả các phụ thuộc đó — rủi ro regression cao cho một file đã có
+  672 test bảo vệ hành vi chatbot production. Thay vào đó, orchestration được bọc nguyên vẹn
+  (cắt/dán, không sửa logic) thành `async function runChatCore(ctx)` NGAY TRONG `api/chat.js`,
+  và export ra bằng đúng pattern file này đã dùng cho ~60 hàm nội bộ khác
+  (`module.exports.runChatCore = runChatCore`). `lib/zalo-bot-handler.js` gọi nó qua
+  `require('../api/chat.js').runChatCore`. Đây là lựa chọn "thay đổi nhỏ" theo đúng tinh
+  thần mục 36 của nhiệm vụ, và đã kiểm chứng bằng test: 672/672 test PASS cả trước và sau
+  khi tách (byte-for-byte behavior preserving), sau đó tăng lên 735/735 khi thêm test Zalo.
+- **Quyết định 2 — Ranh giới tách nằm ngay sau `const sink = createSseSink(res);`.** Đây
+  đúng là ranh giới mà PR-1 đã xác định là "sink bắt đầu từ điểm thoát SSE đầu tiên". Kiểm
+  tra bằng grep xác nhận: từ điểm này trở về sau, orchestration chỉ còn đúng 4 chỗ đọc
+  `req.headers['user-agent'] || ''` (thay bằng biến `userAgent` đã tính sẵn ở tầng transport
+  phía trên, giá trị giống hệt) — không còn phụ thuộc `req`/`res` nào khác. Tham số đầu vào
+  cuối cùng của `runChatCore`: `{ userMessage, history, clientIP, userAgent, deadlineAt,
+  startTime, evalMode, currentDate, sink }`.
+- **Quyết định 3 — `api/zalo-bot.js` không phải một file dưới `api/`.** Dự án đang dùng đúng
+  12/12 Serverless Function của gói Vercel Hobby (`test/vercel-preview-budget.test.js`, đã
+  từng chặn PR public-location-contributions trước đó — xem entry `[SOURCE ACCEPTANCE
+  2026-08-25]` ở `04-current-tasks.md`). Thêm file thứ 13 có nguy cơ làm deploy thất bại.
+  Logic webhook thật nằm ở `lib/zalo-bot-handler.js` (không tính vào giới hạn — Vercel chỉ
+  biến file dưới `api/` thành function); endpoint công khai `/api/zalo-bot` được giữ nguyên
+  qua `vercel.json` rewrite vào `api/feedback.js?__route=zalo-bot`, với `api/feedback.js`
+  chỉ thêm một nhánh bridge duy nhất ở đầu handler — logic feedback gốc không đổi một dòng
+  nào khác. Đây là đúng kỹ thuật đã dùng cho `/api/staff/auth/config`
+  (`[2026-08-25] Public contribution CAPTCHA configuration` / test vercel-preview-budget).
+  Chọn `api/feedback.js` làm nơi host (thay vì `api/chat.js` hay file khác) vì nó là function
+  đơn giản nhất, ít khớp domain nghiệp vụ nhất với Zalo, giảm rủi ro đụng độ CORS/HMAC —
+  nhánh bridge chạy TRƯỚC toàn bộ CORS check của feedback nên không đi qua bất kỳ luật
+  browser-only nào.
+- **Quyết định 4 — Session/dedupe dùng Firestore đã có, không thêm hạ tầng mới.** Tái dùng
+  chính xác pattern `getFirestoreDb()` (`getApps()[0] || initializeApp(...)`, idempotent) đã
+  có trong `api/chat.js`, nhân bản có chủ đích trong `lib/zalo-session.js` (thay vì export
+  dùng chung, để không phải sửa lại `api/chat.js` thêm lần nữa cho một nhu cầu không liên
+  quan tới chatbot website). `chat.id` không lưu thô — băm HMAC-SHA256 bằng
+  `CHAT_LOG_HASH_SALT` đã có (cùng salt với `hashForLog` trong `api/chat.js`). Dedupe dùng
+  `docRef.create()` (atomic, fail nếu đã tồn tại) thay vì đọc-rồi-ghi để tránh race giữa hai
+  lần Zalo retry gần như đồng thời.
+- **Quyết định 5 — Rate limit Zalo độc lập với `CHAT_DAILY_IP_LIMIT`.** Zalo không có IP
+  trình duyệt thật; dùng `clientIP: 'zalo:<chatId>'` cho `runChatCore` (chỉ để tương thích
+  tham số, KHÔNG dùng cho rate-limit thật) và áp rate limit riêng theo `chat_id`/global qua
+  `lib/rate-limit-store.js` (đã kiểm chứng cho `/api/location-contributions`) — không đụng
+  logic rate-limit IP/ngày Firebase của website.
+- **Quyết định 6 — Không mở rộng `buildTelemetryPayload`/`done` event contract.** Task muốn
+  telemetry tối thiểu có "AI provider" — nhưng field này chỉ tồn tại trong `evalTrace` (gated
+  sau `evalMode`, vốn không nên bật cho traffic Zalo production vì mang theo toàn bộ debug
+  trace). Thay vì sửa event `done` dùng chung với website (rủi ro cho hợp đồng SSE đã có
+  golden test `test/chat-sse-golden.test.js`), Zalo dùng một `console.log('[zalo-telemetry]'
+  , ...)` có cấu trúc riêng, độc lập hoàn toàn với `buildTelemetryPayload`/Firestore
+  telemetry của website. Chấp nhận thiếu field `provider` ở phase này — ghi nhận là rủi ro
+  còn lại (remaining risk), không phải regression.
+- **Zalo API contract:** `docs.zaloplatforms.com` bị chặn egress trong môi trường build này
+  (network policy của sandbox, không phải giới hạn thật của Zalo). Hợp đồng API
+  (`bot-api.zaloplatforms.com/bot<TOKEN>/<method>`, header `X-Bot-Api-Secret-Token`, envelope
+  `{ok, result, description}`) được đối chiếu độc lập từ nhiều SDK bên thứ ba (Go/Python/JS/
+  n8n) — xem bảng độ tin cậy đầy đủ trong `docs/zalo-bot.md` mục 5. Phần ít chắc chắn nhất
+  (shape chính xác của webhook update JSON, giới hạn ký tự tin nhắn thật) được xử lý bằng
+  parse phòng thủ (`extractIncomingMessage` chấp nhận nhiều dạng, coi shape lạ là "event
+  không hỗ trợ" thay vì giả định cứng) và một hằng số an toàn có thể chỉnh qua env
+  (`ZALO_MESSAGE_SAFETY_LIMIT`), không cần sửa kiến trúc nếu số liệu thật khác đi.
+- **Không làm:** không sửa `Published_Locations` resolver, không sửa system prompt, không
+  thêm Turnstile bypass, không tạo route/module cho `/can-bo` hay staff API, không migrate
+  workbook, không deploy, không gọi Zalo Bot API thật trong bất kỳ test nào (toàn bộ mock).
+
 ## [2026-09-06] P0 Follow-up: Preposition Location Evidence Hardening & Single-Token Alias Safety Invariant
 
 - **Bối cảnh:** Sau khi sửa lỗi "Phương Lâm" -> bare alias "Lâm" (`lam`) khớp với động từ "làm", review P0 phát hiện nguy cơ xung đột thứ hai:

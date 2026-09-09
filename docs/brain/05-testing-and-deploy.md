@@ -46,6 +46,17 @@ LLM_UTILITY_PRIMARY=deepseek
 # Strict default: không đặt LLM_UTILITY_FALLBACK. Stable: LLM_UTILITY_FALLBACK=gemini.
 # GEMINI_UTILITY_MODEL=gemini-flash-lite-latest  # chỉ dùng khi rollback utility sang Gemini
 CHAT_REQUEST_DEADLINE_MS=55000
+# Zalo Bot (kênh public thứ hai, dùng chung Shared Chat Core với /api/chat) — xem docs/zalo-bot.md
+ZALO_BOT_ENABLED=false
+ZALO_BOT_TOKEN=
+ZALO_BOT_WEBHOOK_SECRET=
+PUBLIC_APP_URL=https://bandocapt.io.vn
+ZALO_REQUEST_DEADLINE_MS=45000
+ZALO_SESSION_TTL_MINUTES=45
+ZALO_DEDUPE_TTL_MINUTES=15
+ZALO_CHAT_RATE_LIMIT=20
+ZALO_GLOBAL_RATE_LIMIT=300
+ZALO_MESSAGE_SAFETY_LIMIT=1800
 ```
 
 ## Chạy local (dev)
@@ -177,6 +188,14 @@ npx vercel --prod
 
 **Bật TTL cho Firestore telemetry:**
 → Tạo TTL policy cho field `expires_at` trên collection metric và diagnostic đang dùng.
+
+## Zalo Bot (kênh thứ hai)
+
+Chi tiết kiến trúc, thiết lập webhook, bảo mật, rollback: `docs/zalo-bot.md`.
+
+```bash
+npm run zalo:setup-webhook   # gọi setWebhook bằng ZALO_BOT_TOKEN/PUBLIC_APP_URL đã cấu hình trên máy chạy lệnh
+```
 
 ## Môi trường
 
