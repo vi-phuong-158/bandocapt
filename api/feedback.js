@@ -199,6 +199,14 @@ async function persistFeedback(dbUrl, auth, record) {
 }
 
 module.exports = async function handler(req, res) {
+    // [Zalo Bot] Internal route bridge — giữ đúng giới hạn 12 Serverless Function của gói
+    // Vercel Hobby (xem test/vercel-preview-budget.test.js). `/api/zalo-bot` được vercel.json
+    // rewrite vào đây; webhook Zalo có transport/bảo mật RIÊNG (X-Bot-Api-Secret-Token), không
+    // đi qua CORS/HMAC của feedback bên dưới. Không đổi bất kỳ hành vi feedback nào khác.
+    if (req.query && req.query.__route === 'zalo-bot') {
+        return require('../lib/zalo-bot-handler')(req, res);
+    }
+
     // --- CORS: chỉ chấp nhận origin trong whitelist (dùng chung logic với api/chat.js) ---
     const origin = req.headers.origin;
     if (origin && isAllowedOrigin(origin, req)) {
