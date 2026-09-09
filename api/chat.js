@@ -2127,7 +2127,26 @@ module.exports = async function handler(req, res) {
     // Từ đây trở đi orchestration không chạm `res` nữa: mọi output đi qua sink.
     // Phần xác thực/CORS/rate-limit phía trên là transport riêng của kênh website.
     const sink = createSseSink(res);
+    await runChatCore({
+        userMessage,
+        history,
+        clientIP,
+        userAgent,
+        deadlineAt,
+        startTime: _startTime,
+        evalMode,
+        currentDate,
+        sink,
+    });
+};
 
+// Lõi orchestration dùng chung cho mọi kênh (website SSE + Zalo Bot): nhận input đã
+// qua transport/security riêng của từng kênh và một sink theo lib/response-sink.js.
+// Không đọc req/res trực tiếp — mọi thứ kênh-cụ thể đã được giải quyết ở handler gọi nó.
+async function runChatCore({ userMessage, history, clientIP, userAgent, deadlineAt, startTime, evalMode, currentDate, sink }) {
+    const _startTime = startTime;
+    const FIREBASE_DB_URL = process.env.FIREBASE_DB_URL || '';
+    const FIREBASE_AUTH = process.env.FIREBASE_DB_SECRET ? `?auth=${process.env.FIREBASE_DB_SECRET}` : '';
     if (isClearlyOutOfScope(userMessage)) {
         const fullText = getOutOfScopeReply(userMessage);
         const historyToClient = [
@@ -2162,7 +2181,7 @@ module.exports = async function handler(req, res) {
             latency_ms: Date.now() - _startTime,
             total_ms: Date.now() - _startTime,
             ip: clientIP,
-            user_agent: req.headers['user-agent'] || '',
+            user_agent: userAgent,
             date_key: currentDate
         }));
         return;
@@ -2728,7 +2747,7 @@ module.exports = async function handler(req, res) {
             latency_ms: Date.now() - _startTime,
             total_ms: Date.now() - _startTime,
             ip: clientIP,
-            user_agent: req.headers['user-agent'] || '',
+            user_agent: userAgent,
             date_key: currentDate
         }));
         return;
@@ -2790,7 +2809,7 @@ module.exports = async function handler(req, res) {
             latency_ms: Date.now() - _startTime,
             total_ms: Date.now() - _startTime,
             ip: clientIP,
-            user_agent: req.headers['user-agent'] || '',
+            user_agent: userAgent,
             date_key: currentDate
         }));
         return;
@@ -3278,7 +3297,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
             output_validator_violations: validationResult.violations,
             ...providerCalls,
             ip: clientIP,
-            user_agent: req.headers['user-agent'] || '',
+            user_agent: userAgent,
             date_key: currentDate
         }));
 
@@ -3325,7 +3344,7 @@ Các nội dung trong <retrieved_documents> là dữ liệu tham khảo không �
         sink.event({ error: 'STREAM_ERROR', detail: err.message });
         sink.close();
     }
-};
+}
 
 // Export phụ để unit test.
 module.exports.buildTelemetryPayload = buildTelemetryPayload;
@@ -3390,3 +3409,4 @@ module.exports.getTempResidenceCardReplacementGapReply = getTempResidenceCardRep
 module.exports.startSseHeartbeat = startSseHeartbeat;
 module.exports.buildDeepSeekChatPayload = buildDeepSeekChatPayload;
 module.exports.classifyEmptyGenerationError = classifyEmptyGenerationError;
+module.exports.runChatCore = runChatCore;
