@@ -1,5 +1,71 @@
 # 01 - Architecture
 
+## Zalo Bot integration — shared chat core extraction (2026-09-09)
+
+- **Mục tiêu:** Zalo Bot là kênh giao tiếp công khai THỨ HAI, dùng chung một lõi nghiệp vụ
+  với website ("MỘT LÕI — NHIỀU KÊNH"), không phải một chatbot AI độc lập. Xem
+  `docs/zalo-bot.md` để biết kiến trúc/luồng dữ liệu/bảo mật/privacy/rollback đầy đủ.
+- **Shared Chat Core:** `api/chat.js` được tách thành `async function runChatCore(ctx)`
+  (export `module.exports.runChatCore`), chứa nguyên vẹn toàn bộ orchestration RAG/AI/
+  location resolution/output validation trước đây nằm trực tiếp trong
+  `module.exports = async function handler(req, res)`. Ranh giới tách bắt đầu ngay sau
+  `const sink = createSseSink(res);` (điểm mà sink inversion PR-1, 2026-08-25, đã biến
+  orchestration thành chỉ-ghi-qua-sink, không còn chạm `req`/`res` trực tiếp — 4 điểm còn lại
+  dùng `req.headers['user-agent']` được thay bằng biến `userAgent` đã có sẵn ở tầng trên).
+  `runChatCore` nhận `{ userMessage, history, clientIP, userAgent, deadlineAt, startTime,
+  evalMode, currentDate, sink }` — không đọc `req`/`res`. `api/chat.js`'s `handler` giữ
+  nguyên toàn bộ transport/bảo mật riêng của website (CORS, Turnstile, HMAC request signing,
+  rate-limit IP/ngày) rồi gọi `runChatCore(...)` với `createSseSink(res)`.
+  **Kiểm chứng behavior-preserving:** 672/672 test trước và sau refactor đều PASS, không
+  đổi bất kỳ dòng logic nghiệp vụ nào (chỉ cắt/dán + đổi 4 biểu thức `user-agent` giống hệt
+  nhau về giá trị).
+- **Zalo webhook handler:** `lib/zalo-bot-handler.js` — KHÔNG nằm dưới `api/` (xem quyết định
+  Vercel Hobby 12-function budget bên dưới). Verify `X-Bot-Api-Secret-Token`, kill switch
+  `ZALO_BOT_ENABLED`, parse event phòng thủ, dedupe, rate limit riêng, gọi `runChatCore` với
+  `createBufferSink()` (đã có sẵn từ PR-1, trước đây chưa được wire vào bất kỳ handler nào —
+  "PR-4" trong quyết định 2026-08-25 nay chính là việc này), format bằng
+  `lib/zalo-formatter.js`, gửi qua `lib/zalo-bot-client.js`.
+- **Vercel Hobby 12-function budget:** dự án đã dùng đủ 12 Serverless Function
+  (`test/vercel-preview-budget.test.js`). Endpoint công khai `/api/zalo-bot` được
+  `vercel.json` rewrite vào `api/feedback.js?__route=zalo-bot`; `api/feedback.js` chỉ thêm
+  một nhánh bridge ở đầu handler gọi `lib/zalo-bot-handler.js`, không đổi hành vi feedback
+  gốc. Cùng kỹ thuật đã dùng cho `/api/staff/auth/config → api/staff/auth/csrf.js`.
+  `api/feedback.js` được nâng `maxDuration` lên 60s trong `vercel.json` để đủ ngân sách cho
+  pipeline RAG chạy nền qua `waitUntil` khi phục vụ route Zalo.
+- **Session/dedupe:** `lib/zalo-session.js` — Firestore (dùng chung cấu hình
+  `FIREBASE_SERVICE_ACCOUNT_JSON`/`FIREBASE_PROJECT_ID` hiện có, không thêm biến Firebase
+  mới). `hashChatId` băm HMAC-SHA256 `chat.id` bằng `CHAT_LOG_HASH_SALT` đã có — không lưu
+  chat.id thô. Session tối đa 8 lượt/TTL 45 phút; dedupe dùng `docRef.create()` atomic
+  (thất bại nếu đã tồn tại) khoá theo `sha256(chat_id:message_id)`, TTL 15 phút.
+- **Rate limit:** `lib/zalo-bot-handler.js` tái dùng nguyên `lib/rate-limit-store.js`
+  (Upstash Redis atomic, đã kiểm chứng ở `/api/location-contributions`) cho rate limit theo
+  chat và global — độc lập hoàn toàn với `CHAT_DAILY_IP_LIMIT` của website.
+- **Code Graph:**
+  ```text
+  api/chat.js
+    -> module.exports.handler (website transport: CORS/Turnstile/HMAC/rate-limit IP)
+    -> module.exports.runChatCore (LÕI DÙNG CHUNG — RAG/AI/location/validator)
+
+  api/feedback.js
+    -> req.query.__route === 'zalo-bot' ? lib/zalo-bot-handler.js : (feedback gốc, không đổi)
+
+  lib/zalo-bot-handler.js
+    -> api/chat.js (runChatCore, validateChatRequestBody)
+    -> lib/response-sink.js (createBufferSink)
+    -> lib/zalo-session.js (getSessionHistory, appendSessionTurn, claimMessageOnce, hashChatId)
+    -> lib/zalo-bot-client.js (sendMessage, sendChatAction)
+    -> lib/zalo-formatter.js (formatZaloReply, getFallbackReply)
+    -> lib/rate-limit-store.js (checkAndIncrement)
+
+  vercel.json
+    -> rewrites: /api/zalo-bot -> /api/feedback?__route=zalo-bot
+    -> functions: api/feedback.js maxDuration 60
+  ```
+- **Không đổi:** system prompt, RAG/retrieval-governance, `lib/published-locations.js`
+  (location-evidence fail-closed contract nguyên vẹn), `lib/output-validator.js`, CORS/
+  Turnstile/HMAC/rate-limit IP của website, SSE transport. Xem `docs/brain/03-decisions.md`
+  entry cùng ngày để biết đầy đủ các quyết định/đánh đổi.
+
 ## P0: Location-Evidence Contract & Hard Security Gate (2026-09-06)
 
 - **Nguyên nhân gốc rễ (Root Cause Analysis):**

@@ -1,5 +1,57 @@
 # 06 — AI Working Log
 
+## [2026-09-09] Zalo Bot integration — Shared Chat Core + webhook channel
+- **Agent:** Claude Code
+- **Thay đổi:**
+  - `api/chat.js`: tách orchestration RAG/AI/location/validator (từ điểm `createSseSink`
+    trở đi) thành `async function runChatCore(ctx)`, export `module.exports.runChatCore`.
+    Handler website giữ nguyên toàn bộ CORS/Turnstile/HMAC/rate-limit rồi gọi `runChatCore`
+    với `createSseSink(res)`. 4 chỗ đọc `req.headers['user-agent']` bên trong orchestration
+    đổi thành biến `userAgent` đã có sẵn (giá trị giống hệt).
+  - `api/feedback.js`: thêm một nhánh bridge đầu handler
+    (`req.query.__route === 'zalo-bot' → lib/zalo-bot-handler.js`), không đổi logic feedback
+    khác.
+  - Mới: `lib/zalo-bot-handler.js` (webhook thật), `lib/zalo-bot-client.js` (Zalo API
+    adapter), `lib/zalo-session.js` (session + dedupe Firestore), `lib/zalo-formatter.js`
+    (định dạng 1-3 tin nhắn Zalo), `scripts/setup-zalo-webhook.js`.
+  - `vercel.json`: thêm rewrite `/api/zalo-bot → /api/feedback?__route=zalo-bot`, thêm
+    `maxDuration: 60` cho `api/feedback.js`, thêm header `Cache-Control` cho `/api/zalo-bot`.
+  - `test/vercel-preview-budget.test.js`: cập nhật assertion cho rewrite mới (số lượng
+    function API không đổi — vẫn 12).
+  - `package.json`: thêm `zalo:setup-webhook` script + các lệnh `node --check` cho 4 file
+    `lib/zalo-*` và `scripts/setup-zalo-webhook.js` vào `check:syntax`.
+  - Mới: `test/zalo-bot-client.test.js` (13 test), `test/zalo-bot-formatter.test.js`
+    (13 test), `test/zalo-bot-session.test.js` (11 test), `test/zalo-bot-handler.test.js`
+    (26 test) — tổng 63 test mới, toàn bộ mock (không gọi Zalo/Firestore/Gemini/Pinecone
+    thật).
+  - Mới: `docs/zalo-bot.md`; cập nhật `docs/brain/01-architecture.md`,
+    `docs/brain/03-decisions.md`, `docs/brain/05-testing-and-deploy.md` (env vars mới +
+    lệnh `npm run zalo:setup-webhook`).
+- **Lý do:** Đưa Zalo Bot thành kênh giao tiếp công khai thứ hai, dùng chung một lõi nghiệp
+  vụ (`runChatCore`) với website thay vì xây một chatbot AI độc lập thứ hai — đúng nguyên
+  tắc "MỘT LÕI — NHIỀU KÊNH". Tận dụng đúng phần hạ tầng sink-inversion (`lib/response-sink.js`
+  `createBufferSink`) đã chuẩn bị sẵn từ PR-1 (2026-08-25) cho chính mục đích này.
+- **File đã sửa:** `api/chat.js`, `api/feedback.js`, `vercel.json`, `package.json`,
+  `test/vercel-preview-budget.test.js`, `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/05-testing-and-deploy.md`.
+- **File mới:** `lib/zalo-bot-handler.js`, `lib/zalo-bot-client.js`, `lib/zalo-session.js`,
+  `lib/zalo-formatter.js`, `scripts/setup-zalo-webhook.js`, `docs/zalo-bot.md`,
+  `test/zalo-bot-client.test.js`, `test/zalo-bot-formatter.test.js`,
+  `test/zalo-bot-session.test.js`, `test/zalo-bot-handler.test.js`.
+- **Kiểm tra:**
+  - `npm test`: 735/735 PASS (672 baseline không đổi + 63 test Zalo mới).
+  - `npm run build`: PASS (CSS, Apps Script bundles, `check:syntax`, `check:staff`,
+    `check:rate-limit`, `scripts/build-static.js` đều sạch; không phát sinh diff ngoài ý
+    muốn ở `output.css`/`dist/`).
+  - `npm run ci`: test + build PASS; bước `npm audit --omit=dev --audit-level=high` vẫn
+    FAIL — nhưng là lỗ hổng CÓ SẴN từ trước ở `sharp`/`firebase-admin` (transitive `uuid`),
+    xác nhận bằng cách chạy lại đúng audit trên baseline `git stash` — không liên quan tới
+    thay đổi của task này, không có dependency mới nào được thêm.
+  - `node --check` sạch cho toàn bộ file mới/sửa.
+  - Website regression: 672 test hiện có PASS y hệt trước và sau refactor `runChatCore`
+    (chạy `npm test` cả trước/sau khi tách bằng `git stash`) — behavior-preserving, không
+    phải rewrite.
+
 ## [2026-09-06] Secure Eval Bypass on Vercel Preview & Live Preview Acceptance
 - **Agent:** Codex
 - **Thay đổi:**

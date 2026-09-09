@@ -6,6 +6,10 @@
     {
       "source": "/api/staff/auth/config",
       "destination": "/api/staff/auth/csrf?__staff_auth_route=config"
+    },
+    {
+      "source": "/api/zalo-bot",
+      "destination": "/api/feedback?__route=zalo-bot"
     }
   ],
   "functions": {
@@ -19,6 +23,9 @@
       "maxDuration": 60
     },
     "api/location-contributions.js": {
+      "maxDuration": 60
+    },
+    "api/feedback.js": {
       "maxDuration": 60
     }
   },
@@ -34,6 +41,15 @@
     },
     {
       "source": "/api/feedback",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, no-cache, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/api/zalo-bot",
       "headers": [
         {
           "key": "Cache-Control",

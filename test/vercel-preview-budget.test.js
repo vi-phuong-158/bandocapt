@@ -20,8 +20,14 @@ test('Vercel Preview stays within the Hobby serverless-function budget', () => {
     assert.ok(apiFiles.some(file => file.endsWith(path.join('api', 'location-contributions.js'))));
 
     const vercel = JSON.parse(fs.readFileSync(path.join(root, 'vercel.json'), 'utf8'));
-    assert.deepEqual(vercel.rewrites, [{
-        source: '/api/staff/auth/config',
-        destination: '/api/staff/auth/csrf?__staff_auth_route=config',
-    }]);
+    assert.deepEqual(vercel.rewrites, [
+        {
+            source: '/api/staff/auth/config',
+            destination: '/api/staff/auth/csrf?__staff_auth_route=config',
+        },
+        {
+            source: '/api/zalo-bot',
+            destination: '/api/feedback?__route=zalo-bot',
+        },
+    ]);
 });

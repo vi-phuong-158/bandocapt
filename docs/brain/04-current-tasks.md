@@ -88,6 +88,25 @@
 
 ## Đang làm
 
+### [READY FOR OWNER ACCEPTANCE 2026-09-09] Zalo Bot integration (kênh công khai thứ hai)
+
+- Nguồn sự thật: `docs/zalo-bot.md` (kiến trúc, env vars, webhook setup, bảo mật, privacy,
+  rollback, troubleshooting) + `docs/brain/01-architecture.md`/`03-decisions.md` entry cùng
+  ngày. Tóm tắt: `api/chat.js` được tách thành `runChatCore` (lõi dùng chung, behavior-
+  preserving, 672/672 test không đổi) + webhook mới `lib/zalo-bot-handler.js` (bridge qua
+  `api/feedback.js?__route=zalo-bot` để không vượt giới hạn 12 Serverless Function Hobby).
+- `npm test`: 735/735 PASS (63 test Zalo mới, toàn bộ mock). `npm run build` PASS.
+  `npm audit` trong `npm run ci` vẫn fail nhưng là lỗ hổng có sẵn (sharp/firebase-admin),
+  không liên quan task này.
+- **Chưa làm (cố ý, ngoài scope phase này):** Zalo Mini App, Zalo OA chatbot chính thức,
+  group bot production, broadcast, login Zalo, admin UI riêng cho Zalo.
+- **Cần owner:** tạo Bot qua Zalo Bot Manager, cấu hình `ZALO_BOT_TOKEN`/
+  `ZALO_BOT_WEBHOOK_SECRET`/`ZALO_BOT_ENABLED=true` trên Vercel, chạy
+  `npm run zalo:setup-webhook`, rồi thực hiện checklist chấp nhận thủ công ở
+  `docs/zalo-bot.md` mục 4. Owner cũng nên tự đối chiếu lại contract Zalo Bot API với
+  `docs.zaloplatforms.com` thật (môi trường build bị chặn egress tới domain này) — xem
+  bảng độ tin cậy ở `docs/zalo-bot.md` mục 5.
+
 ### [ACTIVE] Kế hoạch khắc phục toàn diện 4 giai đoạn (2026-07-11)
 - **Nguồn sự thật:** `docs/brain/07-parallel-task-plan.md` — chia task nhỏ cho 2 agent
   (Claude Code + ChatGPT Codex) chạy song song, kèm luật phân làn file, mức trí tuệ đề xuất,
