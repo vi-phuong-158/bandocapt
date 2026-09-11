@@ -91,10 +91,10 @@ test('external procedure deep-link replaces stale list context', async ({ page }
     await firstRow.click();
     await page.locator('#tthc-catalog-close-btn').click();
 
-    await page.evaluate(title => window.TthcCatalog.openByTitle(title), 'Cấp đổi giấy chứng nhận căn cước');
+    await page.evaluate(title => window.TthcCatalog.openByTitle(title), 'Đăng ký tài khoản điện tử');
     await expect(page.locator('#tthc-catalog-detail-view')).toBeVisible();
 
     await page.locator('#tthc-catalog-back-btn').click();
     await expect(page.locator('#tthc-catalog-list-view')).toBeVisible();
-    await expect(page.locator('#tthc-catalog-subtitle')).toHaveText('Căn cước');
+    await expect(page.locator('#tthc-catalog-subtitle')).toHaveText('Tài khoản điện tử');
 });

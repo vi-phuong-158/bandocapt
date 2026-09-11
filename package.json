@@ -18,6 +18,8 @@
     "dev": "node ./node_modules/tailwindcss/lib/cli.js -i ./input.css -o ./output.css --watch",
     "gen:catalog": "node scripts/generate-tthc-catalog.js --include-guides",
     "gen:catalog:index": "node scripts/generate-tthc-catalog.js --index-only",
+    "validate:tthc-legal-refresh": "node scripts/validate-tthc-legal-refresh.js",
+    "apply:tthc-legal-refresh:catalog": "node scripts/apply-tthc-legal-refresh-to-catalog.js",
     "preview": "node scripts/preview-server.js",
     "build:location-intake": "node scripts/build-location-intake-apps-script.js",
     "build:location-admin-review": "node scripts/build-location-admin-review-apps-script.js",

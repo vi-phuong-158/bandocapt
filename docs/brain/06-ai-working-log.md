@@ -3954,3 +3954,16 @@
 - **Lý do:** Xóa HIGH `sharp <0.35.4` và path `teeny-request@9 -> uuid@9` moderate cũ bằng update package cha tương thích; không dùng `npm audit fix --force` hay override.
 - **Kiểm tra:** `npm ci` PASS; `npm test` 672/672 PASS; `npm run build` PASS; `npm audit --omit=dev --audit-level=high` PASS (0 HIGH/CRITICAL); full Playwright 117/117 PASS và chatbot smoke 5/5 PASS trên system Chrome. `npm audit --omit=dev` còn hai MODERATE mô tả cùng path `@google-cloud/storage@8.1.0 -> gaxios@6.7.1 -> uuid@9.0.1`; storage 8.1.0 là latest và yêu cầu `gaxios@^6.0.2`, trong khi v6 kết thúc ở 6.7.1, nên không có update parent tương thích hoặc override an toàn.
 - **Phạm vi an toàn:** Dependency/test-harness/documentation only; không thay đổi TTHC/legal corpus, catalog, production data, Pinecone, Vercel hoặc deployment.
+ 
+## [2026-09-11] TTHC 2026 legal refresh — Phase 2 closure
+- **Thay đổi:** Tạo worktree sạch `feat/tthc-2026-legal-refresh` từ `origin/main`; chuyển registry nguồn,
+  phụ lục đã tải có SHA-256, manifest theo từng procedure và bộ lọc fail-closed. Manifest hiện có 101 record:
+  15 `ABOLISHED`, 10 `AMENDED`, 76 `NEEDS_LEGAL_REVIEW`; catalog candidate 92 → 78.
+- **Kiểm tra:** QĐ 4245 DOCX đã trích xuất xác nhận 8 mã sửa đổi và 1 mã bãi bỏ; QĐ 5230 PDF đã render kiểm tra,
+  nhưng mâu thuẫn số lượng “08 mới” và danh sách bài viết vẫn cần reconcile theo toàn bộ annex. Validator và
+  apply local PASS; generator backup bị chặn vì input không tồn tại. npm test/build/E2E/browser smoke còn pending.
+- **Ranh giới:** `NO_PRODUCTION_MUTATION`; không Pinecone/Vercel/namespace/deploy/commit/push/PR.
+
+## [2026-09-12] TTHC 2026 legal refresh — validation follow-up
+- **Kiểm tra:** `npm test` 675/675 PASS; `npm run build` PASS; focused legal/catalog 31/31 PASS. Full E2E đạt 116/117, lỗi timing `panel-state-arbiter` pass khi rerun focused; retry full bị dừng để tránh chạy vô hạn. `npm run ci` dừng ở npm audit do advisory high pre-existing của `sharp <0.35.4` và 5 moderate transitive `uuid` findings.
+ - **Verdict:** Chưa đủ điều kiện commit/push/PR hoặc production import; giữ `NO_PRODUCTION_MUTATION`.
