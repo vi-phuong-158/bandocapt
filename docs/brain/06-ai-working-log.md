@@ -3966,4 +3966,9 @@
 
 ## [2026-09-12] TTHC 2026 legal refresh — validation follow-up
 - **Kiểm tra:** `npm test` 675/675 PASS; `npm run build` PASS; focused legal/catalog 31/31 PASS. Full E2E đạt 116/117, lỗi timing `panel-state-arbiter` pass khi rerun focused; retry full bị dừng để tránh chạy vô hạn. `npm run ci` dừng ở npm audit do advisory high pre-existing của `sharp <0.35.4` và 5 moderate transitive `uuid` findings.
- - **Verdict:** Chưa đủ điều kiện commit/push/PR hoặc production import; giữ `NO_PRODUCTION_MUTATION`.
+- **Verdict:** Chưa đủ điều kiện commit/push/PR hoặc production import; giữ `NO_PRODUCTION_MUTATION`.
+
+## [2026-09-12] TTHC 2026 legal refresh — QĐ1523 and runtime closure pass
+- **Thay đổi:** Đọc trực quan phụ lục scan QĐ1523 (SHA-256 `2EA06491E4700EA3C851E9022F94EA0BAFBB72B3522546FC840982988D3D9946`) và lập `data/qd1523-procedure-map.json` cùng `docs/tthc/QD1523_ANNEX_MAPPING.md`; bổ sung validator `npm run validate:qd1523-mapping`. Giữ thứ tự ưu tiên QĐ5230 > QĐ1523 cho căn cước và không tự gán 76 hồ sơ thiếu mã/tên/cấp đối chiếu chắc chắn.
+- **Kiểm tra:** Validator QĐ1523 PASS (51 hàng quan sát: 5 NEW, 39 AMENDED, 7 ABOLISHED; metadata nhiệm vụ ghi 36 amended nên cần chủ sở hữu pháp lý reconcile). `npm test` 675/675 PASS; `npm run build` PASS; full E2E 117/117 PASS với Chrome hệ thống `C:\Program Files\Google\Chrome\Application\chrome.exe` phiên bản 152.0.7977.83; chatbot smoke 5/5 PASS. Không tải browser.
+- **Blocker còn lại:** PDF không có text layer và môi trường không có OCR backend; hai nhãn cư trú dài cần xác nhận bản gốc. `npm ci` không chạy để tránh xoá junction dependency trỏ vào worktree chủ; `npm audit` vẫn có advisory sharp/uuid pre-existing. Generator backup thiếu input. `NO_PRODUCTION_MUTATION`.

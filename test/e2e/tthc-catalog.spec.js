@@ -53,6 +53,7 @@ test('catalog empty state suggests simpler keywords', async ({ page }) => {
 
     await page.fill('#tthc-catalog-search', 'khong-ton-tai-123');
     await page.locator('#tthc-catalog-search').press('Enter');
+    await expect(page.locator('#tthc-catalog-list-view')).toBeVisible();
     await expect(page.locator('.tthc-empty')).toContainText('Chưa tìm thấy thủ tục phù hợp.');
     await expect(page.locator('.tthc-empty')).toContainText('hộ chiếu');
     await expect(page.locator('.tthc-empty')).toContainText('tạm trú');

@@ -2,16 +2,16 @@
 
 ## Verdict
 
-`BANDOCAPT_TTHC_2026_LEGAL_REFRESH_BLOCKED_ANNEX_RECONCILIATION_AND_RUNTIME_GATES`
+`BANDOCAPT_TTHC_2026_LEGAL_REFRESH_BLOCKED_QD1523_RECONCILIATION`
 
-The refresh is isolated in a clean sibling worktree from `origin/main` and is fail-closed. No candidate data is eligible for production import until the remaining legal reconciliation and runtime gates pass.
+The refresh is isolated in a clean sibling worktree from `origin/main` and is fail-closed. Runtime gates now pass, but legal sign-off remains blocked by a source-count discrepancy and unresolved scan-to-catalog identity matches. No candidate data is eligible for production import.
 
 ## Worktree and baseline
 
 - Clean worktree: `D:\\04. Github\\bandocapt-tthc-refresh`.
 - Branch: `feat/tthc-2026-legal-refresh`.
 - Base: `origin/main` at `7729726f628f9f7c0949792ce74c30b05cb8f7ce`.
-- Original dirty worktree and owner changes were preserved; no reset, stash, commit, push, PR, Pinecone write, namespace mutation, Vercel change or deploy was performed.
+- Original dirty worktree and owner changes were preserved; no Pinecone write, namespace mutation, Vercel change or deploy was performed. Changes are pushed to the existing PR #77.
 
 ## Official sources and attachments
 
@@ -41,6 +41,9 @@ The QĐ 4245 DOCX was text-extracted and confirms eight amended IDs (`1.001471`,
 - `scripts/validate-tthc-legal-refresh.js` and `scripts/apply-tthc-legal-refresh-to-catalog.js`: validation and dry-run-first local application.
 - `scripts/generate-tthc-catalog.js`: applies the checked-in manifest when generation succeeds.
 - `data/tthc-catalog.json` and `data/tthc-index.json`: local candidate output only; no production mutation.
+- `data/qd1523-procedure-map.json`: 51 directly observed QĐ1523 annex rows (5 NEW, 39 AMENDED, 7 ABOLISHED), with code/name/domain/level/change/source locator/effective date for every row.
+- `docs/tthc/QD1523_ANNEX_MAPPING.md`: scan limitations, precedence and count reconciliation.
+- `scripts/validate-qd1523-mapping.js`: deterministic schema/hash/count validator; exposed as `npm run validate:qd1523-mapping`.
 
 ## Validation
 
@@ -49,13 +52,18 @@ The QĐ 4245 DOCX was text-extracted and confirms eight amended IDs (`1.001471`,
 - `node scripts/generate-tthc-catalog.js --source=backups`: BLOCKED because the checked-in backup inputs are intentionally absent from this checkout.
 - `npm test`: PASS (675/675) in the clean worktree using the existing local dependency tree; no dependency was installed.
 - `npm run build`: PASS (CSS, both Apps Script bundles, syntax/staff/rate-limit checks and static build).
+- `npm run validate:qd1523-mapping`: PASS (51 observed rows; source hash verified; `NO_PRODUCTION_MUTATION`).
 - `npm run ci`: BLOCKED at `npm audit --omit=dev --audit-level=high` by pre-existing `sharp <0.35.4` high advisory (plus five moderate transitive `uuid` findings); no dependency update was authorized.
-- `npm run test:e2e`: 116/117 passed; one `panel-state-arbiter` timing failure. The failed test passed on an immediate focused rerun (1/1), while a full retry run was interrupted after test 15 to avoid an unbounded runtime. Chatbot browser scenarios themselves passed.
+- `npm ci --dry-run --ignore-scripts`: resolution-only check completed (would change 18 packages/remove 1); no install was performed against the shared dependency junction.
+- `npm run test:e2e`: PASS (117/117) with system Chrome `C:\Program Files\Google\Chrome\Application\chrome.exe`, version `152.0.7977.83`, temporary Playwright profile, no browser download.
+- Chatbot browser smoke: PASS (5/5: embed, full-procedure, region chips, narrow answer, comparison/deeplink scenarios).
 
 ## Blockers and next step
 
-1. Reconcile the QĐ 5230 article/PDF “new procedure” count from the full annex and map all new/amended official codes before candidate import.
-2. Restore an approved, reproducible catalog input (live Pinecone export or reviewed backup artifact) to remove the generator-input blocker; do not fabricate backup files.
-3. Complete one uninterrupted full E2E run (or accept the documented flaky timing result), then obtain an explicit production-release decision.
+1. QĐ1523 metadata declares 36 amended rows, while direct PDF enumeration yields 39 (14 central, 13 provincial, 12 commune). The 39-row map is retained; legal owner must reconcile the authoritative count.
+2. The PDF is a 134-page scan with no text layer and no local OCR backend was available. Two long residence labels remain transcribed from visual inspection only; confirm against the source office copy before import.
+3. The 76 legacy records without deterministic official code/name/level matches remain `NEEDS_LEGAL_REVIEW`; no mass “current” assertion was made. QĐ5230 remains the later override for căn cước.
+4. `npm ci` was not rerun because this checkout uses a junction to the owner worktree's dependency tree; deleting/replacing it would mutate unrelated user state. Existing audit blocker remains pre-existing (`sharp` high, five `uuid` moderate).
+5. Generator `--source=backups` remains blocked because approved backup inputs are absent; do not fabricate them. Obtain an approved reproducible input before production release.
 
 `NO_PRODUCTION_MUTATION` remains the enforced state.

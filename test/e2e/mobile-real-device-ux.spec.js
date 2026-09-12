@@ -101,6 +101,13 @@ test.describe('Mobile Real-Device UX Fixes', () => {
         // Assert final geometry, not a transient frame while the mobile sheet settles.
         await page.waitForTimeout(450);
 
+        await expect.poll(() => page.evaluate(() => {
+            const preview = document.getElementById('location-preview').getBoundingClientRect();
+            const fab = document.getElementById('find-location-btn').getBoundingClientRect();
+            const cta = document.getElementById('public-contribution-cta').getBoundingClientRect();
+            return Math.max(fab.bottom - preview.top, cta.bottom - preview.top);
+        }), { timeout: 2000 }).toBeLessThanOrEqual(0);
+
         const boxes = await page.evaluate(() => {
             const preview = document.getElementById('location-preview').getBoundingClientRect();
             const fab = document.getElementById('find-location-btn').getBoundingClientRect();
