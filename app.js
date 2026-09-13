@@ -334,7 +334,7 @@ function getPreviewHeight() {
   const raw = getComputedStyle(document.documentElement)
     .getPropertyValue("--location-preview-height");
   const parsed = Number.parseFloat(raw);
-  return Number.isFinite(parsed) ? parsed : 164;
+  return Number.isFinite(parsed) ? parsed : 172;
 }
 
 function getSheetHeight() {

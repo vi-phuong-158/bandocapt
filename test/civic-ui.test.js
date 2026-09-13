@@ -39,11 +39,11 @@ test('map uses controlled clustering plus a separate selected marker layer', () 
     assert.match(source, /isSelected \? selectedLayer : clusterGroup/);
 });
 
-test('mobile detail uses a 164px preview and no random avatar fallback', () => {
+test('mobile detail uses a 172px preview and no random avatar fallback', () => {
     const app = read('app.js');
     const tokens = read('tokens.css');
 
-    assert.match(tokens, /--location-preview-height:\s*164px/);
+    assert.match(tokens, /--location-preview-height:\s*172px/);
     assert.match(app, /hidden - getPreviewHeight\(\)/);
     assert.match(app, /detailImage\.src = 'assets\/logo\.png'/);
     assert.doesNotMatch(app, /ui-avatars\.com\/api/);

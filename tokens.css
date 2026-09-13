@@ -121,7 +121,7 @@
   --panel-w: 420px;
   --mobile-nav-content-height: 64px;
   --mobile-nav-total-height: calc(var(--mobile-nav-content-height) + env(safe-area-inset-bottom, 0px));
-  --location-preview-height: 164px;
+  --location-preview-height: 172px;
 
   /* ---- Layer scale ---- */
   --z-map: 0;

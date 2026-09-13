@@ -46,7 +46,7 @@ test('mobile preview, location control and persistent navigation do not overlap'
         location: document.getElementById('find-location-btn').getBoundingClientRect().toJSON(),
     }));
 
-    expect(Math.round(boxes.preview.height)).toBe(164);
+    expect(Math.round(boxes.preview.height)).toBe(172);
     expect(boxes.preview.bottom).toBeLessThanOrEqual(boxes.nav.top + 1);
     expect(boxes.location.bottom).toBeLessThanOrEqual(boxes.preview.top - 8);
 
