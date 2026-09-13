@@ -98,6 +98,8 @@ test.describe('Mobile Real-Device UX Fixes', () => {
         await expect(page.locator('#results-list .result-item').first()).toBeVisible();
         await page.locator('#results-list .result-item').first().click();
         await expect.poll(() => page.locator('#detail-panel').getAttribute('data-sheet-state')).toBe('collapsed');
+        // Assert final geometry, not a transient frame while the mobile sheet settles.
+        await page.waitForTimeout(450);
 
         const boxes = await page.evaluate(() => {
             const preview = document.getElementById('location-preview').getBoundingClientRect();
