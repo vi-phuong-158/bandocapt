@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-09-11",
+  "sources": [
+    {
+      "document_number": "58/2026/NĐ-CP",
+      "document_type": "Nghị định",
+      "title": "Nghị định sửa đổi các nghị định về ANTT, con dấu, pháo, cư trú và căn cước",
+      "issuer": "Chính phủ",
+      "issued_date": "2026-03-15",
+      "effective_date": "2026-03-15",
+      "status": "IN_FORCE",
+      "official_url": "https://vanban.bocongan.gov.vn/co-so-du-lieu-van-ban/nghi-dinh-sua-doi-bo-sung-mot-so-dieu-cua-cac-nghi-dinh-lien-quan-den-quy-dinh-dieu-kien-ve-an-ninh-trat-tu-doi-voi-mot-so-nganh-nghe-dau-tu-kinh-doanh-co-dieu-kien-quan-ly-va-su-dung-con-dau-quan-ly-su-dung-phao-quy-dinh-chi-tiet-mot-so-dieu-va-bien-phap-thi-hanh-luat-cu-tru-luat-can-cuoc-1772010996?tab=related",
+      "domains": [
+        "dac_doanh",
+        "con_dau",
+        "phao",
+        "cu_tru",
+        "can_cuoc"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "source_priority": 1,
+      "verified_at": "2026-09-11"
+    },
+    {
+      "document_number": "1523/QĐ-BCA-C06",
+      "document_type": "Quyết định",
+      "title": "Công bố TTHC về ANTT, con dấu, pháo, cư trú và căn cước",
+      "issuer": "Bộ Công an",
+      "issued_date": "2026-03-26",
+      "effective_date": "2026-03-26",
+      "status": "IN_FORCE",
+      "official_url": "https://vanban.bocongan.gov.vn/van-ban-chi-dao-dieu-hanh/quyet-dinh-cong-bo-thu-tuc-hanh-chinh-moi-ban-hanh-thu-tuc-hanh-chinh-duoc-sua-doi-bo-sung-va-bai-bo-trong-cac-linh-vuc-quan-ly-nganh-nghe-dau-tu-kinh-doanh-co-dieu-kien-ve-an-ninh-trat-tu-quan-ly-con-dau-quan-ly-su-dung-phao-quan-ly-cu-tru-quan-ly-can-cuoc-thuoc-tham-quyen-giai-quyet-cua-bo-cong-an-1775726833?tab=attributes",
+      "domains": [
+        "dac_doanh",
+        "con_dau",
+        "phao",
+        "cu_tru",
+        "can_cuoc"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "source_priority": 2,
+      "verified_at": "2026-09-11",
+      "attachments": [
+        {
+          "filename": "QD cong bo 1523 - C06.P2_0001.pdf",
+          "kind": "official_appendix",
+          "url": "https://bocongan.gov.vn/media/bca-media/library-20260409162658-b0e9a4ab-fb4c-4508-9918-54539c24fd29-qd-cong-bo-1523-c06-p2-0001.pdf",
+          "sha256": "2EA06491E4700EA3C851E9022F94EA0BAFBB72B3522546FC840982988D3D9946"
+        }
+      ]
+    },
+    {
+      "document_number": "62/2026/TT-BCA",
+      "document_type": "Thông tư",
+      "title": "Quy định về phân cấp, cắt giảm, đơn giản hóa TTHC thuộc phạm vi quản lý của Bộ Công an",
+      "issuer": "Bộ Công an",
+      "issued_date": "2026-05-18",
+      "effective_date": "2026-05-18",
+      "status": "IN_FORCE",
+      "official_url": "https://vanban.bocongan.gov.vn/co-so-du-lieu-van-ban/thong-tu-quy-dinh-ve-phan-cap-cat-giam-don-gian-hoa-thu-tuc-hanh-chinh-thuoc-pham-vi-quan-ly-cua-bo-cong-an-1780647572?tab=attributes",
+      "domains": [
+        "all_tthc"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "source_priority": 1,
+      "verified_at": "2026-09-11"
+    },
+    {
+      "document_number": "1583/QĐ-BCA-QLXNC",
+      "document_type": "Quyết định",
+      "title": "Công bố danh mục TTHC bị bãi bỏ trong lĩnh vực quản lý xuất nhập cảnh",
+      "issuer": "Bộ Công an",
+      "issued_date": "2026-03-30",
+      "effective_date": "2026-03-30",
+      "status": "IN_FORCE",
+      "official_url": "https://vanban.bocongan.gov.vn/van-ban-chi-dao-dieu-hanh/quyet-dinh-cong-bo-danh-muc-thu-tuc-hanh-chinh-bi-bai-bo-trong-linh-vuc-quan-ly-xuat-nhap-canh-thuoc-tham-quyen-giai-quyet-cua-bo-cong-an-1775611732?tab=fulltext",
+      "domains": [
+        "xuat_nhap_canh"
+      ],
+      "supersedes": [],
+      "superseded_by": "4245/QĐ-BCA-QLXNC",
+      "source_priority": 2,
+      "verified_at": "2026-09-11"
+    },
+    {
+      "document_number": "4245/QĐ-BCA-QLXNC",
+      "document_type": "Quyết định",
+      "title": "Công bố TTHC sửa đổi, bổ sung và bãi bỏ trong lĩnh vực quản lý xuất nhập cảnh",
+      "issuer": "Bộ Công an",
+      "issued_date": "2026-07-01",
+      "effective_date": "2026-07-01",
+      "status": "IN_FORCE",
+      "official_url": "https://vanban.bocongan.gov.vn/van-ban-chi-dao-dieu-hanh/quyet-dinh-ve-viec-cong-bo-thu-tuc-hanh-chinh-duoc-sua-doi-bo-sung-va-bi-bai-bo-trong-linh-vuc-quan-ly-xuat-nhap-canh-thuoc-tham-quyen-giai-quyet-cua-bo-cong-an-1783307170?tab=fulltext",
+      "domains": [
+        "xuat_nhap_canh"
+      ],
+      "supersedes": [
+        "1583/QĐ-BCA-QLXNC"
+      ],
+      "superseded_by": null,
+      "source_priority": 2,
+      "verified_at": "2026-09-11",
+      "attachments": [
+        {
+          "filename": "Quyet dinh 424.2026.pdf",
+          "kind": "decision_pdf",
+          "url": "https://bocongan.gov.vn/media/bca-media/library-20260723141536-a5f72df8-f3f4-4086-af4f-cc7174ced6dd-quyet-inh-424-2026.pdf",
+          "sha256": "AC0799AFFBB25E6E4A7C2C272975AF5E32D412135310F02F9814F4A51910E168"
+        },
+        {
+          "filename": "Danh muc thu tuc hanh chinh.docx",
+          "kind": "official_appendix",
+          "url": "https://bocongan.gov.vn/media/bca-media/library-20260723141536-cbedb0de-d78c-400d-a539-d8a4a7d174d5-danh-muc-thu-tuc-hanh-chinh.docx",
+          "sha256": "E731FB908A20274F16ABE73CD2CF4D72082C05B34D039C94825B3308B7A05EC1"
+        }
+      ]
+    },
+    {
+      "document_number": "87/2026/TT-BCA",
+      "document_type": "Thông tư",
+      "title": "Quy định cách thức thực hiện khai báo, tiếp nhận thông tin tạm trú của người nước ngoài tại Việt Nam",
+      "issuer": "Bộ Công an",
+      "issued_date": "2026-07-24",
+      "effective_date": "2026-07-24",
+      "status": "IN_FORCE",
+      "official_url": "https://vanban.bocongan.gov.vn/co-so-du-lieu-van-ban/thong-tu-quy-dinh-cach-thuc-thuc-hien-khai-bao-tiep-nhan-thong-tin-tam-tru-cua-nguoi-nuoc-ngoai-tai-viet-nam-1781840568",
+      "domains": [
+        "xuat_nhap_canh",
+        "tam_tru"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "source_priority": 1,
+      "verified_at": "2026-09-11"
+    },
+    {
+      "document_number": "4118/QĐ-BCA-C07",
+      "document_type": "Quyết định",
+      "title": "Công bố danh mục TTHC ban hành mới trong lĩnh vực PCCC và CNCH",
+      "issuer": "Bộ Công an",
+      "issued_date": "2026-06-29",
+      "effective_date": "2026-07-01",
+      "status": "IN_FORCE",
+      "official_url": "https://bocongan.gov.vn/chinh-sach-phap-luat/bai-viet/cat-giam-don-gian-hoa-thu-tuc-hanh-chinh-trong-linh-vuc-pccc-va-cnch-chuyen-manh-tu-tien-kiem-sang-hau-kiem-tao-thuan-loi-cho-nguoi-dan-va-doanh-nghiep-1786593600",
+      "domains": [
+        "pccc_cnch"
+      ],
+      "supersedes": [
+        "5461/QĐ-BCA-C07"
+      ],
+      "superseded_by": null,
+      "source_priority": 2,
+      "verified_at": "2026-09-11"
+    },
+    {
+      "document_number": "5230/QĐ-BCA-C06",
+      "document_type": "Quyết định",
+      "title": "Công bố TTHC mới, sửa đổi, bổ sung và bãi bỏ trong lĩnh vực cấp, quản lý căn cước",
+      "issuer": "Bộ Công an",
+      "issued_date": "2026-08-18",
+      "effective_date": "2026-08-18",
+      "status": "IN_FORCE",
+      "official_url": "https://bocongan.gov.vn/chinh-sach-phap-luat/bai-viet/cong-bo-thu-tuc-hanh-chinh-moi-ban-hanh-thu-tuc-hanh-chinh-duoc-sua-doi-bo-sung-va-bai-bo-thuoc-tham-quyen-giai-quyet-cua-bo-cong-an-1787732411",
+      "domains": [
+        "can_cuoc"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "source_priority": 2,
+      "verified_at": "2026-09-11",
+      "attachments": [
+        {
+          "filename": "Quyet dinh so 5230.pdf",
+          "kind": "decision_pdf",
+          "url": "https://bocongan.gov.vn/media/bca-media/library-20260826152206-1abcea7e-06cf-4b13-a9d6-c773f9a4d74d-quyet-inh-so-5230.pdf",
+          "sha256": "8C741FE1AAFEFB11622DC486BBA76EFEFC3BA8CA408643816BA39F82E638728D"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2785 @@
+{
+  "schema_version": 1,
+  "verified_at": "2026-09-11",
+  "candidate_namespace": "chatbot-tthc-xnc-2026-refresh-candidate",
+  "production_mutation": "NO_PRODUCTION_MUTATION",
+  "source_precedence": [
+    "IN_FORCE_LEGAL_INSTRUMENT",
+    "LATEST_TTHC_DECISION",
+    "OFFICIAL_APPENDIX",
+    "OFFICIAL_DVC",
+    "INTERNAL_GUIDE"
+  ],
+  "records": [
+    {
+      "domain": "xuat_nhap_canh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "processing_time_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "submission_method_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "fee_changes": "Theo phụ lục DOCX QĐ 4245; cần đối chiếu biểu phí hiện hành.",
+      "new_forms": [
+        "Thông tư 69/2026/TT-BCA"
+      ],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "procedure_id": "1.001445",
+      "old_name": "Trình báo mất hộ chiếu phổ thông",
+      "old_level": "tinh",
+      "classification": "AMENDED",
+      "document_changes": "QĐ 4245/QĐ-BCA-QLXNC sửa đổi, bổ sung; phụ lục DOCX đã đọc và ghi nhận mã thủ tục.",
+      "evidence": "Phần I.1 phụ lục DOCX: danh mục thủ tục được sửa đổi, bổ sung; mã và cấp thực hiện được nêu trong bảng."
+    },
+    {
+      "domain": "xuat_nhap_canh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "processing_time_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "submission_method_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "fee_changes": "Theo phụ lục DOCX QĐ 4245; cần đối chiếu biểu phí hiện hành.",
+      "new_forms": [
+        "Thông tư 69/2026/TT-BCA"
+      ],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "procedure_id": "1.001456",
+      "old_name": "Cấp hộ chiếu phổ thông ở trong nước cho công dân Việt Nam",
+      "old_level": "tinh",
+      "classification": "AMENDED",
+      "document_changes": "QĐ 4245/QĐ-BCA-QLXNC sửa đổi, bổ sung; phụ lục DOCX đã đọc và ghi nhận mã thủ tục.",
+      "evidence": "Phần I.1 phụ lục DOCX: danh mục thủ tục được sửa đổi, bổ sung; mã và cấp thực hiện được nêu trong bảng."
+    },
+    {
+      "domain": "xuat_nhap_canh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "processing_time_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "submission_method_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "fee_changes": "Theo phụ lục DOCX QĐ 4245; cần đối chiếu biểu phí hiện hành.",
+      "new_forms": [
+        "Thông tư 69/2026/TT-BCA"
+      ],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "procedure_id": "1.001471",
+      "old_name": "Cấp hộ chiếu phổ thông ở trong nước cho công dân Việt Nam",
+      "old_level": "trung-uong",
+      "classification": "AMENDED",
+      "document_changes": "QĐ 4245/QĐ-BCA-QLXNC sửa đổi, bổ sung; phụ lục DOCX đã đọc và ghi nhận mã thủ tục.",
+      "evidence": "Phần I.1 phụ lục DOCX: danh mục thủ tục được sửa đổi, bổ sung; mã và cấp thực hiện được nêu trong bảng."
+    },
+    {
+      "domain": "xuat_nhap_canh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "processing_time_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "submission_method_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "fee_changes": "Theo phụ lục DOCX QĐ 4245; cần đối chiếu biểu phí hiện hành.",
+      "new_forms": [
+        "Thông tư 69/2026/TT-BCA"
+      ],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "procedure_id": "1.010382",
+      "old_name": "Khôi phục giá trị sử dụng hộ chiếu phổ thông",
+      "old_level": "trung-uong",
+      "classification": "AMENDED",
+      "document_changes": "QĐ 4245/QĐ-BCA-QLXNC sửa đổi, bổ sung; phụ lục DOCX đã đọc và ghi nhận mã thủ tục.",
+      "evidence": "Phần I.1 phụ lục DOCX: danh mục thủ tục được sửa đổi, bổ sung; mã và cấp thực hiện được nêu trong bảng."
+    },
+    {
+      "domain": "xuat_nhap_canh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "processing_time_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "submission_method_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "fee_changes": "Theo phụ lục DOCX QĐ 4245; cần đối chiếu biểu phí hiện hành.",
+      "new_forms": [
+        "Thông tư 69/2026/TT-BCA"
+      ],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "procedure_id": "1.010384",
+      "old_name": "Khôi phục giá trị sử dụng hộ chiếu phổ thông",
+      "old_level": "tinh",
+      "classification": "AMENDED",
+      "document_changes": "QĐ 4245/QĐ-BCA-QLXNC sửa đổi, bổ sung; phụ lục DOCX đã đọc và ghi nhận mã thủ tục.",
+      "evidence": "Phần I.1 phụ lục DOCX: danh mục thủ tục được sửa đổi, bổ sung; mã và cấp thực hiện được nêu trong bảng."
+    },
+    {
+      "domain": "xuat_nhap_canh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "processing_time_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "submission_method_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "fee_changes": "Theo phụ lục DOCX QĐ 4245; cần đối chiếu biểu phí hiện hành.",
+      "new_forms": [
+        "Thông tư 69/2026/TT-BCA"
+      ],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "procedure_id": "1.010385",
+      "old_name": "Trình báo mất hộ chiếu phổ thông",
+      "old_level": "huyen",
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 4245/QĐ-BCA-QLXNC bãi bỏ thủ tục cấp huyện; không suy đoán thủ tục thay thế.",
+      "evidence": "Phần I.2 phụ lục DOCX: danh mục thủ tục bị bãi bỏ; mã 1.010385, Công an cấp huyện."
+    },
+    {
+      "domain": "xuat_nhap_canh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "processing_time_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "submission_method_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "fee_changes": "Theo phụ lục DOCX QĐ 4245; cần đối chiếu biểu phí hiện hành.",
+      "new_forms": [
+        "Thông tư 69/2026/TT-BCA"
+      ],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "procedure_id": "1.010386",
+      "old_name": "Trình báo mất hộ chiếu phổ thông",
+      "old_level": "xa",
+      "classification": "AMENDED",
+      "document_changes": "QĐ 4245/QĐ-BCA-QLXNC sửa đổi, bổ sung; phụ lục DOCX đã đọc và ghi nhận mã thủ tục.",
+      "evidence": "Phần I.1 phụ lục DOCX: danh mục thủ tục được sửa đổi, bổ sung; mã và cấp thực hiện được nêu trong bảng."
+    },
+    {
+      "domain": "xuat_nhap_canh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "processing_time_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "submission_method_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "fee_changes": "Theo phụ lục DOCX QĐ 4245; cần đối chiếu biểu phí hiện hành.",
+      "new_forms": [
+        "Thông tư 69/2026/TT-BCA"
+      ],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "procedure_id": "2.00048",
+      "old_name": "Xác nhận nhân thân của công dân Việt Nam ở nước ngoài đề nghị cấp lại hộ chiếu do bị mất",
+      "old_level": "trung-uong",
+      "classification": "AMENDED",
+      "document_changes": "QĐ 4245/QĐ-BCA-QLXNC sửa đổi, bổ sung; phụ lục DOCX đã đọc và ghi nhận mã thủ tục.",
+      "evidence": "Phần I.1 phụ lục DOCX: danh mục thủ tục được sửa đổi, bổ sung; mã và cấp thực hiện được nêu trong bảng."
+    },
+    {
+      "domain": "xuat_nhap_canh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "processing_time_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "submission_method_changes": "Theo phụ lục DOCX QĐ 4245; cần cập nhật chi tiết vào nội dung hướng dẫn.",
+      "fee_changes": "Theo phụ lục DOCX QĐ 4245; cần đối chiếu biểu phí hiện hành.",
+      "new_forms": [
+        "Thông tư 69/2026/TT-BCA"
+      ],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "procedure_id": "2.000539",
+      "old_name": "Trình báo mất hộ chiếu phổ thông",
+      "old_level": "trung-uong",
+      "classification": "AMENDED",
+      "document_changes": "QĐ 4245/QĐ-BCA-QLXNC sửa đổi, bổ sung; phụ lục DOCX đã đọc và ghi nhận mã thủ tục.",
+      "evidence": "Phần I.1 phụ lục DOCX: danh mục thủ tục được sửa đổi, bổ sung; mã và cấp thực hiện được nêu trong bảng."
+    },
+    {
+      "procedure_id": "5568-tinh-01",
+      "old_name": "Cấp hộ chiếu phổ thông ở trong nước",
+      "new_procedure_id": "1.001456",
+      "new_name": "Cấp hộ chiếu phổ thông ở trong nước cho công dân Việt Nam",
+      "domain": "ho_chieu",
+      "old_level": "tinh",
+      "classification": "AMENDED",
+      "document_changes": "Deterministic reconciliation: Exact official name and tinh authority match to QĐ4245 procedure 1.001456.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "evidence": "Exact official name and tinh authority match to QĐ4245 procedure 1.001456. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "AMENDED",
+        "matchMethod": "EXACT_OFFICIAL_NAME_AND_AUTHORITY",
+        "matchedOfficialCode": "1.001456",
+        "reason": "Exact official name and tinh authority match to QĐ4245 procedure 1.001456."
+      }
+    },
+    {
+      "procedure_id": "5568-tinh-02",
+      "old_name": "Khôi phục giá trị sử dụng hộ chiếu phổ thông",
+      "new_procedure_id": "1.010384",
+      "new_name": "Khôi phục giá trị sử dụng hộ chiếu phổ thông",
+      "domain": "ho_chieu",
+      "old_level": "tinh",
+      "classification": "AMENDED",
+      "document_changes": "Deterministic reconciliation: Exact official name and tinh authority match to QĐ4245 procedure 1.010384.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "evidence": "Exact official name and tinh authority match to QĐ4245 procedure 1.010384. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "AMENDED",
+        "matchMethod": "EXACT_OFFICIAL_NAME_AND_AUTHORITY",
+        "matchedOfficialCode": "1.010384",
+        "reason": "Exact official name and tinh authority match to QĐ4245 procedure 1.010384."
+      }
+    },
+    {
+      "procedure_id": "5568-tinh-03",
+      "old_name": "Trình báo mất hộ chiếu phổ thông",
+      "new_procedure_id": "1.001445",
+      "new_name": "Trình báo mất hộ chiếu phổ thông",
+      "domain": "ho_chieu",
+      "old_level": "tinh",
+      "classification": "AMENDED",
+      "document_changes": "Deterministic reconciliation: Exact official name and tinh authority match to QĐ4245 procedure 1.001445.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "evidence": "Exact official name and tinh authority match to QĐ4245 procedure 1.001445. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "AMENDED",
+        "matchMethod": "EXACT_OFFICIAL_NAME_AND_AUTHORITY",
+        "matchedOfficialCode": "1.001445",
+        "reason": "Exact official name and tinh authority match to QĐ4245 procedure 1.001445."
+      }
+    },
+    {
+      "procedure_id": "5568-tinh-04",
+      "old_name": "Cấp thị thực cho người nước ngoài tại Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "thi_thuc",
+      "old_level": "tinh",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "5568-tinh-05",
+      "old_name": "Cấp thẻ tạm trú cho người nước ngoài tại Việt Nam tại Công an cấp tỉnh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "tam_tru",
+      "old_level": "tinh",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "5568-tinh-06",
+      "old_name": "Gia hạn tạm trú cho người đã được cấp giấy miễn thị thực",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "thi_thuc",
+      "old_level": "tinh",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "5568-tinh-07",
+      "old_name": "Gia hạn tạm trú cho người nước ngoài tại Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "tam_tru",
+      "old_level": "tinh",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "5568-tinh-08",
+      "old_name": "Cấp thẻ thường trú cho người nước ngoài tại Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "thuong_tru",
+      "old_level": "tinh",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "5568-tinh-09",
+      "old_name": "Cấp đổi thẻ thường trú cho người nước ngoài tại Việt Nam tại Công an cấp tỉnh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "thuong_tru",
+      "old_level": "tinh",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "5568-tinh-10",
+      "old_name": "Cấp lại thẻ thường trú cho người nước ngoài tại Việt Nam tại Công an cấp tỉnh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "thuong_tru",
+      "old_level": "tinh",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "5568-tinh-11",
+      "old_name": "Cấp giấy phép vào khu vực cấm, khu vực biên giới cho người nước ngoài tại Công an cấp tỉnh",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "khu_vuc_cam_bien_gioi",
+      "old_level": "tinh",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-01",
+      "old_name": "Cấp hộ chiếu phổ thông ở trong nước",
+      "new_procedure_id": "1.001471",
+      "new_name": "Cấp hộ chiếu phổ thông ở trong nước cho công dân Việt Nam",
+      "domain": "ho_chieu",
+      "old_level": "trung-uong",
+      "classification": "AMENDED",
+      "document_changes": "Deterministic reconciliation: Exact official name and trung-uong authority match to QĐ4245 procedure 1.001471.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "evidence": "Exact official name and trung-uong authority match to QĐ4245 procedure 1.001471. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "AMENDED",
+        "matchMethod": "EXACT_OFFICIAL_NAME_AND_AUTHORITY",
+        "matchedOfficialCode": "1.001471",
+        "reason": "Exact official name and trung-uong authority match to QĐ4245 procedure 1.001471."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-02",
+      "old_name": "Khôi phục giá trị sử dụng hộ chiếu phổ thông",
+      "new_procedure_id": "1.010382",
+      "new_name": "Khôi phục giá trị sử dụng hộ chiếu phổ thông",
+      "domain": "ho_chieu",
+      "old_level": "trung-uong",
+      "classification": "AMENDED",
+      "document_changes": "Deterministic reconciliation: Exact official name and trung-uong authority match to QĐ4245 procedure 1.010382.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "evidence": "Exact official name and trung-uong authority match to QĐ4245 procedure 1.010382. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "AMENDED",
+        "matchMethod": "EXACT_OFFICIAL_NAME_AND_AUTHORITY",
+        "matchedOfficialCode": "1.010382",
+        "reason": "Exact official name and trung-uong authority match to QĐ4245 procedure 1.010382."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-03",
+      "old_name": "Trình báo mất hộ chiếu phổ thông",
+      "new_procedure_id": "2.000539",
+      "new_name": "Trình báo mất hộ chiếu phổ thông",
+      "domain": "ho_chieu",
+      "old_level": "trung-uong",
+      "classification": "AMENDED",
+      "document_changes": "Deterministic reconciliation: Exact official name and trung-uong authority match to QĐ4245 procedure 2.000539.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "evidence": "Exact official name and trung-uong authority match to QĐ4245 procedure 2.000539. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "AMENDED",
+        "matchMethod": "EXACT_OFFICIAL_NAME_AND_AUTHORITY",
+        "matchedOfficialCode": "2.000539",
+        "reason": "Exact official name and trung-uong authority match to QĐ4245 procedure 2.000539."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-04",
+      "old_name": "Cấp Giấy xác nhận nhân sự của công dân Việt Nam ở nước ngoài",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "xac_nhan_thong_tin",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-05",
+      "old_name": "Đăng ký tài khoản điện tử",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "tai_khoan_dien_tu",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-06",
+      "old_name": "Cấp thị thực điện tử theo đề nghị của người nước ngoài",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "thi_thuc",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-07",
+      "old_name": "Cấp thị thực điện tử theo đề nghị của cơ quan, tổ chức",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "thi_thuc",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-08",
+      "old_name": "Cấp thị thực cho người nước ngoài tại Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "thi_thuc",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-09",
+      "old_name": "Kiểm tra, xét duyệt nhân sự, cấp phép nhập cảnh cho người nước ngoài, người Việt Nam định cư ở nước ngoài nhập cảnh vào Việt Nam tại Cục Quản lý xuất nhập cảnh, Bộ Công an",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "thi_thuc",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-10",
+      "old_name": "Cấp thẻ tạm trú cho người nước ngoài tại Cục Quản lý xuất nhập cảnh, Bộ Công an",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "tam_tru",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-11",
+      "old_name": "Gia hạn tạm trú cho người đã được cấp giấy miễn thị thực",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "thi_thuc",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "5568-tw-12",
+      "old_name": "Gia hạn tạm trú cho người nước ngoài tại Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "tam_tru",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "guide:can-cuoc:cap-doi-giay-chung-nhan-can-cuoc",
+      "old_name": "Cấp đổi giấy chứng nhận căn cước",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:cap-doi-the-can-cuoc",
+      "old_name": "Cấp đổi thẻ căn cước",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:cap-lai-giay-chung-nhan-can-cuoc",
+      "old_name": "Cấp lại giấy chứng nhận căn cước",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:cap-lai-the-can-cuoc",
+      "old_name": "Cấp lại thẻ căn cước",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:cap-tai-khoan-dinh-danh-dien-tu-muc-do-02-can-cuoc-dien-tu-cho-cong-dan-viet-nam",
+      "old_name": "Cấp tài khoản định danh điện tử mức độ 02, căn cước điện tử cho công dân Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "guide:can-cuoc:cap-the-can-cuoc-cho-nguoi-duoi-14-tuoi",
+      "old_name": "Cấp thẻ căn cước cho người dưới 14 tuổi",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:cap-the-can-cuoc-cho-nguoi-tu-du-14-tuoi-tro-len",
+      "old_name": "Cấp thẻ căn cước cho người từ đủ 14 tuổi trở lên",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:cap-xac-nhan-so-chung-minh-nhan-dan-09-so-so-dinh-danh-ca-nhan",
+      "old_name": "Cấp xác nhận số chứng minh nhân dân 09 số, số định danh cá nhân",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "guide:can-cuoc:dieu-chinh-thong-tin-trong-co-so-du-lieu-quoc-gia-ve-dan-cu-co-so-du-lieu-can-cuoc-theo-de-nghi-cua-nguoi-goc-viet-nam-chua-xac-dinh-duoc-quoc-tich",
+      "old_name": "Điều chỉnh thông tin trong Cơ sở dữ liệu quốc gia về dân cư, Cơ sở dữ liệu căn cước theo đề nghị của người gốc Việt Nam chưa xác định được quốc tịch",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:dieu-chinh-thong-tin-trong-co-so-du-lieu-quoc-gia-ve-dan-cu-theo-de-nghi-cua-cong-dan",
+      "old_name": "Điều chỉnh thông tin trong Cơ sở dữ liệu quốc gia về dân cư theo đề nghị của công dân",
+      "new_procedure_id": "1.012564",
+      "new_name": "Điều chỉnh thông tin trong Cơ sở dữ liệu quốc gia về dân cư theo đề nghị của công dân",
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "AMENDED",
+      "document_changes": "Đã có quyết định sửa đổi; phụ lục chi tiết về hồ sơ/cấp thực hiện chưa được trích xuất.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "medium",
+      "evidence": "Bài công bố chính thức nêu mã 1.012564."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:huy-xac-lap-lai-so-dinh-danh-ca-nhan",
+      "old_name": "Hủy, xác lập lại số định danh cá nhân",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "guide:can-cuoc:khai-thac-thong-tin-cong-dan-trong-co-so-du-lieu-quoc-gia-ve-dan-cu",
+      "old_name": "Khai thác thông tin công dân trong Cơ sở dữ liệu quốc gia về dân cư",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:khai-thac-thong-tin-cua-cong-dan-trong-co-so-du-lieu-can-cuoc",
+      "old_name": "Khai thác thông tin của công dân trong Cơ sở dữ liệu căn cước",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:khai-thac-thong-tin-nguoi-goc-viet-nam-chua-xac-dinh-duoc-quoc-tich-trong-co-so-du-lieu-can-cuoc",
+      "old_name": "Khai thác thông tin người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu căn cước.",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:khai-thac-thong-tin-nguoi-goc-viet-nam-chua-xac-dinh-duoc-quoc-tich-trong-co-so-du-lieu-quoc-gia-ve-dan-cu",
+      "old_name": "Khai thác thông tin người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu quốc gia về dân cư",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:khoa-can-cuoc-dien-tu",
+      "old_name": "Khóa căn cước điện tử",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "guide:can-cuoc:mo-khoa-can-cuoc-dien-tu",
+      "old_name": "Mở khóa căn cước điện tử",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "guide:can-cuoc:thu-thap-cap-nhat-thong-tin-cua-nguoi-goc-viet-nam-chua-xac-dinh-duoc-quoc-tich-vao-co-so-du-lieu-quoc-gia-ve-dan-cu-co-so-du-lieu-can-cuoc-va-cap-giay-chung-nhan-can-cuoc",
+      "old_name": "Thu thập, cập nhật thông tin của người gốc Việt Nam chưa xác định được quốc tịch vào Cơ sở dữ liệu quốc gia về dân cư, Cơ sở dữ liệu căn cước và cấp giấy chứng nhận căn cước",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:thu-thap-cap-nhat-thong-tin-sinh-trac-hoc-ve-adn-vao-co-so-du-lieu-ve-can-cuoc",
+      "old_name": "Thu thập, cập nhật thông tin sinh trắc học về ADN vào Cơ sở dữ liệu về căn cước",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:thu-thap-cap-nhat-thong-tin-sinh-trac-hoc-ve-giong-noi-vao-co-so-du-lieu-ve-can-cuoc",
+      "old_name": "Thu thập, cập nhật thông tin sinh trắc học về giọng nói vào Cơ sở dữ liệu về căn cước",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "ABOLISHED",
+      "document_changes": "QĐ 5230 liệt kê thủ tục cấp xã này là bị bãi bỏ; không suy đoán thủ tục thay thế.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "high",
+      "evidence": "Danh mục bãi bỏ công bố chính thức."
+    },
+    {
+      "procedure_id": "guide:can-cuoc:tich-hop-cap-nhat-dieu-chinh-thong-tin-tren-the-can-cuoc",
+      "old_name": "Tích hợp, cập nhật, điều chỉnh thông tin trên thẻ căn cước",
+      "new_procedure_id": "1.014060",
+      "new_name": "Tích hợp, cập nhật, điều chỉnh thông tin trên thẻ căn cước",
+      "domain": "can_cuoc",
+      "old_level": "xa",
+      "new_level": null,
+      "classification": "AMENDED",
+      "document_changes": "Đã có quyết định sửa đổi; phụ lục chi tiết về hồ sơ/cấp thực hiện chưa được trích xuất.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "medium",
+      "evidence": "Bài công bố chính thức nêu mã 1.014060."
+    },
+    {
+      "procedure_id": "guide:cu-tru:dang-ky-tam-tru",
+      "old_name": "Đăng ký tạm trú",
+      "new_procedure_id": "1.004194",
+      "new_name": "Đăng ký tạm trú",
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "AMENDED",
+      "document_changes": "Deterministic reconciliation: Exact official name and xã authority match to QĐ1523 procedure 1.004194.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "Exact official name and xã authority match to QĐ1523 procedure 1.004194. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "AMENDED",
+        "matchMethod": "EXACT_OFFICIAL_NAME_AND_AUTHORITY",
+        "matchedOfficialCode": "1.004194",
+        "reason": "Exact official name and xã authority match to QĐ1523 procedure 1.004194."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:dang-ky-thuong-tru",
+      "old_name": "Đăng ký thường trú",
+      "new_procedure_id": "1.004222",
+      "new_name": "Đăng ký thường trú",
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "AMENDED",
+      "document_changes": "Deterministic reconciliation: Exact official name and xã authority match to QĐ1523 procedure 1.004222.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "Exact official name and xã authority match to QĐ1523 procedure 1.004222. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "AMENDED",
+        "matchMethod": "EXACT_OFFICIAL_NAME_AND_AUTHORITY",
+        "matchedOfficialCode": "1.004222",
+        "reason": "Exact official name and xã authority match to QĐ1523 procedure 1.004222."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:dieu-chinh-thong-tin-ve-cu-tru-trong-co-so-du-lieu-ve-cu-tru",
+      "old_name": "Điều chỉnh thông tin về cư trú trong Cơ sở dữ liệu về cư trú",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "UNCHANGED",
+      "document_changes": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "UNCHANGED",
+        "matchMethod": "EXHAUSTIVE_ANNEX_ABSENCE",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:gia-han-tam-tru",
+      "old_name": "Gia hạn tạm trú",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "UNCHANGED",
+      "document_changes": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "UNCHANGED",
+        "matchMethod": "EXHAUSTIVE_ANNEX_ABSENCE",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:khai-bao-tam-vang",
+      "old_name": "Khai báo tạm vắng",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "UNCHANGED",
+      "document_changes": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "UNCHANGED",
+        "matchMethod": "EXHAUSTIVE_ANNEX_ABSENCE",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:khai-bao-thong-tin-ve-cu-tru-doi-voi-nguoi-chua-du-dieu-kien-dang-ky-thuong-tru-dang-ky-tam-tru",
+      "old_name": "Khai báo thông tin về cư trú đối với người chưa đủ điều kiện đăng ký thường trú, đăng ký tạm trú",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "UNCHANGED",
+      "document_changes": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "UNCHANGED",
+        "matchMethod": "EXHAUSTIVE_ANNEX_ABSENCE",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:tach-ho",
+      "old_name": "Tách hộ",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "UNCHANGED",
+      "document_changes": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "UNCHANGED",
+        "matchMethod": "EXHAUSTIVE_ANNEX_ABSENCE",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:thong-bao-luu-tru",
+      "old_name": "Thông báo lưu trú",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "UNCHANGED",
+      "document_changes": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "UNCHANGED",
+        "matchMethod": "EXHAUSTIVE_ANNEX_ABSENCE",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:truong-hop-cong-dan-co-su-dieu-chinh-ve-ho-tich-ma-cac-thong-tin-nay-da-duoc-cap-nhat-chia-se-tu-co-so-du-lieu-ho-tich-dien-tu-thi-cong-dan-khong-phai-thuc-hien-thu-tuc-dieu-chinh-thong-tin-ve-cu-tru",
+      "old_name": "Trường hợp công dân có sự điều chỉnh về hộ tịch mà các thông tin này đã được cập nhật, chia sẻ từ Cơ sở dữ liệu hộ tịch điện tử thì công dân không phải thực hiện thủ tục điều chỉnh thông tin về cư trú.",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:viec-nop-ho-so-dang-ky-cu-tru",
+      "old_name": "Việc nộp hồ sơ đăng ký cư trú",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:xac-nhan-thong-tin-ve-cu-tru",
+      "old_name": "Xác nhận thông tin về cư trú",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "UNCHANGED",
+      "document_changes": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "UNCHANGED",
+        "matchMethod": "EXHAUSTIVE_ANNEX_ABSENCE",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ1523 cư trú annex is exhaustive for new/amended/abolished procedures; this exact procedure name is absent and has no later applicable source in the registry."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:xoa-dang-ky-tam-tru",
+      "old_name": "Xóa đăng ký tạm trú",
+      "new_procedure_id": "1.010028",
+      "new_name": "Xóa đăng ký tạm trú",
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "AMENDED",
+      "document_changes": "Deterministic reconciliation: Exact official name and xã authority match to QĐ1523 procedure 1.010028.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "Exact official name and xã authority match to QĐ1523 procedure 1.010028. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "AMENDED",
+        "matchMethod": "EXACT_OFFICIAL_NAME_AND_AUTHORITY",
+        "matchedOfficialCode": "1.010028",
+        "reason": "Exact official name and xã authority match to QĐ1523 procedure 1.010028."
+      }
+    },
+    {
+      "procedure_id": "guide:cu-tru:xoa-dang-ky-thuong-tru",
+      "old_name": "Xóa đăng ký thường trú",
+      "new_procedure_id": "1.003197",
+      "new_name": "Xóa đăng ký thường trú",
+      "domain": "cu_tru",
+      "old_level": "xa",
+      "classification": "AMENDED",
+      "document_changes": "Deterministic reconciliation: Exact official name and xã authority match to QĐ1523 procedure 1.003197.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "Exact official name and xã authority match to QĐ1523 procedure 1.003197. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "AMENDED",
+        "matchMethod": "EXACT_OFFICIAL_NAME_AND_AUTHORITY",
+        "matchedOfficialCode": "1.003197",
+        "reason": "Exact official name and xã authority match to QĐ1523 procedure 1.003197."
+      }
+    },
+    {
+      "procedure_id": "guide:dac-doanh:cap-doi-giay-chung-nhan-du-dieu-kien-ve-an-ninh-trat-tu",
+      "old_name": "cấp đổi Giấy chứng nhận đủ điều kiện về an ninh, trật tự",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dac_doanh",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "QĐ1523 covers the field, but the legacy guide title/domain is truncated or differs from the official procedure identity; no exact code + name + authority match exists.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "low",
+      "evidence": "QĐ1523 covers the field, but the legacy guide title/domain is truncated or differs from the official procedure identity; no exact code + name + authority match exists. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "QĐ1523 covers the field, but the legacy guide title/domain is truncated or differs from the official procedure identity; no exact code + name + authority match exists."
+      }
+    },
+    {
+      "procedure_id": "guide:dac-doanh:cap-lai-giay-chung-nhan-du-dieu-kien-ve-an-ninh-trat-tu",
+      "old_name": "cấp lại Giấy chứng nhận đủ điều kiện về an ninh, trật tự",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dac_doanh",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "QĐ1523 covers the field, but the legacy guide title/domain is truncated or differs from the official procedure identity; no exact code + name + authority match exists.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "low",
+      "evidence": "QĐ1523 covers the field, but the legacy guide title/domain is truncated or differs from the official procedure identity; no exact code + name + authority match exists. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "QĐ1523 covers the field, but the legacy guide title/domain is truncated or differs from the official procedure identity; no exact code + name + authority match exists."
+      }
+    },
+    {
+      "procedure_id": "guide:dac-doanh:cap-moi-giay-chung-nhan-du-dieu-kien-ve-an-ninh-trat-tu",
+      "old_name": "cấp mới Giấy chứng nhận đủ điều kiện về an ninh, trật tự",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dac_doanh",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "QĐ1523 covers the field, but the legacy guide title/domain is truncated or differs from the official procedure identity; no exact code + name + authority match exists.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "low",
+      "evidence": "QĐ1523 covers the field, but the legacy guide title/domain is truncated or differs from the official procedure identity; no exact code + name + authority match exists. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "QĐ1523 covers the field, but the legacy guide title/domain is truncated or differs from the official procedure identity; no exact code + name + authority match exists."
+      }
+    },
+    {
+      "procedure_id": "guide:dang-ky-xe:cap-chung-nhan-dang-ky-xe-bien-so-xe-trong-truong-hop-thay-doi-chu-xe-dang-ky-sang-ten-xe-thuc-hien-tai-cong-an-cap-xa",
+      "old_name": "Cấp chứng nhận đăng ký xe, biển số xe trong trường hợp thay đổi chủ xe (đăng ký sang tên xe) thực hiện tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dang_ky_xe",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:dang-ky-xe:cap-lai-chung-nhan-dang-ky-xe-bien-so-xe-thuc-hien-bang-dich-vu-cong-truc-tuyen-mot-phan-hoac-truc-tiep-tai-cong-an-cap-xa",
+      "old_name": "Cấp lại chứng nhận đăng ký xe, biển số xe thực hiện bằng dịch vụ công trực tuyến một phần hoặc trực tiếp tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dang_ky_xe",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:dang-ky-xe:cap-lai-chung-nhan-dang-ky-xe-bien-so-xe-thuc-hien-bang-dich-vu-cong-truc-tuyen-toan-trinh-tai-cong-an-cap-xa",
+      "old_name": "Cấp lại chứng nhận đăng ký xe, biển số xe thực hiện bằng dịch vụ công trực tuyến toàn trình tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dang_ky_xe",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:dang-ky-xe:dang-ky-cap-bien-so-xe-lan-dau-thuc-hien-bang-dich-vu-cong-mot-phan-hoac-truc-tiep-thuc-hien-tai-cong-an-cap-xa",
+      "old_name": "Đăng ký, cấp biển số xe lần đầu thực hiện bằng dịch vụ công một phần hoặc trực tiếp thực hiện tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dang_ky_xe",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:dang-ky-xe:dang-ky-xe-lan-dau-truc-tuyen-toan-trinh-doi-voi-xe-nhap-khau-thuc-hien-tai-cong-an-cap-xa",
+      "old_name": "Đăng ký xe lần đầu trực tuyến toàn trình đối với xe nhập khẩu thực hiện tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dang_ky_xe",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:dang-ky-xe:dang-ky-xe-lan-dau-truc-tuyen-toan-trinh-doi-voi-xe-san-xuat-lap-rap-trong-nuoc-thuc-hien-tai-cong-an-cap-xa",
+      "old_name": "Đăng ký xe lần đầu trực tuyến toàn trình đối với xe sản xuất lắp ráp trong nước thực hiện tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dang_ky_xe",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:dang-ky-xe:dang-ky-xe-tam-thoi-thuc-hien-bang-dich-vu-cong-truc-tuyen-mot-phan-hoac-truc-tiep-tai-cong-an-cap-xa",
+      "old_name": "Đăng ký xe tạm thời thực hiện bằng dịch vụ công trực tuyến một phần hoặc trực tiếp tại Công an cấp xã.",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dang_ky_xe",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:dang-ky-xe:dang-ky-xe-tam-thoi-thuc-hien-bang-dich-vu-cong-truc-tuyen-toan-trinh-tai-cong-an-cap-xa",
+      "old_name": "Đăng ký xe tạm thời thực hiện bằng dịch vụ công trực tuyến toàn trình tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dang_ky_xe",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:dang-ky-xe:doi-chung-nhan-dang-ky-xe-bien-so-xe-thuc-hien-tai-cong-an-cap-xa",
+      "old_name": "Đổi chứng nhận đăng ký xe, biển số xe thực hiện tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dang_ky_xe",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:dang-ky-xe:thu-hoi-chung-nhan-dang-ky-xe-bien-so-xe-thuc-hien-bang-dich-vu-cong-toan-trinh-thuc-hien-tai-cong-an-cap-xa",
+      "old_name": "Thu hồi chứng nhận đăng ký xe, biển số xe thực hiện bằng dịch vụ công toàn trình thực hiện tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dang_ky_xe",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:dang-ky-xe:thu-hoi-giay-chung-nhan-dang-ky-bien-so-xe-thuc-hien-bang-dich-vu-cong-truc-tuyen-mot-phan-hoac-truc-tiep-tai-cong-an-cap-xa",
+      "old_name": "Thu hồi giấy chứng nhận đăng ký, biển số xe thực hiện bằng dịch vụ công trực tuyến một phần hoặc trực tiếp tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dang_ky_xe",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:dinh-danh-dien-tu:cap-tai-khoan-dinh-danh-dien-tu-cho-co-quan-to-chuc",
+      "old_name": "Cấp tài khoản định danh điện tử cho cơ quan, tổ chức",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dinh_danh_dien_tu",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "guide:dinh-danh-dien-tu:khoa-tai-khoan-dinh-danh-dien-tu",
+      "old_name": "Khóa tài khoản định danh điện tử",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dinh_danh_dien_tu",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "guide:dinh-danh-dien-tu:mo-khoa-tai-khoan-dinh-danh-dien-tu",
+      "old_name": "Mở khóa tài khoản định danh điện tử",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "dinh_danh_dien_tu",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "guide:khieu-nai-to-cao:giai-quyet-khieu-nai-ve-quyet-dinh-hanh-chinh-hanh-vi-hanh-chinh-cua-cong-dan-doi-voi-luc-luong-cong-an-nhan-dan-thuc-hien-tai-cong-an-cap-xa",
+      "old_name": "Giải quyết khiếu nại về quyết định hành chính, hành vi hành chính của công dân đối với lực lượng Công an nhân dân thực hiện tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "khieu_nai_to_cao",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:khieu-nai-to-cao:giai-quyet-to-cao-khong-thuoc-linh-vuc-to-tung-hinh-su-cua-cong-dan-doi-voi-luc-luong-cong-an-nhan-dan-thuc-hien-tai-cong-an-cap-xa",
+      "old_name": "Giải quyết tố cáo không thuộc lĩnh vực tố tụng hình sự của công dân đối với lực lượng Công an nhân dân thực hiện tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "khieu_nai_to_cao",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:vu-khi:khai-bao-vu-khi-tho-so-la-hien-vat-trung-bay-trien-lam-lam-do-gia-bao",
+      "old_name": "Khai báo vũ khí thô sơ là hiện vật trưng bày, triển lãm, làm đồ gia bảo",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "vu_khi",
+      "old_level": "xa",
+      "classification": "OUT_OF_SCOPE",
+      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "1523/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "1523/QĐ-BCA-C06",
+      "effective_date": "2026-03-26",
+      "confidence": "high",
+      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "OUT_OF_SCOPE",
+        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "matchedOfficialCode": null,
+        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+      }
+    },
+    {
+      "procedure_id": "guide:xuat-nhap-canh:trinh-bao-mat-giay-thong-hanh-thuc-hien-tai-cong-an-cap-xa",
+      "old_name": "Trình báo mất giấy thông hành thực hiện tại Công an cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "xuat_nhap_canh",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "guide:xuat-nhap-canh:trinh-bao-mat-ho-chieu-pho-thong-thuc-hien-tai-cap-xa",
+      "old_name": "Trình báo mất hộ chiếu phổ thông thực hiện tại cấp xã",
+      "new_procedure_id": "1.010386",
+      "new_name": "Trình báo mất hộ chiếu phổ thông",
+      "domain": "xuat_nhap_canh",
+      "old_level": "xa",
+      "classification": "AMENDED",
+      "document_changes": "Deterministic reconciliation: Exact official name and xa authority match to QĐ4245 procedure 1.010386.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "high",
+      "evidence": "Exact official name and xa authority match to QĐ4245 procedure 1.010386. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "AMENDED",
+        "matchMethod": "EXACT_OFFICIAL_NAME_AND_AUTHORITY",
+        "matchedOfficialCode": "1.010386",
+        "reason": "Exact official name and xa authority match to QĐ4245 procedure 1.010386."
+      }
+    },
+    {
+      "procedure_id": "guide:xuat-nhap-canh:trinh-bao-mat-the-abtc-thuc-hien-tai-cap-xa",
+      "old_name": "Trình báo mất thẻ ABTC thực hiện tại cấp xã",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "xuat_nhap_canh",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "matt26265",
+      "old_name": "Khai báo tạm trú cho người nước ngoài tại Việt Nam qua Trang thông tin điện tử",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "tam_tru",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "tinh-01",
+      "old_name": "Xác nhận, cung cấp thông tin liên quan đến xuất nhập cảnh của công dân Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "xac_nhan_thong_tin",
+      "old_level": "tinh",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "tinh-02",
+      "old_name": "Cấp giấy thông hành biên giới Việt Nam - Lào cho công dân Việt Nam thường trú ở tỉnh có chung đường biên giới với Lào",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "giay_thong_hanh",
+      "old_level": "tinh",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "tinh-03",
+      "old_name": "Cấp giấy phép xuất nhập cảnh cho người không quốc tịch cư trú tại Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "nguoi_khong_quoc_tich",
+      "old_level": "tinh",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "tinh-04",
+      "old_name": "Cấp lại giấy phép xuất nhập cảnh cho người không quốc tịch cư trú tại Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "nguoi_khong_quoc_tich",
+      "old_level": "tinh",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "tw-01",
+      "old_name": "Xác nhận, cung cấp thông tin liên quan đến xuất nhập cảnh của công dân Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "xac_nhan_thong_tin",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "tw-02",
+      "old_name": "Cấp giấy phép xuất nhập cảnh cho người không quốc tịch cư trú tại Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "nguoi_khong_quoc_tich",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "tw-03",
+      "old_name": "Cấp lại giấy phép xuất nhập cảnh cho người không quốc tịch cư trú tại Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "nguoi_khong_quoc_tich",
+      "old_level": "trung-uong",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "xa-01",
+      "old_name": "Xác nhận, cung cấp thông tin liên quan đến xuất nhập cảnh của công dân Việt Nam",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "xac_nhan_thong_tin",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "5230/QĐ-BCA-C06"
+      ],
+      "source_url_ref": "5230/QĐ-BCA-C06",
+      "effective_date": "2026-08-18",
+      "confidence": "low",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record."
+      }
+    },
+    {
+      "procedure_id": "xa-02",
+      "old_name": "Cấp giấy thông hành biên giới Việt Nam - Lào cho công dân Việt Nam thường trú ở tỉnh có chung đường biên giới với Lào",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "giay_thong_hanh",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "xa-03",
+      "old_name": "Cấp giấy thông hành xuất, nhập cảnh vùng biên giới Việt Nam - Trung Quốc cho công dân Việt Nam thường trú tại đơn vị hành chính cấp xã tiếp giáp đường biên giới Việt Nam-Trung Quốc",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "giay_thong_hanh",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    },
+    {
+      "procedure_id": "xa-04",
+      "old_name": "Cấp giấy thông hành xuất, nhập cảnh vùng biên giới Việt Nam - Trung Quốc cho cán bộ, công chức làm việc tại các cơ quan nhà nước có trụ sở đóng tại đơn vị hành chính cấp xã thuộc tỉnh của Việt Nam tiếp giáp đường biên giới Việt Nam - Trung Quốc",
+      "new_procedure_id": null,
+      "new_name": null,
+      "domain": "giay_thong_hanh",
+      "old_level": "xa",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred.",
+      "processing_time_changes": "Chưa xác minh",
+      "submission_method_changes": "Chưa xác minh",
+      "fee_changes": "Chưa xác minh",
+      "new_forms": [],
+      "legal_basis": [
+        "4245/QĐ-BCA-QLXNC"
+      ],
+      "source_url_ref": "4245/QĐ-BCA-QLXNC",
+      "effective_date": "2026-07-01",
+      "confidence": "low",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "reconciliation": {
+        "initialClassification": "NEEDS_LEGAL_REVIEW",
+        "reconciledAt": "2026-09-13",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NO_EXACT_OFFICIAL_IDENTITY",
+        "matchedOfficialCode": null,
+        "reason": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred."
+      }
+    }
+  ],
+  "unreviewed_coverage": {
+    "catalog_file": "data/tthc-catalog.json",
+    "catalog_procedure_count": 78,
+    "manifest_record_count": 101,
+    "classification": "PER_PROCEDURE_REVIEW_REQUIRED",
+    "reason": "Mọi procedureId đều có record; NEEDS_LEGAL_REVIEW không được candidate import cho tới khi đối chiếu phụ lục/biểu mẫu chính thức."
+  }
+}

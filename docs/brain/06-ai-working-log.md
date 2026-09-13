@@ -3954,3 +3954,27 @@
 - **Lý do:** Xóa HIGH `sharp <0.35.4` và path `teeny-request@9 -> uuid@9` moderate cũ bằng update package cha tương thích; không dùng `npm audit fix --force` hay override.
 - **Kiểm tra:** `npm ci` PASS; `npm test` 672/672 PASS; `npm run build` PASS; `npm audit --omit=dev --audit-level=high` PASS (0 HIGH/CRITICAL); full Playwright 117/117 PASS và chatbot smoke 5/5 PASS trên system Chrome. `npm audit --omit=dev` còn hai MODERATE mô tả cùng path `@google-cloud/storage@8.1.0 -> gaxios@6.7.1 -> uuid@9.0.1`; storage 8.1.0 là latest và yêu cầu `gaxios@^6.0.2`, trong khi v6 kết thúc ở 6.7.1, nên không có update parent tương thích hoặc override an toàn.
 - **Phạm vi an toàn:** Dependency/test-harness/documentation only; không thay đổi TTHC/legal corpus, catalog, production data, Pinecone, Vercel hoặc deployment.
+ 
+## [2026-09-11] TTHC 2026 legal refresh — Phase 2 closure
+- **Thay đổi:** Tạo worktree sạch `feat/tthc-2026-legal-refresh` từ `origin/main`; chuyển registry nguồn,
+  phụ lục đã tải có SHA-256, manifest theo từng procedure và bộ lọc fail-closed. Manifest hiện có 101 record:
+  15 `ABOLISHED`, 10 `AMENDED`, 76 `NEEDS_LEGAL_REVIEW`; catalog candidate 92 → 78.
+- **Kiểm tra:** QĐ 4245 DOCX đã trích xuất xác nhận 8 mã sửa đổi và 1 mã bãi bỏ; QĐ 5230 PDF đã render kiểm tra,
+  nhưng mâu thuẫn số lượng “08 mới” và danh sách bài viết vẫn cần reconcile theo toàn bộ annex. Validator và
+  apply local PASS; generator backup bị chặn vì input không tồn tại. npm test/build/E2E/browser smoke còn pending.
+- **Ranh giới:** `NO_PRODUCTION_MUTATION`; không Pinecone/Vercel/namespace/deploy/commit/push/PR.
+
+## [2026-09-12] TTHC 2026 legal refresh — validation follow-up
+- **Kiểm tra:** `npm test` 675/675 PASS; `npm run build` PASS; focused legal/catalog 31/31 PASS. Full E2E đạt 116/117, lỗi timing `panel-state-arbiter` pass khi rerun focused; retry full bị dừng để tránh chạy vô hạn. `npm run ci` dừng ở npm audit do advisory high pre-existing của `sharp <0.35.4` và 5 moderate transitive `uuid` findings.
+- **Verdict:** Chưa đủ điều kiện commit/push/PR hoặc production import; giữ `NO_PRODUCTION_MUTATION`.
+
+## [2026-09-12] TTHC 2026 legal refresh — QĐ1523 and runtime closure pass
+- **Thay đổi:** Đọc trực quan phụ lục scan QĐ1523 (SHA-256 `2EA06491E4700EA3C851E9022F94EA0BAFBB72B3522546FC840982988D3D9946`) và lập `data/qd1523-procedure-map.json` cùng `docs/tthc/QD1523_ANNEX_MAPPING.md`; bổ sung validator `npm run validate:qd1523-mapping`. Giữ thứ tự ưu tiên QĐ5230 > QĐ1523 cho căn cước và không tự gán 76 hồ sơ thiếu mã/tên/cấp đối chiếu chắc chắn.
+- **Kiểm tra:** Validator QĐ1523 PASS (51 hàng quan sát: 5 NEW, 39 AMENDED, 7 ABOLISHED; metadata nhiệm vụ ghi 36 amended nên cần chủ sở hữu pháp lý reconcile). `npm test` 675/675 PASS; `npm run build` PASS; full E2E 117/117 PASS với Chrome hệ thống `C:\Program Files\Google\Chrome\Application\chrome.exe` phiên bản 152.0.7977.83; chatbot smoke 5/5 PASS. Không tải browser.
+- **Blocker còn lại:** PDF không có text layer và môi trường không có OCR backend; hai nhãn cư trú dài cần xác nhận bản gốc. `npm ci` không chạy để tránh xoá junction dependency trỏ vào worktree chủ; `npm audit` vẫn có advisory sharp/uuid pre-existing. Generator backup thiếu input. `NO_PRODUCTION_MUTATION`.
+
+## [2026-09-13] TTHC 2026 legal refresh — QĐ1523 reconciliation closure
+- **Thay đổi:** Chứng minh QĐ1523 có 36 mã TTHC sửa đổi nhưng 39 dòng theo cấp thực hiện: `1.009714`, `1.012564`, `1.014056` mỗi mã áp dụng tại `tinh` và `xa`. Sửa tên chuẩn 1.013313 và 1.013314 theo Cổng DVC Quốc gia; validator cấm phiên chép đảo nghĩa “nhà ở đã có tranh chấp”. Bổ sung deterministic reconciliation cho toàn bộ 76 hồ sơ review ban đầu.
+- **Kết quả governance:** 11 `AMENDED` exact name + authority, 7 `UNCHANGED` có evidence vắng mặt trong phụ lục đầy đủ, 19 `OUT_OF_SCOPE`, 39 `NEEDS_LEGAL_REVIEW` có reason cụ thể. QĐ5230 vẫn ưu tiên hơn QĐ1523 tại căn cước; không mass-approve hoặc production mutation.
+- **Kiểm tra cuối:** `npm run validate:qd1523-mapping` PASS (39 authority rows / 36 unique codes / 3 permitted cross-authority duplicates); `npm run reconcile:tthc-legal-review` PASS (76: 11 AMENDED, 7 UNCHANGED, 19 OUT_OF_SCOPE, 39 NEEDS_LEGAL_REVIEW); `npm run validate:tthc-legal-refresh` PASS (8 sources, 101 explicit records); `npm test` 677/677 PASS; catalog apply idempotent 78 -> 78; full E2E 117/117 và chatbot smoke 5/5 PASS trên Chrome 152.0.7977.83. Cập nhật contract preview mobile từ 164px lên 172px và kiểm tra geometry sau 400ms sheet transition để loại trạng thái frame chuyển tiếp không xác định.
+- **Ranh giới:** Không Pinecone/Vercel/deploy/merge hoặc production mutation. CI `npm audit` tiếp tục bị advisory có sẵn `sharp` high và 5 `uuid` moderate; GitHub CI exact-head sẽ được chờ sau commit/push.

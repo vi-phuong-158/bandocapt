@@ -362,10 +362,14 @@ test('data/tthc-catalog.json đã commit: gồm cả TTHC thật và guide, khô
 
     assert.equal(catalog.sourceMode, 'live');
     assert.equal(catalog.includeGuides, true, 'catalog commit gồm cả guide để phủ đủ lĩnh vực');
-    // Bộ đầy đủ sau khi lọc guide rỗng: 35 TTHC thật + ~57 guide có nội dung.
+    // Legal refresh có thể loại các guide historical đã được manifest xác nhận bãi bỏ.
     assert.ok(
-        catalog.procedures.length >= 80 && catalog.procedures.length <= 160,
-        `Kỳ vọng ~90 thủ tục (tthc + guide có nội dung), có ${catalog.procedures.length}`
+        catalog.procedures.length >= 70 && catalog.procedures.length <= 160,
+        `Kỳ vọng catalog còn đủ thủ tục current/under-review sau legal refresh, có ${catalog.procedures.length}`
+    );
+    assert.ok(
+        catalog.legalRefresh?.excludedHistoricalProcedureIds?.length >= 14,
+        'catalog phải ghi nhận các thủ tục historical bị loại theo legal manifest'
     );
 
     // Phải có cả thủ tục thật (tthc) lẫn guide — không mất nhóm nào

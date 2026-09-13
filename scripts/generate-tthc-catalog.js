@@ -15,11 +15,13 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { applyLegalRefreshToCatalog } = require('../lib/tthc-legal-refresh');
 
 const ROOT = path.resolve(__dirname, '..');
 const BACKUP_DIR = path.join(ROOT, 'data', 'pinecone-backups');
 const OUTPUT_PATH = path.join(ROOT, 'data', 'tthc-catalog.json');
 const INDEX_OUTPUT_PATH = path.join(ROOT, 'data', 'tthc-index.json');
+const LEGAL_REFRESH_MANIFEST_PATH = path.join(ROOT, 'data', 'tthc-2026-refresh-manifest.json');
 
 const ORIGINAL_BACKUP_FILE = '2026-07-01-pre-update-backup-original-metadata.json';
 const NEW_RECORD_FILE = '2026-07-01-new-record-matt26265-khai-bao-tam-tru-online.json';
@@ -672,6 +674,12 @@ function buildCatalogIndex(catalog) {
     };
 }
 
+function applyCheckedInLegalRefresh(catalog) {
+    if (!fs.existsSync(LEGAL_REFRESH_MANIFEST_PATH)) return catalog;
+    const manifest = JSON.parse(fs.readFileSync(LEGAL_REFRESH_MANIFEST_PATH, 'utf8'));
+    return applyLegalRefreshToCatalog(catalog, manifest);
+}
+
 async function main() {
     const args = parseArgs(process.argv.slice(2));
     if (args.indexOnly) {
@@ -698,6 +706,7 @@ async function main() {
         catalog = buildCatalogFromBackups({ original, newRecord, audit, extraRecords });
     }
 
+    catalog = applyCheckedInLegalRefresh(catalog);
     fs.writeFileSync(OUTPUT_PATH, JSON.stringify(catalog, null, 2) + '\n', 'utf8');
     const catalogIndex = buildCatalogIndex(catalog);
     fs.writeFileSync(INDEX_OUTPUT_PATH, JSON.stringify(catalogIndex) + '\n', 'utf8');
@@ -724,6 +733,7 @@ module.exports = {
     buildFeeIndex,
     buildCategorySummary,
     buildCatalogIndex,
+    applyCheckedInLegalRefresh,
     dedupeProcedures,
     deriveCategoryLabel,
     fetchMissingRecords,
