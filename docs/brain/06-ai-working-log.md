@@ -3948,3 +3948,9 @@
   sau khi khởi chạy 69 test.
 - **Phạm vi an toàn:** Chỉ fixture local; không gọi/sửa Google Sheet production, Pinecone production,
   không bật content diagnostic logging, không deploy.
+
+## [2026-09-13] Security dependency gate closure
+- **Thay đổi:** Pin direct production ranges `sharp` từ `^0.35.2` lên `^0.35.4` và `firebase-admin` từ `^14.1.0` lên `^14.4.0`; lockfile resolve `sharp@0.35.4`, `firebase-admin@14.4.0`, optional `@google-cloud/storage@8.1.0`. Thêm báo cáo provenance/audit tại `docs/SECURITY_DEPENDENCY_GATE_CLOSURE.md`. Chỉnh một E2E assertion chỉ để đợi 450ms mobile-sheet transition ổn định trước khi đo geometry; không thay đổi production logic.
+- **Lý do:** Xóa HIGH `sharp <0.35.4` và path `teeny-request@9 -> uuid@9` moderate cũ bằng update package cha tương thích; không dùng `npm audit fix --force` hay override.
+- **Kiểm tra:** `npm ci` PASS; `npm test` 672/672 PASS; `npm run build` PASS; `npm audit --omit=dev --audit-level=high` PASS (0 HIGH/CRITICAL); full Playwright 117/117 PASS và chatbot smoke 5/5 PASS trên system Chrome. `npm audit --omit=dev` còn hai MODERATE mô tả cùng path `@google-cloud/storage@8.1.0 -> gaxios@6.7.1 -> uuid@9.0.1`; storage 8.1.0 là latest và yêu cầu `gaxios@^6.0.2`, trong khi v6 kết thúc ở 6.7.1, nên không có update parent tương thích hoặc override an toàn.
+- **Phạm vi an toàn:** Dependency/test-harness/documentation only; không thay đổi TTHC/legal corpus, catalog, production data, Pinecone, Vercel hoặc deployment.
