@@ -2877,7 +2877,74 @@
       "action_required": "Cần đọc trực tiếp Phụ lục I của QĐ5230 (SHA-256 đã ghi trong registry, file đã tải trong một phiên trước có quyền truy cập internet đầy đủ) để: (1) xác nhận 08 vs 10 là gì; (2) lấy đúng mã/tên/cấp của từng thủ tục; (3) xác định thủ tục nào là thủ tục hoàn toàn mới về nghiệp vụ và thủ tục nào chỉ là tái cấp mã cho thủ tục đã có (khai thác CSDL). KHÔNG được tự suy đoán mã/tên/nội dung để lấp gap này — vi phạm nguyên tắc fail-closed.",
       "identified_at": "2026-09-15",
       "reaudited_at": "2026-09-15",
-      "production_mutation": "NO_PRODUCTION_MUTATION"
+      "production_mutation": "NO_PRODUCTION_MUTATION",
+      "qd5230_narrow_closure_round": {
+        "task": "BANDOCAPT_TTHC_2026_QD5230_NEW_RECORDS_CLOSURE",
+        "performed_at": "2026-09-15",
+        "primary_source_attempts": [
+          {
+            "url": "https://bocongan.gov.vn/media/bca-media/library-20260826152206-1abcea7e-06cf-4b13-a9d6-c773f9a4d74d-quyet-inh-so-5230.pdf",
+            "result": "EGRESS_BLOCKED",
+            "note": "Direct PDF of the decision itself (SHA-256 on file in registry attachments) — WebFetch blocked by network egress proxy for bocongan.gov.vn."
+          },
+          {
+            "url": "https://dichvucong.gov.vn/p/home/dvc-thu-tuc-hanh-chinh-chi-tiet.html?matt=57072",
+            "result": "EGRESS_BLOCKED"
+          },
+          {
+            "url": "https://mps.gov.vn/chinh-sach-phap-luat/bai-viet/...-1787732411",
+            "result": "EGRESS_BLOCKED"
+          },
+          {
+            "url": "https://xaydungchinhsach.chinhphu.vn/...",
+            "result": "EGRESS_BLOCKED"
+          },
+          {
+            "url": "https://congan.cantho.gov.vn/...",
+            "result": "EGRESS_BLOCKED"
+          },
+          {
+            "url": "https://luatvietnam.vn/...",
+            "result": "EGRESS_BLOCKED"
+          },
+          {
+            "url": "https://cafef.vn/..., https://baolaocai.vn/...",
+            "result": "EGRESS_BLOCKED"
+          }
+        ],
+        "conclusion": "CONFIRMED: WebFetch is blocked for every Vietnamese-hosted domain tried in this session, government and commercial/news alike — not limited to .gov.vn as previously assumed. Only WebSearch (Anthropic-side synthesized snippets) is reachable. This caps all evidence gathered this round at SECONDARY_ONLY — no PRIMARY_CONFIRMED or PRIMARY_PARTIAL evidence is obtainable in this environment.",
+        "count_structure_evidence_strengthened": "The \"10 = 02 trung ương + 03 tỉnh + 05 xã\" breakdown is now independently corroborated by WebSearch-synthesized snippets referencing at least 5 separate Công an tỉnh/thành mirrors (An Giang, Đồng Nai/Trảng Dài, Lào Cai, Quảng Trị, Ninh Bình) in addition to the 2 found in the prior round — all describing the same breakdown in the same words, which increases confidence this is a real published structure and not an editing error. Still SECONDARY_ONLY: no primary appendix text was read.",
+        "unique_procedure_candidates": [
+          {
+            "candidate_name": "Cấp, cấp đổi, cấp lại thẻ căn cước",
+            "levels_found_in_search": [
+              "trung_uong",
+              "tinh",
+              "xa"
+            ],
+            "rows_accounted_for": 3,
+            "evidence_quality": "SECONDARY_ONLY",
+            "note": "Best-corroborated candidate. Named consistently at all 3 levels across independent WebSearch-synthesized results this round. If genuinely one procedure implemented at 3 levels, this single unique code would account for 3 of the 10 published rows — directly analogous (STRUCTURAL_ANALOGY only, not proof) to the QĐ1523 pattern of one code spanning tỉnh+xã."
+          },
+          {
+            "candidate_name": "Khai thác thông tin công dân và người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu quốc gia về dân cư",
+            "levels_found_in_search": [
+              "trung_uong",
+              "tinh"
+            ],
+            "rows_accounted_for": 2,
+            "evidence_quality": "SECONDARY_ONLY",
+            "note": "Same name as recorded in the prior round now additionally confirmed by search to also appear at cấp tỉnh, not only trung ương — accounts for 2 of the 10 published rows."
+          }
+        ],
+        "misleading_lead_flagged": {
+          "surfaced_name": "Khai thác thông tin công dân trong Cơ sở dữ liệu căn cước (thực hiện tại cấp tỉnh)",
+          "why_flagged": "One WebSearch synthesis loosely associated this name with QĐ5230, but a separate, more specific WebSearch found this exact procedure is governed by the PRE-EXISTING Quyết định 1523/QĐ-BCA-C06 (26/3/2026) — same decision already in the registry and already reconciled in the QĐ1523 annex mapping (data/qd1523-procedure-map.json), with its own result form (DC03) and no fee. Treating this as a QĐ5230-new candidate would double-count an already-current procedure as new. NOT added as a candidate for this reason — recorded here only as a caution against future conflation."
+        },
+        "remaining_gap": "Of the 8 claimed unique procedure names, at most 2 have any name-level evidence (both SECONDARY_ONLY, no codes). At least 6 unique names and all 8 official codes (mã TTHC) remain completely unidentified. Of the 10 claimed published rows, at most 5 are accounted for by the 2 candidates above (3 + 2); the remaining 5 rows (1 more tỉnh-level, 4 more xã-level) have no name evidence at all this round.",
+        "verdict_basis": "Because zero official codes and the majority of official names remain unidentified, and no PRIMARY_CONFIRMED or PRIMARY_PARTIAL evidence was obtained, this narrow closure round cannot progress past BLOCKED_PRIMARY_SOURCE. No catalog or classification change is justified by this evidence.",
+        "production_mutation": "NO_PRODUCTION_MUTATION"
+      }
     }
   ]
 }
