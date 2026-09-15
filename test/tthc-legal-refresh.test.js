@@ -59,13 +59,17 @@ test('every originally unresolved record has a deterministic disposition and any
     // "verified current" — those domains have their own newly discovered 2026 sources (37/2026/TT-BCA,
     // 236/2026/NĐ-CP, 131/2026/TT-BCA, 118/2025/QH15, 70/2026/TT-BCA) that were never reconciled. 17 of
     // the original 19 OUT_OF_SCOPE records were reclassified to NEEDS_LEGAL_REVIEW with concrete evidence
-    // (see docs/tthc/TTHC_2026_LEGAL_COMPLETENESS_FINAL_AUDIT.md); only the 2 non-procedure cư trú guide
-    // fragments remain OUT_OF_SCOPE.
+    // (see docs/tthc/TTHC_2026_LEGAL_COMPLETENESS_FINAL_AUDIT.md).
+    // 2026-09-15 CLOSURE round: the task's classification contract for this round only allows
+    // CURRENT/AMENDED/ABOLISHED/NEW/NEEDS_LEGAL_REVIEW — OUT_OF_SCOPE is no longer an accepted terminal
+    // state, so the last 2 non-procedure cư trú guide fragments were also moved to NEEDS_LEGAL_REVIEW
+    // (see docs/tthc/TTHC_2026_LEGAL_COMPLETENESS_CLOSURE.md) with a reason asking whether they are even
+    // distinct TTHC at all, a question this audit cannot answer without owner/product input.
     assert.deepEqual(Object.fromEntries(['AMENDED', 'UNCHANGED', 'OUT_OF_SCOPE', 'NEEDS_LEGAL_REVIEW'].map(classification => [
         classification,
         reconciled.filter(record => record.classification === classification).length
-    ])), { AMENDED: 11, UNCHANGED: 7, OUT_OF_SCOPE: 2, NEEDS_LEGAL_REVIEW: 56 });
+    ])), { AMENDED: 11, UNCHANGED: 7, OUT_OF_SCOPE: 0, NEEDS_LEGAL_REVIEW: 58 });
     assert.ok(reconciled.every(record => record.reconciliation.matchMethod && record.reconciliation.reason));
-    const allowedNeedsReviewMethods = new Set(['NO_EXACT_OFFICIAL_IDENTITY', 'NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION']);
+    const allowedNeedsReviewMethods = new Set(['NO_EXACT_OFFICIAL_IDENTITY', 'NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION', 'NOT_A_DISTINCT_PROCEDURE_PENDING_PRODUCT_DECISION']);
     assert.ok(reconciled.filter(record => record.classification === 'NEEDS_LEGAL_REVIEW').every(record => allowedNeedsReviewMethods.has(record.reconciliation.matchMethod)));
 });
