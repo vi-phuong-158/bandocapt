@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "verified_at": "2026-09-11",
+  "verified_at": "2026-09-15",
   "sources": [
     {
       "document_number": "58/2026/NĐ-CP",
@@ -180,6 +180,122 @@
           "sha256": "8C741FE1AAFEFB11622DC486BBA76EFEFC3BA8CA408643816BA39F82E638728D"
         }
       ]
+    },
+    {
+      "document_number": "37/2026/TT-BCA",
+      "document_type": "Thông tư",
+      "title": "Sửa đổi, bổ sung một số điều của các Thông tư quy định về đăng ký, kiểm định phương tiện",
+      "issuer": "Bộ Công an",
+      "issued_date": "2026-04-24",
+      "effective_date": "2026-06-08",
+      "status": "IN_FORCE",
+      "official_url": "https://vanban.chinhphu.vn/?docid=217949&pageid=27160",
+      "domains": [
+        "dang_ky_xe"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "source_priority": 1,
+      "verified_at": "2026-09-15",
+      "notes": "Sửa đổi trực tiếp Thông tư 79/2024/TT-BCA (đã được sửa bởi Thông tư 13/2025/TT-BCA và 51/2025/TT-BCA) — căn cứ pháp lý hiện tại của toàn bộ 11 thủ tục đăng ký xe trong catalog. Nội dung xác nhận qua tìm kiếm thứ cấp (WebFetch tới bocongan.gov.vn/luatvietnam.vn bị chặn egress trong phiên này): mẫu giấy chứng nhận kiểm định mới, quy định giữ biển số tối đa 5 năm khi thu hồi, tích hợp VNeTraffic. Chưa đối chiếu toàn văn với nội dung catalog hiện tại."
+    },
+    {
+      "document_number": "236/2026/NĐ-CP",
+      "document_type": "Nghị định",
+      "title": "Sửa đổi, bổ sung một số điều của Nghị định 151/2024/NĐ-CP quy định chi tiết một số điều và biện pháp thi hành Luật Trật tự, an toàn giao thông đường bộ",
+      "issuer": "Chính phủ",
+      "issued_date": "2026-06-26",
+      "effective_date": "2026-07-01",
+      "status": "IN_FORCE",
+      "official_url": "https://xaydungchinhsach.chinhphu.vn/nghi-dinh-236-2026-nd-cp-hoan-thien-quan-ly-giao-thong-duong-bo-119260824110546114.htm",
+      "domains": [
+        "dang_ky_xe"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "source_priority": 1,
+      "verified_at": "2026-09-15",
+      "notes": "Sửa Nghị định 151/2024/NĐ-CP: cho phép sử dụng hồ sơ/bản sao điện tử thay giấy tờ giấy trong một số TTHC liên quan giao thông đường bộ (trước đây Điều 20 khoản 1,3 chủ yếu quy định hồ sơ giấy). Có thể ảnh hưởng \"cách thức thực hiện\"/\"thành phần hồ sơ\" của các thủ tục đăng ký xe. Chưa đối chiếu toàn văn với nội dung catalog hiện tại."
+    },
+    {
+      "document_number": "131/2026/TT-BCA",
+      "document_type": "Thông tư",
+      "title": "Quy định về công tác tiếp công dân đến khiếu nại, tố cáo, kiến nghị, phản ánh trong Công an nhân dân",
+      "issuer": "Bộ Công an",
+      "issued_date": "2026-06-30",
+      "effective_date": "2026-07-01",
+      "status": "IN_FORCE",
+      "official_url": "https://vanban.bocongan.gov.vn/co-so-du-lieu-van-ban/thong-tu-quy-dinh-ve-cong-tac-tiep-cong-dan-den-khieu-nai-to-cao-kien-nghi-phan-anh-trong-cong-an-nhan-dan-1784537758",
+      "domains": [
+        "khieu_nai_to_cao"
+      ],
+      "supersedes": [
+        "98/2021/TT-BCA"
+      ],
+      "superseded_by": null,
+      "source_priority": 1,
+      "verified_at": "2026-09-15",
+      "notes": "Thay thế Thông tư 98/2021/TT-BCA. Chưa đối chiếu toàn văn với 2 thủ tục khiếu nại/tố cáo hiện có trong catalog."
+    },
+    {
+      "document_number": "118/2025/QH15",
+      "document_type": "Luật",
+      "title": "Luật sửa đổi, bổ sung một số điều của 10 luật có liên quan đến an ninh, trật tự",
+      "issuer": "Quốc hội",
+      "issued_date": "2025-12-10",
+      "effective_date": "2026-07-01",
+      "status": "IN_FORCE",
+      "official_url": "https://vanban.chinhphu.vn/?pageid=27160&docid=216534&classid=1&orggroupid=1",
+      "domains": [
+        "thuong_tru",
+        "xuat_nhap_canh"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "source_priority": 1,
+      "verified_at": "2026-09-15",
+      "notes": "Sửa Luật Nhập cảnh, xuất cảnh, quá cảnh, cư trú của người nước ngoài tại Việt Nam: cắt giảm giấy tờ cho thủ tục cấp lại thẻ thường trú (chỉ cần khai báo, không cần giấy tờ chứng minh mất thẻ); tăng thời hạn thẻ tạm trú ĐT1/ƯĐ1/ƯĐ2 lên tối đa 10 năm. Là văn bản luật (IN_FORCE_LEGAL_INSTRUMENT), ưu tiên cao nhất cho các thủ tục thường trú người nước ngoài. Chưa đối chiếu toàn văn với nội dung catalog hiện tại."
+    },
+    {
+      "document_number": "70/2026/TT-BCA",
+      "document_type": "Thông tư",
+      "title": "Sửa đổi, bổ sung một số điều của Thông tư số 04/2015/TT-BCA quy định mẫu giấy tờ liên quan đến việc nhập cảnh, xuất cảnh, cư trú của người nước ngoài tại Việt Nam",
+      "issuer": "Bộ Công an",
+      "issued_date": "2026-05-25",
+      "effective_date": "2026-07-01",
+      "status": "IN_FORCE",
+      "official_url": "https://bocongan.gov.vn/chinh-sach-phap-luat/bai-viet/nhung-diem-moi-theo-thong-tu-so-70-2026-tt-bca-1786525709",
+      "domains": [
+        "thuong_tru",
+        "xuat_nhap_canh",
+        "tam_tru"
+      ],
+      "supersedes": [
+        "04/2015/TT-BCA"
+      ],
+      "superseded_by": null,
+      "source_priority": 1,
+      "verified_at": "2026-09-15",
+      "notes": "Cập nhật biểu mẫu NA1, NA1a, NA2 và các mẫu liên quan thẻ tạm trú/giấy phép khu vực cấm biên giới cho người nước ngoài. Chưa đối chiếu từng mẫu đơn cụ thể trong catalog."
+    },
+    {
+      "document_number": "320/2026/NĐ-CP",
+      "document_type": "Nghị định",
+      "title": "Sửa đổi, bổ sung một số điều của Nghị định 69/2024/NĐ-CP quy định về định danh và xác thực điện tử",
+      "issuer": "Chính phủ",
+      "issued_date": "2026-08-13",
+      "effective_date": "2026-09-28",
+      "status": "NOT_YET_EFFECTIVE",
+      "official_url": "https://bocongan.gov.vn/chinh-sach-phap-luat/bai-viet/nghi-dinh-quy-dinh-ve-dinh-danh-va-xac-thuc-dien-tu-d1-t1418",
+      "domains": [
+        "dinh_danh_dien_tu",
+        "can_cuoc"
+      ],
+      "supersedes": [],
+      "superseded_by": null,
+      "source_priority": 1,
+      "verified_at": "2026-09-15",
+      "notes": "CHƯA CÓ HIỆU LỰC tại mốc rà soát 2026-09-15 (hiệu lực từ 2026-09-28). Không làm thay đổi nội dung TTHC hiện tại nhưng cần đưa vào vòng rà soát kế tiếp ngay khi có hiệu lực. Bổ sung tài khoản an sinh xã hội trên VNeID, đồng bộ tự động 206 loại giấy tờ. URL bài viết bocongan.gov.vn xác nhận qua tìm kiếm thứ cấp; chưa xác nhận trực tiếp số hiệu nghị định trên trang do WebFetch bị chặn egress trong phiên này — cần double-check khi có quyền truy cập trực tiếp."
     }
   ]
 }

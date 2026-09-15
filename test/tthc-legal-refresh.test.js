@@ -54,10 +54,18 @@ test('QĐ1523 preserves 36 amended identities across 39 authority rows and canon
 test('every originally unresolved record has a deterministic disposition and any remaining review has a concrete reason', () => {
     const reconciled = manifest.records.filter(record => record.reconciliation?.initialClassification === 'NEEDS_LEGAL_REVIEW');
     assert.equal(reconciled.length, 76);
+    // 2026-09-15 completeness audit found that the 2026-09-13 reconciliation's OUT_OF_SCOPE bucket for
+    // dang_ky_xe/khieu_nai_to_cao/thuong_tru/vu_khi only meant "outside QĐ1523's own annex scope", not
+    // "verified current" — those domains have their own newly discovered 2026 sources (37/2026/TT-BCA,
+    // 236/2026/NĐ-CP, 131/2026/TT-BCA, 118/2025/QH15, 70/2026/TT-BCA) that were never reconciled. 17 of
+    // the original 19 OUT_OF_SCOPE records were reclassified to NEEDS_LEGAL_REVIEW with concrete evidence
+    // (see docs/tthc/TTHC_2026_LEGAL_COMPLETENESS_FINAL_AUDIT.md); only the 2 non-procedure cư trú guide
+    // fragments remain OUT_OF_SCOPE.
     assert.deepEqual(Object.fromEntries(['AMENDED', 'UNCHANGED', 'OUT_OF_SCOPE', 'NEEDS_LEGAL_REVIEW'].map(classification => [
         classification,
         reconciled.filter(record => record.classification === classification).length
-    ])), { AMENDED: 11, UNCHANGED: 7, OUT_OF_SCOPE: 19, NEEDS_LEGAL_REVIEW: 39 });
+    ])), { AMENDED: 11, UNCHANGED: 7, OUT_OF_SCOPE: 2, NEEDS_LEGAL_REVIEW: 56 });
     assert.ok(reconciled.every(record => record.reconciliation.matchMethod && record.reconciliation.reason));
-    assert.ok(reconciled.filter(record => record.classification === 'NEEDS_LEGAL_REVIEW').every(record => record.reconciliation.matchMethod === 'NO_EXACT_OFFICIAL_IDENTITY'));
+    const allowedNeedsReviewMethods = new Set(['NO_EXACT_OFFICIAL_IDENTITY', 'NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION']);
+    assert.ok(reconciled.filter(record => record.classification === 'NEEDS_LEGAL_REVIEW').every(record => allowedNeedsReviewMethods.has(record.reconciliation.matchMethod)));
 });

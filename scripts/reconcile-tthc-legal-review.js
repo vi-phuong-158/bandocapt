@@ -98,9 +98,15 @@ function decisionFor(record) {
     };
 }
 
+// This script's decisionFor() is a frozen, one-time snapshot of the 2026-09-13 reconciliation pass. A
+// record already re-audited by a later pass (see 2026-09-15 completeness audit: OUT_OF_SCOPE records for
+// dang_ky_xe/khieu_nai_to_cao/thuong_tru/vu_khi were found to only mean "outside QĐ1523's annex", not
+// "verified current", and were moved to NEEDS_LEGAL_REVIEW against their own newly discovered 2026
+// sources) must not be silently reprocessed and reverted by rerunning this script.
 const reconciled = [];
 for (const record of manifest.records) {
     if (record.classification !== 'NEEDS_LEGAL_REVIEW' && record.reconciliation?.initialClassification !== 'NEEDS_LEGAL_REVIEW') continue;
+    if (record.reconciliation?.reconciledAt && record.reconciliation.reconciledAt !== '2026-09-13') continue;
     const decision = decisionFor(record);
     record.classification = decision.classification;
     record.new_procedure_id = decision.officialCode;

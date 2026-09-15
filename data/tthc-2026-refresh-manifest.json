@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "verified_at": "2026-09-11",
+  "verified_at": "2026-09-15",
   "candidate_namespace": "chatbot-tthc-xnc-2026-refresh-candidate",
   "production_mutation": "NO_PRODUCTION_MUTATION",
   "source_precedence": [
@@ -319,12 +319,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -348,12 +349,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -377,12 +379,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -406,12 +409,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -428,26 +432,27 @@
       "new_name": null,
       "domain": "thuong_tru",
       "old_level": "tinh",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Luật 118/2025/QH15 (thông qua 10/12/2025, hiệu lực 01/07/2026) sửa Luật Nhập cảnh, xuất cảnh, quá cảnh, cư trú của người nước ngoài: cắt giảm giấy tờ cho thủ tục cấp lại thẻ thường trú (chỉ cần khai báo mất thẻ, không cần giấy tờ chứng minh như trước); Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) đồng thời sửa mẫu giấy tờ liên quan (thay Thông tư 04/2015/TT-BCA). Đây là văn bản luật cấp cao hơn QĐ1523 (IN_FORCE_LEGAL_INSTRUMENT) và KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn với hồ sơ/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này.",
       "processing_time_changes": "Chưa xác minh",
       "submission_method_changes": "Chưa xác minh",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "118/2025/QH15",
+        "70/2026/TT-BCA"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "118/2025/QH15",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Luật 118/2025/QH15 (thông qua 10/12/2025, hiệu lực 01/07/2026) sửa Luật Nhập cảnh, xuất cảnh, quá cảnh, cư trú của người nước ngoài: cắt giảm giấy tờ cho thủ tục cấp lại thẻ thường trú (chỉ cần khai báo mất thẻ, không cần giấy tờ chứng minh như trước); Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) đồng thời sửa mẫu giấy tờ liên quan (thay Thông tư 04/2015/TT-BCA). Đây là văn bản luật cấp cao hơn QĐ1523 (IN_FORCE_LEGAL_INSTRUMENT) và KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn với hồ sơ/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này.",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Luật 118/2025/QH15 (thông qua 10/12/2025, hiệu lực 01/07/2026) sửa Luật Nhập cảnh, xuất cảnh, quá cảnh, cư trú của người nước ngoài: cắt giảm giấy tờ cho thủ tục cấp lại thẻ thường trú (chỉ cần khai báo mất thẻ, không cần giấy tờ chứng minh như trước); Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) đồng thời sửa mẫu giấy tờ liên quan (thay Thông tư 04/2015/TT-BCA). Đây là văn bản luật cấp cao hơn QĐ1523 (IN_FORCE_LEGAL_INSTRUMENT) và KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn với hồ sơ/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này."
       }
     },
     {
@@ -457,26 +462,27 @@
       "new_name": null,
       "domain": "thuong_tru",
       "old_level": "tinh",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Luật 118/2025/QH15 (thông qua 10/12/2025, hiệu lực 01/07/2026) sửa Luật Nhập cảnh, xuất cảnh, quá cảnh, cư trú của người nước ngoài: cắt giảm giấy tờ cho thủ tục cấp lại thẻ thường trú (chỉ cần khai báo mất thẻ, không cần giấy tờ chứng minh như trước); Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) đồng thời sửa mẫu giấy tờ liên quan (thay Thông tư 04/2015/TT-BCA). Đây là văn bản luật cấp cao hơn QĐ1523 (IN_FORCE_LEGAL_INSTRUMENT) và KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn với hồ sơ/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này.",
       "processing_time_changes": "Chưa xác minh",
       "submission_method_changes": "Chưa xác minh",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "118/2025/QH15",
+        "70/2026/TT-BCA"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "118/2025/QH15",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Luật 118/2025/QH15 (thông qua 10/12/2025, hiệu lực 01/07/2026) sửa Luật Nhập cảnh, xuất cảnh, quá cảnh, cư trú của người nước ngoài: cắt giảm giấy tờ cho thủ tục cấp lại thẻ thường trú (chỉ cần khai báo mất thẻ, không cần giấy tờ chứng minh như trước); Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) đồng thời sửa mẫu giấy tờ liên quan (thay Thông tư 04/2015/TT-BCA). Đây là văn bản luật cấp cao hơn QĐ1523 (IN_FORCE_LEGAL_INSTRUMENT) và KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn với hồ sơ/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này.",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Luật 118/2025/QH15 (thông qua 10/12/2025, hiệu lực 01/07/2026) sửa Luật Nhập cảnh, xuất cảnh, quá cảnh, cư trú của người nước ngoài: cắt giảm giấy tờ cho thủ tục cấp lại thẻ thường trú (chỉ cần khai báo mất thẻ, không cần giấy tờ chứng minh như trước); Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) đồng thời sửa mẫu giấy tờ liên quan (thay Thông tư 04/2015/TT-BCA). Đây là văn bản luật cấp cao hơn QĐ1523 (IN_FORCE_LEGAL_INSTRUMENT) và KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn với hồ sơ/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này."
       }
     },
     {
@@ -486,26 +492,27 @@
       "new_name": null,
       "domain": "thuong_tru",
       "old_level": "tinh",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Luật 118/2025/QH15 (thông qua 10/12/2025, hiệu lực 01/07/2026) sửa Luật Nhập cảnh, xuất cảnh, quá cảnh, cư trú của người nước ngoài: cắt giảm giấy tờ cho thủ tục cấp lại thẻ thường trú (chỉ cần khai báo mất thẻ, không cần giấy tờ chứng minh như trước); Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) đồng thời sửa mẫu giấy tờ liên quan (thay Thông tư 04/2015/TT-BCA). Đây là văn bản luật cấp cao hơn QĐ1523 (IN_FORCE_LEGAL_INSTRUMENT) và KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn với hồ sơ/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này.",
       "processing_time_changes": "Chưa xác minh",
       "submission_method_changes": "Chưa xác minh",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "118/2025/QH15",
+        "70/2026/TT-BCA"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "118/2025/QH15",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Luật 118/2025/QH15 (thông qua 10/12/2025, hiệu lực 01/07/2026) sửa Luật Nhập cảnh, xuất cảnh, quá cảnh, cư trú của người nước ngoài: cắt giảm giấy tờ cho thủ tục cấp lại thẻ thường trú (chỉ cần khai báo mất thẻ, không cần giấy tờ chứng minh như trước); Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) đồng thời sửa mẫu giấy tờ liên quan (thay Thông tư 04/2015/TT-BCA). Đây là văn bản luật cấp cao hơn QĐ1523 (IN_FORCE_LEGAL_INSTRUMENT) và KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn với hồ sơ/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này.",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Luật 118/2025/QH15 (thông qua 10/12/2025, hiệu lực 01/07/2026) sửa Luật Nhập cảnh, xuất cảnh, quá cảnh, cư trú của người nước ngoài: cắt giảm giấy tờ cho thủ tục cấp lại thẻ thường trú (chỉ cần khai báo mất thẻ, không cần giấy tờ chứng minh như trước); Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) đồng thời sửa mẫu giấy tờ liên quan (thay Thông tư 04/2015/TT-BCA). Đây là văn bản luật cấp cao hơn QĐ1523 (IN_FORCE_LEGAL_INSTRUMENT) và KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn với hồ sơ/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này."
       }
     },
     {
@@ -522,12 +529,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -667,12 +675,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "5230/QĐ-BCA-C06"
+        "5230/QĐ-BCA-C06",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "low",
-      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -696,12 +705,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -725,12 +735,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -754,12 +765,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -783,12 +795,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -812,12 +825,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -841,12 +855,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -870,12 +885,13 @@
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "4245/QĐ-BCA-QLXNC"
+        "4245/QĐ-BCA-QLXNC",
+        "70/2026/TT-BCA"
       ],
       "source_url_ref": "4245/QĐ-BCA-QLXNC",
       "effective_date": "2026-07-01",
       "confidence": "low",
-      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins.",
+      "evidence": "The QĐ4245 captured annex has no exact official code + name + authority match for this legacy record; no successor is inferred. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung thủ tục hiện trích dẫn trực tiếp mẫu giấy tờ theo Thông tư 04/2015/TT-BCA, đã được Thông tư 70/2026/TT-BCA (hiệu lực 01/07/2026) sửa đổi các biểu mẫu liên quan nhập cảnh/xuất cảnh/cư trú người nước ngoài — cần đối chiếu mẫu đơn cụ thể trước khi xác nhận nội dung còn đúng.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -1117,7 +1133,7 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "medium",
-      "evidence": "Bài công bố chính thức nêu mã 1.012564."
+      "evidence": "Bài công bố chính thức nêu mã 1.012564. [Bổ sung 2026-09-15: nội dung catalog hiện tại (data/tthc-catalog.json) vẫn mô tả bước xử lý qua \"Công an cấp huyện\" — cấp hành chính này đã bị bãi bỏ theo mô hình chính quyền 2 cấp (tỉnh/xã) áp dụng từ 01/07/2025. Đây là bằng chứng cụ thể nội dung catalog chưa cập nhật theo mô hình tổ chức mới, cần chủ dự án/nguồn có thẩm quyền xác nhận thẩm quyền thay thế chính xác trước khi sửa.]"
     },
     {
       "procedure_id": "guide:can-cuoc:huy-xac-lap-lai-so-dinh-danh-ca-nhan",
@@ -1138,7 +1154,7 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "low",
-      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins.",
+      "evidence": "The later QĐ5230 source takes precedence, but the captured evidence has no exact official code + name + authority match for this legacy record. Source precedence: latest applicable official source wins. [Bổ sung 2026-09-15: nội dung catalog hiện tại (data/tthc-catalog.json) vẫn mô tả bước xử lý qua \"Công an cấp huyện\" — cấp hành chính này đã bị bãi bỏ theo mô hình chính quyền 2 cấp (tỉnh/xã) áp dụng từ 01/07/2025. Đây là bằng chứng cụ thể nội dung catalog chưa cập nhật theo mô hình tổ chức mới, cần chủ dự án/nguồn có thẩm quyền xác nhận thẩm quyền thay thế chính xác trước khi sửa.]",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
         "reconciledAt": "2026-09-13",
@@ -1853,26 +1869,27 @@
       "new_name": null,
       "domain": "dang_ky_xe",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "processing_time_changes": "Chưa xác minh",
-      "submission_method_changes": "Chưa xác minh",
+      "submission_method_changes": "Có thể đã thay đổi (NĐ236/2026 cho phép hồ sơ điện tử) — chưa xác minh chi tiết.",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "37/2026/TT-BCA",
+        "236/2026/NĐ-CP"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "37/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này)."
       }
     },
     {
@@ -1882,26 +1899,27 @@
       "new_name": null,
       "domain": "dang_ky_xe",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "processing_time_changes": "Chưa xác minh",
-      "submission_method_changes": "Chưa xác minh",
+      "submission_method_changes": "Có thể đã thay đổi (NĐ236/2026 cho phép hồ sơ điện tử) — chưa xác minh chi tiết.",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "37/2026/TT-BCA",
+        "236/2026/NĐ-CP"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "37/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này)."
       }
     },
     {
@@ -1911,26 +1929,27 @@
       "new_name": null,
       "domain": "dang_ky_xe",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "processing_time_changes": "Chưa xác minh",
-      "submission_method_changes": "Chưa xác minh",
+      "submission_method_changes": "Có thể đã thay đổi (NĐ236/2026 cho phép hồ sơ điện tử) — chưa xác minh chi tiết.",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "37/2026/TT-BCA",
+        "236/2026/NĐ-CP"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "37/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này)."
       }
     },
     {
@@ -1940,26 +1959,27 @@
       "new_name": null,
       "domain": "dang_ky_xe",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "processing_time_changes": "Chưa xác minh",
-      "submission_method_changes": "Chưa xác minh",
+      "submission_method_changes": "Có thể đã thay đổi (NĐ236/2026 cho phép hồ sơ điện tử) — chưa xác minh chi tiết.",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "37/2026/TT-BCA",
+        "236/2026/NĐ-CP"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "37/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này)."
       }
     },
     {
@@ -1969,26 +1989,27 @@
       "new_name": null,
       "domain": "dang_ky_xe",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "processing_time_changes": "Chưa xác minh",
-      "submission_method_changes": "Chưa xác minh",
+      "submission_method_changes": "Có thể đã thay đổi (NĐ236/2026 cho phép hồ sơ điện tử) — chưa xác minh chi tiết.",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "37/2026/TT-BCA",
+        "236/2026/NĐ-CP"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "37/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này)."
       }
     },
     {
@@ -1998,26 +2019,27 @@
       "new_name": null,
       "domain": "dang_ky_xe",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "processing_time_changes": "Chưa xác minh",
-      "submission_method_changes": "Chưa xác minh",
+      "submission_method_changes": "Có thể đã thay đổi (NĐ236/2026 cho phép hồ sơ điện tử) — chưa xác minh chi tiết.",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "37/2026/TT-BCA",
+        "236/2026/NĐ-CP"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "37/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này)."
       }
     },
     {
@@ -2027,26 +2049,27 @@
       "new_name": null,
       "domain": "dang_ky_xe",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "processing_time_changes": "Chưa xác minh",
-      "submission_method_changes": "Chưa xác minh",
+      "submission_method_changes": "Có thể đã thay đổi (NĐ236/2026 cho phép hồ sơ điện tử) — chưa xác minh chi tiết.",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "37/2026/TT-BCA",
+        "236/2026/NĐ-CP"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "37/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này)."
       }
     },
     {
@@ -2056,26 +2079,27 @@
       "new_name": null,
       "domain": "dang_ky_xe",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "processing_time_changes": "Chưa xác minh",
-      "submission_method_changes": "Chưa xác minh",
+      "submission_method_changes": "Có thể đã thay đổi (NĐ236/2026 cho phép hồ sơ điện tử) — chưa xác minh chi tiết.",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "37/2026/TT-BCA",
+        "236/2026/NĐ-CP"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "37/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này)."
       }
     },
     {
@@ -2085,26 +2109,27 @@
       "new_name": null,
       "domain": "dang_ky_xe",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "processing_time_changes": "Chưa xác minh",
-      "submission_method_changes": "Chưa xác minh",
+      "submission_method_changes": "Có thể đã thay đổi (NĐ236/2026 cho phép hồ sơ điện tử) — chưa xác minh chi tiết.",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "37/2026/TT-BCA",
+        "236/2026/NĐ-CP"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "37/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này)."
       }
     },
     {
@@ -2114,26 +2139,27 @@
       "new_name": null,
       "domain": "dang_ky_xe",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "processing_time_changes": "Chưa xác minh",
-      "submission_method_changes": "Chưa xác minh",
+      "submission_method_changes": "Có thể đã thay đổi (NĐ236/2026 cho phép hồ sơ điện tử) — chưa xác minh chi tiết.",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "37/2026/TT-BCA",
+        "236/2026/NĐ-CP"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "37/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này)."
       }
     },
     {
@@ -2143,26 +2169,27 @@
       "new_name": null,
       "domain": "dang_ky_xe",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "processing_time_changes": "Chưa xác minh",
-      "submission_method_changes": "Chưa xác minh",
+      "submission_method_changes": "Có thể đã thay đổi (NĐ236/2026 cho phép hồ sơ điện tử) — chưa xác minh chi tiết.",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "37/2026/TT-BCA",
+        "236/2026/NĐ-CP"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "37/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này).",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 37/2026/TT-BCA (hiệu lực 08/06/2026) sửa đổi trực tiếp Thông tư 79/2024/TT-BCA — căn cứ pháp lý hiện tại của thủ tục này — và Nghị định 236/2026/NĐ-CP (hiệu lực 01/07/2026) sửa Nghị định 151/2024/NĐ-CP cho phép hồ sơ điện tử. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ: đăng ký xe nằm trong phạm vi sản phẩm và có nguồn pháp lý 2026 mới ảnh hưởng trực tiếp căn cứ pháp lý/mẫu đơn/cách thức nộp hồ sơ của thủ tục. Chưa đối chiếu toàn văn 2 văn bản với từng bước quy trình/mẫu đơn hiện tại trong catalog do không truy cập được văn bản gốc (WebFetch egress bị chặn trong phiên audit này)."
       }
     },
     {
@@ -2259,26 +2286,26 @@
       "new_name": null,
       "domain": "khieu_nai_to_cao",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 131/2026/TT-BCA (ban hành 30/06/2026, hiệu lực 01/07/2026) thay thế Thông tư 98/2021/TT-BCA về công tác tiếp công dân khiếu nại, tố cáo trong CAND — căn cứ cũ của lĩnh vực này đã hết hiệu lực. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn thông tư mới với nội dung trình tự/thẩm quyền hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này.",
       "processing_time_changes": "Chưa xác minh",
       "submission_method_changes": "Chưa xác minh",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "131/2026/TT-BCA"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "131/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 131/2026/TT-BCA (ban hành 30/06/2026, hiệu lực 01/07/2026) thay thế Thông tư 98/2021/TT-BCA về công tác tiếp công dân khiếu nại, tố cáo trong CAND — căn cứ cũ của lĩnh vực này đã hết hiệu lực. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn thông tư mới với nội dung trình tự/thẩm quyền hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này.",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 131/2026/TT-BCA (ban hành 30/06/2026, hiệu lực 01/07/2026) thay thế Thông tư 98/2021/TT-BCA về công tác tiếp công dân khiếu nại, tố cáo trong CAND — căn cứ cũ của lĩnh vực này đã hết hiệu lực. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn thông tư mới với nội dung trình tự/thẩm quyền hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này."
       }
     },
     {
@@ -2288,26 +2315,26 @@
       "new_name": null,
       "domain": "khieu_nai_to_cao",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 131/2026/TT-BCA (ban hành 30/06/2026, hiệu lực 01/07/2026) thay thế Thông tư 98/2021/TT-BCA về công tác tiếp công dân khiếu nại, tố cáo trong CAND — căn cứ cũ của lĩnh vực này đã hết hiệu lực. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn thông tư mới với nội dung trình tự/thẩm quyền hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này.",
       "processing_time_changes": "Chưa xác minh",
       "submission_method_changes": "Chưa xác minh",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "131/2026/TT-BCA"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "131/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 131/2026/TT-BCA (ban hành 30/06/2026, hiệu lực 01/07/2026) thay thế Thông tư 98/2021/TT-BCA về công tác tiếp công dân khiếu nại, tố cáo trong CAND — căn cứ cũ của lĩnh vực này đã hết hiệu lực. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn thông tư mới với nội dung trình tự/thẩm quyền hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này.",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 phát hiện Thông tư 131/2026/TT-BCA (ban hành 30/06/2026, hiệu lực 01/07/2026) thay thế Thông tư 98/2021/TT-BCA về công tác tiếp công dân khiếu nại, tố cáo trong CAND — căn cứ cũ của lĩnh vực này đã hết hiệu lực. Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ. Chưa đối chiếu toàn văn thông tư mới với nội dung trình tự/thẩm quyền hiện tại trong catalog do không truy cập được văn bản gốc trong phiên audit này."
       }
     },
     {
@@ -2317,26 +2344,26 @@
       "new_name": null,
       "domain": "vu_khi",
       "old_level": "xa",
-      "classification": "OUT_OF_SCOPE",
-      "document_changes": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source.",
+      "classification": "NEEDS_LEGAL_REVIEW",
+      "document_changes": "Kiểm tra bổ sung 2026-09-15 tìm thấy manh mối thứ cấp về Thông tư 02/2026/TT-BCA (hiệu lực 11/01/2026, sửa TT75/2024 và TT77/2024/TT-BCA) về đăng ký/thống kê/tiêu hủy vũ khí, vật liệu nổ, công cụ hỗ trợ — CHƯA xác minh được URL chính thức trên vanban.bocongan.gov.vn trong phiên này (WebFetch egress bị chặn) nên KHÔNG được thêm vào registry hay legal_basis với tư cách nguồn đã xác minh. Giữ tham chiếu tạm thời tới TT62/2026/TT-BCA (phạm vi all_tthc). Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ vì vũ khí thô sơ nằm trong phạm vi sản phẩm; cần chủ dự án hoặc phiên có quyền truy cập trực tiếp cổng văn bản Bộ Công an xác nhận TT02/2026/TT-BCA trước khi phân loại chính thức.",
       "processing_time_changes": "Chưa xác minh",
       "submission_method_changes": "Chưa xác minh",
       "fee_changes": "Chưa xác minh",
       "new_forms": [],
       "legal_basis": [
-        "1523/QĐ-BCA-C06"
+        "62/2026/TT-BCA"
       ],
-      "source_url_ref": "1523/QĐ-BCA-C06",
+      "source_url_ref": "62/2026/TT-BCA",
       "effective_date": "2026-03-26",
-      "confidence": "high",
-      "evidence": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source. Source precedence: latest applicable official source wins.",
+      "confidence": "low",
+      "evidence": "Kiểm tra bổ sung 2026-09-15 tìm thấy manh mối thứ cấp về Thông tư 02/2026/TT-BCA (hiệu lực 11/01/2026, sửa TT75/2024 và TT77/2024/TT-BCA) về đăng ký/thống kê/tiêu hủy vũ khí, vật liệu nổ, công cụ hỗ trợ — CHƯA xác minh được URL chính thức trên vanban.bocongan.gov.vn trong phiên này (WebFetch egress bị chặn) nên KHÔNG được thêm vào registry hay legal_basis với tư cách nguồn đã xác minh. Giữ tham chiếu tạm thời tới TT62/2026/TT-BCA (phạm vi all_tthc). Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ vì vũ khí thô sơ nằm trong phạm vi sản phẩm; cần chủ dự án hoặc phiên có quyền truy cập trực tiếp cổng văn bản Bộ Công an xác nhận TT02/2026/TT-BCA trước khi phân loại chính thức.",
       "reconciliation": {
         "initialClassification": "NEEDS_LEGAL_REVIEW",
-        "reconciledAt": "2026-09-13",
-        "result": "OUT_OF_SCOPE",
-        "matchMethod": "OUT_OF_SCOPE_ANNEX_DOMAIN",
+        "reconciledAt": "2026-09-15",
+        "result": "NEEDS_LEGAL_REVIEW",
+        "matchMethod": "NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION",
         "matchedOfficialCode": null,
-        "reason": "The internal item is not a procedure served by QĐ1523’s annex scope; it must be reconciled against its own competent official source."
+        "reason": "Kiểm tra bổ sung 2026-09-15 tìm thấy manh mối thứ cấp về Thông tư 02/2026/TT-BCA (hiệu lực 11/01/2026, sửa TT75/2024 và TT77/2024/TT-BCA) về đăng ký/thống kê/tiêu hủy vũ khí, vật liệu nổ, công cụ hỗ trợ — CHƯA xác minh được URL chính thức trên vanban.bocongan.gov.vn trong phiên này (WebFetch egress bị chặn) nên KHÔNG được thêm vào registry hay legal_basis với tư cách nguồn đã xác minh. Giữ tham chiếu tạm thời tới TT62/2026/TT-BCA (phạm vi all_tthc). Đây KHÔNG phải phân loại OUT_OF_SCOPE hợp lệ vì vũ khí thô sơ nằm trong phạm vi sản phẩm; cần chủ dự án hoặc phiên có quyền truy cập trực tiếp cổng văn bản Bộ Công an xác nhận TT02/2026/TT-BCA trước khi phân loại chính thức."
       }
     },
     {
@@ -2781,5 +2808,16 @@
     "manifest_record_count": 101,
     "classification": "PER_PROCEDURE_REVIEW_REQUIRED",
     "reason": "Mọi procedureId đều có record; NEEDS_LEGAL_REVIEW không được candidate import cho tới khi đối chiếu phụ lục/biểu mẫu chính thức."
-  }
+  },
+  "known_missing_procedures": [
+    {
+      "source_document_number": "5230/QĐ-BCA-C06",
+      "finding": "QĐ5230/QĐ-BCA-C06 (18/08/2026) công bố chính thức 08 thủ tục hành chính MỚI ban hành trong lĩnh vực cấp, quản lý căn cước (bên cạnh 02 AMENDED đã có trong manifest với mã 1.012564 và 1.014060, và 28 ABOLISHED trong đó 15 mục đã khớp với guide cũ trong catalog). Con số \"08 NEW\" được xác nhận độc lập qua nhiều nguồn thứ cấp (thuvienphapluat.vn, cafef.vn, xaydungchinhsach.chinhphu.vn tổng hợp lại nội dung quyết định) trong phiên audit 2026-09-15.",
+      "status": "NOT_REPRESENTED_IN_CATALOG_OR_MANIFEST",
+      "correction": "Báo cáo trước đó (docs/tthc/TTHC_2026_LEGAL_REFRESH_REPORT.md, 2026-09-13) ghi \"QĐ5230 is reconciled as 10 NEW\" — con số này SAI theo bằng chứng thu thập được trong phiên audit này; số chính xác đã xác nhận qua nhiều nguồn độc lập là 08 NEW. Không có bất kỳ record classification=NEW nào tồn tại trong manifest hiện tại cho căn cước — 0 trên 101 record.",
+      "action_required": "Cần tải trực tiếp phụ lục/quyết định gốc (SHA-256 đã ghi trong registry) qua kênh có quyền truy cập bocongan.gov.vn để lấy đúng mã TTHC, tên chính thức, hồ sơ, trình tự của 8 thủ tục mới trước khi có thể bổ sung nội dung thật vào catalog. KHÔNG được tự suy đoán mã/tên/nội dung — vi phạm nguyên tắc fail-closed của task này.",
+      "identified_at": "2026-09-15",
+      "production_mutation": "NO_PRODUCTION_MUTATION"
+    }
+  ]
 }
