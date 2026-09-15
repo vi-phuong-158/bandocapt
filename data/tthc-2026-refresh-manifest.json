@@ -931,7 +931,17 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Thu thập, cập nhật, điều chỉnh thông tin người gốc Việt Nam chưa xác định được quốc tịch vào Cơ sở dữ liệu quốc gia về dân cư, Cơ sở dữ liệu căn cước và cấp, cấp đổi, cấp lại giấy chứng nhận căn cước",
+        "resolved_successor_authority_levels": [
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:cap-doi-the-can-cuoc",
@@ -953,7 +963,19 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Cấp, cấp đổi, cấp lại thẻ căn cước",
+        "resolved_successor_authority_levels": [
+          "trung_uong",
+          "tinh",
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:cap-lai-giay-chung-nhan-can-cuoc",
@@ -975,7 +997,17 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Thu thập, cập nhật, điều chỉnh thông tin người gốc Việt Nam chưa xác định được quốc tịch vào Cơ sở dữ liệu quốc gia về dân cư, Cơ sở dữ liệu căn cước và cấp, cấp đổi, cấp lại giấy chứng nhận căn cước",
+        "resolved_successor_authority_levels": [
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:cap-lai-the-can-cuoc",
@@ -997,7 +1029,19 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Cấp, cấp đổi, cấp lại thẻ căn cước",
+        "resolved_successor_authority_levels": [
+          "trung_uong",
+          "tinh",
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:cap-tai-khoan-dinh-danh-dien-tu-muc-do-02-can-cuoc-dien-tu-cho-cong-dan-viet-nam",
@@ -1048,7 +1092,19 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Cấp, cấp đổi, cấp lại thẻ căn cước",
+        "resolved_successor_authority_levels": [
+          "trung_uong",
+          "tinh",
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:cap-the-can-cuoc-cho-nguoi-tu-du-14-tuoi-tro-len",
@@ -1070,7 +1126,19 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Cấp, cấp đổi, cấp lại thẻ căn cước",
+        "resolved_successor_authority_levels": [
+          "trung_uong",
+          "tinh",
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:cap-xac-nhan-so-chung-minh-nhan-dan-09-so-so-dinh-danh-ca-nhan",
@@ -1121,7 +1189,17 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Thu thập, cập nhật, điều chỉnh thông tin người gốc Việt Nam chưa xác định được quốc tịch vào Cơ sở dữ liệu quốc gia về dân cư, Cơ sở dữ liệu căn cước và cấp, cấp đổi, cấp lại giấy chứng nhận căn cước",
+        "resolved_successor_authority_levels": [
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:dieu-chinh-thong-tin-trong-co-so-du-lieu-quoc-gia-ve-dan-cu-theo-de-nghi-cua-cong-dan",
@@ -1195,7 +1273,19 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Khai thác thông tin của công dân, người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu quốc gia về dân cư",
+        "resolved_successor_authority_levels": [
+          "trung_uong",
+          "tinh",
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:khai-thac-thong-tin-cua-cong-dan-trong-co-so-du-lieu-can-cuoc",
@@ -1217,7 +1307,18 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Khai thác thông tin của công dân, người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu căn cước",
+        "resolved_successor_authority_levels": [
+          "tinh",
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:khai-thac-thong-tin-nguoi-goc-viet-nam-chua-xac-dinh-duoc-quoc-tich-trong-co-so-du-lieu-can-cuoc",
@@ -1239,7 +1340,18 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Khai thác thông tin của công dân, người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu căn cước",
+        "resolved_successor_authority_levels": [
+          "tinh",
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:khai-thac-thong-tin-nguoi-goc-viet-nam-chua-xac-dinh-duoc-quoc-tich-trong-co-so-du-lieu-quoc-gia-ve-dan-cu",
@@ -1261,7 +1373,19 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Khai thác thông tin của công dân, người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu quốc gia về dân cư",
+        "resolved_successor_authority_levels": [
+          "trung_uong",
+          "tinh",
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:khoa-can-cuoc-dien-tu",
@@ -1341,7 +1465,17 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Thu thập, cập nhật, điều chỉnh thông tin người gốc Việt Nam chưa xác định được quốc tịch vào Cơ sở dữ liệu quốc gia về dân cư, Cơ sở dữ liệu căn cước và cấp, cấp đổi, cấp lại giấy chứng nhận căn cước",
+        "resolved_successor_authority_levels": [
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:thu-thap-cap-nhat-thong-tin-sinh-trac-hoc-ve-adn-vao-co-so-du-lieu-ve-can-cuoc",
@@ -1363,7 +1497,17 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Thu thập, cập nhật thông tin sinh trắc học về ADN, giọng nói vào Cơ sở dữ liệu căn cước",
+        "resolved_successor_authority_levels": [
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:thu-thap-cap-nhat-thong-tin-sinh-trac-hoc-ve-giong-noi-vao-co-so-du-lieu-ve-can-cuoc",
@@ -1385,7 +1529,17 @@
       "source_url_ref": "5230/QĐ-BCA-C06",
       "effective_date": "2026-08-18",
       "confidence": "high",
-      "evidence": "Danh mục bãi bỏ công bố chính thức."
+      "evidence": "Danh mục bãi bỏ công bố chính thức.",
+      "qd5230_successor": {
+        "resolved_at": "2026-09-15",
+        "resolved_successor_title": "Thu thập, cập nhật thông tin sinh trắc học về ADN, giọng nói vào Cơ sở dữ liệu căn cước",
+        "resolved_successor_authority_levels": [
+          "xa"
+        ],
+        "mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "catalog_status": "NOT_YET_ADDED_CONTENT_PENDING",
+        "note": "Không sửa new_procedure_id vì chưa có record thật trong data/tthc-catalog.json (content Phần II chưa có) - xem known_missing_procedures[0].qd5230_final_reconciliation."
+      }
     },
     {
       "procedure_id": "guide:can-cuoc:tich-hop-cap-nhat-dieu-chinh-thong-tin-tren-the-can-cuoc",
@@ -2862,17 +3016,21 @@
           "name": "Cấp, cấp đổi, cấp lại thẻ căn cước (thực hiện tại cấp Trung ương)",
           "level": "trung_uong",
           "evidence_quality": "SECONDARY_ONLY",
-          "note": "Tên xuất hiện nhất quán ở 2 nguồn tổng hợp độc lập là 1 trong 2 thủ tục cấp Trung ương. Tìm thấy mã cổng DVC matt=57072 cho biến thể \"Cấp thẻ căn cước cho người dưới 14 tuổi (thực hiện tại cấp Trung ương)\" — số matt (57072) khác hẳn dải mã cũ 26093-26099 của các thủ tục căn cước cấp tỉnh/huyện hiện hành, gợi ý đây là mã MỚI được cấp cùng đợt QĐ5230, nhưng chưa xác nhận được bằng cách đọc trực tiếp trang chi tiết (WebFetch bị egress-block)."
+          "note": "Tên xuất hiện nhất quán ở 2 nguồn tổng hợp độc lập là 1 trong 2 thủ tục cấp Trung ương. Tìm thấy mã cổng DVC matt=57072 cho biến thể \"Cấp thẻ căn cước cho người dưới 14 tuổi (thực hiện tại cấp Trung ương)\" — số matt (57072) khác hẳn dải mã cũ 26093-26099 của các thủ tục căn cước cấp tỉnh/huyện hiện hành, gợi ý đây là mã MỚI được cấp cùng đợt QĐ5230, nhưng chưa xác nhận được bằng cách đọc trực tiếp trang chi tiết (WebFetch bị egress-block).",
+          "status": "SUPERSEDED_HYPOTHESIS",
+          "superseded_note": "Superseded by qd5230_final_reconciliation.titles (PRIMARY_CONFIRMED from owner-provided PDF danh mục)."
         },
         {
           "name": "Khai thác thông tin công dân và người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu quốc gia về dân cư (thực hiện tại cấp Trung ương)",
           "level": "trung_uong",
           "evidence_quality": "SECONDARY_ONLY",
-          "note": "Thủ tục cấp Trung ương thứ 2 theo cùng 2 nguồn trên. Tên gần giống nhưng KHÔNG đồng nhất với 2 guide hiện đang ABOLISHED trong catalog (\"Khai thác thông tin công dân trong Cơ sở dữ liệu quốc gia về dân cư\", \"Khai thác thông tin người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu quốc gia về dân cư\") — có thể đây là 2 thủ tục cũ được GỘP LẠI thành 1 mã mới ở cấp Trung ương, nhưng đây là suy luận, không phải bằng chứng trực tiếp."
+          "note": "Thủ tục cấp Trung ương thứ 2 theo cùng 2 nguồn trên. Tên gần giống nhưng KHÔNG đồng nhất với 2 guide hiện đang ABOLISHED trong catalog (\"Khai thác thông tin công dân trong Cơ sở dữ liệu quốc gia về dân cư\", \"Khai thác thông tin người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu quốc gia về dân cư\") — có thể đây là 2 thủ tục cũ được GỘP LẠI thành 1 mã mới ở cấp Trung ương, nhưng đây là suy luận, không phải bằng chứng trực tiếp.",
+          "status": "SUPERSEDED_HYPOTHESIS",
+          "superseded_note": "Superseded by qd5230_final_reconciliation.titles (PRIMARY_CONFIRMED from owner-provided PDF danh mục)."
         }
       ],
       "unrelated_but_adjacent_finding": "Phát hiện thêm (KHÔNG thuộc QĐ5230, KHÔNG đưa vào catalog): từ 01/09/2026, Nghị định 301/2026/NĐ-CP + Quyết định 1868/QĐ-BTP (Bộ TƯ PHÁP, không phải Bộ Công an) bổ sung cấp thẻ căn cước cho trẻ dưới 6 tuổi NGAY trong nhóm thủ tục liên thông khai sinh-thường trú-BHYT do ngành Tư pháp chủ trì. Đây là một kênh cấp căn cước khác, do cơ quan khác chủ trì, nằm ngoài cấu trúc TTHC do Công an trực tiếp thực hiện mà catalog này mô hình hóa — không mặc định đây là 1 trong 8 thủ tục MỚI của QĐ5230.",
-      "status": "UNRESOLVED_PRIMARY_TEXT_NOT_ACCESSIBLE",
+      "status": "LEGAL_IDENTITY_RESOLVED_CATALOG_CONTENT_PENDING",
       "correction": "Báo cáo PR#77 (2026-09-13) ghi \"10 NEW\"; audit PARTIAL trước (2026-09-15, PR#79 gốc) sửa thành \"08 NEW\" và coi \"10\" là lỗi thuần túy. Vòng closure này xác định kết luận đó là QUÁ ĐƠN GIẢN: \"08\" là số được chính văn bản công bố nêu (bằng chứng mạnh, lặp lại nguyên văn khắp nơi); \"10\" nhiều khả năng là số dòng thẩm quyền (authority rows) chứ không hẳn là sai — giống hệt mô hình đã xác nhận ở QĐ1523. Không có đủ bằng chứng để khẳng định dứt điểm theo hướng nào.",
       "action_required": "Cần đọc trực tiếp Phụ lục I của QĐ5230 (SHA-256 đã ghi trong registry, file đã tải trong một phiên trước có quyền truy cập internet đầy đủ) để: (1) xác nhận 08 vs 10 là gì; (2) lấy đúng mã/tên/cấp của từng thủ tục; (3) xác định thủ tục nào là thủ tục hoàn toàn mới về nghiệp vụ và thủ tục nào chỉ là tái cấp mã cho thủ tục đã có (khai thác CSDL). KHÔNG được tự suy đoán mã/tên/nội dung để lấp gap này — vi phạm nguyên tắc fail-closed.",
       "identified_at": "2026-09-15",
@@ -2943,6 +3101,198 @@
         },
         "remaining_gap": "Of the 8 claimed unique procedure names, at most 2 have any name-level evidence (both SECONDARY_ONLY, no codes). At least 6 unique names and all 8 official codes (mã TTHC) remain completely unidentified. Of the 10 claimed published rows, at most 5 are accounted for by the 2 candidates above (3 + 2); the remaining 5 rows (1 more tỉnh-level, 4 more xã-level) have no name evidence at all this round.",
         "verdict_basis": "Because zero official codes and the majority of official names remain unidentified, and no PRIMARY_CONFIRMED or PRIMARY_PARTIAL evidence was obtained, this narrow closure round cannot progress past BLOCKED_PRIMARY_SOURCE. No catalog or classification change is justified by this evidence.",
+        "production_mutation": "NO_PRODUCTION_MUTATION"
+      },
+      "count_discrepancy_status": "SUPERSEDED_HYPOTHESIS",
+      "count_discrepancy_superseded_note": "The \"08 unique procedure codes\" reading was a hypothesis built from secondary sources. The owner-provided PDF Phần I table (see qd5230_final_reconciliation below) shows 5 unique NEW titles, not 8 - this round supersedes that hypothesis with PRIMARY_CONFIRMED evidence.",
+      "qd5230_final_reconciliation": {
+        "task": "BANDOCAPT_TTHC_2026_QD5230_FINAL_RECONCILIATION",
+        "performed_at": "2026-09-15",
+        "primary_source": {
+          "document": "5230/QĐ-BCA-C06",
+          "issued_date": "2026-08-18",
+          "provenance": "Owner-provided PDF content, transcribed directly by the owner into this round's task instructions (PHẦN I. DANH MỤC THỦ TỤC HÀNH CHÍNH > 1. Thủ tục hành chính mới). The binary PDF file itself was not present in this session's filesystem (searched /home, /tmp, /root - not found). This round works from the owner's direct transcription of the danh mục table, not from independently parsing the PDF bytes.",
+          "sha256_on_file_in_registry": "8C741FE1AAFEFB11622DC486BBA76EFEFC3BA8CA408643816BA39F82E638728D",
+          "sections_used": [
+            "PHẦN I. DANH MỤC THỦ TỤC HÀNH CHÍNH > 1. Thủ tục hành chính mới (đầy đủ, owner transcribed)"
+          ],
+          "sections_not_available_this_round": [
+            "PHẦN II. NỘI DUNG CỤ THỂ CỦA TỪNG THỦ TỤC HÀNH CHÍNH MỚI (trình tự/hồ sơ/phí/mẫu đơn/căn cứ pháp lý chi tiết cho 5 title NEW)",
+            "PHẦN I > 2. Thủ tục hành chính được sửa đổi, bổ sung (chỉ có 2 mã 1.012564, 1.014060, chưa có tên đầy đủ)",
+            "PHẦN I > 3. Thủ tục hành chính bị bãi bỏ (28 dòng đầy đủ - chỉ có sẵn 14 dòng liên quan can_cuoc đã ghi trong manifest.records từ một vòng trước)"
+          ]
+        },
+        "published_new_rows": 10,
+        "published_new_rows_evidence_quality": "PRIMARY_CONFIRMED",
+        "unique_new_titles": 5,
+        "unique_new_titles_evidence_quality": "PRIMARY_CONFIRMED",
+        "authority_distribution": {
+          "trung_uong": 2,
+          "tinh": 3,
+          "xa": 5
+        },
+        "authority_distribution_evidence_quality": "PRIMARY_CONFIRMED",
+        "authority_distribution_row_check": 10,
+        "official_new_codes_status": "UNRESOLVED",
+        "official_new_codes_reason": "QĐ5230 Phần I mục 1 (danh mục thủ tục hành chính mới) không có cột Số hồ sơ TTHC/mã thủ tục - khác với mục 2 (sửa đổi, bổ sung) và mục 3 (bãi bỏ) đều có mã rõ ràng (vd 1.012564, 1.014060). Không tự gán mã cho nhóm NEW. WebSearch tìm thấy 1 lead không đủ điều kiện nhận (mã 1.000889 cho \"Cấp đổi thẻ căn cước (thực hiện tại cấp trung ương)\" trên dichvucong.gov.vn) - tên KHÔNG khớp chính xác với title T1 gộp (\"Cấp, cấp đổi, cấp lại thẻ căn cước\"), nên không nhận theo section 9 của task (yêu cầu match cả title + authority + content).",
+        "titles": [
+          {
+            "key": "T1",
+            "title": "Cấp, cấp đổi, cấp lại thẻ căn cước",
+            "authority_levels": [
+              "trung_uong",
+              "tinh",
+              "xa"
+            ],
+            "rows": 3,
+            "mapped_old_abolished_procedure_ids": [
+              "guide:can-cuoc:cap-doi-the-can-cuoc",
+              "guide:can-cuoc:cap-lai-the-can-cuoc",
+              "guide:can-cuoc:cap-the-can-cuoc-cho-nguoi-duoi-14-tuoi",
+              "guide:can-cuoc:cap-the-can-cuoc-cho-nguoi-tu-du-14-tuoi-tro-len"
+            ],
+            "evidence_quality": {
+              "title": "PRIMARY_CONFIRMED",
+              "authority_levels": "PRIMARY_CONFIRMED",
+              "official_code": "UNRESOLVED",
+              "procedure_content": "UNRESOLVED"
+            },
+            "existing_catalog_match": "NONE",
+            "existing_catalog_match_checked_against": "78-record data/tthc-catalog.json (exact title + normalized title + keyword scan)",
+            "action": "UNRESOLVED",
+            "action_reason": "title + authority là PRIMARY_CONFIRMED nhưng procedure content (trình tự, hồ sơ, phí, mẫu đơn, căn cứ pháp lý chi tiết) chưa có vì PHẦN II của PDF chưa được cung cấp trong vòng này. Theo section 8 của task, chỉ ADD_NEW khi title + authority + content đều đủ mạnh; giữ fail-closed."
+          },
+          {
+            "key": "T2",
+            "title": "Khai thác thông tin của công dân, người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu quốc gia về dân cư",
+            "authority_levels": [
+              "trung_uong",
+              "tinh",
+              "xa"
+            ],
+            "rows": 3,
+            "mapped_old_abolished_procedure_ids": [
+              "guide:can-cuoc:khai-thac-thong-tin-cong-dan-trong-co-so-du-lieu-quoc-gia-ve-dan-cu",
+              "guide:can-cuoc:khai-thac-thong-tin-nguoi-goc-viet-nam-chua-xac-dinh-duoc-quoc-tich-trong-co-so-du-lieu-quoc-gia-ve-dan-cu"
+            ],
+            "evidence_quality": {
+              "title": "PRIMARY_CONFIRMED",
+              "authority_levels": "PRIMARY_CONFIRMED",
+              "official_code": "UNRESOLVED",
+              "procedure_content": "UNRESOLVED"
+            },
+            "existing_catalog_match": "NONE",
+            "existing_catalog_match_checked_against": "78-record data/tthc-catalog.json (exact title + normalized title + keyword scan)",
+            "action": "UNRESOLVED",
+            "action_reason": "title + authority là PRIMARY_CONFIRMED nhưng procedure content (trình tự, hồ sơ, phí, mẫu đơn, căn cứ pháp lý chi tiết) chưa có vì PHẦN II của PDF chưa được cung cấp trong vòng này. Theo section 8 của task, chỉ ADD_NEW khi title + authority + content đều đủ mạnh; giữ fail-closed."
+          },
+          {
+            "key": "T3",
+            "title": "Khai thác thông tin của công dân, người gốc Việt Nam chưa xác định được quốc tịch trong Cơ sở dữ liệu căn cước",
+            "authority_levels": [
+              "tinh",
+              "xa"
+            ],
+            "rows": 2,
+            "mapped_old_abolished_procedure_ids": [
+              "guide:can-cuoc:khai-thac-thong-tin-cua-cong-dan-trong-co-so-du-lieu-can-cuoc",
+              "guide:can-cuoc:khai-thac-thong-tin-nguoi-goc-viet-nam-chua-xac-dinh-duoc-quoc-tich-trong-co-so-du-lieu-can-cuoc"
+            ],
+            "evidence_quality": {
+              "title": "PRIMARY_CONFIRMED",
+              "authority_levels": "PRIMARY_CONFIRMED",
+              "official_code": "UNRESOLVED",
+              "procedure_content": "UNRESOLVED"
+            },
+            "existing_catalog_match": "NONE",
+            "existing_catalog_match_checked_against": "78-record data/tthc-catalog.json (exact title + normalized title + keyword scan)",
+            "action": "UNRESOLVED",
+            "action_reason": "title + authority là PRIMARY_CONFIRMED nhưng procedure content (trình tự, hồ sơ, phí, mẫu đơn, căn cứ pháp lý chi tiết) chưa có vì PHẦN II của PDF chưa được cung cấp trong vòng này. Theo section 8 của task, chỉ ADD_NEW khi title + authority + content đều đủ mạnh; giữ fail-closed."
+          },
+          {
+            "key": "T4",
+            "title": "Thu thập, cập nhật thông tin sinh trắc học về ADN, giọng nói vào Cơ sở dữ liệu căn cước",
+            "authority_levels": [
+              "xa"
+            ],
+            "rows": 1,
+            "mapped_old_abolished_procedure_ids": [
+              "guide:can-cuoc:thu-thap-cap-nhat-thong-tin-sinh-trac-hoc-ve-adn-vao-co-so-du-lieu-ve-can-cuoc",
+              "guide:can-cuoc:thu-thap-cap-nhat-thong-tin-sinh-trac-hoc-ve-giong-noi-vao-co-so-du-lieu-ve-can-cuoc"
+            ],
+            "note": "WebSearch tìm thấy manh mối (SECONDARY_ONLY, chưa xác nhận trong PDF): thẩm quyền thu thập ADN/giọng nói bị bãi bỏ ở cấp Bộ và cấp tỉnh theo một nghị quyết riêng có hiệu lực 29/04/2026, và QĐ5230 (18/08/2026) là văn bản CẤP LẦN ĐẦU thẩm quyền này cho cấp xã - nghĩa là đây có thể là mở rộng thẩm quyền xuống xã, không hẳn là nghiệp vụ hoàn toàn mới. Ghi nhận như một manh mối cần xác minh thêm, không dùng để đổi action.",
+            "evidence_quality": {
+              "title": "PRIMARY_CONFIRMED",
+              "authority_levels": "PRIMARY_CONFIRMED",
+              "official_code": "UNRESOLVED",
+              "procedure_content": "UNRESOLVED"
+            },
+            "existing_catalog_match": "NONE",
+            "existing_catalog_match_checked_against": "78-record data/tthc-catalog.json (exact title + normalized title + keyword scan)",
+            "action": "UNRESOLVED",
+            "action_reason": "title + authority là PRIMARY_CONFIRMED nhưng procedure content (trình tự, hồ sơ, phí, mẫu đơn, căn cứ pháp lý chi tiết) chưa có vì PHẦN II của PDF chưa được cung cấp trong vòng này. Theo section 8 của task, chỉ ADD_NEW khi title + authority + content đều đủ mạnh; giữ fail-closed."
+          },
+          {
+            "key": "T5",
+            "title": "Thu thập, cập nhật, điều chỉnh thông tin người gốc Việt Nam chưa xác định được quốc tịch vào Cơ sở dữ liệu quốc gia về dân cư, Cơ sở dữ liệu căn cước và cấp, cấp đổi, cấp lại giấy chứng nhận căn cước",
+            "authority_levels": [
+              "xa"
+            ],
+            "rows": 1,
+            "mapped_old_abolished_procedure_ids": [
+              "guide:can-cuoc:cap-doi-giay-chung-nhan-can-cuoc",
+              "guide:can-cuoc:cap-lai-giay-chung-nhan-can-cuoc",
+              "guide:can-cuoc:dieu-chinh-thong-tin-trong-co-so-du-lieu-quoc-gia-ve-dan-cu-co-so-du-lieu-can-cuoc-theo-de-nghi-cua-nguoi-goc-viet-nam-chua-xac-dinh-duoc-quoc-tich",
+              "guide:can-cuoc:thu-thap-cap-nhat-thong-tin-cua-nguoi-goc-viet-nam-chua-xac-dinh-duoc-quoc-tich-vao-co-so-du-lieu-quoc-gia-ve-dan-cu-co-so-du-lieu-can-cuoc-va-cap-giay-chung-nhan-can-cuoc"
+            ],
+            "evidence_quality": {
+              "title": "PRIMARY_CONFIRMED",
+              "authority_levels": "PRIMARY_CONFIRMED",
+              "official_code": "UNRESOLVED",
+              "procedure_content": "UNRESOLVED"
+            },
+            "existing_catalog_match": "NONE",
+            "existing_catalog_match_checked_against": "78-record data/tthc-catalog.json (exact title + normalized title + keyword scan)",
+            "action": "UNRESOLVED",
+            "action_reason": "title + authority là PRIMARY_CONFIRMED nhưng procedure content (trình tự, hồ sơ, phí, mẫu đơn, căn cứ pháp lý chi tiết) chưa có vì PHẦN II của PDF chưa được cung cấp trong vòng này. Theo section 8 của task, chỉ ADD_NEW khi title + authority + content đều đủ mạnh; giữ fail-closed."
+          }
+        ],
+        "old_to_new_mapping_confidence": "STRONG_INFERENCE_TITLE_DECOMPOSITION",
+        "old_to_new_mapping_method": "Đối chiếu từng cụm chủ thể/hành vi/đối tượng trong 14 old title (đã ABOLISHED, legal_basis=5230/QĐ-BCA-C06, tất cả old_level=xa) với 5 new title. Mỗi old title map vào đúng 1 new title duy nhất, không title nào bị bỏ sót, không title nào bị gán 2 lần (14/14 old title có đúng 1 new title cha). Đây là suy luận cấu trúc dựa trên phân rã cụm từ (subject: công dân / người gốc Việt Nam chưa xác định quốc tịch; action: cấp / cấp đổi / cấp lại; object: thẻ / giấy chứng nhận / CSDL nào) - KHÔNG phải trích dẫn trực tiếp từ Phần II (chưa có), nên KHÔNG gắn PRIMARY_CONFIRMED cho quan hệ OLD→NEW này.",
+        "old_to_new_unmapped_count": 0,
+        "amended_codes_reviewed": [
+          {
+            "code": "1.012564",
+            "found_in_qd1523_map": true,
+            "qd1523_title": "Điều chỉnh thông tin trong Cơ sở dữ liệu quốc gia về dân cư theo đề nghị của công dân",
+            "qd1523_authority_levels": [
+              "tinh",
+              "xa"
+            ],
+            "relation_to_5_new_titles": "NOT_ONE_OF_THE_5_NEW_TITLES - đối tượng là \"công dân\" thường, khác với \"người gốc Việt Nam chưa xác định được quốc tịch\" trong T2/T5. Nhiều khả năng QĐ5230 sửa đổi tiếp trên thủ tục QĐ1523 đã sửa (cùng mã), nhưng là 1 AMENDED record riêng biệt, không liên quan trực tiếp 5 title NEW. Không double count vào nhóm NEW.",
+            "evidence_quality": "PRIMARY_PARTIAL"
+          },
+          {
+            "code": "1.014060",
+            "found_in_qd1523_map": false,
+            "qd1523_title": null,
+            "relation_to_5_new_titles": "NOT_ONE_OF_THE_5_NEW_TITLES - nhóm NEW của QĐ5230 không công bố mã; mã này được chính task liệt kê ở mục AMENDED riêng, không phải NEW. Tên đầy đủ chưa xác định được với dữ liệu có trong vòng này (không có trong qd1523-procedure-map.json, không có Phần II).",
+            "evidence_quality": "UNRESOLVED"
+          }
+        ],
+        "catalog_impact": {
+          "catalog_mutation_this_round": false,
+          "catalog_schema_requires_official_code": false,
+          "catalog_schema_note": "data/tthc-catalog.json procedures dùng procedureId dạng slug nội bộ (vd \"guide:can-cuoc:...\"), KHÔNG có trường official_code/mã TTHC nào trong schema hiện tại. Vì vậy yêu cầu \"official code bắt buộc\" ở section 8 của task KHÔNG áp dụng cho catalog này - thiếu mã không tự nó chặn ADD_NEW.",
+          "blocking_reason": "5 title NEW có title + authority PRIMARY_CONFIRMED nhưng KHÔNG có procedure content (trình tự/hồ sơ/phí/mẫu đơn/căn cứ pháp lý) vì PHẦN II của PDF chưa được cung cấp trong vòng này. Theo section 8 của task: \"Có thể thêm legal record chỉ khi: title PRIMARY_CONFIRMED; authority PRIMARY_CONFIRMED; procedure content PRIMARY_CONFIRMED.\" Content thiếu -> giữ UNRESOLVED cho cả 5, không ADD_NEW.",
+          "action_summary": {
+            "ADD_NEW": 0,
+            "UPDATE_EXISTING": 0,
+            "MERGE_AUTHORITY": 0,
+            "ALREADY_PRESENT": 0,
+            "UNRESOLVED": 5
+          }
+        },
         "production_mutation": "NO_PRODUCTION_MUTATION"
       }
     }

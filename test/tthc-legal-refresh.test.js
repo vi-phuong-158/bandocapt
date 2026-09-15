@@ -73,3 +73,19 @@ test('every originally unresolved record has a deterministic disposition and any
     const allowedNeedsReviewMethods = new Set(['NO_EXACT_OFFICIAL_IDENTITY', 'NEW_2026_SOURCE_PENDING_FULL_TEXT_RECONCILIATION', 'NOT_A_DISTINCT_PROCEDURE_PENDING_PRODUCT_DECISION']);
     assert.ok(reconciled.filter(record => record.classification === 'NEEDS_LEGAL_REVIEW').every(record => allowedNeedsReviewMethods.has(record.reconciliation.matchMethod)));
 });
+
+test('QĐ5230 NEW procedures: 10 published rows reconcile to 5 unique titles with no fabricated codes or leftover ABOLISHED mappings', () => {
+    assert.deepEqual(governance.validateQd5230NewProcedures(manifest, qd1523Map), []);
+    const entry = manifest.known_missing_procedures.find(item => item.source_document_number === '5230/QĐ-BCA-C06');
+    const r = entry.qd5230_final_reconciliation;
+    assert.equal(r.published_new_rows, 10);
+    assert.equal(r.unique_new_titles, 5);
+    assert.deepEqual(r.authority_distribution, { trung_uong: 2, tinh: 3, xa: 5 });
+    assert.equal(r.official_new_codes_status, 'UNRESOLVED');
+    // Every one of the 14 QĐ5230-abolished catalog records must be mapped to exactly one of the 5 NEW titles.
+    const abolished5230 = manifest.records.filter(record => record.classification === 'ABOLISHED' && record.legal_basis.includes('5230/QĐ-BCA-C06'));
+    assert.equal(abolished5230.length, 14);
+    assert.ok(abolished5230.every(record => record.qd5230_successor && record.qd5230_successor.mapping_confidence === 'STRONG_INFERENCE_TITLE_DECOMPOSITION'));
+    // No catalog mutation yet: every title's action stays UNRESOLVED pending Phần II procedure content.
+    assert.ok(r.titles.every(title => title.action === 'UNRESOLVED'));
+});
