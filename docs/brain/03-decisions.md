@@ -2045,3 +2045,8 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - **Decider:** user / Antigravity
 
 
+## TTHC 2026 Pinecone delta refresh (2026-09-16)
+
+- Delta production chỉ được chạy từ catalog canonical 83-record trên `main`, với scope QĐ5230 gồm 5 record NEW và 2 record UPDATED. Entry point `scripts/refresh-tthc-pinecone.js` mặc định dry-run, không gọi `deleteAll`, không đụng `law`/`truso` và chỉ targeted-delete khi match title + source type là duy nhất.
+- ID mới/cập nhật dùng khóa ổn định dẫn xuất từ `procedureId` (`tthc-2026-*`); mỗi apply lưu full vector/metadata trước thay đổi trong `data/pinecone-backups/` (ignored) và có rollback manifest. Embedding giữ `gemini-embedding-001`, 768 chiều, `RETRIEVAL_DOCUMENT`.
+- Các vector legacy thiếu identity metadata không được tự suy luận để xóa. Nếu duplicate/stale QĐ5230 không map duy nhất, apply fail-closed.
