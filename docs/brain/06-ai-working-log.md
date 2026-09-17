@@ -4018,3 +4018,15 @@
 - **Lý do:** Task yêu cầu dùng Phần II để đóng đúng procedure contract, xác định catalog action thật (không mặc định 78+5), và đưa PR #79 tới trạng thái owner review nếu evidence đủ mạnh.
 - **Kiểm tra:** `node scripts/validate-tthc-legal-refresh.js` PASS (16 sources, 115 records, qd5230PublishedNewRows=10, qd5230UniqueNewTitles=5); `npm run validate:qd1523-mapping` PASS (không đổi); `npm test` PASS 678/678; `npm run build` PASS; E2E domain `npx playwright test test/e2e/tthc-catalog.spec.js` 6/6 PASS trên catalog 83-record thật (catalog thay đổi nội dung, không chỉ manifest, nên bắt buộc chạy lại theo section 20 của task).
 - **Verdict:** `BANDOCAPT_TTHC_2026_LEGAL_COMPLETENESS_PASS_READY_FOR_OWNER_REVIEW`. `NO_PRODUCTION_MUTATION`. Đề xuất PR #79 chuyển Draft → Ready for Review (owner quyết định, không tự merge). Chi tiết đầy đủ: `docs/tthc/TTHC_2026_QD5230_FINAL_CATALOG_CLOSURE.md`.
+
+## [2026-09-17] BANDOCAPT_CHAT_LOCATION_INTENT_ROUTING_FULL_REDESIGN_AND_ACCEPTANCE
+
+- **Agent:** Codex
+- **Thay đổi:** Thêm `lib/chat-intent.js` với RequestPlan và các facet procedure/legal/authority/location; cập nhật
+  resolver và `/api/chat` để chỉ tra cứu trụ sở khi có physical task, giữ place mention làm context, hỗ trợ mixed intent
+  và topic-switch-safe history. Bổ sung failure states `missing_place`, `no_match`, `unavailable`,
+  `matched_unverified`; chặn physical claim trên mọi route trước khi phát SSE.
+- **Kiểm tra:** focused RequestPlan, resolver, nationality, published-location và RAG leak tests; full `npm test`/build
+  còn phải chạy sau khi cập nhật golden contract. Không mutate Pinecone, Sheets, catalog hay production config.
+- **Trạng thái:** Đang hoàn tất validation và runtime acceptance trên bản sao sạch từ `origin/main` do quyền `.git` hiện
+  không cho tạo worktree/branch trong checkout cũ.

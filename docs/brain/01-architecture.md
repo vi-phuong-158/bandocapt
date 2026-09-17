@@ -1040,3 +1040,19 @@ Drive file/open/uc links to the existing allowed Google content host, while pend
 remain private. Missing or failed images use stable placeholders without removing the card content. This
 source change requires a Gateway bundle release together with Vercel deployment, but no workbook schema
 migration.
+
+## Chat request-plan routing (2026-09-17)
+
+`api/chat.js` now derives one explicit `RequestPlan` from the current message and sanitized history via
+`lib/chat-intent.js`. The plan separates procedure/legal/authority facets from physical location tasks
+(`find_station`, `address`, `contact`, `directions`) and records a place mention as context unless the
+user explicitly requests a station or answers an assistant location follow-up. A topic switch to a
+procedure/legal question clears a pending location follow-up. The resolver runs only when the plan has a
+physical task, so procedure answers cannot enter the missing-place branch merely because they mention
+"Công an xã/phường". Mixed requests keep both facets: verified location output is gated independently,
+while the procedure answer remains available when location data is unavailable or unmatched.
+
+All generated text is buffered through the final location-evidence gate before any SSE text event is
+written. Verified records are the only permitted source of physical fields; generic authority wording is
+allowed, and unverified station/address/phone/maps claims are stripped or replaced with a status-specific
+failure response.

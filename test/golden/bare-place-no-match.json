@@ -35,11 +35,11 @@
     },
     {
       "op": "write",
-      "chunk": "data: {\"text\":\"Mình chưa có dữ liệu trụ sở được xác minh cho địa danh này. Vui lòng cung cấp thêm thông tin hoặc kiểm tra lại tên địa danh (xã/phường) nhé.\"}\n\n"
+      "chunk": "data: {\"text\":\"Nguồn dữ liệu trụ sở hiện chưa khả dụng nên mình chưa thể xác minh địa chỉ, số điện thoại hoặc đường đi lúc này.\"}\n\n"
     },
     {
       "op": "write",
-      "chunk": "data: {\"done\":true,\"fullText\":\"Mình chưa có dữ liệu trụ sở được xác minh cho địa danh này. Vui lòng cung cấp thêm thông tin hoặc kiểm tra lại tên địa danh (xã/phường) nhé.\",\"history\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Xã Hy Cương\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"Mình chưa có dữ liệu trụ sở được xác minh cho địa danh này. Vui lòng cung cấp thêm thông tin hoặc kiểm tra lại tên địa danh (xã/phường) nhé.\"}]}],\"sources\":[],\"finishReason\":\"DETERMINISTIC_NO_MATCH\"}\n\n"
+      "chunk": "data: {\"done\":true,\"fullText\":\"Nguồn dữ liệu trụ sở hiện chưa khả dụng nên mình chưa thể xác minh địa chỉ, số điện thoại hoặc đường đi lúc này.\",\"history\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Xã Hy Cương\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"Nguồn dữ liệu trụ sở hiện chưa khả dụng nên mình chưa thể xác minh địa chỉ, số điện thoại hoặc đường đi lúc này.\"}]}],\"sources\":[],\"finishReason\":\"DETERMINISTIC_NO_MATCH\"}\n\n"
     },
     {
       "op": "end"

@@ -2045,3 +2045,18 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - **Decider:** user / Antigravity
 
 
+
+## [2026-09-17] RequestPlan separates procedure authority from physical location intent
+
+- **Decision:** Route `/api/chat` through `buildRequestPlan(currentMessage, sanitizedHistory)` before the
+  published-location resolver. Procedure, legal and authority questions set facets but do not create a
+  physical lookup task from generic words such as `Công an xã/phường`, `nơi thường trú`, or `nộp ở đâu theo
+  thẩm quyền`.
+- **Mixed intent:** An explicit station/address/contact/directions request creates a location task while
+  procedure/legal facets remain active. A place in a procedure question is context only. A short place
+  answer is accepted only after the assistant asked for a location; a topic switch clears that pending
+  follow-up.
+- **Safety:** The final answer is buffered and checked on every route. Exact physical fields are allowed
+  only for verified matches; generic authority guidance remains allowed. Unverified physical claims are
+  stripped or replaced with missing-place, no-match, unavailable, or matched-unverified responses.
+- **Scope:** No model classifier, Pinecone mutation, location catalog change, or security-boundary change.

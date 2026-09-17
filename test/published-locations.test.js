@@ -347,9 +347,10 @@ test('conversation regression: CCCD follow-up for Thanh Mieu resolves the verifi
     assert.equal(explicitRetryMatch.lookupRequested, true);
     assert.equal(explicitRetryMatch.status, 'matched');
     assert.equal(explicitRetryMatch.matches[0].name, 'Công an Phường Thanh Miếu');
-    assert.equal(firstTurnAlias.status, 'matched');
-    assert.equal(firstTurnAlias.matches[0].name, 'Công an Phường Thanh Miếu');
-    assert.equal(firstTurnAlias.matches[0].matchedAlias, 'bach hac');
+    // A place mentioned alongside a procedure stays context until the user asks for
+    // a concrete station; it must not trigger a physical lookup by itself.
+    assert.equal(firstTurnAlias.status, 'not_requested');
+    assert.deepEqual(firstTurnAlias.matches, []);
 });
 
 test('verified location prompt marks conflicting rows as ambiguous', () => {

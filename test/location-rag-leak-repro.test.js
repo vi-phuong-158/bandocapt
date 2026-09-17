@@ -211,8 +211,9 @@ for (const [label, userMessage] of PRODUCTION_CASES) {
             // Ground truth: the location resolver, using ONLY the current message (no ward
             // named), must have found no verified match — otherwise this test would not be
             // exercising the no_match/RAG-leak scenario at all.
-            assert.equal(done.eval.locationLookupRequested, true);
-            assert.equal(done.eval.locationResolutionStatus, 'missing_location_evidence');
+            const expectsPhysicalTask = /đến đâu/i.test(userMessage);
+            assert.equal(done.eval.locationLookupRequested, expectsPhysicalTask);
+            assert.equal(done.eval.locationResolutionStatus, expectsPhysicalTask ? 'missing_place' : 'not_requested');
             assert.deepEqual(done.eval.verifiedLocationMatches, []);
 
             // Ground truth: Pinecone really was queried and really did return the contaminated
@@ -243,9 +244,13 @@ for (const [label, userMessage] of PRODUCTION_CASES) {
             assert.doesNotMatch(emittedText, FORBIDDEN_LEAK_PATTERN,
                 `an intermediate SSE text event leaked a specific location claim: ${emittedText}`);
 
-            // The response must still be useful: procedure guidance stays, and the model should
-            // still be steered to ask for the ward/commune rather than going silent.
-            assert.match(done.fullText, /xã\/phường|xa\/phuong/i);
+            // The response must still be useful: procedure guidance stays. A procedure-only
+            // request must not acquire a location follow-up from contaminated context.
+            if (expectsPhysicalTask) {
+                assert.match(done.fullText, /xã\/phường|xa\/phuong/i);
+            } else {
+                assert.match(done.fullText, /tài liệu|căn cứ|thủ tục/i);
+            }
         } finally {
             restoreFetch();
             locations.resetPublishedLocationsCache();
@@ -282,7 +287,7 @@ test('Case 5 — RAG contains a fictional/unpublished station: must not leak it 
             evalDebug: true,
         });
         const done = getDone(result.body);
-        assert.equal(done.eval.locationResolutionStatus, 'missing_location_evidence');
+        assert.equal(done.eval.locationResolutionStatus, 'not_requested');
         assert.doesNotMatch(done.fullText, /Không Tồn Tại|Bịa Đặt|0900000000/i,
             `a fictional/hallucinated station leaked: ${done.fullText}`);
     } finally {
@@ -314,6 +319,8 @@ test('Case 12 — Published_Locations unavailable: no specific station leaks', a
         assert.equal(done.eval.locationResolutionStatus, 'unavailable');
         assert.doesNotMatch(done.fullText, FORBIDDEN_LEAK_PATTERN,
             `leak despite Published_Locations being unavailable: ${done.fullText}`);
+        assert.match(done.fullText, /Tờ khai|giấy tờ|thủ tục/i,
+            'location failure must not discard the grounded procedure answer');
     } finally {
         global.fetch = originalFetch;
         locations.resetPublishedLocationsCache();
