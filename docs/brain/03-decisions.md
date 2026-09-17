@@ -2052,3 +2052,18 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - ID mới/cập nhật dùng khóa ổn định dẫn xuất từ `procedureId` (`tthc-2026-*`); mỗi apply lưu full vector/metadata trước thay đổi cho affected IDs trong `data/pinecone-backups/` (ignored) và có rollback manifest. Embedding giữ `gemini-embedding-001`, 768 chiều, `RETRIEVAL_DOCUMENT`.
 - Vận hành: chạy `npm run refresh:tthc-pinecone` để tạo dry-run; chỉ chạy `npm run refresh:tthc-pinecone -- --apply --manifest <reviewed-dry-run.json>` sau review và khi exact plan/before-state/target còn khớp. Rollback dùng `node scripts/refresh-tthc-pinecone.js --rollback <apply-manifest.json>` và phải qua read-after-restore verify.
 - Các vector legacy thiếu identity metadata không được tự suy luận để xóa. Nếu duplicate/stale QĐ5230 không map duy nhất, apply fail-closed.
+
+## [2026-09-17] RequestPlan separates procedure authority from physical location intent
+
+- **Decision:** Route `/api/chat` through `buildRequestPlan(currentMessage, sanitizedHistory)` before the
+  published-location resolver. Procedure, legal and authority questions set facets but do not create a
+  physical lookup task from generic words such as `Công an xã/phường`, `nơi thường trú`, or `nộp ở đâu theo
+  thẩm quyền`.
+- **Mixed intent:** An explicit station/address/contact/directions request creates a location task while
+  procedure/legal facets remain active. A place in a procedure question is context only. A short place
+  answer is accepted only after the assistant asked for a location; a topic switch clears that pending
+  follow-up.
+- **Safety:** The final answer is buffered and checked on every route. Exact physical fields are allowed
+  only for verified matches; generic authority guidance remains allowed. Unverified physical claims are
+  stripped or replaced with missing-place, no-match, unavailable, or matched-unverified responses.
+- **Scope:** No model classifier, Pinecone mutation, location catalog change, or security-boundary change.

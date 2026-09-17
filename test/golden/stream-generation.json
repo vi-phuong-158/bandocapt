@@ -39,11 +39,7 @@
     },
     {
       "op": "write",
-      "chunk": "data: {\"text\":\"Anh chị vui lòng liên hệ trực tiếp cơ quan có thẩm quyền để được hướng dẫn.\"}\n\n"
-    },
-    {
-      "op": "write",
-      "chunk": "data: {\"text\":\" Cán bộ tiếp nhận sẽ hướng dẫn hồ sơ cụ thể theo từng trường hợp.\"}\n\n"
+      "chunk": "data: {\"text\":\"Anh chị vui lòng liên hệ trực tiếp cơ quan có thẩm quyền để được hướng dẫn. Cán bộ tiếp nhận sẽ hướng dẫn hồ sơ cụ thể theo từng trường hợp.\"}\n\n"
     },
     {
       "op": "write",

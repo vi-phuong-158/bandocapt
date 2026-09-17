@@ -4059,3 +4059,15 @@
 - **Validation:** focused Pinecone delta suite 15/15 PASS; full `npm test` 693/693 PASS using the repository's existing dependency cache. A fresh local `npm ci` was blocked by host usage limits, so build/CI are also checked by GitHub CI after push.
 - **Live read-only dry-run:** index `chatbot-tthc-xnc`, namespace `chatbot-tthc-xnc`, resolved host bound by the manifest, 534 vectors at 768 dimensions. All seven QĐ5230 records are present with matching current content hashes (`0 insert / 0 update / 0 delete / 7 unchanged`), with no duplicate or stale record. The earlier successful 5 NEW + 2 UPDATED apply is therefore current and idempotent; no APPLY was run in this closure round.
 - **Production mutation:** none. A new ignored dry-run manifest was generated under `data/pinecone-backups/`; it contains no credential.
+
+## [2026-09-17] BANDOCAPT_CHAT_LOCATION_INTENT_ROUTING_FULL_REDESIGN_AND_ACCEPTANCE
+
+- **Agent:** Codex
+- **Thay đổi:** Thêm `lib/chat-intent.js` với RequestPlan và các facet procedure/legal/authority/location; cập nhật
+  resolver và `/api/chat` để chỉ tra cứu trụ sở khi có physical task, giữ place mention làm context, hỗ trợ mixed intent
+  và topic-switch-safe history. Bổ sung failure states `missing_place`, `no_match`, `unavailable`,
+  `matched_unverified`; chặn physical claim trên mọi route trước khi phát SSE.
+- **Kiểm tra:** focused RequestPlan, resolver, nationality, published-location và RAG leak tests; full `npm test`/build
+  còn phải chạy sau khi cập nhật golden contract. Không mutate Pinecone, Sheets, catalog hay production config.
+- **Trạng thái:** Đang hoàn tất validation và runtime acceptance trên bản sao sạch từ `origin/main` do quyền `.git` hiện
+  không cho tạo worktree/branch trong checkout cũ.

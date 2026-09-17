@@ -39,10 +39,6 @@
     },
     {
       "op": "write",
-      "chunk": "data: {\"text\":\"Anh chị vui lòng liên hệ cơ quan có thẩm quyền để được hướng dẫn.\"}\n\n"
-    },
-    {
-      "op": "write",
       "chunk": "data: {\"error\":\"STREAM_ERROR\",\"detail\":\"golden-forced-stream-failure\"}\n\n"
     },
     {

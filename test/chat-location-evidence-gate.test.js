@@ -340,11 +340,13 @@ test('P0 FOLLOW-UP REPRODUCER (pure resolver): generic preposition questions mus
         'Tôi ở Bo thì làm căn cước ở đâu?',
     ];
 
+    const physicalQueries = new Set(['Tôi cần đến trụ sở nào?', 'Tôi ở Bo thì làm căn cước ở đâu?']);
     for (const q of queries) {
         const result = locations.findVerifiedLocationMatches(q, [], dataset);
-        assert.equal(result.lookupRequested, true, `lookupRequested must be true for: "${q}"`);
+        const expectsPhysicalTask = physicalQueries.has(q);
+        assert.equal(result.lookupRequested, expectsPhysicalTask, `lookupRequested mismatch for: "${q}"`);
         assert.equal(result.hasLocationEvidence, false, `hasLocationEvidence must be false for: "${q}"`);
-        assert.equal(result.status, 'missing_location_evidence', `status must be missing_location_evidence for: "${q}"`);
+        assert.equal(result.status, expectsPhysicalTask ? 'missing_location_evidence' : 'not_requested', `status mismatch for: "${q}"`);
         assert.deepEqual(result.matches, [], `matches must be empty for: "${q}"`);
     }
 });
@@ -369,7 +371,7 @@ test('P0 FOLLOW-UP (integration): "Tôi cần nộp bộ hồ sơ căn cước t
 
         const FORBIDDEN_ANY_LEAK = /Kim Bôi|Kim Boi|Vĩnh Đồng|Vinh Dong|Hòa Bình|Hoa Binh|Thịnh Lang|google\.com\/maps|Google Maps/i;
         assert.doesNotMatch(done.fullText, FORBIDDEN_ANY_LEAK, `done.fullText leaked location: ${done.fullText}`);
-        assert.match(done.fullText, /xã\/phường|xa\/phuong/i, 'Response must ask for commune/ward');
+        assert.match(done.fullText, /tài liệu|căn cứ|thủ tục/i, 'Procedure/authority answer must remain useful without a location follow-up');
     } finally {
         restoreFetch();
     }
