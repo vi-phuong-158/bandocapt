@@ -81,9 +81,12 @@ test('location visibility is written only through setLocationVisible, never inli
     // exempt from clustering, until the next unrelated filter/search event happened to fix it.
     const setIconMatches = appSource.match(/\.setIcon\(createCustomIcon\([^)]*\)\)/g) || [];
     assert.equal(setIconMatches.length, 1, '.setIcon(...) must appear exactly once, inside refreshLocationMarker');
-    const refreshBody = appSource.match(/function refreshLocationMarker\(loc\) \{([\s\S]{0,200}?)\r?\n\}/)?.[1] || '';
+    const refreshBody = appSource.match(/function refreshLocationMarker\(loc\) \{([\s\S]{0,300}?)\r?\n\}/)?.[1] || '';
     assert.match(refreshBody, /loc\.marker\.setIcon\(createCustomIcon\(loc\)\)/);
     assert.match(refreshBody, /addLocationMarker\(loc\)/);
+    // MAP_MARKER_DECLUTTER_DESKTOP_UX: selected marker must float above every other marker
+    // regardless of latitude (see the setZIndexOffset comment right above this function).
+    assert.match(refreshBody, /loc\.marker\.setZIndexOffset\(isSelected \? 1000 : 0\)/);
 
     const showMobileSearchBody = appSource.match(/function showMobileSearch\(\) \{([\s\S]{0,1200}?)\r?\n\}/)?.[1] || '';
     assert.match(showMobileSearchBody, /refreshLocationMarker\(previousSelectedLocation\)/);

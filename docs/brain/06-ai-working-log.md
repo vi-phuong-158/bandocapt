@@ -1,5 +1,48 @@
 # 06 — AI Working Log
 
+## [2026-09-17] MAP_MARKER_DECLUTTER_DESKTOP_UX — Chống chồng marker/tên trên bản đồ desktop
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Ở mật độ trụ sở cao, marker (icon + tên đơn vị) chồng trực tiếp lên nhau khi zoom
+  đủ gần để hiện tên hàng loạt (`show-marker-labels`, zoom ≥ 14) — che bản đồ, không đọc được. Tái
+  hiện được bằng cách dồn 8 địa điểm fixture vào bán kính ~60m rồi zoom vào: pin chồng thẳng lên
+  nhau, tên đơn vị chồng chéo không đọc được ("marker-declutter-repro" thử qua preview server
+  `scripts/preview-server.js`, fixture 30 điểm).
+- **Sửa (2 lớp, không đổi data/ảnh/popup):**
+  1. **Pin-to-pin:** bỏ `disableClusteringAtZoom: 14`; giữ `maxClusterRadius` nhỏ (36px) hoạt động
+     ở MỌI mức zoom nên 2 marker thật sự gần nhau trên màn hình luôn gộp cụm thay vì chồng trực
+     tiếp. Bật `spiderfyOnMaxZoom: true` để xử lý toạ độ gần trùng nhau tới mức zoom tối đa vẫn
+     không tách được — bấm cụm sẽ tõe từng marker ra để vẫn bấm/xem được đầy đủ từng đơn vị.
+  2. **Label-to-label:** thêm `declutterMarkerLabels()` — đo `getBoundingClientRect()` thật của
+     từng `.marker-label` đang hiển thị (chỉ tính marker đang là pin riêng lẻ theo
+     `clusterGroup.getVisibleParent`, trong viewport hiện tại), card nào đo được là chồng lên card
+     đã "thắng" trước đó thì gắn class `marker-label-decluttered` (CSS ẩn label qua
+     `:not(:hover):not(.marker-selected)` — nên hover/chọn vẫn luôn mở được bình thường). Card của
+     địa điểm đang chọn luôn thắng. Hook vào `zoomend`/`moveend`, cuối `filterAndRender`,
+     `openDetailPanel`, `closeDetailPanel`, `resumeDetailSelection`.
+  3. **Marker chọn nổi trên cùng:** `refreshLocationMarker` gọi thêm
+     `loc.marker.setZIndexOffset(isSelected ? 1000 : 0)` — CSS z-index cũ trong divIcon chỉ thắng
+     nội bộ 1 marker, không thắng marker khác vì Leaflet tự xếp z-index theo vĩ độ.
+- **Bug thật gặp khi code (đã tự phát hiện qua browser thật, không chỉ đọc code):** lần đầu gắn/gỡ
+  class `marker-label-decluttered` lên `loc.marker.getElement()` — đó là icon wrapper của Leaflet,
+  không phải `.marker-container` (div con) mà CSS nhắm tới, nên rule CSS không bao giờ khớp. Phát
+  hiện bằng cách đo `getBoundingClientRect()` thực tế của 2 label rõ ràng chồng nhau (~94px theo
+  chiều ngang) nhưng cả hai vẫn báo `decluttered:false`. Sửa bằng `getMarkerContainerEl()`.
+- **Không đổi:** dữ liệu, ảnh, popup, luồng search/select (`openDetailPanel` vẫn `flyTo` đúng
+  marker khi chọn từ sidebar — đã có sẵn từ trước, chỉ verify lại), cấu trúc `Published_Locations`.
+- **File đã sửa:** `app.js` (clusterGroup options, `refreshLocationMarker`,
+  `declutterMarkerLabels`/`getIndividuallyVisibleLocations`/`getMarkerContainerEl`/`rectsOverlap`,
+  hook 4 điểm gọi), `styles.css` (rule `.marker-label-decluttered`), `test/civic-ui.test.js`
+  (assertion mới thay `disableClusteringAtZoom`), `test/location-ui.test.js` (nới char-budget regex
+  cho `refreshLocationMarker` + assertion `setZIndexOffset`).
+- **Kiểm tra:** `npm test` 661/661 PASS. Xác minh trực quan bằng Browser pane thật (không chỉ đọc
+  code): build `dist/` + `scripts/preview-server.js` (fixture 30 điểm), dựng lại kịch bản 8 marker
+  chồng nhau bằng JS trực tiếp trên `locations`/`marker.setLatLng` — trước khi sửa thấy pin+label
+  chồng trực tiếp; sau khi sửa thấy gộp cụm sạch (không pin nào chồng), zoom tiếp label không còn
+  cặp nào overlap (đo lại bằng `getBoundingClientRect()` từ console, `overlapsAmongShown: []`),
+  hover một marker bị decluttered vẫn mở tên bình thường, chọn 1 marker chỉ mở đúng card của nó.
+  Kiểm tra 3 viewport 1366×768, 1440×900, 1920×1080 ở trạng thái mặc định — bản đồ sạch, không còn
+  hàng loạt card chồng nhau.
+
 ## [2026-09-03] R2b — Mobile sheet drag-dismiss selection cleanup
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** Tiếp nối R2a (`fad4eb6`). R2a để lại một mục "investigated, not pursued": kéo

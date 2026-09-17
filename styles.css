@@ -135,6 +135,14 @@
 .marker-selected .marker-label { opacity: 1; transform: translate3d(-50%, -10px, 0); }
 /* Zoom đủ gần → hiện tên mọi trụ sở (toggle bằng JS theo mức zoom) */
 .show-marker-labels .marker-label { opacity: 1; transform: translate3d(-50%, -6px, 0); }
+/* Declutter (JS: declutterMarkerLabels trong app.js): khi hiện tên hàng loạt, card nào bị đo là
+   chồng lên card khác thì ẩn lại — trừ khi đang hover/đang chọn, hai trạng thái đó luôn thắng nhờ
+   :not() nên bấm/di chuột vào vẫn mở được tên bình thường. */
+.show-marker-labels .marker-container.marker-label-decluttered:not(:hover):not(.marker-selected) .marker-label {
+  opacity: 0;
+  transform: translate3d(-50%, 0, 0);
+  pointer-events: none;
+}
 
 /* Vị trí người dùng */
 .user-marker { background: var(--color-accent); border: 3px solid var(--white); border-radius: 50%; box-shadow: 0 0 16px rgba(37, 99, 235, 0.5); position: relative; }
