@@ -33,10 +33,25 @@ test('map uses controlled clustering plus a separate selected marker layer', () 
     const html = read('index.html');
 
     assert.match(html, /leaflet\.markercluster@1\.5\.3[^"]+" integrity="sha384-[^"]+"/);
-    assert.match(source, /disableClusteringAtZoom:\s*14/);
+    // No disableClusteringAtZoom: a small maxClusterRadius keeps clustering active at every zoom
+    // so two real-world-close markers always merge instead of overlapping (MAP_MARKER_DECLUTTER_DESKTOP_UX).
+    assert.doesNotMatch(source, /disableClusteringAtZoom:\s*\d/);
+    assert.match(source, /spiderfyOnMaxZoom:\s*true/);
     assert.match(source, /zoom <= 9 \? 60 : zoom <= 11 \? 48 : 36/);
     assert.match(source, /const selectedLayer = L\.layerGroup\(\)\.addTo\(map\)/);
     assert.match(source, /isSelected \? selectedLayer : clusterGroup/);
+});
+
+test('map declutters overlapping marker labels and keeps the selected marker on top', () => {
+    const source = read('app.js');
+    const css = read('styles.css');
+
+    assert.match(source, /function declutterMarkerLabels\(/);
+    assert.match(source, /function getIndividuallyVisibleLocations\(/);
+    assert.match(source, /getVisibleParent/);
+    assert.match(source, /loc\.marker\.setZIndexOffset\(isSelected \? 1000 : 0\)/);
+    assert.match(source, /map\.on\("zoomend moveend", declutterMarkerLabels\)/);
+    assert.match(css, /\.marker-label-decluttered:not\(:hover\):not\(\.marker-selected\) \.marker-label/);
 });
 
 test('mobile detail uses a 172px preview and no random avatar fallback', () => {

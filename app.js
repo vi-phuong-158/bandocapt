@@ -286,13 +286,17 @@ function createClusterIcon(cluster) {
   });
 }
 
+// Không dùng disableClusteringAtZoom: một maxClusterRadius nhỏ (36px) vẫn tiếp tục gom cụm ở MỌI
+// mức zoom, nên hai trụ sở thật sự gần nhau trên màn hình (cùng khu vực, khác toà nhà) luôn được
+// gộp thành 1 cụm thay vì hai pin/photo-card chồng trực tiếp lên nhau. spiderfyOnMaxZoom bật để xử
+// lý trường hợp toạ độ gần trùng nhau tới mức không thể tách bằng zoom nữa: bấm cụm ở zoom tối đa
+// sẽ tõe từng marker ra để vẫn bấm được đầy đủ ảnh/tên từng đơn vị (mục 3 + 7 của task decluttering).
 const clusterGroup = typeof L.markerClusterGroup === "function"
   ? L.markerClusterGroup({
-      disableClusteringAtZoom: 14,
       maxClusterRadius: zoom => zoom <= 9 ? 60 : zoom <= 11 ? 48 : 36,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
-      spiderfyOnMaxZoom: false,
+      spiderfyOnMaxZoom: true,
       removeOutsideVisibleBounds: true,
       animate: !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
       iconCreateFunction: createClusterIcon,
@@ -326,9 +330,14 @@ function setLocationVisible(loc, visible) {
   }
 }
 
+// Nổi marker đang chọn lên trên mọi marker khác bất kể vĩ độ — Leaflet mặc định xếp z-index theo
+// vĩ độ (điểm phía nam vẽ đè lên điểm phía bắc), nên chỉ CSS z-index bên trong divIcon (xem
+// .marker-selected .marker-icon) không đủ để thắng marker khác nằm cạnh nó.
 function refreshLocationMarker(loc) {
   if (!loc?.marker) return;
+  const isSelected = currentlySelectedLocation?.id === loc.id;
   loc.marker.setIcon(createCustomIcon(loc));
+  loc.marker.setZIndexOffset(isSelected ? 1000 : 0);
   addLocationMarker(loc);
 }
 
@@ -337,6 +346,66 @@ function updateAllMarkersIcon() {
     refreshLocationMarker(loc);
   });
 }
+
+// Chỉ những marker Leaflet.markercluster đang hiển thị như 1 pin riêng lẻ (không bị gộp trong
+// bong bóng cụm) mới có DOM `.marker-label` để đo — getVisibleParent trả về marker cho trường hợp
+// đó, hoặc trả về marker cụm thay thế nếu đang bị gộp.
+function getIndividuallyVisibleLocations() {
+  const bounds = map.getBounds();
+  return locations.filter((loc) => {
+    if (!loc._visible || !loc.marker) return false;
+    if (!bounds.contains(loc.marker.getLatLng())) return false;
+    if (selectedLayer.hasLayer(loc.marker)) return true;
+    return typeof clusterGroup.getVisibleParent !== "function"
+      || clusterGroup.getVisibleParent(loc.marker) === loc.marker;
+  });
+}
+
+function rectsOverlap(a, b) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+// Không để 2 photo-card (tên đơn vị) đè trực tiếp lên nhau khi zoom đủ gần hiện tên hàng loạt.
+// Card của địa điểm đang chọn luôn thắng; card thua trong 1 cặp chồng nhau bị gắn
+// `marker-label-decluttered` (ẩn nhãn qua CSS, marker/icon vẫn hiện) — hover hoặc chọn lại vẫn mở
+// được bình thường vì rule CSS chừa ngoại lệ :hover/.marker-selected.
+// `.marker-container` (nơi CSS `.marker-label-decluttered` áp dụng) là DIV con bên trong divIcon,
+// không phải chính element mà `marker.getElement()` trả về (đó là icon wrapper của Leaflet).
+function getMarkerContainerEl(loc) {
+  return loc.marker.getElement()?.querySelector(".marker-container") || null;
+}
+
+function declutterMarkerLabels() {
+  if (typeof locations === "undefined" || !locations.length) return;
+  const visible = getIndividuallyVisibleLocations();
+  if (!map.getContainer().classList.contains("show-marker-labels")) {
+    visible.forEach((loc) => getMarkerContainerEl(loc)?.classList.remove("marker-label-decluttered"));
+    return;
+  }
+
+const candidates = visible
+    .map((loc) => {
+      const el = getMarkerContainerEl(loc);
+      const labelEl = el?.querySelector(".marker-label");
+      if (!el || !labelEl) return null;
+      el.classList.remove("marker-label-decluttered");
+      return { loc, el, isSelected: currentlySelectedLocation?.id === loc.id, rect: labelEl.getBoundingClientRect() };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Number(b.isSelected) - Number(a.isSelected));
+
+const accepted = [];
+  candidates.forEach((candidate) => {
+    const collides = accepted.some((other) => rectsOverlap(candidate.rect, other.rect));
+    if (collides && !candidate.isSelected) {
+      candidate.el.classList.add("marker-label-decluttered");
+    } else {
+      accepted.push(candidate);
+    }
+  });
+}
+
+map.on("zoomend moveend", declutterMarkerLabels);
 
 let startY = 0;
 let isDragging = false;
@@ -859,6 +928,7 @@ if (isMobile) {
       duration: 0.8,
     });
   }
+  declutterMarkerLabels();
 }
 
 function closeDetailPanel({ restoreFocus = true } = {}) {
@@ -874,6 +944,7 @@ if (previousSelectedLocation && previousSelectedLocation.marker) {
     refreshLocationMarker(previousSelectedLocation);
   }
   applyPanelChrome(PANEL_STATES.BROWSING, { restoreFocus });
+  declutterMarkerLabels();
 }
 
 backToListBtn.addEventListener("click", () => {
@@ -932,6 +1003,7 @@ if (userLat != null) {
   }
 
 renderResultsList(visibleLocations);
+  declutterMarkerLabels();
 }
 
 function renderResultsList(results) {
@@ -1348,6 +1420,7 @@ function resumeDetailSelection() {
   detailSuspended = false;
   applyPanelChrome(PANEL_STATES.DETAIL, { sheetState: SHEET_STATES.COLLAPSED });
   refreshLocationMarker(currentlySelectedLocation);
+  declutterMarkerLabels();
 }
 
 window.AppNavigation?.registerSurface("map", {

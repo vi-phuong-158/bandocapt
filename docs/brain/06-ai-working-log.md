@@ -11,6 +11,80 @@
   - `test/eval-debug-output.test.js`: Bổ sung 4 unit test mới xác minh nghiêm ngặt ma trận môi trường (`VERCEL_ENV === 'preview'` cho phép khi đủ token + flag, `VERCEL_ENV === 'production'` cấm tuyệt đối, không có đường vòng).
   - `docs/brain/01-architecture.md` & `docs/brain/03-decisions.md`: Cập nhật đặc tả bảo mật và quyết định kỹ thuật.
 - **Lý do:** Cho phép chạy bộ kiểm thử chấp nhận trực tiếp (deterministic Live Preview API Acceptance) trên URL Vercel Preview thực tế mà không bị chặn bởi Cloudflare Turnstile, đồng thời bảo đảm an ninh Production không bị suy giảm.
+## [2026-09-17] MAP_MARKER_DECLUTTER_DESKTOP_UX — Chống chồng marker/tên trên bản đồ desktop
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Ở mật độ trụ sở cao, marker (icon + tên đơn vị) chồng trực tiếp lên nhau khi zoom
+  đủ gần để hiện tên hàng loạt (`show-marker-labels`, zoom ≥ 14) — che bản đồ, không đọc được. Tái
+  hiện được bằng cách dồn 8 địa điểm fixture vào bán kính ~60m rồi zoom vào: pin chồng thẳng lên
+  nhau, tên đơn vị chồng chéo không đọc được ("marker-declutter-repro" thử qua preview server
+  `scripts/preview-server.js`, fixture 30 điểm).
+- **Sửa (2 lớp, không đổi data/ảnh/popup):**
+  1. **Pin-to-pin:** bỏ `disableClusteringAtZoom: 14`; giữ `maxClusterRadius` nhỏ (36px) hoạt động
+     ở MỌI mức zoom nên 2 marker thật sự gần nhau trên màn hình luôn gộp cụm thay vì chồng trực
+     tiếp. Bật `spiderfyOnMaxZoom: true` để xử lý toạ độ gần trùng nhau tới mức zoom tối đa vẫn
+     không tách được — bấm cụm sẽ tõe từng marker ra để vẫn bấm/xem được đầy đủ từng đơn vị.
+  2. **Label-to-label:** thêm `declutterMarkerLabels()` — đo `getBoundingClientRect()` thật của
+     từng `.marker-label` đang hiển thị (chỉ tính marker đang là pin riêng lẻ theo
+     `clusterGroup.getVisibleParent`, trong viewport hiện tại), card nào đo được là chồng lên card
+     đã "thắng" trước đó thì gắn class `marker-label-decluttered` (CSS ẩn label qua
+     `:not(:hover):not(.marker-selected)` — nên hover/chọn vẫn luôn mở được bình thường). Card của
+     địa điểm đang chọn luôn thắng. Hook vào `zoomend`/`moveend`, cuối `filterAndRender`,
+     `openDetailPanel`, `closeDetailPanel`, `resumeDetailSelection`.
+  3. **Marker chọn nổi trên cùng:** `refreshLocationMarker` gọi thêm
+     `loc.marker.setZIndexOffset(isSelected ? 1000 : 0)` — CSS z-index cũ trong divIcon chỉ thắng
+     nội bộ 1 marker, không thắng marker khác vì Leaflet tự xếp z-index theo vĩ độ.
+- **Bug thật gặp khi code (đã tự phát hiện qua browser thật, không chỉ đọc code):** lần đầu gắn/gỡ
+  class `marker-label-decluttered` lên `loc.marker.getElement()` — đó là icon wrapper của Leaflet,
+  không phải `.marker-container` (div con) mà CSS nhắm tới, nên rule CSS không bao giờ khớp. Phát
+  hiện bằng cách đo `getBoundingClientRect()` thực tế của 2 label rõ ràng chồng nhau (~94px theo
+  chiều ngang) nhưng cả hai vẫn báo `decluttered:false`. Sửa bằng `getMarkerContainerEl()`.
+- **Không đổi:** dữ liệu, ảnh, popup, luồng search/select (`openDetailPanel` vẫn `flyTo` đúng
+  marker khi chọn từ sidebar — đã có sẵn từ trước, chỉ verify lại), cấu trúc `Published_Locations`.
+- **File đã sửa:** `app.js` (clusterGroup options, `refreshLocationMarker`,
+  `declutterMarkerLabels`/`getIndividuallyVisibleLocations`/`getMarkerContainerEl`/`rectsOverlap`,
+  hook 4 điểm gọi), `styles.css` (rule `.marker-label-decluttered`), `test/civic-ui.test.js`
+  (assertion mới thay `disableClusteringAtZoom`), `test/location-ui.test.js` (nới char-budget regex
+  cho `refreshLocationMarker` + assertion `setZIndexOffset`).
+- **Kiểm tra:** `npm test` 661/661 PASS. Xác minh trực quan bằng Browser pane thật (không chỉ đọc
+  code): build `dist/` + `scripts/preview-server.js` (fixture 30 điểm), dựng lại kịch bản 8 marker
+  chồng nhau bằng JS trực tiếp trên `locations`/`marker.setLatLng` — trước khi sửa thấy pin+label
+  chồng trực tiếp; sau khi sửa thấy gộp cụm sạch (không pin nào chồng), zoom tiếp label không còn
+  cặp nào overlap (đo lại bằng `getBoundingClientRect()` từ console, `overlapsAmongShown: []`),
+  hover một marker bị decluttered vẫn mở tên bình thường, chọn 1 marker chỉ mở đúng card của nó.
+  Kiểm tra 3 viewport 1366×768, 1440×900, 1920×1080 ở trạng thái mặc định — bản đồ sạch, không còn
+  hàng loạt card chồng nhau.
+
+## [2026-09-03] R2b — Mobile sheet drag-dismiss selection cleanup
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Tiếp nối R2a (`fad4eb6`). R2a để lại một mục "investigated, not pursued": kéo
+  `#drag-handle` xuống đủ xa để dismiss hẳn detail sheet (thay vì dừng ở `collapsed`) có thể để lại
+  `currentlySelectedLocation`/marker `.marker-selected` cũ, nhưng lần thử trước (Playwright drag
+  giả lập) không tái hiện được và độ tin cậy của bản thân thao tác giả lập chưa được xác minh.
+- **Phase A — characterize trước khi sửa:** đọc lại toàn bộ vòng đời `SHEET_STATES`,
+  `endSheetDrag`, `resolveSheetStateFromOffset` (chọn state gần nhất theo khoảng cách offset),
+  `openDetailPanel`/`closeDetailPanel`, `suspendDetailSelection`/`resumeDetailSelection`. Xây dựng
+  helper drag thật bằng `page.mouse` (down → move nhiều bước → up), xác minh nó thực sự kích hoạt
+  handler sản phẩm (không phải `page.evaluate` giả lập) qua một lần chạy debug có instrument: bản
+  thân `event.preventDefault()` trong handler thật đã ngăn trình duyệt phát sinh `mousedown`
+  tương thích — bằng chứng gián tiếp nhưng chắc chắn rằng `pointerdown` thật đã tới đúng target.
+- **Phát hiện gốc rễ:** `endSheetDrag`, khi drag không bị huỷ và resolve về `SHEET_STATES.HIDDEN`
+  (một dismiss thật), gọi thẳng `setSheetState(HIDDEN, ...)` — bỏ qua toàn bộ cleanup vòng đời lựa
+  chọn mà `closeDetailPanel()` thực hiện (`currentlySelectedLocation = null`, `detailSuspended =
+  false`, `refreshLocationMarker` cho marker cũ, `applyPanelChrome(BROWSING)`). Mọi affordance đóng
+  khác (`#back-to-list-btn`, `#preview-close-btn`, Escape) đã đi qua `closeDetailPanel()` từ trước;
+  drag-dismiss là đường duy nhất còn sót. Lỗi này "vô hình" trong test thủ công vì lần
+  `openDetailPanel` kế tiếp (chọn địa điểm khác) luôn tự dọn residue như tác dụng phụ của việc
+  refresh `previousSelectedLocation` của chính nó.
+- **Sửa:** trong `endSheetDrag`, khi state resolve được là `HIDDEN` (không bị cancel), gọi
+  `closeDetailPanel({ restoreFocus })` rồi return, thay vì `setSheetState(HIDDEN, ...)`. Đường drag
+  bị cancel (`pointercancel`/`lostpointercapture`) không đổi — `dragStartState` chỉ có thể là
+  `COLLAPSED`/`EXPANDED` vì pointerdown handler từ chối bắt đầu drag khi sheet đã `HIDDEN`. Không
+  thêm writer mới — chỉ định tuyến đúng nhánh còn sót qua `closeDetailPanel()` đã có sẵn từ R1/R2a.
+- **File đã sửa:** `app.js` (endSheetDrag, +11/-4 dòng), `test/e2e/mobile-sheet-dismiss.spec.js`
+  (mới, 6 test case), `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Lý do:** đóng nốt class bug vòng đời mobile detail sheet mà R2a đã nêu nhưng chưa đóng — "một
+  địa điểm người dùng đã dismiss hẳn không được tồn tại như một selection đang hoạt động ở bất kỳ
+  đâu trong UI state, và không navigation/panel transition nào sau đó được âm thầm hồi sinh nó".
 - **Kiểm tra:**
   - `test/eval-debug-output.test.js`: 11/11 tests PASS.
   - `npm test`: 672/672 tests PASS.
