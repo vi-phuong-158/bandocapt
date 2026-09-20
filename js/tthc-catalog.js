@@ -608,7 +608,7 @@ function openCatalogWindow(procedureId) {
     syncCatalogPresentation(true);
 
     loadAndRender(procedureId);
-    setTimeout(() => getCatalogElements().close?.focus(), 120);
+    getCatalogElements().close?.focus();
 }
 
 function closeCatalogWindow({ restoreFocus = true } = {}) {
