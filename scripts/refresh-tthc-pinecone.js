@@ -5,7 +5,8 @@
 // This script deliberately scopes production mutation to the seven catalog
 // records whose source decision is QĐ5230: five NEW procedures and two
 // UPDATED procedures. It never calls deleteAll and never touches law or
-// truso vectors. Use --apply only after reviewing the dry-run output.
+// truso vectors. Applying requires --manifest pointing to the reviewed dry-run
+// artifact; rollback manifests bind the index name, resolved host, and namespace.
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
@@ -20,13 +21,52 @@ const DEFAULT_NAMESPACE = 'chatbot-tthc-xnc';
 const EMBED_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent';
 const DIMENSIONS = 768;
 const QD5230_MARKER = '5230/QĐ-BCA-C06';
+const MANIFEST_VERSION = 1;
+const OPERATION_SCOPE = 'tthc-2026-qd5230-seven-procedure-delta';
 
 function stamp() {
     return new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '_');
 }
 
 function sha256(value) {
-    return crypto.createHash('sha256').update(String(value || ''), 'utf8').digest('hex');
+    const input = Buffer.isBuffer(value) ? value : Buffer.from(String(value ?? ''), 'utf8');
+    return crypto.createHash('sha256').update(input).digest('hex');
+}
+
+function normalizeHost(host) {
+    return String(host || '').trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '').toLowerCase();
+}
+
+function targetMismatch(code, message) {
+    const error = new Error(`${code}: ${message}`);
+    error.code = code;
+    return error;
+}
+
+function assertTargetIdentity(expected, actual) {
+    if (!expected?.index || !actual?.index || expected.index !== actual.index) {
+        throw targetMismatch('INDEX_MISMATCH', `index expected=${expected?.index || '(missing)'} actual=${actual?.index || '(missing)'}`);
+    }
+    if (!normalizeHost(expected.host) || normalizeHost(expected.host) !== normalizeHost(actual.host)) {
+        throw targetMismatch('HOST_MISMATCH', `index host does not match the manifest`);
+    }
+    if (!expected?.namespace || !actual?.namespace || expected.namespace !== actual.namespace) {
+        throw targetMismatch('NAMESPACE_MISMATCH', `namespace expected=${expected?.namespace || '(missing)'} actual=${actual?.namespace || '(missing)'}`);
+    }
+}
+
+async function resolveTarget(pc, config) {
+    const description = await pc.describeIndex(config.indexName);
+    const describedHost = String(description?.host || '').trim();
+    if (!describedHost) throw targetMismatch('HOST_MISMATCH', 'Pinecone did not return a resolvable index host.');
+    if (config.indexHost && normalizeHost(config.indexHost) !== normalizeHost(describedHost)) {
+        throw targetMismatch('HOST_MISMATCH', 'PINECONE_INDEX_HOST does not resolve to PINECONE_INDEX_NAME.');
+    }
+    return {
+        index: config.indexName,
+        host: describedHost,
+        namespace: config.namespace,
+    };
 }
 
 function normalizeText(value) {
@@ -202,17 +242,24 @@ function classifyDelta(procedures, liveRows) {
 }
 
 function summarizeDelta(delta) {
+    const deleteIds = delta.update.filter(item => item.existingId !== item.id).map(item => item.existingId);
     return {
         scope: delta.scope,
         insert: delta.insert.map(item => ({ id: item.id, procedureId: item.procedure.procedureId, title: item.procedure.title })),
         update: delta.update.map(item => ({ oldId: item.existingId, newId: item.id, procedureId: item.procedure.procedureId, title: item.procedure.title })),
-        delete: delta.update.filter(item => item.existingId !== item.id).map(item => item.existingId),
+        delete: deleteIds,
         unchanged: delta.unchanged.map(item => ({ id: item.existingId, procedureId: item.procedure.procedureId, title: item.procedure.title })),
         duplicate: delta.duplicate.map(item => ({ procedureId: item.procedure.procedureId, title: item.procedure.title, candidateIds: item.candidateIds })),
         missing: delta.missing,
         stale: delta.stale,
         outOfScopeLiveCount: delta.outOfScopeLive.length,
-        expectedVectorDelta: delta.insert.length + delta.update.filter(item => item.existingId !== item.id).length,
+        expectedVectorDelta: delta.insert.length + deleteIds.length,
+        counts: {
+            add: delta.insert.length,
+            update: delta.update.length,
+            delete: deleteIds.length,
+            noop: delta.unchanged.length,
+        },
     };
 }
 
@@ -235,6 +282,115 @@ async function fetchAll(namespace, ids) {
     return records;
 }
 
+function uniqueSorted(ids) {
+    return [...new Set(ids)].sort();
+}
+
+function operationPlan(delta) {
+    const upsertIds = uniqueSorted([...delta.insert, ...delta.update].map(item => item.id));
+    const deleteIds = uniqueSorted(delta.update.filter(item => item.existingId !== item.id).map(item => item.existingId));
+    return { upsertIds, deleteIds, affectedIds: uniqueSorted([...upsertIds, ...deleteIds]) };
+}
+
+function snapshotAffectedIds(plan, records) {
+    const beforeRecords = [];
+    const absentIds = [];
+    for (const id of plan.affectedIds) {
+        const record = records[id];
+        if (!record) {
+            absentIds.push(id);
+            continue;
+        }
+        beforeRecords.push({
+            id,
+            values: Array.from(record.values || []),
+            metadata: record.metadata ?? null,
+        });
+    }
+    return { beforeRecords, absentIds };
+}
+
+function canonicalize(value) {
+    if (ArrayBuffer.isView(value)) return Array.from(value, canonicalize);
+    if (Array.isArray(value)) return value.map(canonicalize);
+    if (value && typeof value === 'object') {
+        return Object.fromEntries(Object.keys(value).sort().map(key => [key, canonicalize(value[key])]));
+    }
+    return value;
+}
+
+function sameJson(left, right) {
+    return JSON.stringify(canonicalize(left)) === JSON.stringify(canonicalize(right));
+}
+
+function recordMatches(expected, actual) {
+    return Boolean(actual)
+        && sameJson(Array.from(expected.values || []), Array.from(actual.values || []))
+        && sameJson(expected.metadata ?? null, actual.metadata ?? null);
+}
+
+function assertManifestEnvelope(manifest, expectedMode) {
+    if (!manifest || manifest.schemaVersion !== MANIFEST_VERSION || manifest.mode !== expectedMode) {
+        throw targetMismatch('MANIFEST_INVALID', `expected schema ${MANIFEST_VERSION} ${expectedMode} manifest`);
+    }
+    if (manifest.operationScope?.id !== OPERATION_SCOPE) {
+        throw targetMismatch('MANIFEST_INVALID', 'operation scope is missing or unsupported');
+    }
+    const arrays = ['affectedIds', 'upsertIds', 'deleteIds', 'createdIds', 'absentIds'];
+    for (const key of arrays) {
+        if (!Array.isArray(manifest[key]) || manifest[key].some(id => typeof id !== 'string' || !id)) {
+            throw targetMismatch('MANIFEST_INVALID', `${key} must be an array of vector IDs`);
+        }
+        if (new Set(manifest[key]).size !== manifest[key].length) {
+            throw targetMismatch('MANIFEST_INVALID', `${key} contains duplicate IDs`);
+        }
+    }
+    if (!Array.isArray(manifest.beforeRecords)) throw targetMismatch('MANIFEST_INVALID', 'beforeRecords must be an array');
+    const recordIds = manifest.beforeRecords.map(record => record?.id);
+    if (recordIds.some(id => typeof id !== 'string' || !id) || new Set(recordIds).size !== recordIds.length) {
+        throw targetMismatch('MANIFEST_INVALID', 'beforeRecords must contain unique vector IDs');
+    }
+    const present = new Set(recordIds);
+    const absent = new Set(manifest.absentIds);
+    if (recordIds.some(id => absent.has(id))
+        || manifest.affectedIds.some(id => present.has(id) === absent.has(id))
+        || manifest.affectedIds.length !== present.size + absent.size
+        || manifest.affectedIds.some(id => !present.has(id) && !absent.has(id))) {
+        throw targetMismatch('MANIFEST_INVALID', 'beforeRecords and absentIds must partition affectedIds');
+    }
+    if (manifest.createdIds.some(id => !manifest.upsertIds.includes(id) || !absent.has(id))) {
+        throw targetMismatch('MANIFEST_INVALID', 'createdIds must be absent-before upsert IDs');
+    }
+    if (manifest.upsertIds.some(id => !manifest.affectedIds.includes(id))
+        || manifest.deleteIds.some(id => !manifest.affectedIds.includes(id))) {
+        throw targetMismatch('MANIFEST_INVALID', 'upsertIds/deleteIds must be included in affectedIds');
+    }
+    if (!sameJson(uniqueSorted([...manifest.upsertIds, ...manifest.deleteIds]), uniqueSorted(manifest.affectedIds))) {
+        throw targetMismatch('MANIFEST_INVALID', 'affectedIds must exactly match the upsert/delete ID union');
+    }
+    const expectedCreated = manifest.upsertIds.filter(id => absent.has(id));
+    if (!sameJson(uniqueSorted(expectedCreated), uniqueSorted(manifest.createdIds))) {
+        throw targetMismatch('MANIFEST_INVALID', 'createdIds must exactly match upsert IDs absent before the operation');
+    }
+}
+
+function assertDryRunMatches(dryRun, current) {
+    assertManifestEnvelope(dryRun, 'dry-run');
+    if (!sameJson(dryRun.catalogFingerprint, current.catalogFingerprint)) {
+        throw targetMismatch('CATALOG_MISMATCH', 'catalog fingerprint differs from the reviewed dry-run');
+    }
+    if (!sameJson(dryRun.operationScope, current.operationScope)
+        || !sameJson(dryRun.affectedIds, current.affectedIds)
+        || !sameJson(dryRun.upsertIds, current.upsertIds)
+        || !sameJson(dryRun.deleteIds, current.deleteIds)) {
+        throw targetMismatch('DRY_RUN_PLAN_MISMATCH', 'affected IDs or operation plan changed since dry-run');
+    }
+    if (!sameJson(dryRun.beforeRecords, current.beforeRecords)
+        || !sameJson(dryRun.absentIds, current.absentIds)) {
+        throw targetMismatch('DRY_RUN_STATE_MISMATCH', 'before-state for affected IDs changed since dry-run');
+    }
+}
+
 async function embedDocument(text, geminiKey) {
     const response = await fetch(`${EMBED_URL}?key=${encodeURIComponent(geminiKey)}`, {
         method: 'POST',
@@ -252,9 +408,9 @@ async function embedDocument(text, geminiKey) {
     return values;
 }
 
-function makeManifestPath(prefix) {
-    fs.mkdirSync(BACKUP_DIR, { recursive: true });
-    return path.join(BACKUP_DIR, `${stamp()}-${prefix}.json`);
+function makeManifestPath(prefix, backupDir = BACKUP_DIR, fsModule = fs) {
+    fsModule.mkdirSync(backupDir, { recursive: true });
+    return path.join(backupDir, `${stamp()}-${prefix}.json`);
 }
 
 function assertApplySafe(delta) {
@@ -279,51 +435,155 @@ async function verifyApplied(namespace, plannedVectors, deletedIds) {
     throw new Error(`Verify sau eventual consistency thất bại: ${lastProblem}`);
 }
 
-async function restoreManifest(namespace, manifest) {
-    if (manifest.beforeRecords?.length) await namespace.upsert(manifest.beforeRecords);
-    if (manifest.createdIds?.length) await namespace.deleteMany(manifest.createdIds);
+function buildManifest({ mode, target, catalog, catalogBytes, procedures, stats, ids, delta, records, generatedAt }) {
+    const plan = operationPlan(delta);
+    const snapshot = snapshotAffectedIds(plan, records);
+    const createdIds = plan.upsertIds.filter(id => snapshot.absentIds.includes(id));
+    const catalogSha256 = sha256(catalogBytes);
+    return {
+        schemaVersion: MANIFEST_VERSION,
+        mode,
+        generatedAt,
+        target: { index: target.index, host: target.host, namespace: target.namespace },
+        operationScope: {
+            id: OPERATION_SCOPE,
+            sourceDecision: QD5230_MARKER,
+            procedureIds: uniqueSorted(procedures.map(procedure => procedure.procedureId)),
+            affectedIds: plan.affectedIds,
+            upsertIds: plan.upsertIds,
+            deleteIds: plan.deleteIds,
+        },
+        catalogCount: catalog.procedures.length,
+        catalogSha256,
+        catalogFingerprint: { recordCount: catalog.procedures.length, sha256: catalogSha256 },
+        before: {
+            vectorCount: stats.namespaces?.[target.namespace]?.recordCount ?? null,
+            dimensions: stats.dimension,
+            ids: ids.length,
+        },
+        ...plan,
+        ...snapshot,
+        createdIds,
+        summary: summarizeDelta(delta),
+    };
 }
 
-async function runRollback(config, manifestPath) {
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    if (!manifest.beforeRecords || !manifest.target) throw new Error('Rollback manifest không hợp lệ.');
+async function restoreManifest(namespace, manifest, { target, attempts = 8, delayMs = 1500, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+    assertManifestEnvelope(manifest, 'apply');
+    assertTargetIdentity(manifest.target, target);
+    if (manifest.beforeRecords.length) {
+        await namespace.upsert(manifest.beforeRecords.map(record => ({
+            id: record.id,
+            values: Array.from(record.values || []),
+            ...(record.metadata == null ? {} : { metadata: record.metadata }),
+        })));
+    }
+    if (manifest.createdIds.length) await namespace.deleteMany(manifest.createdIds);
+
+    let lastProblem = 'chưa có dữ liệu verify';
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        const actual = await fetchAll(namespace, manifest.affectedIds);
+        const badRecords = manifest.beforeRecords.filter(record => !recordMatches(record, actual[record.id])).map(record => record.id);
+        const unexpectedlyPresent = manifest.absentIds.filter(id => actual[id]);
+        const actualPresent = Object.keys(actual).filter(id => manifest.affectedIds.includes(id)).length;
+        if (!badRecords.length && !unexpectedlyPresent.length && actualPresent === manifest.beforeRecords.length) {
+            return { restored: manifest.beforeRecords.length, removedCreated: manifest.createdIds.length, affectedIdCount: manifest.affectedIds.length };
+        }
+        lastProblem = `restoreMismatch=${badRecords.join(',') || 'ok'} absentMismatch=${unexpectedlyPresent.join(',') || 'ok'} count=${actualPresent}/${manifest.beforeRecords.length}`;
+        if (attempt < attempts) await sleep(delayMs * attempt);
+    }
+    throw targetMismatch('RESTORE_VERIFY_FAILED', `read-after-restore verification failed: ${lastProblem}`);
+}
+
+async function runRollback({ config, manifestPath, createClient, fsModule, root, output, sleep }) {
+    const manifest = JSON.parse(fsModule.readFileSync(manifestPath, 'utf8'));
+    assertManifestEnvelope(manifest, 'apply');
     if (!config.apiKey) throw new Error('Thiếu PINECONE_API_KEY; không thể rollback.');
-    const pc = new Pinecone({ apiKey: config.apiKey });
-    const namespace = pc.index(config.indexName, config.indexHost || undefined).namespace(manifest.target.namespace);
-    await restoreManifest(namespace, manifest);
-    console.log(JSON.stringify({ mode: 'rollback', manifest: path.relative(ROOT, manifestPath), restored: manifest.beforeRecords.length, removedCreated: manifest.createdIds || [] }, null, 2));
+    const pc = createClient();
+    const target = await resolveTarget(pc, config);
+    assertTargetIdentity(manifest.target, target);
+    const namespace = pc.index(target.index, target.host).namespace(target.namespace);
+    const result = await restoreManifest(namespace, manifest, { target, sleep });
+    output.log(JSON.stringify({
+        mode: 'rollback',
+        status: 'RESTORE_PASS',
+        manifest: path.relative(root, manifestPath),
+        target,
+        ...result,
+    }, null, 2));
 }
 
-async function main() {
-    const rollbackFlag = process.argv.indexOf('--rollback');
-    const config = getConfig();
-    if (rollbackFlag >= 0) return runRollback(config, process.argv[rollbackFlag + 1]);
+function getFlagValue(argv, flag) {
+    const index = argv.indexOf(flag);
+    if (index < 0) return null;
+    const value = argv[index + 1];
+    if (!value || value.startsWith('--')) throw new Error(`${flag} requires a value.`);
+    return value;
+}
+
+async function main(options = {}) {
+    const argv = options.argv || process.argv.slice(2);
+    const config = options.config || getConfig();
+    const fsModule = options.fsModule || fs;
+    const root = options.root || ROOT;
+    const catalogPath = options.catalogPath || path.join(root, 'data', 'tthc-catalog.json');
+    const backupDir = options.backupDir || BACKUP_DIR;
+    const output = options.output || console;
+    const sleep = options.sleep;
+    const createClient = options.createClient || (() => new Pinecone({ apiKey: config.apiKey }));
+    const rollbackPath = getFlagValue(argv, '--rollback');
+    if (rollbackPath) {
+        const manifestPath = path.resolve(root, rollbackPath);
+        return runRollback({ config, manifestPath, createClient, fsModule, root, output, sleep });
+    }
+
+    const applying = argv.includes('--apply');
+    const dryRunPath = getFlagValue(argv, '--manifest');
+    if (applying && !dryRunPath) throw new Error('--apply requires --manifest <reviewed-dry-run.json>.');
+    if (!applying && dryRunPath) throw new Error('--manifest is only valid together with --apply.');
     if (!config.apiKey) throw new Error('Thiếu PINECONE_API_KEY; dry-run live cần credential read-only.');
 
-    const catalog = JSON.parse(fs.readFileSync(CATALOG_PATH, 'utf8'));
+    const dryRunManifestPath = dryRunPath ? path.resolve(root, dryRunPath) : null;
+    const reviewedDryRun = dryRunManifestPath
+        ? JSON.parse(fsModule.readFileSync(dryRunManifestPath, 'utf8'))
+        : null;
+    if (reviewedDryRun) assertManifestEnvelope(reviewedDryRun, 'dry-run');
+
+    const catalogBytes = fsModule.readFileSync(catalogPath);
+    const catalog = JSON.parse(catalogBytes.toString('utf8'));
     const procedures = buildCatalogScope(catalog);
-    const pc = new Pinecone({ apiKey: config.apiKey });
-    const namespace = pc.index(config.indexName, config.indexHost || undefined).namespace(config.namespace);
+    const pc = createClient();
+    const target = await resolveTarget(pc, config);
+    if (reviewedDryRun) assertTargetIdentity(reviewedDryRun.target, target);
+    const namespace = pc.index(target.index, target.host).namespace(target.namespace);
     const stats = await namespace.describeIndexStats();
     const ids = await listIds(namespace);
     const records = await fetchAll(namespace, ids);
     const liveRows = Object.entries(records).map(([id, record]) => ({ id, ...record }));
     const delta = classifyDelta(procedures, liveRows);
     const summary = summarizeDelta(delta);
-    const dryRunPath = makeManifestPath('tthc-2026-delta-dry-run');
-    fs.writeFileSync(dryRunPath, JSON.stringify({
-        mode: 'dry-run', generatedAt: new Date().toISOString(), target: { index: config.indexName, namespace: config.namespace },
-        catalogCount: catalog.procedures.length, catalogSha256: sha256(fs.readFileSync(CATALOG_PATH)),
-        before: { vectorCount: stats.namespaces?.[config.namespace]?.recordCount ?? null, dimensions: stats.dimension, ids: ids.length },
-        summary,
-    }, null, 2), 'utf8');
+    const currentDryRun = buildManifest({
+        mode: 'dry-run', target, catalog, catalogBytes, procedures, stats, ids, delta, records,
+        generatedAt: new Date().toISOString(),
+    });
+    const reportPath = makeManifestPath('tthc-2026-delta-dry-run', backupDir, fsModule);
+    fsModule.writeFileSync(reportPath, JSON.stringify(currentDryRun, null, 2), 'utf8');
 
-    const applying = process.argv.includes('--apply');
     if (!applying) {
-        console.log(JSON.stringify({ mode: 'dry-run', target: { index: config.indexName, namespace: config.namespace }, before: { vectorCount: stats.namespaces?.[config.namespace]?.recordCount ?? null, dimensions: stats.dimension }, summary, report: path.relative(ROOT, dryRunPath) }, null, 2));
+        output.log(JSON.stringify({
+            mode: 'dry-run',
+            target,
+            before: currentDryRun.before,
+            affectedIdCount: currentDryRun.affectedIds.length,
+            affectedIds: currentDryRun.affectedIds,
+            summary,
+            report: path.relative(root, reportPath),
+        }, null, 2));
         return;
     }
 
+    assertTargetIdentity(reviewedDryRun.target, target);
+    assertDryRunMatches(reviewedDryRun, currentDryRun);
     assertApplySafe(delta);
     if (!config.geminiKey) throw new Error('Thiếu GEMINI_API_KEY; không thể tạo vector mới/cập nhật.');
     const verifiedAt = catalog.generatedAt || new Date().toISOString();
@@ -332,39 +592,56 @@ async function main() {
     for (const item of changed) {
         vectors.push({ id: item.id, values: await embedDocument(item.procedure.text, config.geminiKey), metadata: toVectorMetadata(item.procedure, verifiedAt) });
     }
-    const deleteIds = [...new Set(delta.update.filter(item => item.existingId !== item.id).map(item => item.existingId))];
-    const beforeIds = [...new Set([...vectors.map(vector => vector.id), ...deleteIds])];
-    const beforeRecords = Object.values(await fetchAll(namespace, beforeIds));
-    const manifestPath = makeManifestPath('tthc-2026-delta-pre');
-    const manifest = {
-        mode: 'apply', generatedAt: new Date().toISOString(), target: { index: config.indexName, namespace: config.namespace },
-        catalogCount: catalog.procedures.length, catalogSha256: sha256(fs.readFileSync(CATALOG_PATH)), summary,
-        beforeStats: stats, beforeRecords, createdIds: vectors.filter(vector => !records[vector.id]).map(vector => vector.id),
-        upsertIds: vectors.map(vector => vector.id), deleteIds,
-    };
-    fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+    const deleteIds = currentDryRun.deleteIds;
+    const manifest = { ...currentDryRun, mode: 'apply', generatedAt: new Date().toISOString() };
+    const backupManifestPath = makeManifestPath('tthc-2026-delta-pre', backupDir, fsModule);
+    fsModule.writeFileSync(backupManifestPath, JSON.stringify(manifest, null, 2), 'utf8');
 
     try {
+        const targetBeforeMutation = await resolveTarget(pc, config);
+        assertTargetIdentity(reviewedDryRun.target, targetBeforeMutation);
         if (vectors.length) await namespace.upsert(vectors);
         if (deleteIds.length) await namespace.deleteMany(deleteIds);
         await verifyApplied(namespace, vectors, deleteIds);
     } catch (error) {
-        try { await restoreManifest(namespace, manifest); } catch (rollbackError) { error.message += ` Rollback tự động thất bại: ${rollbackError.message}`; }
+        try {
+            const rollbackTarget = await resolveTarget(pc, config);
+            assertTargetIdentity(manifest.target, rollbackTarget);
+            const rollbackNamespace = pc.index(rollbackTarget.index, rollbackTarget.host).namespace(rollbackTarget.namespace);
+            const rollbackResult = await restoreManifest(rollbackNamespace, manifest, { target: rollbackTarget, sleep });
+            error.message += ` Auto-rollback RESTORE_PASS; affected=${rollbackResult.affectedIdCount}.`;
+        } catch (rollbackError) {
+            error.message += ` Auto-rollback failed or was blocked: ${rollbackError.message}`;
+        }
         throw error;
     }
-    console.log(JSON.stringify({ mode: 'apply', target: { index: config.indexName, namespace: config.namespace }, actual: { insert: delta.insert.length, update: delta.update.length, delete: deleteIds.length }, rollbackManifest: path.relative(ROOT, manifestPath), verify: 'PASS' }, null, 2));
+    output.log(JSON.stringify({
+        mode: 'apply',
+        target,
+        affectedIdCount: manifest.affectedIds.length,
+        affectedIds: manifest.affectedIds,
+        actual: summary.counts,
+        rollbackManifest: path.relative(root, backupManifestPath),
+        verify: 'PASS',
+    }, null, 2));
 }
 
 if (require.main === module) main().catch(error => { console.error(error.message); process.exitCode = 1; });
 
 module.exports = {
     DIMENSIONS,
+    assertDryRunMatches,
+    assertTargetIdentity,
     buildCatalogScope,
+    buildManifest,
     classifyDelta,
     contentHash,
+    main,
+    normalizeHost,
+    operationPlan,
+    restoreManifest,
     sourceTypeFor,
     stableRefreshId,
     summarizeDelta,
     toVectorMetadata,
-    main,
 };
