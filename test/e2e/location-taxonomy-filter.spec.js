@@ -51,35 +51,33 @@ async function withCanonicalFixture(page) {
     await page.route('**/api/google-sheet**', route => route.fulfill({ json: FIXTURE }));
 }
 
-test('canonical PUBLIC_SERVICE_CENTER + IDENTITY location classifies as Điểm CCCD, never defaults to Công an', async ({ page }) => {
+test('canonical PUBLIC_SERVICE_CENTER + IDENTITY location follows the canonical service filter', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await withCanonicalFixture(page);
     await page.goto('/');
     await expect(page.locator('#results-list .result-item')).toHaveCount(3);
 
-    // Both quick filters are checked by default, so all three rows show. Turning "Công an" off
-    // must NOT hide the canonical record — proving it was never bucketed as a police office.
-    await page.locator('label:has(#filter-police)').click();
+    // The current UI uses single-select canonical service chips rather than the removed
+    // police/CCCD checkboxes. Selecting IDENTITY must retain the canonical row and exclude
+    // the unrelated legacy police row.
+    await page.locator('.service-chip[data-service="IDENTITY"]').click();
     await expect(page.locator('[data-id="CANONICAL-1"]')).toBeVisible();
     await expect(page.locator('[data-id="LEGACY-CCCD-1"]')).toBeVisible();
     await expect(page.locator('[data-id="LEGACY-POLICE-1"]')).toHaveCount(0);
 
-    // Restore "Công an", then turn "Điểm CCCD" off: the canonical record must now disappear,
-    // confirming it was classified as CCCD and not simultaneously (mis)classified as police.
-    await page.locator('label:has(#filter-police)').click();
-    await page.locator('label:has(#filter-id)').click();
-    await expect(page.locator('[data-id="CANONICAL-1"]')).toHaveCount(0);
-    await expect(page.locator('[data-id="LEGACY-CCCD-1"]')).toHaveCount(0);
+    // Toggling the same chip off restores the unfiltered result set.
+    await page.locator('.service-chip[data-service="IDENTITY"]').click();
+    await expect(page.locator('[data-id="CANONICAL-1"]')).toBeVisible();
     await expect(page.locator('[data-id="LEGACY-POLICE-1"]')).toBeVisible();
 });
 
-test('canonical location gets the CCCD marker icon and detail badge, not the police one', async ({ page }) => {
+test('canonical location gets the IDENTITY marker icon and canonical site-type badge', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await withCanonicalFixture(page);
     await page.goto('/');
 
     await page.locator('[data-id="CANONICAL-1"]').click();
-    await expect(page.locator('#detail-badge')).toHaveText('Điểm cấp CCCD');
+    await expect(page.locator('#detail-badge')).toHaveText('Điểm tiếp nhận thủ tục hành chính');
 
     const markerClass = await page.evaluate(() => {
         const label = Array.from(document.querySelectorAll('.marker-label'))
