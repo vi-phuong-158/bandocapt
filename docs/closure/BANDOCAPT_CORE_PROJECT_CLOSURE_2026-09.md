@@ -7,9 +7,11 @@
 The closure branch is locally integrated and validated from `main` SHA
 `2afeb0c8044f74ae82edabd7e717452f42a5110a`. GitHub release operations could not
 be completed in this session: the approved elevated push was rejected by the
-host usage-limit gate, and the non-elevated push had no available credential
-(`SEC_E_NO_CREDENTIALS`). Therefore this document does not claim a remote merge,
-PR closure, deployment, or production acceptance.
+host usage-limit gate, the non-elevated push had no available credential
+(`SEC_E_NO_CREDENTIALS`), and the connected GitHub integration returned 403
+`Resource not accessible by integration` for both blob creation and branch
+creation. No remote branch was created. Therefore this document does not claim a
+remote merge, PR closure, deployment, or production acceptance.
 
 ## Local integration
 
@@ -38,8 +40,8 @@ PR closure, deployment, or production acceptance.
 
 ## Remote/production state still required
 
-The following cannot be marked complete until GitHub credentials and an approved
-network operation are available:
+The following cannot be marked complete until Git terminal credentials or GitHub
+integration write permissions are available:
 
 1. Push the closure commits and create/update replacement PRs for the Pinecone,
    chat-routing and map forward-port phases.
