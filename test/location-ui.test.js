@@ -28,7 +28,7 @@ test('map classification and single-select filter go through canonical taxonomy,
     assert.doesNotMatch(appSource, /const isCccd = loc\.services\?\.includes\("CITIZEN_ID"\) \|\| loc\.type ===/);
 
     // Marker/badge/result-list/preview classification all resolve through the same canonical helper.
-    const classificationSites = appSource.match(/const isPolice = !isIdentityLocation\(loc\);/g) || [];
+  const classificationSites = appSource.match(/const isPolice = isPoliceLocation\(loc\);/g) || [];
     assert.ok(classificationSites.length >= 3, `expected >=3 canonical isPolice sites, found ${classificationSites.length}`);
 
     // R1 visibility arbiter (forward-ported): `filterAndRender`'s per-location taxonomy decision
