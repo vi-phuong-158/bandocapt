@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const {
+    assertApplySafe,
     assertDryRunMatches,
     assertTargetIdentity,
     buildCatalogScope,
@@ -71,7 +72,28 @@ test('delta distinguishes five inserts and two exact title updates without touch
     assert.equal(delta.update.length, 2);
     assert.equal(delta.duplicate.length, 0);
     assert.equal(summary.delete.length, 2);
+    assert.equal(summary.expectedVectorDelta, 5);
     assert.equal(summary.outOfScopeLiveCount, 1);
+    assert.doesNotThrow(() => assertApplySafe(delta));
+});
+
+test('apply refuses any operation mix other than five inserts and two updates', () => {
+    const valid = {
+        insert: Array.from({ length: 5 }, () => ({})),
+        update: Array.from({ length: 2 }, () => ({})),
+        unchanged: [],
+        duplicate: [],
+        stale: [],
+    };
+    assert.doesNotThrow(() => assertApplySafe(valid));
+    assert.throws(
+        () => assertApplySafe({ ...valid, insert: valid.insert.slice(1), update: [...valid.update, {}] }),
+        error => error.code === 'OPERATION_SET_MISMATCH',
+    );
+    assert.throws(
+        () => assertApplySafe({ ...valid, update: valid.update.slice(1), unchanged: [{}] }),
+        error => error.code === 'OPERATION_SET_MISMATCH',
+    );
 });
 
 test('metadata preserves identity and uses governed source role', () => {

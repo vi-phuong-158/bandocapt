@@ -23,6 +23,8 @@ const DIMENSIONS = 768;
 const QD5230_MARKER = '5230/QĐ-BCA-C06';
 const MANIFEST_VERSION = 1;
 const OPERATION_SCOPE = 'tthc-2026-qd5230-seven-procedure-delta';
+const EXPECTED_INSERTS = 5;
+const EXPECTED_UPDATES = 2;
 
 function stamp() {
     return new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '').replace('T', '_');
@@ -253,7 +255,7 @@ function summarizeDelta(delta) {
         missing: delta.missing,
         stale: delta.stale,
         outOfScopeLiveCount: delta.outOfScopeLive.length,
-        expectedVectorDelta: delta.insert.length + deleteIds.length,
+        expectedVectorDelta: delta.insert.length,
         counts: {
             add: delta.insert.length,
             update: delta.update.length,
@@ -416,6 +418,15 @@ function makeManifestPath(prefix, backupDir = BACKUP_DIR, fsModule = fs) {
 function assertApplySafe(delta) {
     if (delta.duplicate.length) throw new Error('Có duplicate/ambiguous match; dừng để tránh targeted delete sai.');
     if (delta.stale.length) throw new Error('Có stale QĐ5230 row chưa map chắc chắn; dừng để tránh xóa nhầm.');
+    if (delta.insert.length !== EXPECTED_INSERTS
+        || delta.update.length !== EXPECTED_UPDATES
+        || delta.unchanged.length !== 0) {
+        throw targetMismatch(
+            'OPERATION_SET_MISMATCH',
+            `expected ${EXPECTED_INSERTS} insert + ${EXPECTED_UPDATES} update + 0 unchanged; `
+            + `actual ${delta.insert.length} insert + ${delta.update.length} update + ${delta.unchanged.length} unchanged`,
+        );
+    }
 }
 
 async function verifyApplied(namespace, plannedVectors, deletedIds) {
@@ -630,6 +641,7 @@ if (require.main === module) main().catch(error => { console.error(error.message
 
 module.exports = {
     DIMENSIONS,
+    assertApplySafe,
     assertDryRunMatches,
     assertTargetIdentity,
     buildCatalogScope,

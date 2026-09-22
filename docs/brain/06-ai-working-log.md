@@ -4051,3 +4051,11 @@
 - **Tests:** focused delta safety suite 12/12 PASS; `npm test` 690/690 PASS; `npm run build` PASS; `npm run ci` PASS (production audit reports 2 moderate `uuid`, below configured High failure threshold). Tests use fake clients; no Pinecone API request or mutation.
 - **Live dry-run:** `BANDOCAPT_PINECONE_RUNTIME_CREDENTIAL_BLOCKED`. The clean checkout has no Vercel CLI/project link, `.env`/`.env.local`, or Pinecone/Gemini process credential; `.env.local` is gitignored. No credential was printed or requested, and no Pinecone API call or production mutation occurred.
 - **Verdict:** Hardening is locally validated; live read-only dry-run remains blocked on safe credential availability. Stop before production mutation.
+
+## [2026-09-22] Core closure Phase B — Pinecone state revalidated and operation set locked
+
+- **Base:** clean worktree from `origin/main` `2afeb0c8044f74ae82edabd7e717452f42a5110a`; the dirty historical PR #81 checkout was preserved unchanged.
+- **Safety hardening:** `refresh-tthc-pinecone.js` now refuses APPLY unless the live plan is exactly 5 inserts + 2 updates + 0 unchanged, and reports the correct net vector-count delta (inserts only; replacing an old ID is count-neutral). Added focused drift tests; no security or retrieval policy was loosened.
+- **Validation:** focused Pinecone delta suite 15/15 PASS; full `npm test` 693/693 PASS using the repository's existing dependency cache. A fresh local `npm ci` was blocked by host usage limits, so build/CI are also checked by GitHub CI after push.
+- **Live read-only dry-run:** index `chatbot-tthc-xnc`, namespace `chatbot-tthc-xnc`, resolved host bound by the manifest, 534 vectors at 768 dimensions. All seven QĐ5230 records are present with matching current content hashes (`0 insert / 0 update / 0 delete / 7 unchanged`), with no duplicate or stale record. The earlier successful 5 NEW + 2 UPDATED apply is therefore current and idempotent; no APPLY was run in this closure round.
+- **Production mutation:** none. A new ignored dry-run manifest was generated under `data/pinecone-backups/`; it contains no credential.
