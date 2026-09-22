@@ -4145,3 +4145,12 @@
   còn phải chạy sau khi cập nhật golden contract. Không mutate Pinecone, Sheets, catalog hay production config.
 - **Trạng thái:** Đang hoàn tất validation và runtime acceptance trên bản sao sạch từ `origin/main` do quyền `.git` hiện
   không cho tạo worktree/branch trong checkout cũ.
+
+## [2026-09-22] Core project closure — local integration gate
+
+- **Base/forward-port:** Clean closure clone from `main` `2afeb0c`; forward-ported the Pinecone safety tooling, chat location/procedure intent routing, and only the non-duplicate map taxonomy/declutter portions of the historical PR #81 branch. The existing main state-arbiter commits were preserved rather than cherry-picking duplicate historical patches.
+- **UI/data-boundary hardening:** Canonical location classification now uses taxonomy helpers for police/identity decisions; marker clustering remains active across zoom levels with selected-marker z-index and bounded label declutter. Legacy filter assertions were adapted to the current single-select service-chip UI; no legacy checkbox UI was reintroduced.
+- **Validation:** focused Pinecone suite 15/15 PASS; full unit/integration suite 699/699 PASS; build-equivalent CSS/Apps Script/static/syntax/staff/rate-limit checks PASS; `npm audit --omit=dev --audit-level=high` exits 0 with 7 known moderate `uuid` advisories and no high-severity gate failure; full Playwright E2E 120/120 PASS.
+- **Live state:** Pinecone read-only dry-run remains idempotent at 534 vectors / 768 dimensions, with 0 insert, 0 update, 0 delete, 7 unchanged for the reviewed QĐ5230 scope. No production mutation was performed in this round.
+- **Limitations:** exact fresh `npm ci` and GitHub push/PR operations remain blocked by the host's usage/credential gate; no claim of remote merge or production deployment is made from this local closure clone.
+- **Verdict:** `BANDOCAPT_CORE_CLOSURE_LOCAL_GATES_GREEN_REMOTE_RELEASE_BLOCKED`.
