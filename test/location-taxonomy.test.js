@@ -28,3 +28,12 @@ test('location taxonomy generates deterministic names without service-derived ti
     assert.equal(taxonomy.generateDisplayName('MOBILE_POINT', 'Công an phường Thanh Miếu'), 'Điểm tiếp nhận lưu động – Công an phường Thanh Miếu');
     assert.equal(taxonomy.locationName({ siteType: 'HEADQUARTERS', unitName: 'Công an phường Thanh Miếu', override: '=SUM(1,1)' }), 'Công an phường Thanh Miếu');
 });
+
+test('toCanonicalSiteType resolves canonical codes and the legacy CITIZEN_ID_POINT alias', () => {
+    assert.equal(taxonomy.toCanonicalSiteType('HEADQUARTERS'), 'HEADQUARTERS');
+    assert.equal(taxonomy.toCanonicalSiteType('PUBLIC_SERVICE_CENTER'), 'PUBLIC_SERVICE_CENTER');
+    assert.equal(taxonomy.toCanonicalSiteType('citizen_id_point'), 'PUBLIC_SERVICE_CENTER');
+    assert.equal(taxonomy.toCanonicalSiteType(''), null);
+    assert.equal(taxonomy.toCanonicalSiteType(undefined), null);
+    assert.equal(taxonomy.toCanonicalSiteType('NOT_A_REAL_SITE_TYPE'), null);
+});

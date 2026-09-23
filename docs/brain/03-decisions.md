@@ -1,6 +1,30 @@
 # 03 — Technical Decisions
 
 ## [2026-09-06] P0 Follow-up: Preposition Location Evidence Hardening & Single-Token Alias Safety Invariant
+## [2026-09-17] Marker/label collision avoidance dùng platform capability (Leaflet.markercluster) trước, tự viết đo va chạm chỉ cho phần cluster không xử lý được
+
+- **Quyết định:** Không disable clustering ở zoom cao — giữ `maxClusterRadius` nhỏ (36px) hoạt
+  động ở MỌI zoom (bỏ `disableClusteringAtZoom: 14`) để 2 marker thật sự gần nhau trên màn hình
+  luôn gộp cụm thay vì 2 pin chồng trực tiếp; bật `spiderfyOnMaxZoom: true` làm lối thoát cho toạ
+  độ gần trùng nhau không thể tách bằng zoom. Đây là "tính năng có sẵn của nền tảng" (nguyên tắc
+  Ponytail bậc 3) — Leaflet.markercluster đã có sẵn cơ chế này, không cần tự viết collision cho pin.
+- **Quyết định:** Tên đơn vị (label) là bài toán khác — cluster radius không biết độ rộng text, nên
+  vẫn cần tự đo `getBoundingClientRect()` thật của từng `.marker-label` đang hiển thị và ẩn label
+  nào chồng lên label đã "thắng" trước (`declutterMarkerLabels` trong `app.js`). Label của địa điểm
+  đang chọn luôn thắng; hover/chọn vẫn luôn mở lại label bị ẩn nhờ CSS `:not(:hover):not(.marker-selected)`.
+- **Quyết định:** marker đang chọn nổi trên mọi marker khác bằng `marker.setZIndexOffset(1000)`
+  (API có sẵn của Leaflet) thay vì tự tính z-index — CSS z-index cũ bên trong divIcon
+  (`.marker-selected .marker-icon`) chỉ thắng trong nội bộ 1 marker, không thắng marker khác vì
+  Leaflet tự xếp z-index toàn cục theo vĩ độ.
+- **Không đổi:** dữ liệu, ảnh, popup, cấu trúc `Published_Locations`, luồng chọn từ sidebar
+  (`openDetailPanel` đã `flyTo` đúng marker từ trước — chỉ presentation/UX, không phải task mới).
+- **Bug thật gặp khi implement:** lần đầu áp/gỡ class `marker-label-decluttered` nhầm lên
+  `marker.getElement()` (icon wrapper của Leaflet) thay vì `.marker-container` (div con mà CSS thật
+  sự nhắm tới) — rule CSS không bao giờ khớp nên decluttering trông như chạy nhưng không hiệu lực.
+  Phát hiện bằng đo `getBoundingClientRect()` thật của 2 label rõ ràng chồng nhau qua Browser pane,
+  không phải chỉ đọc lại code. Xem `06-ai-working-log.md` (2026-09-17) để có chi tiết verify.
+
+## [2026-09-03] A drag-dismiss of the mobile detail sheet is a panel-state transition, not sheet-position mechanics — it must route through `closeDetailPanel`
 
 - **Bối cảnh:** Sau khi sửa lỗi "Phương Lâm" -> bare alias "Lâm" (`lam`) khớp với động từ "làm", review P0 phát hiện nguy cơ xung đột thứ hai:
   1. Câu hỏi: *"Tôi cần nộp bộ hồ sơ căn cước tại công an nào?"*
@@ -2045,3 +2069,25 @@ merged. See `docs/brain/01-architecture.md` "Dual-workbook admin review" for the
 - **Decider:** user / Antigravity
 
 
+## TTHC 2026 Pinecone delta refresh (2026-09-16)
+
+- Delta production chỉ được chạy từ catalog canonical 83-record trên `main`, với scope QĐ5230 gồm 5 record NEW và 2 record UPDATED. Entry point `scripts/refresh-tthc-pinecone.js` mặc định dry-run, không gọi `deleteAll`, không đụng `law`/`truso` và chỉ targeted-delete khi match title + source type là duy nhất. Apply bắt buộc nhận `--manifest` từ dry-run đã review; fingerprint catalog, operation scope, exact affected IDs và before-state phải còn khớp.
+- Mọi dry-run/apply/rollback manifest khóa Pinecone index name, resolved host và namespace; runtime mismatch phải dừng `INDEX_MISMATCH`, `HOST_MISMATCH` hoặc `NAMESPACE_MISMATCH`. Rollback chỉ báo `RESTORE_PASS` sau read-after-restore xác minh đủ vector IDs, values và metadata/content hash; ID mới do apply tạo phải vắng mặt sau restore.
+- ID mới/cập nhật dùng khóa ổn định dẫn xuất từ `procedureId` (`tthc-2026-*`); mỗi apply lưu full vector/metadata trước thay đổi cho affected IDs trong `data/pinecone-backups/` (ignored) và có rollback manifest. Embedding giữ `gemini-embedding-001`, 768 chiều, `RETRIEVAL_DOCUMENT`.
+- Vận hành: chạy `npm run refresh:tthc-pinecone` để tạo dry-run; chỉ chạy `npm run refresh:tthc-pinecone -- --apply --manifest <reviewed-dry-run.json>` sau review và khi exact plan/before-state/target còn khớp. Rollback dùng `node scripts/refresh-tthc-pinecone.js --rollback <apply-manifest.json>` và phải qua read-after-restore verify.
+- Các vector legacy thiếu identity metadata không được tự suy luận để xóa. Nếu duplicate/stale QĐ5230 không map duy nhất, apply fail-closed.
+
+## [2026-09-17] RequestPlan separates procedure authority from physical location intent
+
+- **Decision:** Route `/api/chat` through `buildRequestPlan(currentMessage, sanitizedHistory)` before the
+  published-location resolver. Procedure, legal and authority questions set facets but do not create a
+  physical lookup task from generic words such as `Công an xã/phường`, `nơi thường trú`, or `nộp ở đâu theo
+  thẩm quyền`.
+- **Mixed intent:** An explicit station/address/contact/directions request creates a location task while
+  procedure/legal facets remain active. A place in a procedure question is context only. A short place
+  answer is accepted only after the assistant asked for a location; a topic switch clears that pending
+  follow-up.
+- **Safety:** The final answer is buffered and checked on every route. Exact physical fields are allowed
+  only for verified matches; generic authority guidance remains allowed. Unverified physical claims are
+  stripped or replaced with missing-place, no-match, unavailable, or matched-unverified responses.
+- **Scope:** No model classifier, Pinecone mutation, location catalog change, or security-boundary change.

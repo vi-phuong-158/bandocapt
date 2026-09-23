@@ -71,16 +71,16 @@ test('immediate assistant location follow-up allows a short location answer', ()
     assert.equal(result.lookupTexts.some(item => item.allowRegionStopwords), true);
 });
 
-test('citizen ID words alone never become location evidence', () => {
-    assert.equal(resolve('Tôi muốn làm căn cước ở đâu?').status, 'missing_location_evidence');
-    assert.equal(resolve('Tôi muốn làm căn cước').status, 'missing_location_evidence');
+test('citizen ID words alone never become location evidence or a lookup task', () => {
+    assert.equal(resolve('Tôi muốn làm căn cước ở đâu?').status, 'not_requested');
+    assert.equal(resolve('Tôi muốn làm căn cước').status, 'not_requested');
     assert.equal(locations.hasLocationEvidence('Tôi muốn làm căn cước ở đâu?'), false);
     assert.equal(locations.hasLocationEvidence('Tôi muốn làm căn cước'), false);
 });
 
-test('unknown explicit location is no_match and never falls back to another station', () => {
+test('a place mentioned as procedure context is not treated as a station lookup', () => {
     const result = resolve('Tôi ở phường Không Có Trong Dữ Liệu, muốn làm căn cước');
-    assert.equal(result.status, 'no_match');
+    assert.equal(result.status, 'not_requested');
     assert.deepEqual(result.matches, []);
 });
 
@@ -264,17 +264,17 @@ test('handler traces missing_location_evidence before generation and blocks a ha
         assert.equal(done.eval.currentMessage, CITIZEN_ID_QUESTION);
         assert.deepEqual(done.eval.sanitizedHistory, []);
         assert.equal(done.eval.locationLookupRequested, true);
-        assert.equal(done.eval.locationResolutionStatus, 'missing_location_evidence');
+        assert.equal(done.eval.locationResolutionStatus, 'missing_place');
         assert.equal(done.eval.locationLookupTexts.some(item => item.source === 'history'), false);
         assert.deepEqual(done.eval.verifiedLocationMatches, []);
-        assert.match(done.eval.verifiedLocationPrompt, /STATUS: missing_location_evidence/);
+        assert.match(done.eval.verifiedLocationPrompt, /STATUS: missing_place/);
         assert.deepEqual(done.eval.retrievedDocuments, []);
         assert.equal(done.eval.locationSafetyFallback, true);
         assert.match(done.fullText, /chưa thể chỉ một trụ sở cụ thể/);
         assert.doesNotMatch(done.fullText, /Hòa Bình|Thịnh Lang|0973740838|google\.com\/maps/i);
         const emittedText = getEvents(result.body).filter(event => event.text).map(event => event.text).join('\n');
         assert.doesNotMatch(emittedText, /Hòa Bình|Thịnh Lang|0973740838|google\.com\/maps/i);
-        assert.equal(done.eval.finalGenerationPrompt.system.includes('STATUS: missing_location_evidence'), true);
+        assert.equal(done.eval.finalGenerationPrompt.system.includes('STATUS: missing_place'), true);
         assert.equal(done.eval.finalGenerationPrompt.contents.some(item =>
             item.parts?.some(part => /Hòa Bình|Thịnh Lang|0973740838|google\.com\/maps/i.test(part.text || ''))
         ), false);
@@ -287,7 +287,7 @@ test('handler traces missing_location_evidence before generation and blocks a ha
         locations.resetPublishedLocationsCache();
         const ambiguousResult = await runHandler({
             captchaToken: 'test-bypass-token',
-            userMessage: 'Tôi ở Bạch Hạc, muốn làm căn cước',
+            userMessage: 'Tôi ở Bạch Hạc, muốn làm căn cước thì đến đâu?',
             history: [],
             evalDebug: true,
         });

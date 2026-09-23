@@ -28,7 +28,7 @@ test('map classification and single-select filter go through canonical taxonomy,
     assert.doesNotMatch(appSource, /const isCccd = loc\.services\?\.includes\("CITIZEN_ID"\) \|\| loc\.type ===/);
 
     // Marker/badge/result-list/preview classification all resolve through the same canonical helper.
-    const classificationSites = appSource.match(/const isPolice = !isIdentityLocation\(loc\);/g) || [];
+  const classificationSites = appSource.match(/const isPolice = isPoliceLocation\(loc\);/g) || [];
     assert.ok(classificationSites.length >= 3, `expected >=3 canonical isPolice sites, found ${classificationSites.length}`);
 
     // R1 visibility arbiter (forward-ported): `filterAndRender`'s per-location taxonomy decision
@@ -74,6 +74,24 @@ test('service filter behaves correctly against real taxonomy data: canonical and
     // No active filter (null) shows every location regardless of its services.
     assert.equal(matchesServiceFilter(newRecord, null), true);
     assert.equal(matchesServiceFilter(unrelatedRecord, null), true);
+    // The initial marker-add in fetchHeadquarters must not bypass the arbiter with a raw layer call.
+    assert.doesNotMatch(appSource, /clusterGroup\.addLayer\(marker\)/);
+
+    // Any transition that clears `currentlySelectedLocation` and touches that location's marker
+    // must refresh both the icon AND layer membership together (refreshLocationMarker), never call
+    // `.setIcon()` alone — a direct `.setIcon()` call left a marker stranded in `selectedLayer`,
+    // exempt from clustering, until the next unrelated filter/search event happened to fix it.
+    const setIconMatches = appSource.match(/\.setIcon\(createCustomIcon\([^)]*\)\)/g) || [];
+    assert.equal(setIconMatches.length, 1, '.setIcon(...) must appear exactly once, inside refreshLocationMarker');
+    const refreshBody = appSource.match(/function refreshLocationMarker\(loc\) \{([\s\S]{0,300}?)\r?\n\}/)?.[1] || '';
+    assert.match(refreshBody, /loc\.marker\.setIcon\(createCustomIcon\(loc\)\)/);
+    assert.match(refreshBody, /addLocationMarker\(loc\)/);
+    // MAP_MARKER_DECLUTTER_DESKTOP_UX: selected marker must float above every other marker
+    // regardless of latitude (see the setZIndexOffset comment right above this function).
+    assert.match(refreshBody, /loc\.marker\.setZIndexOffset\(isSelected \? 1000 : 0\)/);
+
+    const showMobileSearchBody = appSource.match(/function showMobileSearch\(\) \{([\s\S]{0,1200}?)\r?\n\}/)?.[1] || '';
+    assert.match(showMobileSearchBody, /refreshLocationMarker\(previousSelectedLocation\)/);
 });
 
 test('primary service chips are exactly 4 canonical codes and the expanded row is derived from taxonomy, not hard-coded', () => {

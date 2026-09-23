@@ -11,6 +11,80 @@
   - `test/eval-debug-output.test.js`: Bổ sung 4 unit test mới xác minh nghiêm ngặt ma trận môi trường (`VERCEL_ENV === 'preview'` cho phép khi đủ token + flag, `VERCEL_ENV === 'production'` cấm tuyệt đối, không có đường vòng).
   - `docs/brain/01-architecture.md` & `docs/brain/03-decisions.md`: Cập nhật đặc tả bảo mật và quyết định kỹ thuật.
 - **Lý do:** Cho phép chạy bộ kiểm thử chấp nhận trực tiếp (deterministic Live Preview API Acceptance) trên URL Vercel Preview thực tế mà không bị chặn bởi Cloudflare Turnstile, đồng thời bảo đảm an ninh Production không bị suy giảm.
+## [2026-09-17] MAP_MARKER_DECLUTTER_DESKTOP_UX — Chống chồng marker/tên trên bản đồ desktop
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Ở mật độ trụ sở cao, marker (icon + tên đơn vị) chồng trực tiếp lên nhau khi zoom
+  đủ gần để hiện tên hàng loạt (`show-marker-labels`, zoom ≥ 14) — che bản đồ, không đọc được. Tái
+  hiện được bằng cách dồn 8 địa điểm fixture vào bán kính ~60m rồi zoom vào: pin chồng thẳng lên
+  nhau, tên đơn vị chồng chéo không đọc được ("marker-declutter-repro" thử qua preview server
+  `scripts/preview-server.js`, fixture 30 điểm).
+- **Sửa (2 lớp, không đổi data/ảnh/popup):**
+  1. **Pin-to-pin:** bỏ `disableClusteringAtZoom: 14`; giữ `maxClusterRadius` nhỏ (36px) hoạt động
+     ở MỌI mức zoom nên 2 marker thật sự gần nhau trên màn hình luôn gộp cụm thay vì chồng trực
+     tiếp. Bật `spiderfyOnMaxZoom: true` để xử lý toạ độ gần trùng nhau tới mức zoom tối đa vẫn
+     không tách được — bấm cụm sẽ tõe từng marker ra để vẫn bấm/xem được đầy đủ từng đơn vị.
+  2. **Label-to-label:** thêm `declutterMarkerLabels()` — đo `getBoundingClientRect()` thật của
+     từng `.marker-label` đang hiển thị (chỉ tính marker đang là pin riêng lẻ theo
+     `clusterGroup.getVisibleParent`, trong viewport hiện tại), card nào đo được là chồng lên card
+     đã "thắng" trước đó thì gắn class `marker-label-decluttered` (CSS ẩn label qua
+     `:not(:hover):not(.marker-selected)` — nên hover/chọn vẫn luôn mở được bình thường). Card của
+     địa điểm đang chọn luôn thắng. Hook vào `zoomend`/`moveend`, cuối `filterAndRender`,
+     `openDetailPanel`, `closeDetailPanel`, `resumeDetailSelection`.
+  3. **Marker chọn nổi trên cùng:** `refreshLocationMarker` gọi thêm
+     `loc.marker.setZIndexOffset(isSelected ? 1000 : 0)` — CSS z-index cũ trong divIcon chỉ thắng
+     nội bộ 1 marker, không thắng marker khác vì Leaflet tự xếp z-index theo vĩ độ.
+- **Bug thật gặp khi code (đã tự phát hiện qua browser thật, không chỉ đọc code):** lần đầu gắn/gỡ
+  class `marker-label-decluttered` lên `loc.marker.getElement()` — đó là icon wrapper của Leaflet,
+  không phải `.marker-container` (div con) mà CSS nhắm tới, nên rule CSS không bao giờ khớp. Phát
+  hiện bằng cách đo `getBoundingClientRect()` thực tế của 2 label rõ ràng chồng nhau (~94px theo
+  chiều ngang) nhưng cả hai vẫn báo `decluttered:false`. Sửa bằng `getMarkerContainerEl()`.
+- **Không đổi:** dữ liệu, ảnh, popup, luồng search/select (`openDetailPanel` vẫn `flyTo` đúng
+  marker khi chọn từ sidebar — đã có sẵn từ trước, chỉ verify lại), cấu trúc `Published_Locations`.
+- **File đã sửa:** `app.js` (clusterGroup options, `refreshLocationMarker`,
+  `declutterMarkerLabels`/`getIndividuallyVisibleLocations`/`getMarkerContainerEl`/`rectsOverlap`,
+  hook 4 điểm gọi), `styles.css` (rule `.marker-label-decluttered`), `test/civic-ui.test.js`
+  (assertion mới thay `disableClusteringAtZoom`), `test/location-ui.test.js` (nới char-budget regex
+  cho `refreshLocationMarker` + assertion `setZIndexOffset`).
+- **Kiểm tra:** `npm test` 661/661 PASS. Xác minh trực quan bằng Browser pane thật (không chỉ đọc
+  code): build `dist/` + `scripts/preview-server.js` (fixture 30 điểm), dựng lại kịch bản 8 marker
+  chồng nhau bằng JS trực tiếp trên `locations`/`marker.setLatLng` — trước khi sửa thấy pin+label
+  chồng trực tiếp; sau khi sửa thấy gộp cụm sạch (không pin nào chồng), zoom tiếp label không còn
+  cặp nào overlap (đo lại bằng `getBoundingClientRect()` từ console, `overlapsAmongShown: []`),
+  hover một marker bị decluttered vẫn mở tên bình thường, chọn 1 marker chỉ mở đúng card của nó.
+  Kiểm tra 3 viewport 1366×768, 1440×900, 1920×1080 ở trạng thái mặc định — bản đồ sạch, không còn
+  hàng loạt card chồng nhau.
+
+## [2026-09-03] R2b — Mobile sheet drag-dismiss selection cleanup
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Tiếp nối R2a (`fad4eb6`). R2a để lại một mục "investigated, not pursued": kéo
+  `#drag-handle` xuống đủ xa để dismiss hẳn detail sheet (thay vì dừng ở `collapsed`) có thể để lại
+  `currentlySelectedLocation`/marker `.marker-selected` cũ, nhưng lần thử trước (Playwright drag
+  giả lập) không tái hiện được và độ tin cậy của bản thân thao tác giả lập chưa được xác minh.
+- **Phase A — characterize trước khi sửa:** đọc lại toàn bộ vòng đời `SHEET_STATES`,
+  `endSheetDrag`, `resolveSheetStateFromOffset` (chọn state gần nhất theo khoảng cách offset),
+  `openDetailPanel`/`closeDetailPanel`, `suspendDetailSelection`/`resumeDetailSelection`. Xây dựng
+  helper drag thật bằng `page.mouse` (down → move nhiều bước → up), xác minh nó thực sự kích hoạt
+  handler sản phẩm (không phải `page.evaluate` giả lập) qua một lần chạy debug có instrument: bản
+  thân `event.preventDefault()` trong handler thật đã ngăn trình duyệt phát sinh `mousedown`
+  tương thích — bằng chứng gián tiếp nhưng chắc chắn rằng `pointerdown` thật đã tới đúng target.
+- **Phát hiện gốc rễ:** `endSheetDrag`, khi drag không bị huỷ và resolve về `SHEET_STATES.HIDDEN`
+  (một dismiss thật), gọi thẳng `setSheetState(HIDDEN, ...)` — bỏ qua toàn bộ cleanup vòng đời lựa
+  chọn mà `closeDetailPanel()` thực hiện (`currentlySelectedLocation = null`, `detailSuspended =
+  false`, `refreshLocationMarker` cho marker cũ, `applyPanelChrome(BROWSING)`). Mọi affordance đóng
+  khác (`#back-to-list-btn`, `#preview-close-btn`, Escape) đã đi qua `closeDetailPanel()` từ trước;
+  drag-dismiss là đường duy nhất còn sót. Lỗi này "vô hình" trong test thủ công vì lần
+  `openDetailPanel` kế tiếp (chọn địa điểm khác) luôn tự dọn residue như tác dụng phụ của việc
+  refresh `previousSelectedLocation` của chính nó.
+- **Sửa:** trong `endSheetDrag`, khi state resolve được là `HIDDEN` (không bị cancel), gọi
+  `closeDetailPanel({ restoreFocus })` rồi return, thay vì `setSheetState(HIDDEN, ...)`. Đường drag
+  bị cancel (`pointercancel`/`lostpointercapture`) không đổi — `dragStartState` chỉ có thể là
+  `COLLAPSED`/`EXPANDED` vì pointerdown handler từ chối bắt đầu drag khi sheet đã `HIDDEN`. Không
+  thêm writer mới — chỉ định tuyến đúng nhánh còn sót qua `closeDetailPanel()` đã có sẵn từ R1/R2a.
+- **File đã sửa:** `app.js` (endSheetDrag, +11/-4 dòng), `test/e2e/mobile-sheet-dismiss.spec.js`
+  (mới, 6 test case), `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`.
+- **Lý do:** đóng nốt class bug vòng đời mobile detail sheet mà R2a đã nêu nhưng chưa đóng — "một
+  địa điểm người dùng đã dismiss hẳn không được tồn tại như một selection đang hoạt động ở bất kỳ
+  đâu trong UI state, và không navigation/panel transition nào sau đó được âm thầm hồi sinh nó".
 - **Kiểm tra:**
   - `test/eval-debug-output.test.js`: 11/11 tests PASS.
   - `npm test`: 672/672 tests PASS.
@@ -4018,11 +4092,66 @@
 - **Lý do:** Task yêu cầu dùng Phần II để đóng đúng procedure contract, xác định catalog action thật (không mặc định 78+5), và đưa PR #79 tới trạng thái owner review nếu evidence đủ mạnh.
 - **Kiểm tra:** `node scripts/validate-tthc-legal-refresh.js` PASS (16 sources, 115 records, qd5230PublishedNewRows=10, qd5230UniqueNewTitles=5); `npm run validate:qd1523-mapping` PASS (không đổi); `npm test` PASS 678/678; `npm run build` PASS; E2E domain `npx playwright test test/e2e/tthc-catalog.spec.js` 6/6 PASS trên catalog 83-record thật (catalog thay đổi nội dung, không chỉ manifest, nên bắt buộc chạy lại theo section 20 của task).
 - **Verdict:** `BANDOCAPT_TTHC_2026_LEGAL_COMPLETENESS_PASS_READY_FOR_OWNER_REVIEW`. `NO_PRODUCTION_MUTATION`. Đề xuất PR #79 chuyển Draft → Ready for Review (owner quyết định, không tự merge). Chi tiết đầy đủ: `docs/tthc/TTHC_2026_QD5230_FINAL_CATALOG_CLOSURE.md`.
-
 ## [2026-09-20] Main E2E stabilization (local validation)
 - **Agent:** Codex
 - **Thay đổi:** Trong clean checkout tại main SHA `e9e115dc`, chuyển initial focus của TTHC catalog close button từ timer 120 ms sang gọi đồng bộ khi mở catalog. Không sửa assertion/test. Timer cũ có thể chạy sau khi người dùng đã bắt đầu thao tác, chuyển focus khỏi ô tìm kiếm.
 - **Historical CI evidence:** Run `34985366400` trên `e9e115dc` đạt `npm ci` và `npm run ci`; `npm run test:e2e` thất bại 116/117 ở `test/e2e/tthc-catalog.spec.js:85` — `external procedure deep-link replaces stale list context`. Log tại line 91 cho thấy không có row sau khi submit query `hộ chiếu` (5s timeout). GitHub không có artifact trong run để lấy historical trace/screenshot; hai annotations chỉ là Node 20 deprecation warning và process exit code 1.
 - **Root cause và phân loại:** Timing-sensitive focus race trong `openCatalogWindow()`: delayed `close.focus()` có thể cướp focus ở giữa thao tác tìm kiếm/submit. Bằng chứng trực tiếp cùng code path là local focus E2E từng fail ở lần full run thứ ba; trace ghi click→type khoảng 64 ms trong khi timer là 120 ms. Bỏ timer và đặt focus ban đầu đồng bộ giữ đúng focus management, không sửa/nới test.
 - **Kiểm tra:** Trước sửa, focused focus test 3/3 và stress 20/20 PASS; sau sửa focus test 3/3 PASS và historical deep-link test 20/20 PASS. Final local gates: `npm ci` PASS; `npm test` PASS 678/678; `npm run build` PASS; `npm run ci` PASS (production audit 2 moderate `uuid`); `npm run test:e2e` PASS 117/117. Một lần full E2E riêng có transient failure tại `panel-state-arbiter.spec.js:135`: test đọc opacity class trước RAF mở backdrop; trace/error context sau assertion cho thấy overlay đã mở. Focused repeat 10/10 và full E2E tiếp theo 117/117 PASS. `npm ci` báo 2 moderate + 2 high khi audit gồm dev dependencies.
-- **Verdict:** Local validation pass; chờ exact-head GitHub CI, Preview, merge policy và push CI trên merge SHA trước khi kết luận Phase A landed. Không sửa test, không deploy, không mutation Pinecone.
+- **Verdict:** `BANDOCAPT_MAIN_RELEASE_GATE_GREEN`; PR #83 merged, `main` tại `2afeb0c8044f74ae82edabd7e717452f42a5110a`; push CI run `35486904944` trên đúng SHA pass (gồm full E2E). Không sửa test, không deploy, không mutation Pinecone.
+
+## [2026-09-16] TTHC 2026 Pinecone delta refresh tooling
+
+- **Thay đổi:** Từ canonical `main` tại `e9e115dc0d094fa0c668f60ccccfd228241baec0`, thêm `scripts/refresh-tthc-pinecone.js` và test độc lập cho delta QĐ5230. Script mặc định read-only dry-run, giới hạn 7 record canonical (5 NEW + 2 UPDATED), dùng ID ổn định, targeted upsert/delete, backup rollback và fail-closed khi duplicate/stale match không chắc chắn; không chạm law/trụ sở và không dùng `deleteAll`.
+- **Snapshot/dry-run:** namespace `chatbot-tthc-xnc`, 529 vector, 768 chiều; 39 `tthc`, 194 `guide`, 152 `law`, 144 `truso-*`. Delta đo được: 5 insert, 2 update, 2 delete ID cũ duy nhất, duplicate/stale = 0, 296 vector ngoài scope.
+- **Mutation:** Lần đầu verify gặp eventual consistency và rollback tự động; dry-run xác nhận production trở lại 529 vector. Sau khi bổ sung verify retry bounded, lần chạy lại PASS: insert 5, update 2, delete 2; vector count sau cùng 534. Rollback manifest pre-change nằm trong `data/pinecone-backups/` (ignored).
+- **Idempotency:** dry-run lần hai: insert 0, update 0, delete 0, unchanged 7; vector count giữ 534.
+- **Retrieval:** 7/7 record mới/cập nhật nằm trong top-5, 6/7 ở top-1; hai ID cũ bị xóa không còn trong top-5 các query UPDATED. Hai regression TTHC cũ vẫn query được; title trùng cấp TW/tỉnh nên không kỳ vọng top-1 duy nhất.
+- **Chatbot runtime:** production endpoint `https://bandocapt.vercel.app/api/chat` reachable nhưng probe không có Turnstile token trả `CAPTCHA_FAILED`; chưa có browser-authenticated CAPTCHA session để xác nhận câu trả lời E2E.
+- **Kiểm tra code:** legal validator PASS; QĐ1523 mapping PASS; `npm test` 682/682; `npm run build` PASS; focused delta tests 4/4.
+- **Lý do:** Canonical pipeline trước đó chỉ có full-import/candidate flows, chưa có delta comparison và rollback an toàn cho legal refresh.
+
+## [2026-09-16] TTHC Pinecone refresh — chatbot runtime closure
+
+- **Acceptance path:** Strategy A đã mở production UI thật. Trang production tải được nhưng in-app browser không khởi tạo `window.turnstile`, nên không có browser token; direct production probe giữ đúng `403 CAPTCHA_FAILED`. Không inject/fake token và không sửa production security.
+- **Backend acceptance:** Strategy C gọi trực tiếp `api/chat.js` local với production business logic, test-only eval bypass đã có sẵn trong code, Pinecone production namespace read-only và credential local của owner. Gemini embedding/retrieval đã chạy thật; generation dùng Gemini ở các lượt còn quota và DeepSeek path hiện hữu cho các lượt còn lại.
+- **Matrix:** 5/5 NEW, 4/4 UPDATED (`1.012564`: cách thực hiện + thời hạn/nơi nộp; `1.014060`: nơi thực hiện + hồ sơ/thời hạn), 2/2 unchanged regression đều HTTP 200, retrieve đúng canonical procedure và có câu trả lời grounded. NEW không bị tự gán mã TTHC; UPDATED trả đúng nội dung QĐ5230 và không trả hai ID cũ đã xóa.
+- **Runtime limitations:** Gemini `generateContent` chạm quota free-tier 20 request/ngày trong quá trình acceptance; DeepSeek có một số lần lỗi TLS proxy `SELF_SIGNED_CERT_IN_CHAIN`. Các lượt acceptance hoàn tất được lưu evidence an toàn trong `data/pinecone-backups/` (ignored), không có credential.
+- **Production state:** Pinecone unchanged trong vòng closure này; browser production CAPTCHA vẫn PENDING, backend chatbot VERIFIED.
+
+## [2026-09-20] PR #80 Pinecone target and restore hardening
+- **Forward-port:** PR #80 delta-refresh commit was rebased from `e9e115dc` onto green `main` `2afeb0c8044f74ae82edabd7e717452f42a5110a`; append-only work-log conflict was resolved by retaining both Phase A closure and prior PR #80 history.
+- **Safety changes:** Dry-run/apply/rollback manifests now bind index name, `describeIndex()`-resolved host, namespace, catalog SHA-256, operation scope, exact affected/upsert/delete IDs, and before-state including absent IDs. Apply requires `--manifest` from a reviewed dry-run and refuses changed target, catalog, plan, or affected before-state. Restore checks the target before writes and verifies every affected ID's presence/absence plus exact vector values and metadata after restore; mismatch returns `RESTORE_VERIFY_FAILED`.
+- **Tests:** focused delta safety suite 12/12 PASS; `npm test` 690/690 PASS; `npm run build` PASS; `npm run ci` PASS (production audit reports 2 moderate `uuid`, below configured High failure threshold). Tests use fake clients; no Pinecone API request or mutation.
+- **Live dry-run:** `BANDOCAPT_PINECONE_RUNTIME_CREDENTIAL_BLOCKED`. The clean checkout has no Vercel CLI/project link, `.env`/`.env.local`, or Pinecone/Gemini process credential; `.env.local` is gitignored. No credential was printed or requested, and no Pinecone API call or production mutation occurred.
+- **Verdict:** Hardening is locally validated; live read-only dry-run remains blocked on safe credential availability. Stop before production mutation.
+
+## [2026-09-22] Core closure Phase B — Pinecone state revalidated and operation set locked
+
+- **Base:** clean worktree from `origin/main` `2afeb0c8044f74ae82edabd7e717452f42a5110a`; the dirty historical PR #81 checkout was preserved unchanged.
+- **Safety hardening:** `refresh-tthc-pinecone.js` now refuses APPLY unless the live plan is exactly 5 inserts + 2 updates + 0 unchanged, and reports the correct net vector-count delta (inserts only; replacing an old ID is count-neutral). Added focused drift tests; no security or retrieval policy was loosened.
+- **Validation:** focused Pinecone delta suite 15/15 PASS; full `npm test` 693/693 PASS using the repository's existing dependency cache. A fresh local `npm ci` was blocked by host usage limits, so build/CI are also checked by GitHub CI after push.
+- **Live read-only dry-run:** index `chatbot-tthc-xnc`, namespace `chatbot-tthc-xnc`, resolved host bound by the manifest, 534 vectors at 768 dimensions. All seven QĐ5230 records are present with matching current content hashes (`0 insert / 0 update / 0 delete / 7 unchanged`), with no duplicate or stale record. The earlier successful 5 NEW + 2 UPDATED apply is therefore current and idempotent; no APPLY was run in this closure round.
+- **Production mutation:** none. A new ignored dry-run manifest was generated under `data/pinecone-backups/`; it contains no credential.
+
+## [2026-09-17] BANDOCAPT_CHAT_LOCATION_INTENT_ROUTING_FULL_REDESIGN_AND_ACCEPTANCE
+
+- **Agent:** Codex
+- **Thay đổi:** Thêm `lib/chat-intent.js` với RequestPlan và các facet procedure/legal/authority/location; cập nhật
+  resolver và `/api/chat` để chỉ tra cứu trụ sở khi có physical task, giữ place mention làm context, hỗ trợ mixed intent
+  và topic-switch-safe history. Bổ sung failure states `missing_place`, `no_match`, `unavailable`,
+  `matched_unverified`; chặn physical claim trên mọi route trước khi phát SSE.
+- **Kiểm tra:** focused RequestPlan, resolver, nationality, published-location và RAG leak tests; full `npm test`/build
+  còn phải chạy sau khi cập nhật golden contract. Không mutate Pinecone, Sheets, catalog hay production config.
+- **Trạng thái:** Đang hoàn tất validation và runtime acceptance trên bản sao sạch từ `origin/main` do quyền `.git` hiện
+  không cho tạo worktree/branch trong checkout cũ.
+
+## [2026-09-22] Core project closure — local integration gate
+
+- **Base/forward-port:** Clean closure clone from `main` `2afeb0c`; forward-ported the Pinecone safety tooling, chat location/procedure intent routing, and only the non-duplicate map taxonomy/declutter portions of the historical PR #81 branch. The existing main state-arbiter commits were preserved rather than cherry-picking duplicate historical patches.
+- **UI/data-boundary hardening:** Canonical location classification now uses taxonomy helpers for police/identity decisions; marker clustering remains active across zoom levels with selected-marker z-index and bounded label declutter. Legacy filter assertions were adapted to the current single-select service-chip UI; no legacy checkbox UI was reintroduced.
+- **Validation:** focused Pinecone suite 15/15 PASS; full unit/integration suite 699/699 PASS; build-equivalent CSS/Apps Script/static/syntax/staff/rate-limit checks PASS; `npm audit --omit=dev --audit-level=high` exits 0 with 7 known moderate `uuid` advisories and no high-severity gate failure; full Playwright E2E 120/120 PASS.
+- **Live state:** Pinecone read-only dry-run remains idempotent at 534 vectors / 768 dimensions, with 0 insert, 0 update, 0 delete, 7 unchanged for the reviewed QĐ5230 scope. No production mutation was performed in this round.
+- **Limitations:** exact fresh `npm ci` and GitHub push/PR operations remain blocked by the host's usage/credential gate; no claim of remote merge or production deployment is made from this local closure clone.
+- **Verdict:** `BANDOCAPT_CORE_CLOSURE_LOCAL_GATES_GREEN_REMOTE_RELEASE_BLOCKED`.
+- **Push follow-up:** Retried terminal push after user reconfirmed continuation; auto-review rejected elevated push at the host usage limit and normal push returned `SEC_E_NO_CREDENTIALS`. Authenticated GitHub connector reads repository metadata and reports `push: true`, but its Git Data `create_blob` and `create_branch` writes both return 403 `Resource not accessible by integration`. No remote ref or PR was changed; the closure branch remains committed locally.

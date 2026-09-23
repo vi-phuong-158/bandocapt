@@ -134,6 +134,30 @@ function isIdentityLocation(loc) {
   return canonicalServiceCodes(loc).includes("IDENTITY");
 }
 
+// Canonical site type is authoritative for the public map. Legacy service/type
+// signals remain a fallback for rows that predate the taxonomy migration.
+function canonicalSiteType(loc) {
+  if (loc._canonicalSiteType === undefined) {
+    loc._canonicalSiteType = window.LocationTaxonomy?.toCanonicalSiteType
+      ? window.LocationTaxonomy.toCanonicalSiteType(loc.siteType)
+      : null;
+  }
+  return loc._canonicalSiteType;
+}
+
+function isPoliceLocation(loc) {
+  const siteType = canonicalSiteType(loc);
+  if (siteType) return siteType !== "PUBLIC_SERVICE_CENTER";
+  return loc.services?.includes("POLICE_OFFICE") || loc.type === "police_station";
+}
+
+function isCccdLocation(loc) {
+  if (isIdentityLocation(loc)) return true;
+  const siteType = canonicalSiteType(loc);
+  if (siteType) return siteType === "PUBLIC_SERVICE_CENTER";
+  return loc.services?.includes("CITIZEN_ID") || loc.type === "id_center";
+}
+
 // Bộ lọc dịch vụ trên bản đồ là single-select: `null` = không lọc (hiện tất cả), ngược lại chỉ giữ
 // địa điểm có đúng mã dịch vụ canonical đang chọn. Cô lập vào một hàm duy nhất để nếu sau này cần
 // mở rộng logic thì chỉ sửa ở đây, không lan ra marker/filter/danh sách/detail.
@@ -157,7 +181,7 @@ function getMarkerThumbnail(loc) {
 }
 
 function createCustomIcon(loc) {
-  const isPolice = !isIdentityLocation(loc);
+  const isPolice = isPoliceLocation(loc);
   const isSelected =
     currentlySelectedLocation && currentlySelectedLocation.id === loc.id;
   const isMobile = isMobileViewport();
@@ -262,13 +286,17 @@ function createClusterIcon(cluster) {
   });
 }
 
+// Không dùng disableClusteringAtZoom: một maxClusterRadius nhỏ (36px) vẫn tiếp tục gom cụm ở MỌI
+// mức zoom, nên hai trụ sở thật sự gần nhau trên màn hình (cùng khu vực, khác toà nhà) luôn được
+// gộp thành 1 cụm thay vì hai pin/photo-card chồng trực tiếp lên nhau. spiderfyOnMaxZoom bật để xử
+// lý trường hợp toạ độ gần trùng nhau tới mức không thể tách bằng zoom nữa: bấm cụm ở zoom tối đa
+// sẽ tõe từng marker ra để vẫn bấm được đầy đủ ảnh/tên từng đơn vị (mục 3 + 7 của task decluttering).
 const clusterGroup = typeof L.markerClusterGroup === "function"
   ? L.markerClusterGroup({
-      disableClusteringAtZoom: 14,
       maxClusterRadius: zoom => zoom <= 9 ? 60 : zoom <= 11 ? 48 : 36,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
-      spiderfyOnMaxZoom: false,
+      spiderfyOnMaxZoom: true,
       removeOutsideVisibleBounds: true,
       animate: !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
       iconCreateFunction: createClusterIcon,
@@ -302,9 +330,14 @@ function setLocationVisible(loc, visible) {
   }
 }
 
+// Nổi marker đang chọn lên trên mọi marker khác bất kể vĩ độ — Leaflet mặc định xếp z-index theo
+// vĩ độ (điểm phía nam vẽ đè lên điểm phía bắc), nên chỉ CSS z-index bên trong divIcon (xem
+// .marker-selected .marker-icon) không đủ để thắng marker khác nằm cạnh nó.
 function refreshLocationMarker(loc) {
   if (!loc?.marker) return;
+  const isSelected = currentlySelectedLocation?.id === loc.id;
   loc.marker.setIcon(createCustomIcon(loc));
+  loc.marker.setZIndexOffset(isSelected ? 1000 : 0);
   addLocationMarker(loc);
 }
 
@@ -313,6 +346,66 @@ function updateAllMarkersIcon() {
     refreshLocationMarker(loc);
   });
 }
+
+// Chỉ những marker Leaflet.markercluster đang hiển thị như 1 pin riêng lẻ (không bị gộp trong
+// bong bóng cụm) mới có DOM `.marker-label` để đo — getVisibleParent trả về marker cho trường hợp
+// đó, hoặc trả về marker cụm thay thế nếu đang bị gộp.
+function getIndividuallyVisibleLocations() {
+  const bounds = map.getBounds();
+  return locations.filter((loc) => {
+    if (!loc._visible || !loc.marker) return false;
+    if (!bounds.contains(loc.marker.getLatLng())) return false;
+    if (selectedLayer.hasLayer(loc.marker)) return true;
+    return typeof clusterGroup.getVisibleParent !== "function"
+      || clusterGroup.getVisibleParent(loc.marker) === loc.marker;
+  });
+}
+
+function rectsOverlap(a, b) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+// Không để 2 photo-card (tên đơn vị) đè trực tiếp lên nhau khi zoom đủ gần hiện tên hàng loạt.
+// Card của địa điểm đang chọn luôn thắng; card thua trong 1 cặp chồng nhau bị gắn
+// `marker-label-decluttered` (ẩn nhãn qua CSS, marker/icon vẫn hiện) — hover hoặc chọn lại vẫn mở
+// được bình thường vì rule CSS chừa ngoại lệ :hover/.marker-selected.
+// `.marker-container` (nơi CSS `.marker-label-decluttered` áp dụng) là DIV con bên trong divIcon,
+// không phải chính element mà `marker.getElement()` trả về (đó là icon wrapper của Leaflet).
+function getMarkerContainerEl(loc) {
+  return loc.marker.getElement()?.querySelector(".marker-container") || null;
+}
+
+function declutterMarkerLabels() {
+  if (typeof locations === "undefined" || !locations.length) return;
+  const visible = getIndividuallyVisibleLocations();
+  if (!map.getContainer().classList.contains("show-marker-labels")) {
+    visible.forEach((loc) => getMarkerContainerEl(loc)?.classList.remove("marker-label-decluttered"));
+    return;
+  }
+
+const candidates = visible
+    .map((loc) => {
+      const el = getMarkerContainerEl(loc);
+      const labelEl = el?.querySelector(".marker-label");
+      if (!el || !labelEl) return null;
+      el.classList.remove("marker-label-decluttered");
+      return { loc, el, isSelected: currentlySelectedLocation?.id === loc.id, rect: labelEl.getBoundingClientRect() };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Number(b.isSelected) - Number(a.isSelected));
+
+const accepted = [];
+  candidates.forEach((candidate) => {
+    const collides = accepted.some((other) => rectsOverlap(candidate.rect, other.rect));
+    if (collides && !candidate.isSelected) {
+      candidate.el.classList.add("marker-label-decluttered");
+    } else {
+      accepted.push(candidate);
+    }
+  });
+}
+
+map.on("zoomend moveend", declutterMarkerLabels);
 
 let startY = 0;
 let isDragging = false;
@@ -732,7 +825,7 @@ function openDetailPanel(loc, trigger = null) {
     refreshLocationMarker(currentlySelectedLocation);
   }
 
-  const isPolice = !isIdentityLocation(loc);
+  const isPolice = isPoliceLocation(loc);
   renderLocationPreview(loc, isPolice);
 
   // site_type là nguồn sự thật cho "đây là đâu" (mô tả hình thái vật lý qua taxonomy); nhánh cũ chỉ
@@ -781,7 +874,7 @@ function openDetailPanel(loc, trigger = null) {
   const procedureNoteHtml =
     loc.cccdServiceMode === "TEMPORARILY_PAUSED"
       ? `<div class="text-[13px] text-amber-800 bg-amber-50 border border-amber-200/50 p-2.5 rounded-xl flex items-start gap-2 shadow-sm font-medium"><span class="material-symbols-outlined text-[18px] text-amber-600">info</span><span>Điểm cấp căn cước đang tạm dừng. Vui lòng liên hệ trước khi đến.</span></div>`
-      : isIdentityLocation(loc)
+      : isCccdLocation(loc)
       ? `<div class="text-[13px] text-amber-800 bg-amber-50 border border-amber-200/50 p-2.5 rounded-xl flex items-start gap-2 shadow-sm font-medium"><span class="material-symbols-outlined text-[18px] text-amber-600">info</span><span>Lưu ý: Mang theo CCCD/CMND cũ hoặc Giấy khai sinh khi làm thủ tục.</span></div>`
       : "";
 
@@ -835,6 +928,7 @@ if (isMobile) {
       duration: 0.8,
     });
   }
+  declutterMarkerLabels();
 }
 
 function closeDetailPanel({ restoreFocus = true } = {}) {
@@ -850,6 +944,7 @@ if (previousSelectedLocation && previousSelectedLocation.marker) {
     refreshLocationMarker(previousSelectedLocation);
   }
   applyPanelChrome(PANEL_STATES.BROWSING, { restoreFocus });
+  declutterMarkerLabels();
 }
 
 backToListBtn.addEventListener("click", () => {
@@ -908,6 +1003,7 @@ if (userLat != null) {
   }
 
 renderResultsList(visibleLocations);
+  declutterMarkerLabels();
 }
 
 function renderResultsList(results) {
@@ -923,7 +1019,7 @@ function renderResultsList(results) {
 
 resultsList.innerHTML = results
     .map((loc) => {
-      const isPolice = !isIdentityLocation(loc);
+      const isPolice = isPoliceLocation(loc);
       const distStr =
         loc._currentDistance != null
           ? loc._currentDistance < 1
@@ -1324,6 +1420,7 @@ function resumeDetailSelection() {
   detailSuspended = false;
   applyPanelChrome(PANEL_STATES.DETAIL, { sheetState: SHEET_STATES.COLLAPSED });
   refreshLocationMarker(currentlySelectedLocation);
+  declutterMarkerLabels();
 }
 
 window.AppNavigation?.registerSurface("map", {
