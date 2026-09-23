@@ -86,26 +86,30 @@
 
 ---
 
-## [CODE DONE — CHỜ OWNER APPROVAL 2026-09-23] ZALO_BOT_PLATFORM_V0
+## [MERGED — PRODUCTION CLOSURE BLOCKED 2026-09-23] ZALO_BOT_PLATFORM_V0
 
-- Tích hợp Zalo Bot Platform mới (KHÔNG phải Zalo OA OpenAPI, không GMF) vào chatbot/RAG hiện có,
-  qua `vercel.json` rewrite `/api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot` — không thêm
-  function Vercel thứ 13. `lib/zalo-bot.js` là adapter transport thuần; `api/chat.js` thêm
-  `handleZaloBotWebhook` + tách `runChatOrchestration` dùng chung cho website (SSE) và Zalo
-  (BufferSink). V0 chỉ hỗ trợ `message.text.received`; ảnh/sticker/voice/tin nhắn bot đều ACK an
-  toàn, không đưa vào RAG.
-- `scripts/register-zalo-bot-webhook.js` (`npm run zalo:webhook:set`) đăng ký webhook một lần, đọc
-  `ZALO_BOT_TOKEN`/`ZALO_BOT_WEBHOOK_SECRET`/`ZALO_BOT_WEBHOOK_URL` từ env, không log secret.
-- Test: 32 test mới (`test/zalo-bot.test.js` 21, `test/chat-zalo-bot-channel.test.js` 11) phủ đủ 14
-  hạng mục yêu cầu (payload hợp lệ, secret sai, bot message, non-text event, PRIVATE/GROUP,
-  sendMessage đúng chat.id, split 2000/>2000, không lộ secret trong log, Zalo bypass Turnstile mà
-  website không bị bypass, rate-limit theo principal không theo IP). `npm test` 731/731 PASS,
-  `npm run build` PASS, `npm run ci` PASS (audit chỉ còn 2 moderate `uuid`/`gaxios` có sẵn từ
-  trước, không liên quan task này). Chi tiết: `01-architecture.md`, `03-decisions.md`,
-  `06-ai-working-log.md` (2026-09-23).
-- **CHẶN:** chưa merge, chưa deploy Production, chưa gọi `zalo:webhook:set` thật (cần
-  `ZALO_BOT_TOKEN`/`ZALO_BOT_WEBHOOK_SECRET`/`ZALO_BOT_WEBHOOK_URL` thật trên Vercel trước). Owner
-  cần duyệt Draft PR trước khi merge.
+- PR #88 đã **MERGED** vào `main` (merge commit `1f1607f0274026cfd13829722f7deda19fe5c869`, đầu
+  nhánh nguồn `7c76c4c7aa8c29bc3b93aa577d0f73f87c19b643`). Final review (15 hạng mục) và final gate
+  (`npm test` 731/731, `npm run build`, `npm run ci`) đều PASS trên đúng exact head trước khi merge;
+  không sửa gì thêm ở bước này.
+- Xác nhận qua GitHub Deployments API (không cần Vercel token): deployment cho project `bandocapt`
+  (environment `Production – bandocapt`, KHÔNG phải `bandocapt-rehearsal`) tại đúng SHA merge
+  `1f1607f...` có `state: success`.
+- **CHẶN đóng Production thật (network egress của môi trường agent, không phải lỗi code/deploy):**
+  môi trường thực thi phiên này có network policy chỉ cho phép GitHub + một số host Anthropic; mọi
+  kết nối trực tiếp tới `vercel.com`, `*.vercel.app` (kể cả URL deployment cụ thể lấy từ GitHub
+  Deployments API), `bandocapt.io.vn` và `bot-api.zaloplatforms.com` đều bị egress proxy từ chối
+  (`connect_rejected`, chính sách tổ chức). Do đó KHÔNG thể tự động thực hiện: (1) smoke test
+  `POST https://bandocapt.io.vn/api/zalo-bot/webhook`, (2) xác minh domain production đã trỏ đúng
+  deployment mới, (3) xác minh 3 biến env qua Vercel API/CLI, (4) gọi thật
+  `bot-api.zaloplatforms.com/bot<TOKEN>/setWebhook`. Không suy đoán/giả lập các bước này — chưa có
+  bằng chứng trực tiếp nào cho PASS/FAIL của Phase 4-8.
+- **Còn lại (cần môi trường có egress hoặc owner tự chạy):** Phase 4 (smoke test route thật) →
+  Phase 5 (xác nhận presence 3 biến env) → Phase 6 (`npm run zalo:webhook:set` với env Production
+  thật, không log secret) → Phase 7 (kiểm tra runtime hậu đăng ký) → Phase 8 (owner gửi tin nhắn
+  PRIVATE thật trên Zalo để chấp nhận cuối). Không có bước nào trong số này bị chặn bởi code hay
+  cấu hình Vercel — chỉ chặn bởi network policy của phiên agent hiện tại.
+- Chi tiết đầy đủ: `06-ai-working-log.md` (2026-09-23, entry PRODUCTION CLOSURE).
 
 ---
 
