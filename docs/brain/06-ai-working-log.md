@@ -4166,3 +4166,9 @@
 
 - `bandocapt.vercel.app` root returned HTTP 200; `asset-manifest.json` and the hashed TTHC catalog returned HTTP 200, with the QĐ5230 new title present. `/api/google-sheet` returned HTTP 200.
 - Direct chatbot requests without Turnstile stayed blocked by `CAPTCHA_FAILED`; no token bypass was fabricated. Hashed asset URLs are the production contract, so un-hashed source paths returning 404 are expected.
+
+## [2026-09-23] Final production SHA reconciliation
+
+- **Reconciliation:** Read-only verification showed the final `main` after PR #86 is `6a66e15c70dc5970a12d162e8a6315e9e51189fc`, while the earlier report still named the superseded PR #84 deployment. Updated the closure report to the final Vercel production deployment `dpl_DEZ8hCYohMp3WoFzYkg3tM5Rj8i6` (`READY`, `production`) and recorded exact-head CI runs `35828570942` and `35829315844`.
+- **Smoke recheck:** Root, asset manifest, hashed TTHC catalog, and `/api/google-sheet` returned HTTP 200; the hashed catalog contains the QĐ5230 title. Direct chatbot requests without Turnstile remain correctly blocked by `CAPTCHA_FAILED`.
+- **Verdict:** `BANDOCAPT_CORE_PROJECT_CLOSURE_FINAL_SHA_RECONCILED`.

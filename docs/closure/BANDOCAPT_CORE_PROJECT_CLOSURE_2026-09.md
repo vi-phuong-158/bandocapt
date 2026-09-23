@@ -5,7 +5,7 @@
 `BANDOCAPT_CORE_PROJECT_CLOSURE_PASS`
 
 The closure forward-port was pushed as `codex/core-project-closure`, merged by
-PR #84, and deployed from the resulting `main` SHA.
+PR #84, and the final report/smoke evidence was merged by PRs #85 and #86.
 
 ## GitHub outcome
 
@@ -17,6 +17,8 @@ PR #84, and deployed from the resulting `main` SHA.
   the core production rollout.
 - Exact-head GitHub Actions run `35827809840`: **PASS**. It completed `npm ci`,
   `npm run ci`, Chromium installation and full E2E.
+- Follow-up report/smoke PRs #85 and #86: **MERGED**; exact-head CI runs
+  `35828570942` and `35829315844` also passed the full required CI/E2E gate.
 
 ## Integrated changes
 
@@ -39,11 +41,11 @@ PR #84, and deployed from the resulting `main` SHA.
 
 ## Production deployment
 
-- Deployment ID: `dpl_BCayxYFxruVnymiaaFENk3MABb7i`
+- Deployment ID: `dpl_DEZ8hCYohMp3WoFzYkg3tM5Rj8i6`
 - State: **READY**, target **production**
 - Production commit SHA:
-  `f28e911643814f2bc7180a03baf5a78fd8838480`
-- GitHub `main` SHA and Vercel production commit SHA match exactly.
+  `6a66e15c70dc5970a12d162e8a6315e9e51189fc`
+- Final GitHub `main` SHA and Vercel production commit SHA match exactly.
 
 ## Production smoke
 
