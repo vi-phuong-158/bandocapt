@@ -86,6 +86,29 @@
 
 ---
 
+## [CODE DONE — CHỜ OWNER APPROVAL 2026-09-23] ZALO_BOT_PLATFORM_V0
+
+- Tích hợp Zalo Bot Platform mới (KHÔNG phải Zalo OA OpenAPI, không GMF) vào chatbot/RAG hiện có,
+  qua `vercel.json` rewrite `/api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot` — không thêm
+  function Vercel thứ 13. `lib/zalo-bot.js` là adapter transport thuần; `api/chat.js` thêm
+  `handleZaloBotWebhook` + tách `runChatOrchestration` dùng chung cho website (SSE) và Zalo
+  (BufferSink). V0 chỉ hỗ trợ `message.text.received`; ảnh/sticker/voice/tin nhắn bot đều ACK an
+  toàn, không đưa vào RAG.
+- `scripts/register-zalo-bot-webhook.js` (`npm run zalo:webhook:set`) đăng ký webhook một lần, đọc
+  `ZALO_BOT_TOKEN`/`ZALO_BOT_WEBHOOK_SECRET`/`ZALO_BOT_WEBHOOK_URL` từ env, không log secret.
+- Test: 32 test mới (`test/zalo-bot.test.js` 21, `test/chat-zalo-bot-channel.test.js` 11) phủ đủ 14
+  hạng mục yêu cầu (payload hợp lệ, secret sai, bot message, non-text event, PRIVATE/GROUP,
+  sendMessage đúng chat.id, split 2000/>2000, không lộ secret trong log, Zalo bypass Turnstile mà
+  website không bị bypass, rate-limit theo principal không theo IP). `npm test` 731/731 PASS,
+  `npm run build` PASS, `npm run ci` PASS (audit chỉ còn 2 moderate `uuid`/`gaxios` có sẵn từ
+  trước, không liên quan task này). Chi tiết: `01-architecture.md`, `03-decisions.md`,
+  `06-ai-working-log.md` (2026-09-23).
+- **CHẶN:** chưa merge, chưa deploy Production, chưa gọi `zalo:webhook:set` thật (cần
+  `ZALO_BOT_TOKEN`/`ZALO_BOT_WEBHOOK_SECRET`/`ZALO_BOT_WEBHOOK_URL` thật trên Vercel trước). Owner
+  cần duyệt Draft PR trước khi merge.
+
+---
+
 ## Đang làm
 
 ### [ACTIVE] Kế hoạch khắc phục toàn diện 4 giai đoạn (2026-07-11)

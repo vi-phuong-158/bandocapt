@@ -1,5 +1,57 @@
 # 03 — Technical Decisions
 
+## [2026-09-23] Zalo Bot Platform V0 tái sử dụng `api/chat.js` qua rewrite, không phải function riêng
+
+- **Bối cảnh:** Cần tích hợp Zalo Bot Platform mới của Zalo (khác Zalo OA OpenAPI, không dùng GMF)
+  vào chatbot/RAG hiện có, nhưng repo đã ở sát/đúng giới hạn 12 Vercel Function của gói Hobby
+  (`test/vercel-preview-budget.test.js` khoá `apiFiles.length <= 12`). Thêm `api/zalo-bot.js` sẽ là
+  function thứ 13 và làm hỏng giới hạn này.
+- **Quyết định 1 — Rewrite nội bộ thay vì function mới.** `vercel.json` thêm
+  `/api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot`. Vercel rewrite không tạo function mới;
+  route đích vẫn là `api/chat.js` duy nhất. Hệ quả chấp nhận được: ai đó có thể POST thẳng
+  `/api/chat?__channel=zalo_bot` mà không qua đường `/api/zalo-bot/webhook` — không phải lỗ hổng vì
+  ranh giới an toàn thật sự là `verifyZaloWebhookSecret` (constant-time so khớp
+  `X-Bot-Api-Secret-Token`/`ZALO_BOT_WEBHOOK_SECRET`), không phải URL path.
+- **Quyết định 2 — Tách `runChatOrchestration` khỏi `handler` bằng cách bọc nguyên khối, không viết
+  lại.** PR-1 (2026-08-25, xem entry cũ trong file này) đã cố tình chừa ranh giới sink ngay từ
+  `isClearlyOutOfScope(...)`: mọi thứ từ đó tới hết handler chỉ gọi `sink.*`, không đụng `res` trực
+  tiếp. Audit xác nhận (bằng grep từng biến request-scoped) khối đó chỉ cần đúng 11 biến từ bên
+  ngoài: `sink, userMessage, history, clientIP, currentDate, deadlineAt, _startTime,
+  FIREBASE_DB_URL, FIREBASE_AUTH, evalMode, req`. Thay vì viết lại pipeline cho kênh Zalo (X cấm của
+  task — "không copy một chatbot pipeline thứ hai"), khối ~1.230 dòng được CẮT NGUYÊN VẸN (không
+  đổi một dòng logic) thành `async function runChatOrchestration(ctx)`, gọi từ cả website
+  (`sink = createSseSink(res)`) và Zalo (`sink = createBufferSink()`). Bằng chứng: golden SSE test
+  byte-identical trước/sau vẫn PASS nguyên trạng — đây chính là phần PR-4 mà quyết định PR-1 đã dự
+  kiến ("wire `BufferSink` vào handler — đó là việc của PR-4") nhưng để trống lúc đó.
+- **Quyết định 3 — Ack trước, RAG sau, trong `waitUntil`.** Zalo Bot webhook có thể tạo retry storm
+  nếu response chậm (RAG có thể mất hàng chục giây). `handleZaloBotWebhook` trả `res.status(200)`
+  NGAY sau khi xác thực secret + parse event + đặt chỗ rate-limit (các bước rẻ, nhanh), rồi chạy
+  `runChatOrchestration` + `sendZaloMessage` bên trong `waitUntil(...)` — đúng cơ chế
+  `@vercel/functions` đã dùng sẵn cho `checkGroundednessAsync`/`logChatToFirestore`, không phát
+  minh cơ chế nền mới, không tạo recursion hay background task ngoài tầm kiểm soát của Vercel.
+- **Quyết định 4 — Rate limit theo principal băm, không theo IP.** Mọi webhook Zalo đến từ hạ tầng
+  của Zalo (không đại diện người dùng cuối), nên dùng `zalo:<chat_type>:<chat_id>:<from_id>`
+  (`buildZaloRatePrincipal`) băm qua `hashForLog` hiện có làm key Firebase
+  (`usage_zalo_bot/<ngày>/<hash>.json`), tái dùng nguyên `reserveRateLimitQuota` ETag/CAS đã có cho
+  website — không viết cơ chế rate-limit thứ hai. Test xác nhận: cùng chat/from nhưng IP khác nhau
+  vẫn dùng chung 1 bucket; chat khác nhau tạo bucket khác.
+- **Quyết định 5 — Turnstile/HMAC chỉ áp cho website.** `isZaloBotRoute(req)` được kiểm tra ở DÒNG
+  ĐẦU TIÊN của `handler`, trước cả khối CORS/HMAC/Turnstile của website — request Zalo hợp lệ không
+  bao giờ chạm các gate đó. Request website (không có `__channel=zalo_bot`) tiếp tục đi nguyên
+  đường cũ, không có nhánh nào bị nới lỏng — test xác nhận request website thiếu HMAC token vẫn bị
+  403 y hệt trước khi có Zalo Bot.
+- **Quyết định 6 — Không streaming SSE cho Zalo.** `createBufferSink()` (đã có sẵn từ PR-1, chưa
+  từng được "wire" vào handler trước task này) tích luỹ toàn bộ sự kiện SSE-tương đương trong bộ
+  nhớ; Zalo chỉ nhận `result().done.fullText` sau khi orchestration (bao gồm output-validator,
+  location-safety gate) chạy xong — đúng yêu cầu "chỉ nhận final validated answer".
+- **Quyết định 7 — Split text không mất ký tự.** `splitZaloText` cắt tại ranh giới đoạn/câu/khoảng
+  trắng gần nhất bằng `lastIndexOf`, luôn giữ ký tự phân tách ở đoạn TRƯỚC (không `trim()`) — bất
+  biến `chunks.join('') === original` được khoá bằng test, kể cả trường hợp hard-cut (không có ranh
+  giới an toàn nào trong 2000 ký tự).
+- **Không làm:** không đổi Pinecone/RAG, không mutate Google Sheets, không đổi hành vi website SSE
+  (khoá bằng golden test), không dùng Zalo OA OpenAPI, không có GMF, không merge/deploy Production —
+  chỉ Draft PR chờ owner duyệt.
+
 ## [2026-09-06] P0 Follow-up: Preposition Location Evidence Hardening & Single-Token Alias Safety Invariant
 ## [2026-09-17] Marker/label collision avoidance dùng platform capability (Leaflet.markercluster) trước, tự viết đo va chạm chỉ cho phần cluster không xử lý được
 
