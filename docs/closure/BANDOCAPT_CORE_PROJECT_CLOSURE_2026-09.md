@@ -45,6 +45,15 @@ PR #84, and deployed from the resulting `main` SHA.
   `f28e911643814f2bc7180a03baf5a78fd8838480`
 - GitHub `main` SHA and Vercel production commit SHA match exactly.
 
+## Production smoke
+
+- `GET https://bandocapt.vercel.app/`: HTTP 200.
+- `GET /asset-manifest.json`: HTTP 200; hashed catalog assets resolved.
+- Hashed catalog JSON: HTTP 200 and contains the QĐ5230 new procedure title.
+- `GET /api/google-sheet`: HTTP 200.
+- Direct chatbot calls without a Turnstile token remain rejected with the
+  expected CAPTCHA guard; no bypass token was fabricated during smoke testing.
+
 ## Deferred modules
 
 Accommodation Beta and Zalo Bot remain intentionally deferred. They were closed

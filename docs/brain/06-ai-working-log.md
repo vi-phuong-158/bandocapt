@@ -4161,3 +4161,8 @@
 - **GitHub:** Pushed `codex/core-project-closure`, opened PR #84, passed exact-head CI run `35827809840` (`npm ci`, `npm run ci`, Chromium install, full E2E), and merged with commit `f28e911643814f2bc7180a03baf5a78fd8838480`. Closed PRs #80, #81 and #82 as superseded; closed #60 as superseded and #67/#76 as deferred optional modules.
 - **Production:** Vercel production deployment `dpl_BCayxYFxruVnymiaaFENk3MABb7i` is READY and reports commit SHA `f28e911643814f2bc7180a03baf5a78fd8838480`, matching GitHub `main` exactly.
 - **Verdict:** `BANDOCAPT_CORE_PROJECT_CLOSURE_PASS`.
+
+## [2026-09-23] Production smoke evidence
+
+- `bandocapt.vercel.app` root returned HTTP 200; `asset-manifest.json` and the hashed TTHC catalog returned HTTP 200, with the QĐ5230 new title present. `/api/google-sheet` returned HTTP 200.
+- Direct chatbot requests without Turnstile stayed blocked by `CAPTCHA_FAILED`; no token bypass was fabricated. Hashed asset URLs are the production contract, so un-hashed source paths returning 404 are expected.
