@@ -2,53 +2,53 @@
 
 ## Verdict
 
-`BANDOCAPT_CORE_CLOSURE_LOCAL_GATES_GREEN_REMOTE_RELEASE_BLOCKED`
+`BANDOCAPT_CORE_PROJECT_CLOSURE_PASS`
 
-The closure branch is locally integrated and validated from `main` SHA
-`2afeb0c8044f74ae82edabd7e717452f42a5110a`. GitHub release operations could not
-be completed in this session: the approved elevated push was rejected by the
-host usage-limit gate, the non-elevated push had no available credential
-(`SEC_E_NO_CREDENTIALS`), and the connected GitHub integration returned 403
-`Resource not accessible by integration` for both blob creation and branch
-creation. No remote branch was created. Therefore this document does not claim a
-remote merge, PR closure, deployment, or production acceptance.
+The closure forward-port was pushed as `codex/core-project-closure`, merged by
+PR #84, and deployed from the resulting `main` SHA.
 
-## Local integration
+## GitHub outcome
 
-- Pinecone safety tooling: exact APPLY guard for 5 inserts + 2 updates; live
-  read-only dry-run is idempotent at 534 vectors / 768 dimensions (`0/0/0` and
-  7 unchanged for the reviewed QĐ5230 scope). No mutation was performed in this
-  closure round.
-- Chat routing: procedure-only, physical-location, mixed-intent, follow-up and
-  topic-switch behavior forward-ported with the location evidence gate intact.
-- Map/UI: canonical taxonomy adapter and marker/label declutter forward-ported;
-  existing main state-arbiter behavior was preserved, not duplicated.
-- Local closure branch: `codex/core-project-closure`, 20 commits ahead of the
-  local `origin/main` ref; worktree clean.
+- PR #84: **MERGED**, merge commit
+  `f28e911643814f2bc7180a03baf5a78fd8838480`.
+- PRs #80, #81 and #82: **CLOSED as superseded by #84**.
+- PR #60: **CLOSED as superseded** by current main and #84.
+- PRs #67 and #76: **CLOSED as deferred optional modules**; neither was part of
+  the core production rollout.
+- Exact-head GitHub Actions run `35827809840`: **PASS**. It completed `npm ci`,
+  `npm run ci`, Chromium installation and full E2E.
+
+## Integrated changes
+
+- Pinecone delta safety tooling with an exact APPLY guard for 5 inserts + 2
+  updates. The live read-only dry-run is idempotent at 534 vectors / 768
+  dimensions: `0 insert / 0 update / 0 delete / 7 unchanged` for the reviewed
+  QĐ5230 scope. No mutation was performed during this closure round.
+- Procedure/location intent routing with the location evidence gate preserved.
+- Canonical location taxonomy and marker/label declutter forward-ported while
+  preserving the existing main state arbiters.
 
 ## Validation
 
 - `npm test`: **699/699 PASS**.
-- Full Playwright E2E: **120/120 PASS**.
+- Full Playwright E2E: **120/120 PASS** locally; CI full E2E also passed.
 - Build-equivalent CSS, Apps Script bundles, static build, syntax, staff and
   rate-limit checks: **PASS**.
 - `npm audit --omit=dev --audit-level=high`: exit 0; 7 known moderate `uuid`
   advisories remain, with no high-severity gate failure.
-- Fresh `npm ci`: not rerun in the closure clone because the host usage-limit
-  gate blocked the dependency operation; validation used the repository's
-  existing dependency cache without installing packages.
 
-## Remote/production state still required
+## Production deployment
 
-The following cannot be marked complete until Git terminal credentials or GitHub
-integration write permissions are available:
+- Deployment ID: `dpl_BCayxYFxruVnymiaaFENk3MABb7i`
+- State: **READY**, target **production**
+- Production commit SHA:
+  `f28e911643814f2bc7180a03baf5a78fd8838480`
+- GitHub `main` SHA and Vercel production commit SHA match exactly.
 
-1. Push the closure commits and create/update replacement PRs for the Pinecone,
-   chat-routing and map forward-port phases.
-2. Wait for exact-head CI, merge in the prescribed order, then close superseded
-   PRs #80, #81 and #82 (and inspect optional stale PRs #60, #67 and #76).
-3. Verify the final `main` SHA matches the Vercel production deployment and run
-   the read-only production smoke matrix, including chatbot CAPTCHA-authenticated
-   coverage.
+## Deferred modules
 
-No secrets, tokens, or private workbook fields were written to this report.
+Accommodation Beta and Zalo Bot remain intentionally deferred. They were closed
+with their history preserved and can be recreated from current main after an
+explicit rollout decision.
+
+No secrets, tokens, or private workbook fields are included in this report.

@@ -4155,3 +4155,9 @@
 - **Limitations:** exact fresh `npm ci` and GitHub push/PR operations remain blocked by the host's usage/credential gate; no claim of remote merge or production deployment is made from this local closure clone.
 - **Verdict:** `BANDOCAPT_CORE_CLOSURE_LOCAL_GATES_GREEN_REMOTE_RELEASE_BLOCKED`.
 - **Push follow-up:** Retried terminal push after user reconfirmed continuation; auto-review rejected elevated push at the host usage limit and normal push returned `SEC_E_NO_CREDENTIALS`. Authenticated GitHub connector reads repository metadata and reports `push: true`, but its Git Data `create_blob` and `create_branch` writes both return 403 `Resource not accessible by integration`. No remote ref or PR was changed; the closure branch remains committed locally.
+
+## [2026-09-23] Core project closure — remote merge and production deployment
+
+- **GitHub:** Pushed `codex/core-project-closure`, opened PR #84, passed exact-head CI run `35827809840` (`npm ci`, `npm run ci`, Chromium install, full E2E), and merged with commit `f28e911643814f2bc7180a03baf5a78fd8838480`. Closed PRs #80, #81 and #82 as superseded; closed #60 as superseded and #67/#76 as deferred optional modules.
+- **Production:** Vercel production deployment `dpl_BCayxYFxruVnymiaaFENk3MABb7i` is READY and reports commit SHA `f28e911643814f2bc7180a03baf5a78fd8838480`, matching GitHub `main` exactly.
+- **Verdict:** `BANDOCAPT_CORE_PROJECT_CLOSURE_PASS`.
