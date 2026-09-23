@@ -1,5 +1,83 @@
 # 01 - Architecture
 
+## Zalo Bot Platform V0 (2026-09-23)
+
+- **Zalo Bot Platform ≠ Zalo OA OpenAPI.** V0 dùng Bot API mới của Zalo
+  (`https://bot-api.zaloplatforms.com/bot<TOKEN>`), KHÔNG dùng OA OpenAPI, KHÔNG có GMF. Đây là
+  một kênh transport thứ hai vào ĐÚNG pipeline RAG/orchestration hiện có — không phải một chatbot
+  song song.
+- **Không thêm serverless function thứ 13.** Repo đã ở đúng giới hạn 12 function Vercel Hobby
+  (test `test/vercel-preview-budget.test.js`). Zalo Bot dùng `vercel.json` rewrite nội bộ:
+  `/api/zalo-bot/webhook` → `/api/chat?__channel=zalo_bot`, tái sử dụng `api/chat.js`.
+- **Tách orchestration khỏi transport (hoàn thành phần PR-4 đã dự kiến ở quyết định PR-1
+  2026-08-25, xem `03-decisions.md`):** toàn bộ khối RAG từ `isClearlyOutOfScope(...)` tới hết
+  `handler` trong `api/chat.js` (~1.230 dòng) đã hoàn toàn không đụng `res` trực tiếp từ PR-1 (chỉ
+  gọi `sink.*`) — audit xác nhận không biến request-scoped nào rò rỉ ngoài
+  `{sink, userMessage, history, clientIP, currentDate, deadlineAt, _startTime, FIREBASE_DB_URL,
+  FIREBASE_AUTH, evalMode, req}`. Khối này được tách nguyên vẹn (KHÔNG đổi một dòng logic nào)
+  thành hàm `runChatOrchestration(ctx)` dùng CHUNG cho cả website (`SseSink`) và Zalo Bot
+  (`BufferSink`). Bằng chứng byte-identical: `test/chat-sse-golden.test.js` vẫn PASS nguyên vẹn.
+- **Luồng đích:** `Zalo user/group -> Zalo Bot Webhook -> vercel.json rewrite -> api/chat.js
+  (isZaloBotRoute) -> handleZaloBotWebhook -> runChatOrchestration({sink: BufferSink, ...}) ->
+  sink.result().done.fullText -> splitZaloText -> sendZaloMessage(chat.id)`.
+- **Gate riêng cho kênh Zalo, tách biệt hoàn toàn CORS/HMAC/Turnstile/rate-limit-theo-IP của
+  website** (`handleZaloBotWebhook` trong `api/chat.js`, được gọi ở dòng đầu tiên của `handler`
+  trước mọi logic website, khi `isZaloBotRoute(req)` đúng):
+  1. `verifyZaloWebhookSecret(req)` — so khớp `X-Bot-Api-Secret-Token` với `ZALO_BOT_WEBHOOK_SECRET`
+     bằng constant-time compare (chỉ khi độ dài phù hợp, cùng khuôn mẫu
+     `lib/request-security.js verifyRequestSignature`); secret phải dài 8-256 ký tự. Sai/thiếu →
+     403 ngay, không xử lý gì thêm.
+  2. `parseZaloWebhook(req.body)` đọc đúng hợp đồng chính thức `body.result.event_name` /
+     `body.result.message`. Event khác `message.text.received`, tin nhắn `from.is_bot === true`,
+     hoặc thiếu `text`/`chat.id` → ACK `200` ngay, KHÔNG đưa vào RAG, KHÔNG throw 500, KHÔNG bịa
+     câu trả lời (V0 chỉ hỗ trợ text).
+  3. Rate limit theo principal ổn định `zalo:<chat_type>:<chat_id>:<from_id>`
+     (`buildZaloRatePrincipal`), băm bằng `hashForLog` hiện có trước khi dùng làm key Firebase
+     (`usage_zalo_bot/<ngày>/<hash>.json`) — KHÔNG dùng IP webhook server của Zalo (mọi webhook đến
+     từ cùng hạ tầng Zalo, không đại diện người dùng cuối). Vượt hạn mức/lỗi hạ tầng → ACK `200`
+     im lặng (không trả lời), tránh Zalo coi lỗi và tạo retry storm.
+  4. ACK `200` NGAY sau khi qua rate-limit, TRƯỚC khi chạy RAG — tránh Zalo webhook timeout/retry
+     storm khi RAG mất nhiều giây. Phần còn lại (`runChatOrchestration` + gửi trả lời) chạy trong
+     `waitUntil(...)` (cùng cơ chế `@vercel/functions` `waitUntil` đã dùng cho
+     `checkGroundednessAsync`/`logChatToFirestore`), ngoài vòng đời response của webhook.
+  5. Không phát streaming SSE cho Zalo — `createBufferSink()` (đã có sẵn từ PR-1, tái tạo đúng
+     chuỗi sự kiện của `SseSink` trong bộ nhớ) tích luỹ toàn bộ event, chỉ đọc `result().done.fullText`
+     sau khi orchestration xong (Zalo chỉ nhận final validated answer, đã qua toàn bộ output
+     validator/location-safety gate như website).
+  6. `splitZaloText(text, 2000)` (`lib/zalo-bot.js`) chia tại ranh giới đoạn (`\n\n`) → dòng (`\n`)
+     → câu (`. `) → khoảng trắng gần nhất trong phạm vi 2000 ký tự; chỉ cắt cứng khi không có ranh
+     giới nào. Mọi lần cắt giữ ký tự phân tách ở đoạn TRƯỚC (không trim) nên `chunks.join('')` luôn
+     bằng nguyên văn — không mất/đổi ký tự nào. `sendZaloMessage` gửi tuần tự từng đoạn tới đúng
+     `chat.id` qua `POST /sendMessage`.
+- **`lib/zalo-bot.js`** — adapter transport thuần, KHÔNG chứa RAG: `isZaloBotRoute`,
+  `verifyZaloWebhookSecret`, `parseZaloWebhook`, `buildZaloRatePrincipal`, `splitZaloText`,
+  `sendZaloMessage`. `api/chat.js` là nơi DUY NHẤT gọi các hàm này kết hợp với
+  `runChatOrchestration`/`createBufferSink` — không có pipeline chatbot thứ hai ở đâu khác.
+- **`scripts/register-zalo-bot-webhook.js`** — script một lần gọi `setWebhook` (đọc
+  `ZALO_BOT_TOKEN`/`ZALO_BOT_WEBHOOK_SECRET`/`ZALO_BOT_WEBHOOK_URL` từ env, không in token/secret ra
+  console). `npm run zalo:webhook:set`.
+- **Code Graph:**
+  ```text
+  Zalo user/group
+    -> Zalo Bot Webhook (X-Bot-Api-Secret-Token header)
+    -> vercel.json rewrite /api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot
+    -> api/chat.js handler: isZaloBotRoute(req) -> handleZaloBotWebhook(req, res, ctx)
+         -> lib/zalo-bot.js: verifyZaloWebhookSecret, parseZaloWebhook, buildZaloRatePrincipal
+         -> reserveRateLimitQuota (hiện có, key theo principal đã băm, không theo IP)
+         -> res.status(200).json({ok:true})  [ACK trước khi chạy RAG]
+         -> waitUntil(
+              runChatOrchestration({ sink: createBufferSink(), userMessage, history: [], ... })
+              -> lib/zalo-bot.js: splitZaloText, sendZaloMessage(chat.id)
+            )
+  api/chat.js handler (website, không đổi): CORS/HMAC/Turnstile/rate-limit-IP
+    -> sink = createSseSink(res)
+    -> runChatOrchestration({ sink, ... })   [HÀM DÙNG CHUNG với Zalo]
+  ```
+- **Không đổi:** Pinecone/RAG retrieval, output-validator, location-safety gate, system prompt,
+  Google Sheets (đọc/ghi), hành vi website SSE (khoá bằng `test/chat-sse-golden.test.js`,
+  `test/chat-sse-heartbeat.test.js` — cả hai vẫn PASS nguyên vẹn sau khi tách
+  `runChatOrchestration`).
+
 ## P0: Location-Evidence Contract & Hard Security Gate (2026-09-06)
 
 - **Nguyên nhân gốc rễ (Root Cause Analysis):**

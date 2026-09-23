@@ -23,5 +23,8 @@ test('Vercel Preview stays within the Hobby serverless-function budget', () => {
     assert.deepEqual(vercel.rewrites, [{
         source: '/api/staff/auth/config',
         destination: '/api/staff/auth/csrf?__staff_auth_route=config',
+    }, {
+        source: '/api/zalo-bot/webhook',
+        destination: '/api/chat?__channel=zalo_bot',
     }]);
 });
