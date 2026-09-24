@@ -1,5 +1,18 @@
 # 06 — AI Working Log
 
+## [2026-09-24] ZALO_BOT_PLATFORM_V0 — PRODUCTION CLOSURE local verification
+- **Agent:** Codex
+- **Thay đổi:** Cập nhật trạng thái tài liệu của PR #89: thay verdict network-egress blocker không còn
+  đúng bằng bằng chứng local hiện tại và blocker Vercel authentication/configuration còn lại.
+- **File đã sửa:** `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Máy local truy cập trực tiếp được Vercel, domain production và Zalo; hai smoke request
+  webhook thiếu/sai secret đều nhận HTTP 403. Tuy nhiên không có Vercel CLI/token để xác minh env
+  Production hoặc đăng ký webhook thật, và Vercel CLI tạm dừng ở npm `ECOMPROMISED`.
+- **Kiểm tra:** `main` và `origin/main` cùng SHA `1f1607f0274026cfd13829722f7deda19fe5c869` trước
+  khi chuyển nhánh docs; DNS `www.bandocapt.io.vn` là CNAME Vercel, HTTP 200 có `server: Vercel`;
+  `POST /api/zalo-bot/webhook` thiếu secret và secret sai đều HTTP 403. Không đọc hoặc in token,
+  webhook secret, hay Authorization header.
+
 ## [2026-09-23] ZALO_BOT_PLATFORM_V0 — PRODUCTION CLOSURE (merge xong, đóng Production bị chặn bởi network egress của agent)
 - **Agent:** Claude Code
 - **Thay đổi:**
