@@ -100,12 +100,15 @@
   `bot-api.zaloplatforms.com`. DNS của `www.bandocapt.io.vn` là CNAME Vercel và response production
   là `server: Vercel`, HTTP 200. Hai `POST` payload vô hại tới
   `https://www.bandocapt.io.vn/api/zalo-bot/webhook` (thiếu secret và secret sai) đều trả HTTP 403;
-  đây là bằng chứng route/rewrite production đang hoạt động và fail-closed.
+  đây là bằng chứng route/rewrite production đang hoạt động và fail-closed. Vercel workspace cũng
+  xác nhận deployment Production `dpl_2UgJhm2YWutGmdMNFevr1DC8VfS7` là `READY`, đúng SHA
+  `1f1607f0274026cfd13829722f7deda19fe5c869`, với aliases `bandocapt.io.vn`,
+  `www.bandocapt.io.vn` và `bandocapt.vercel.app`; không có runtime error cho webhook trong 24 giờ.
 - **CHẶN còn lại (Vercel authentication/configuration, không phải network hay lỗi code/deploy):**
   không có `VERCEL_TOKEN` hay Vercel CLI đã đăng nhập. Thử dùng Vercel CLI tạm thời dừng ở lỗi npm
   `ECOMPROMISED` trước khi CLI có thể xác thực. Vì vậy chưa thể xác minh tên ba biến Production
-  (`ZALO_BOT_TOKEN`, `ZALO_BOT_WEBHOOK_SECRET`, `ZALO_BOT_WEBHOOK_URL`), lấy SHA deployment trực tiếp
-  từ Vercel, hoặc chạy `zalo:webhook:set` mà không đưa secret vào repo/máy local.
+  (`ZALO_BOT_TOKEN`, `ZALO_BOT_WEBHOOK_SECRET`, `ZALO_BOT_WEBHOOK_URL`) hoặc chạy
+  `zalo:webhook:set` mà không đưa secret vào repo/máy local.
 - **Còn lại:** Phase 5 (xác nhận presence ba biến qua Vercel auth) → Phase 6 (đăng ký webhook thật)
   → valid-secret webhook test → Phase 7 (SSE chatbot với Turnstile hợp lệ) → Phase 8 (owner gửi
   tin PRIVATE thật). Group mode vẫn không kích hoạt. Không tuyên bố PASS khi chưa có các bằng chứng

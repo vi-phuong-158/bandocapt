@@ -11,7 +11,9 @@
 - **Kiểm tra:** `main` và `origin/main` cùng SHA `1f1607f0274026cfd13829722f7deda19fe5c869` trước
   khi chuyển nhánh docs; DNS `www.bandocapt.io.vn` là CNAME Vercel, HTTP 200 có `server: Vercel`;
   `POST /api/zalo-bot/webhook` thiếu secret và secret sai đều HTTP 403. Không đọc hoặc in token,
-  webhook secret, hay Authorization header.
+  webhook secret, hay Authorization header. Vercel workspace xác nhận deployment Production
+  `dpl_2UgJhm2YWutGmdMNFevr1DC8VfS7` `READY` ở đúng SHA, với các alias production; truy vấn runtime
+  errors cho `/api/zalo-bot/webhook` trong 24 giờ không có lỗi.
 
 ## [2026-09-23] ZALO_BOT_PLATFORM_V0 — PRODUCTION CLOSURE (merge xong, đóng Production bị chặn bởi network egress của agent)
 - **Agent:** Claude Code
