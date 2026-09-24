@@ -5,15 +5,20 @@
 - **Thay đổi:** Cập nhật trạng thái tài liệu của PR #89: thay verdict network-egress blocker không còn
   đúng bằng bằng chứng local hiện tại và blocker Vercel authentication/configuration còn lại.
 - **File đã sửa:** `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
-- **Lý do:** Máy local truy cập trực tiếp được Vercel, domain production và Zalo; hai smoke request
-  webhook thiếu/sai secret đều nhận HTTP 403. Tuy nhiên không có Vercel CLI/token để xác minh env
-  Production hoặc đăng ký webhook thật, và Vercel CLI tạm dừng ở npm `ECOMPROMISED`.
+- **Lý do:** Máy local truy cập trực tiếp được Vercel, domain production và Zalo; owner xác nhận ba
+  env đã có trong Production. Hai smoke request webhook thiếu/sai secret đều nhận HTTP 403. MCP
+  Vercel chỉ cho deployment/runtime, không đọc được env vars; không có Vercel CLI/token login local,
+  và không thử lại cài CLI sau npm `ECOMPROMISED`.
 - **Kiểm tra:** `main` và `origin/main` cùng SHA `1f1607f0274026cfd13829722f7deda19fe5c869` trước
   khi chuyển nhánh docs; DNS `www.bandocapt.io.vn` là CNAME Vercel, HTTP 200 có `server: Vercel`;
   `POST /api/zalo-bot/webhook` thiếu secret và secret sai đều HTTP 403. Không đọc hoặc in token,
   webhook secret, hay Authorization header. Vercel workspace xác nhận deployment Production
-  `dpl_2UgJhm2YWutGmdMNFevr1DC8VfS7` `READY` ở đúng SHA, với các alias production; truy vấn runtime
-  errors cho `/api/zalo-bot/webhook` trong 24 giờ không có lỗi.
+  `dpl_2UgJhm2YWutGmdMNFevr1DC8VfS7` `READY` ở đúng SHA, với các alias production. Runtime logs
+  ghi 4 POST smoke webhook HTTP 403 và Node.js `DEP0169` warning ở 2 bản ghi, không có webhook
+  5xx/application exception; runtime error aggregation không báo lỗi trong 24 giờ. Homepage HTTP
+  200; `/api/chat` GET 405 và unauthenticated POST 403. Không xác minh được valid-secret hoặc SSE
+  chat response. PR #89 check `test-build-audit` PASS tại head `bd0af0856236853f00e5812b66d17cd96050f11a`;
+  PR vẫn open. Env presence do owner xác nhận, runtime usability/URL value chưa kiểm chứng độc lập.
 
 ## [2026-09-23] ZALO_BOT_PLATFORM_V0 — PRODUCTION CLOSURE (merge xong, đóng Production bị chặn bởi network egress của agent)
 - **Agent:** Claude Code

@@ -103,16 +103,17 @@
   đây là bằng chứng route/rewrite production đang hoạt động và fail-closed. Vercel workspace cũng
   xác nhận deployment Production `dpl_2UgJhm2YWutGmdMNFevr1DC8VfS7` là `READY`, đúng SHA
   `1f1607f0274026cfd13829722f7deda19fe5c869`, với aliases `bandocapt.io.vn`,
-  `www.bandocapt.io.vn` và `bandocapt.vercel.app`; không có runtime error cho webhook trong 24 giờ.
-- **CHẶN còn lại (Vercel authentication/configuration, không phải network hay lỗi code/deploy):**
-  không có `VERCEL_TOKEN` hay Vercel CLI đã đăng nhập. Thử dùng Vercel CLI tạm thời dừng ở lỗi npm
-  `ECOMPROMISED` trước khi CLI có thể xác thực. Vì vậy chưa thể xác minh tên ba biến Production
-  (`ZALO_BOT_TOKEN`, `ZALO_BOT_WEBHOOK_SECRET`, `ZALO_BOT_WEBHOOK_URL`) hoặc chạy
-  `zalo:webhook:set` mà không đưa secret vào repo/máy local.
-- **Còn lại:** Phase 5 (xác nhận presence ba biến qua Vercel auth) → Phase 6 (đăng ký webhook thật)
-  → valid-secret webhook test → Phase 7 (SSE chatbot với Turnstile hợp lệ) → Phase 8 (owner gửi
-  tin PRIVATE thật). Group mode vẫn không kích hoạt. Không tuyên bố PASS khi chưa có các bằng chứng
-  này. Chi tiết: `06-ai-working-log.md` (2026-09-24).
+  `www.bandocapt.io.vn` và `bandocapt.vercel.app`. Runtime logs ghi nhận smoke request 403; không
+  thấy webhook 5xx hay application exception. Hai log còn kèm Node.js `DEP0169` deprecation warning.
+- Owner xác nhận ba biến đã có trong Vercel Production (`ZALO_BOT_TOKEN`,
+  `ZALO_BOT_WEBHOOK_SECRET`, `ZALO_BOT_WEBHOOK_URL`). Integration đang dùng không cung cấp quyền
+  đọc env vars; `VERCEL_TOKEN`/CLI login local cũng không có, và không thử lại đường npm đã trả
+  `ECOMPROMISED`. Do đó env presence là owner-confirmed, nhưng runtime usability và giá trị endpoint
+  chưa được kiểm chứng độc lập.
+- **Còn lại:** xác minh/inject các Production env an toàn để test valid-secret → đăng ký webhook thật
+  → kiểm tra trạng thái registration nếu API hỗ trợ → Phase 7 (owner gửi tin PRIVATE thật sau khi
+  đăng ký). Group mode vẫn không kích hoạt. Không tuyên bố PASS khi chưa có các bằng chứng này.
+  Chi tiết: `06-ai-working-log.md` (2026-09-24).
 
 ---
 
