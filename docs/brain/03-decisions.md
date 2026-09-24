@@ -1,5 +1,15 @@
 # 03 — Technical Decisions
 
+## [2026-09-24] Zalo Bot V1 deterministic intents reuse website's published-location service
+
+- **Bối cảnh:** V0 webhook/transport đã có; V1 cần lời chào, trợ giúp, URL bản đồ và tra cứu trụ sở nhỏ gọn, deterministic, không gọi AI/LLM.
+- **Quyết định:** Thêm `lib/zalo-bot-v1.js` làm lớp chuẩn hóa, phân intent và dựng phản hồi. Với location lookup, module gọi trực tiếp `getPublishedLocations()` và `findVerifiedLocationMatches()` của `lib/published-locations.js`, cùng service/Google Sheet `Published_Locations` mà website sử dụng. Không tạo dữ liệu hoặc database riêng cho Zalo, không thêm endpoint/function.
+- **Thứ tự resolution:** Prefix cơ bản được bỏ trước lookup; service location hiện có giữ thứ tự điểm ưu tiên tên chuẩn/tên đã chuẩn hóa/alias đã duyệt và phát hiện ambiguity/conflict. Bot chỉ trả một record khi kết quả duy nhất; không match thì báo không tìm thấy, nhiều match thì hỏi tên đầy đủ.
+- **Ranh giới hành vi:** Các intent V1 kết thúc trước `runChatOrchestration`, vì vậy text Zalo không vào RAG, Gemini, DeepSeek hay bất kỳ AI API nào. Orchestration và SSE của website không đổi. Webhook vẫn ACK trước, dùng `waitUntil` cho resolve/send; lỗi gửi không retry vô hạn.
+- **URL:** Dùng một hằng `CANONICAL_MAP_URL` cho production map root vì repo hiện không có per-location website deep-link. URL chỉ đường Google Maps tiếp tục lấy từ tọa độ đã chuẩn hóa bởi shared location service.
+- **Logging:** Chỉ log metadata allowlist và mã lỗi ổn định; không nối error message từ network/API vào logs vì chuỗi lỗi có thể chứa URL/token/credential. `ZALO_SEND_FAILED`, `LOCATION_NOT_FOUND`, `LOCATION_AMBIGUOUS`, `ZALO_WEBHOOK_INVALID`, `MESSAGE_UNSUPPORTED`, `INTERNAL_ERROR` được phân loại riêng.
+- **Không làm:** Không đổi source sheet/schema, website handler, RAG/prompt, deployment environment hay Zalo webhook credentials; không thêm hội thoại nhiều lượt.
+
 ## [2026-09-23] Zalo Bot Platform V0 tái sử dụng `api/chat.js` qua rewrite, không phải function riêng
 
 - **Bối cảnh:** Cần tích hợp Zalo Bot Platform mới của Zalo (khác Zalo OA OpenAPI, không dùng GMF)

@@ -103,9 +103,18 @@
   `npm run build` PASS, `npm run ci` PASS (audit chỉ còn 2 moderate `uuid`/`gaxios` có sẵn từ
   trước, không liên quan task này). Chi tiết: `01-architecture.md`, `03-decisions.md`,
   `06-ai-working-log.md` (2026-09-23).
-- **CHẶN:** chưa merge, chưa deploy Production, chưa gọi `zalo:webhook:set` thật (cần
-  `ZALO_BOT_TOKEN`/`ZALO_BOT_WEBHOOK_SECRET`/`ZALO_BOT_WEBHOOK_URL` thật trên Vercel trước). Owner
-  cần duyệt Draft PR trước khi merge.
+- **Cập nhật 2026-09-24 theo bằng chứng nghiệm thu do owner cung cấp:** verdict
+  `ZALO_BOT_PLATFORM_V0_PRODUCTION_ACCEPTANCE_PASS`; deployment `dpl_Hm4xyXjdL8Pg8oZ1zugGRDomHJFV`
+  đã nhận webhook thật với HTTP 200, `getWebhookInfo ok: true`, URL khớp, không có lỗi gần nhất và
+  log không lưu nội dung tin nhắn/phản hồi. Trạng thái này thay thế ghi chú chờ merge/deploy ở entry
+  cũ phía trên.
+
+## [CODE IMPLEMENTED — RUNTIME ACCEPTANCE PENDING 2026-09-24] ZALO_BOT_V1_CORE_CONVERSATION_LOCATION_LOOKUP
+
+- Baseline sau `git fetch origin main`: base SHA `1f1607f0274026cfd13829722f7deda19fe5c869`, nhánh ban đầu `main`, worktree sạch; implementation branch `feat/zalo-bot-v1-core`.
+- Added deterministic greeting/help/map/fallback and location lookup using `lib/published-locations.js`, the website's existing Google GViz `Published_Locations` source and resolver. No AI/LLM, copied dataset, new endpoint, or new Vercel function.
+- Preserved V0 webhook validation, hashed-principal rate limit, ACK/`waitUntil` lifecycle, and website RAG/SSE route. Added metadata-only Zalo log/error codes and send failure handling.
+- Verification: focused V1/V0 transport tests 39/39 PASS; `npm run ci` 738/738 tests + build/syntax + High audit gate PASS (7 moderate `uuid`/`gaxios` advisories remain); `npm run test:e2e` 120/120 PASS. Exact-head hosted CI, Production deployment and live P1–P5/log acceptance remain pending; do not call the Production verdict PASS until those gates complete.
 
 ---
 

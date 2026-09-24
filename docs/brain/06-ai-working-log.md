@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-09-24] ZALO_BOT_V1_CORE_CONVERSATION_LOCATION_LOOKUP
+- **Agent:** Codex
+- **Thay đổi:** Thêm lớp deterministic V1 cho greeting/help/map/location/fallback. Location lookup tái dùng `getPublishedLocations()` và `findVerifiedLocationMatches()` hiện có, không thêm nguồn dữ liệu. Giữ nguyên webhook auth/parser, principal rate limit và website RAG/SSE; đổi đường xử lý Zalo sau ACK sang phản hồi V1. Log webhook chỉ ghi metadata/error code, send failure không retry.
+- **File đã sửa:** `lib/zalo-bot-v1.js` (mới), `api/chat.js`, `test/zalo-bot-v1.test.js` (mới), `test/chat-zalo-bot-channel.test.js`, `package.json`, `docs/brain/01-architecture.md`, `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/05-testing-and-deploy.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** Xây vertical slice Zalo V1 nhỏ, deterministic, không AI, dùng cùng dữ liệu Published_Locations với website và không hồi quy V0 transport/security.
+- **Kiểm tra:** `npm run ci` PASS: 738/738 tests, build/syntax PASS, audit gate High PASS (npm audit còn 7 moderate findings từ dependency chain hiện có `uuid`/`gaxios`). `npm run test:e2e` PASS 120/120. Focused Zalo V1/V0 transport tests PASS 39/39. Exact-head CI, deploy Production, P1–P5 qua Zalo thật và Production log acceptance còn pending; không đánh dấu verdict Production PASS.
+
 ## [2026-09-23] ZALO_BOT_PLATFORM_V0 — Tích hợp Zalo Bot Platform vào chatbot/RAG hiện có
 - **Agent:** Claude Code
 - **Thay đổi:**

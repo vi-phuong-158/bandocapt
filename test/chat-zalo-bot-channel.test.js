@@ -232,6 +232,28 @@ test('Zalo Bot: câu trả lời ngắn (out-of-scope reply) được gửi tron
     assert.ok(sentMessages[0].body.text.length <= 2000);
 });
 
+test('Zalo Bot: lỗi sendMessage được xử lý an toàn và log mã lỗi không chứa nội dung', async () => {
+    installZaloFetchMock();
+    const originalFetch = global.fetch;
+    const originalError = console.error;
+    const logged = [];
+    global.fetch = async (url, options = {}) => {
+        if (String(url).includes('/usage_zalo_bot/')) return originalFetch(url, options);
+        if (String(url).includes('/sendMessage')) throw new Error(`failed ${url} ${options.body}`);
+        return originalFetch(url, options);
+    };
+    console.error = (...args) => logged.push(args.join(' '));
+    try {
+        await handler(zaloRequest({ body: officialTextPayload({ text: 'xin chào bot có nội dung riêng' }) }), createRes());
+        await flushZaloBackgroundWork();
+    } finally {
+        global.fetch = originalFetch;
+        console.error = originalError;
+    }
+    assert.match(logged.join('\n'), /error_code=ZALO_SEND_FAILED/);
+    assert.doesNotMatch(logged.join('\n'), /nội dung riêng|Tôi là trợ lý|zalo-test-bot-token|zalo-test-webhook-secret/);
+});
+
 // ---------------------------------------------------------------------
 // 10) Token/secret không xuất hiện trong error/log
 // ---------------------------------------------------------------------
@@ -239,9 +261,11 @@ test('Zalo Bot: token/secret không bao giờ xuất hiện trong console log', 
     const { sentMessages } = installZaloFetchMock();
     const originalWarn = console.warn;
     const originalError = console.error;
+    const originalInfo = console.info;
     const logged = [];
     console.warn = (...args) => logged.push(args.join(' '));
     console.error = (...args) => logged.push(args.join(' '));
+    console.info = (...args) => logged.push(args.join(' '));
     try {
         // Secret sai (cố tình đoán gần đúng) — kiểm tra cả secret thật lẫn giá trị sai không lộ ra log.
         await handler(zaloRequest({ body: officialTextPayload(), secret: 'zalo-test-webhook-secret-9999' }), createRes());
@@ -251,12 +275,16 @@ test('Zalo Bot: token/secret không bao giờ xuất hiện trong console log', 
     } finally {
         console.warn = originalWarn;
         console.error = originalError;
+        console.info = originalInfo;
     }
 
     const joined = logged.join('\n');
     assert.ok(!joined.includes(process.env.ZALO_BOT_WEBHOOK_SECRET));
     assert.ok(!joined.includes('zalo-test-webhook-secret-9999'));
     assert.ok(!joined.includes(process.env.ZALO_BOT_TOKEN));
+    assert.ok(!joined.includes('Thời tiết hôm nay thế nào?'));
+    assert.ok(!joined.includes('Tôi chưa hiểu yêu cầu này.'));
+    assert.match(joined, /event_type=message\.text\.received intent=FALLBACK result=REPLIED error_code=none http_status=200 duration_ms=/);
     assert.ok(sentMessages.length >= 1);
 });
 

@@ -1,5 +1,27 @@
 # 01 - Architecture
 
+## Zalo Bot V1 Core Conversation & Location Lookup (2026-09-24)
+
+- **Scope:** Zalo text webhook supports deterministic `GREETING`, `HELP`, `MAP`, `LOCATION_LOOKUP`, and `FALLBACK`; no AI/LLM, RAG, conversation memory, or new serverless function is introduced for this channel.
+- **Shared location source:** `lib/zalo-bot-v1.js` calls the existing `getPublishedLocations()` and `findVerifiedLocationMatches()` from `lib/published-locations.js`. That service reads the same public `Published_Locations` Google Sheet through GViz, applies the website's schema validation, cache, alias rules, conflict detection, and location resolution. No Zalo copy of the location dataset is maintained.
+- **Normalization and resolution:** `normalizeZaloMessage()` folds Vietnamese diacritics, case, punctuation, and whitespace; `stripLocationPrefix()` removes the supported `công an`, `ca`, `tìm`, and `địa chỉ` prefixes. `resolveZaloIntent()` is deterministic. Location outcomes map existing resolver `matched`, `no_match`, and ambiguity statuses to `FOUND`, `NOT_FOUND`, and `AMBIGUOUS`; the bot never selects an ambiguous result.
+- **Reply data:** location name/address/phone and coordinates-derived Google Maps URL come from the shared public dataset. Address, phone, and directions are omitted when absent; phone output additionally requires at least seven digits. The official map entry URL is centralized as `CANONICAL_MAP_URL` in `lib/zalo-bot-v1.js` (`https://bandocapt.vercel.app/`); the published map dataset currently has no per-location website deep link.
+- **Transport:** the existing `/api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot` rewrite, secret validation, parser, principal-hashed rate limit, fast ACK, `waitUntil`, and `sendZaloMessage` remain in place. After ACK, `handleZaloBotWebhook()` dispatches to `createZaloReply()` and sends the deterministic result; it no longer sends Zalo user text through RAG. Website requests continue to use the existing SSE/RAG orchestration unchanged.
+- **Privacy/error metadata:** Zalo logs contain only allowlisted event/intent/result/status/duration/error-code metadata and pseudonymous principal hash. They do not contain inbound text, reply text, payload, Zalo token, webhook secret, or Firebase credentials. Send and lookup failures are caught and logged with stable error codes.
+- **Code Graph:**
+  ```text
+  Zalo text webhook
+    -> vercel.json rewrite -> api/chat.js handler (route + secret + payload + hashed rate limit)
+    -> ACK 200 -> waitUntil
+         -> lib/zalo-bot-v1.js normalizeZaloMessage -> resolveZaloIntent
+              -> static greeting/help/map/fallback
+              -> LOCATION_CANDIDATE -> lib/published-locations.js getPublishedLocations
+                   -> same Google GViz Published_Locations dataset used by website
+                   -> findVerifiedLocationMatches -> FOUND / NOT_FOUND / AMBIGUOUS
+         -> lib/zalo-bot.js splitZaloText -> sendZaloMessage -> Zalo Bot API
+  Website -> api/chat.js -> existing runChatOrchestration/RAG and location service (unchanged)
+  ```
+
 ## Zalo Bot Platform V0 (2026-09-23)
 
 - **Zalo Bot Platform ≠ Zalo OA OpenAPI.** V0 dùng Bot API mới của Zalo
@@ -15,9 +37,11 @@
   gọi `sink.*`) — audit xác nhận không biến request-scoped nào rò rỉ ngoài
   `{sink, userMessage, history, clientIP, currentDate, deadlineAt, _startTime, FIREBASE_DB_URL,
   FIREBASE_AUTH, evalMode, req}`. Khối này được tách nguyên vẹn (KHÔNG đổi một dòng logic nào)
-  thành hàm `runChatOrchestration(ctx)` dùng CHUNG cho cả website (`SseSink`) và Zalo Bot
-  (`BufferSink`). Bằng chứng byte-identical: `test/chat-sse-golden.test.js` vẫn PASS nguyên vẹn.
-- **Luồng đích:** `Zalo user/group -> Zalo Bot Webhook -> vercel.json rewrite -> api/chat.js
+  thành hàm `runChatOrchestration(ctx)` dùng CHUNG cho website (`SseSink`) và kênh Zalo ban đầu ở
+  V0 (`BufferSink`). Kể từ V1, dispatch text Zalo kết thúc ở `createZaloReply()` và không gọi hàm
+  này; website vẫn dùng nguyên RAG orchestration. Bằng chứng website byte-identical:
+  `test/chat-sse-golden.test.js` vẫn PASS nguyên vẹn.
+- **Luồng V0 (đã được thay bằng luồng V1 ở trên):** `Zalo user/group -> Zalo Bot Webhook -> vercel.json rewrite -> api/chat.js
   (isZaloBotRoute) -> handleZaloBotWebhook -> runChatOrchestration({sink: BufferSink, ...}) ->
   sink.result().done.fullText -> splitZaloText -> sendZaloMessage(chat.id)`.
 - **Gate riêng cho kênh Zalo, tách biệt hoàn toàn CORS/HMAC/Turnstile/rate-limit-theo-IP của
@@ -58,6 +82,7 @@
   console). `npm run zalo:webhook:set`.
 - **Code Graph:**
   ```text
+  V0 only (superseded for supported text-message handling):
   Zalo user/group
     -> Zalo Bot Webhook (X-Bot-Api-Secret-Token header)
     -> vercel.json rewrite /api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot
@@ -659,6 +684,7 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 | `data/tthc-index.json` | Chi muc nhe `{procedure_id,title,aliases}` de chat doi chieu nhanh | `js/tthc-catalog.js` | `scripts/generate-tthc-catalog.js --index-only` |
 | `data/tthc-catalog.json` | Catalog TTHC tinh de nguoi dung doi chieu cau tra loi AI | `js/tthc-catalog.js` | sinh tu Pinecone live + audit phi, fallback backup khi local khong co key |
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, merge approved aliases and resolve only current-message evidence or an immediate assistant location follow-up. Historical user turns are excluded from location scoring; returns `matched`, `no_match`, `ambiguous_match` or `ambiguous_conflict`. T1.9: nationality answers remain outside location flow | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
+| `lib/zalo-bot-v1.js` | V1 deterministic Zalo normalization/intents/static replies; location intent calls the same published-location fetcher/resolver as website; emits FOUND/NOT_FOUND/AMBIGUOUS without AI | `api/chat.js`, `test/zalo-bot-v1.test.js` | `js/location-data.js`, `lib/published-locations.js` |
 | `lib/location-workbooks.js` | Resolves public/private workbook IDs with fail-closed conflict and boundary checks; explicitly classifies sheet trust boundary | `api/google-sheet.js`, `lib/published-locations.js`, migration dry-run, test | environment contract only; never Google credentials |
 | `lib/operational-baseline.js` | Canonical private baseline projection, provenance validation, reconciliation and staging overlay for legacy published records | Apps Script adapter, dry-run tool, Gateway tests | `lib/staff-location-contract.js`; no Google API or private PII |
 | `lib/output-validator.js` | Fail-closed output guard: doi chieu va redact SDT/Maps/toa do/URL cong khai/so lieu phap ly khong co trong nguon xac minh; URL chi duoc giu khi xuat hien trong RAG/citation/tru so da duyet | `api/chat.js`, test | - |
