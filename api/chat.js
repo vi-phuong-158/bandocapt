@@ -25,7 +25,7 @@ const {
 } = require('../lib/published-locations');
 const { validateAnswer, takeCompleteSegment, trimToSentenceBoundary, getTruncationNotice } = require('../lib/output-validator');
 const { requestedCap, filterGovernedMatches, buildGovernanceFilter, buildCurrentProcedureFilter, prioritizeCurrentProcedureMatches, findCurrentSourceConflict } = require('../lib/retrieval-governance');
-const { createSseSink, startSseHeartbeat } = require('../lib/response-sink');
+const { createSseSink, createBufferSink, startSseHeartbeat } = require('../lib/response-sink');
 const { buildRequestPlan } = require('../lib/chat-intent');
 const {
     isZaloBotRoute,
@@ -2202,12 +2202,20 @@ function getVnDateKeyForZalo() {
 }
 
 // =====================================================================
-// ZALO BOT PLATFORM V0 — webhook handler.
+// ZALO BOT PLATFORM — webhook handler (V1: deterministic-first + shared RAG fallback).
 // Ưu tiên: xác thực + parse nhanh -> ACK phù hợp -> dùng waitUntil để hoàn tất
-// RAG + gửi trả lời NGOÀI vòng đời response của webhook (tránh Zalo coi timeout
-// và tạo retry storm). Không phát SSE — Zalo chỉ nhận final validated answer
-// qua BufferSink (`createBufferSink`), đúng abstraction đã có, không dựng
-// pipeline chatbot thứ hai.
+// xử lý + gửi trả lời NGOÀI vòng đời response của webhook (tránh Zalo coi timeout
+// và tạo retry storm).
+//
+// Dispatch trong waitUntil (OD-01):
+//   GREETING / HELP / MAP / LOCATION (matched/ambiguous/no_match) -> lib/zalo-bot-v1.js,
+//   tất định tuyệt đối, KHÔNG gọi AI.
+//   Mọi câu còn lại (kể cả câu hỏi TTHC và "địa điểm nào đó nhưng chưa rõ xã/phường") ->
+//   runChatOrchestration dùng CHUNG với website qua BufferSink (`createBufferSink`) — không
+//   phát SSE, không dựng pipeline chatbot thứ hai, không duplicate prompt/Pinecone/provider.
+//
+// V1 chỉ trả lời chat PRIVATE (OD-02) — GROUP được ACK và bỏ qua an toàn ngay sau khi parse,
+// trước cả rate-limit, không đưa vào deterministic reply lẫn RAG.
 // =====================================================================
 async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
     // Điều kiện thứ hai của "Zalo Bot trusted request": secret token khớp,
@@ -2226,6 +2234,15 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
         // Event khác, tin nhắn từ bot, hoặc thiếu text/chat: ACK an toàn, không xử lý nội dung.
         const eventType = parsed.eventName === 'message.text.received' ? parsed.eventName : 'unsupported';
         console.info(`[zalo-bot] event_type=${eventType} result=IGNORED error_code=MESSAGE_UNSUPPORTED http_status=200`);
+        return res.status(200).json({ ok: true });
+    }
+
+    // V1 chỉ trả lời chat riêng tư (OD-02). Group là phạm vi ngoài V1: ACK và bỏ qua an toàn,
+    // không deterministic reply, không RAG, không sendMessage, không tốn ngân sách rate-limit
+    // của principal. parseZaloWebhook trả 'UNKNOWN' khi thiếu chat_type — cũng bị chặn ở đây
+    // (fail-closed: chỉ đúng 'PRIVATE' mới được xử lý tiếp).
+    if (parsed.chatType !== 'PRIVATE') {
+        console.info(`[zalo-bot] event_type=message.text.received chat_type=${parsed.chatType} result=IGNORED error_code=GROUP_CHAT_IGNORED http_status=200`);
         return res.status(200).json({ ok: true });
     }
 
@@ -2274,6 +2291,33 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
         let reply;
         try {
             reply = await createZaloReply(parsed.text);
+            if (reply.result === 'RAG_REQUIRED') {
+                // Không phải GREETING/HELP/MAP, không phải yêu cầu tra cứu địa điểm tất định
+                // (OD-01) -> chuyển NGUYÊN VĂN sang shared RAG orchestration: CÙNG pipeline,
+                // CÙNG prompt, CÙNG Pinecone retrieval mà website dùng, qua BufferSink (không
+                // phát SSE). Không dựng RAG riêng cho Zalo, không duplicate logic.
+                const ragSink = createBufferSink();
+                await runChatOrchestration({
+                    sink: ragSink,
+                    userMessage: parsed.text,
+                    history: [],
+                    clientIP: principal,
+                    currentDate,
+                    deadlineAt,
+                    _startTime,
+                    FIREBASE_DB_URL,
+                    FIREBASE_AUTH,
+                    evalMode: false,
+                    req,
+                });
+                const ragResult = ragSink.result();
+                const fullText = ragResult.done && typeof ragResult.done.fullText === 'string' && ragResult.done.fullText.trim()
+                    ? ragResult.done.fullText
+                    : '';
+                reply = fullText
+                    ? { intent: 'OTHER', result: 'RAG_REPLIED', text: fullText }
+                    : { intent: 'OTHER', result: 'INTERNAL_ERROR', text: ZALO_FALLBACK_ERROR_TEXT };
+            }
         } catch (e) {
             reply = { intent: detectedIntent.intent, result: 'INTERNAL_ERROR', text: ZALO_FALLBACK_ERROR_TEXT };
             console.error(`[zalo-bot] intent=${reply.intent} result=INTERNAL_ERROR error_code=INTERNAL_ERROR duration_ms=${Date.now() - startedAt}`);
@@ -2292,7 +2336,8 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
         }
         if (sendStatus === 200) {
             const errorCode = reply.result === 'NOT_FOUND' ? 'LOCATION_NOT_FOUND'
-                : reply.result === 'AMBIGUOUS' ? 'LOCATION_AMBIGUOUS' : 'none';
+                : reply.result === 'AMBIGUOUS' ? 'LOCATION_AMBIGUOUS'
+                : reply.result === 'INTERNAL_ERROR' ? 'INTERNAL_ERROR' : 'none';
             console.info(`[zalo-bot] event_type=message.text.received intent=${reply.intent} result=${reply.result} error_code=${errorCode} http_status=200 duration_ms=${Date.now() - startedAt}`);
         }
     })());

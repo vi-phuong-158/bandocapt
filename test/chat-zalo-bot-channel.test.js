@@ -202,20 +202,40 @@ test('Zalo Bot: event không phải message.text.received -> ACK, không RAG, kh
 });
 
 // ---------------------------------------------------------------------
-// 5/6) PRIVATE và GROUP chat parse đúng, sendMessage dùng đúng chat.id
+// 5) PRIVATE chat parse đúng, sendMessage dùng đúng chat.id
 // ---------------------------------------------------------------------
-test('Zalo Bot: chat PRIVATE và GROUP đều parse đúng và reply đúng chat.id tương ứng', async () => {
+test('Zalo Bot: chat PRIVATE parse đúng và reply đúng chat.id', async () => {
     const { sentMessages } = installZaloFetchMock();
 
     await handler(zaloRequest({ body: officialTextPayload({ chatId: '7001', chatType: 'PRIVATE', fromId: '8001' }) }), createRes());
     await flushZaloBackgroundWork();
 
-    await handler(zaloRequest({ body: officialTextPayload({ chatId: '7002', chatType: 'GROUP', fromId: '8002' }) }), createRes());
-    await flushZaloBackgroundWork();
-
-    assert.equal(sentMessages.length, 2);
+    assert.equal(sentMessages.length, 1);
     assert.equal(sentMessages[0].body.chat_id, '7001');
-    assert.equal(sentMessages[1].body.chat_id, '7002');
+});
+
+// ---------------------------------------------------------------------
+// T10) GROUP chat (OD-02, V1 chỉ PRIVATE) -> ACK 200, KHÔNG deterministic reply,
+// KHÔNG RAG, KHÔNG sendMessage. Log chỉ metadata (chat_type, không nội dung).
+// ---------------------------------------------------------------------
+test('T10: Zalo Bot GROUP chat -> ACK 200 + bỏ qua an toàn, không sendMessage, không RAG', async () => {
+    const { sentMessages } = installZaloFetchMock();
+    const originalInfo = console.info;
+    const logged = [];
+    console.info = (...args) => { logged.push(args.join(' ')); originalInfo(...args); };
+    const res = createRes();
+    try {
+        await handler(zaloRequest({ body: officialTextPayload({ chatId: '7002', chatType: 'GROUP', fromId: '8002' }) }), res);
+        await flushZaloBackgroundWork();
+    } finally {
+        console.info = originalInfo;
+    }
+
+    assert.deepEqual(res._calls[0], { type: 'status', code: 200 });
+    assert.deepEqual(res._calls[1], { type: 'json', payload: { ok: true } });
+    assert.equal(sentMessages.length, 0);
+    assert.match(logged.join('\n'), /error_code=GROUP_CHAT_IGNORED/);
+    assert.match(logged.join('\n'), /chat_type=GROUP/);
 });
 
 // ---------------------------------------------------------------------
@@ -244,14 +264,15 @@ test('Zalo Bot: lỗi sendMessage được xử lý an toàn và log mã lỗi k
     };
     console.error = (...args) => logged.push(args.join(' '));
     try {
-        await handler(zaloRequest({ body: officialTextPayload({ text: 'xin chào bot có nội dung riêng' }) }), createRes());
+        // "trợ giúp" -> HELP tĩnh, không phụ thuộc RAG/GEMINI_API_KEY, giữ test tất định.
+        await handler(zaloRequest({ body: officialTextPayload({ text: 'trợ giúp' }) }), createRes());
         await flushZaloBackgroundWork();
     } finally {
         global.fetch = originalFetch;
         console.error = originalError;
     }
     assert.match(logged.join('\n'), /error_code=ZALO_SEND_FAILED/);
-    assert.doesNotMatch(logged.join('\n'), /nội dung riêng|Tôi là trợ lý|zalo-test-bot-token|zalo-test-webhook-secret/);
+    assert.doesNotMatch(logged.join('\n'), /Nhập tên xã\/phường|zalo-test-bot-token|zalo-test-webhook-secret/);
 });
 
 // ---------------------------------------------------------------------
@@ -283,9 +304,68 @@ test('Zalo Bot: token/secret không bao giờ xuất hiện trong console log', 
     assert.ok(!joined.includes('zalo-test-webhook-secret-9999'));
     assert.ok(!joined.includes(process.env.ZALO_BOT_TOKEN));
     assert.ok(!joined.includes('Thời tiết hôm nay thế nào?'));
+    // "Thời tiết hôm nay thế nào?" không phải GREETING/HELP/MAP và không phải yêu cầu tra cứu
+    // địa điểm -> chuyển sang shared RAG orchestration (OD-01/P0-4), rơi vào nhánh
+    // isClearlyOutOfScope tất định (không cần GEMINI_API_KEY) thay vì câu FALLBACK tĩnh cũ.
     assert.ok(!joined.includes('Tôi chưa hiểu yêu cầu này.'));
-    assert.match(joined, /event_type=message\.text\.received intent=FALLBACK result=REPLIED error_code=none http_status=200 duration_ms=/);
+    assert.ok(!joined.includes('Tôi chưa tìm thấy thông tin chính xác cho câu hỏi này.'));
+    assert.match(joined, /event_type=message\.text\.received intent=OTHER result=RAG_REPLIED error_code=none http_status=200 duration_ms=/);
     assert.ok(sentMessages.length >= 1);
+});
+
+// ---------------------------------------------------------------------
+// T09) Câu hỏi TTHC thật (không phải location, không static intent) -> chuyển tới shared RAG
+// orchestration NGUYÊN VẸN (không có câu trả lời tĩnh "Tôi chưa hiểu yêu cầu này." cũ). Dùng
+// RAG_FAIL_CLOSED=1 + embedContent lỗi có kiểm soát để đi hết pipeline RAG thật (không mock
+// Pinecone/Gemini generation) và dừng ở nhánh abstention tất định — đúng cách
+// test/chat-sse-golden.test.js (kịch bản "rag-abstained") đã khoá cho website, chứng minh
+// Zalo dùng CHUNG một pipeline, không phải bản sao.
+// ---------------------------------------------------------------------
+function installZaloAndEmbedFailureFetchMock() {
+    const sentMessages = [];
+    global.fetch = async (url, options = {}) => {
+        const target = String(url);
+        if (target.includes('/usage_zalo_bot/')) {
+            const method = (options.method || 'GET').toUpperCase();
+            if (method === 'GET') {
+                return { ok: true, status: 200, headers: { get: () => 'etag-1' }, json: async () => null };
+            }
+            return { ok: true, status: 200, json: async () => ({}) };
+        }
+        if (target.includes('bot-api.zaloplatforms.com') && target.includes('/sendMessage')) {
+            sentMessages.push({ url: target, body: JSON.parse(options.body) });
+            return { ok: true, status: 200, json: async () => ({ ok: true }) };
+        }
+        // Embedding lỗi có kiểm soát -> embedVector rỗng -> không gọi Pinecone, không có
+        // ngữ cảnh grounded -> RAG_FAIL_CLOSED bắt buộc abstain thay vì tự sinh câu trả lời.
+        if (target.includes('embedContent')) {
+            return { ok: false, status: 503, json: async () => ({}) };
+        }
+        throw new Error(`zalo-bot RAG-fallback test: unmocked fetch ${target}`);
+    };
+    return { sentMessages };
+}
+
+test('T09: câu hỏi TTHC thật được chuyển tới shared RAG orchestration (không phải câu FALLBACK tĩnh)', async () => {
+    const originalGeminiKey = process.env.GEMINI_API_KEY;
+    const originalRagFailClosed = process.env.RAG_FAIL_CLOSED;
+    process.env.GEMINI_API_KEY = 'zalo-test-golden-key';
+    process.env.RAG_FAIL_CLOSED = '1';
+    const { sentMessages } = installZaloAndEmbedFailureFetchMock();
+    try {
+        await handler(zaloRequest({ body: officialTextPayload({ text: 'Thủ tục đăng ký thường trú cần giấy tờ gì?', chatId: '3003' }) }), createRes());
+        await flushZaloBackgroundWork();
+    } finally {
+        if (originalGeminiKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = originalGeminiKey;
+        if (originalRagFailClosed === undefined) delete process.env.RAG_FAIL_CLOSED; else process.env.RAG_FAIL_CLOSED = originalRagFailClosed;
+    }
+
+    assert.equal(sentMessages.length, 1);
+    assert.equal(sentMessages[0].body.chat_id, '3003');
+    // Câu trả lời đến từ shared RAG abstention (getRagAbstentionReply), KHÔNG phải câu tĩnh
+    // "Tôi chưa hiểu yêu cầu này." và KHÔNG phải một câu trả lời địa điểm bịa ra.
+    assert.match(sentMessages[0].body.text, /Danh mục thủ tục hành chính/);
+    assert.doesNotMatch(sentMessages[0].body.text, /Tôi chưa hiểu yêu cầu này\./);
 });
 
 // ---------------------------------------------------------------------

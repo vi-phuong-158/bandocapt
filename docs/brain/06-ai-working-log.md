@@ -1,5 +1,104 @@
 # 06 — AI Working Log
 
+## [2026-09-26] ZALO_BOT_V1_PRODUCTION_CLOSURE
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Tiếp nối review kiến trúc độc lập 2026-09-25
+  (`ZALO_BOT_ARCHITECTURE_SOUND_WITH_TARGETED_HARDENING_REQUIRED`). Owner chốt 4 quyết định
+  (OD-01..OD-04, chi tiết `03-decisions.md` 2026-09-26) và yêu cầu sửa PR #90 trước khi merge —
+  không refactor lớn, không mở rộng scope.
+- **Thay đổi:**
+  - `lib/zalo-bot-v1.js`: `resolveZaloIntent()` chỉ còn phân loại GREETING/HELP/MAP (bỏ
+    `stripLocationPrefix`/`LOCATION_CANDIDATE`/heuristic bắt-đầu-bằng-từ-khoá). `createZaloReply()`
+    dùng chung `isLocationLookupRequested`/`findVerifiedLocationMatches` của website cho mọi câu
+    không phải static intent — nhận đúng tên trần ("Hy Cương") và câu tự nhiên có địa điểm ở giữa
+    câu (P0-1/P0-2). `buildLocationReply()`: `ambiguous_match` liệt kê tối đa 5 tên (P0-3);
+    `ambiguous_conflict` giữ câu trả lời tổng quát cũ (tên trùng hệt nhau, liệt kê không giúp ích).
+    Mọi câu còn lại (không static, không location tất định — gồm TTHC thật và "hỏi địa điểm nhưng
+    thiếu xã/phường") trả sentinel `RAG_FALLBACK` thay vì tự bịa câu trả lời (P0-4/OD-01).
+    `CANONICAL_MAP_URL` đổi sang `https://www.bandocapt.io.vn/` (OD-03).
+  - `api/chat.js` (`handleZaloBotWebhook`): thêm gate `chat_type !== 'PRIVATE'` → ACK + bỏ qua an
+    toàn trước rate-limit, log `GROUP_CHAT_IGNORED` (OD-02). Khi `createZaloReply` trả
+    `RAG_REQUIRED`, gọi `runChatOrchestration({ sink: createBufferSink(), userMessage: parsed.text,
+    history: [], clientIP: principal, ... })` — CÙNG hàm/pipeline website dùng, không phát SSE,
+    không duplicate; lấy `sink.result().done.fullText` làm câu trả lời, log `result=RAG_REPLIED`
+    (không log `fullText`). Import lại `createBufferSink` (đã có sẵn từ PR-1, không dùng từ V1 ban
+    đầu, giờ dùng lại đúng mục đích).
+  - `lib/zalo-bot.js`: `sendZaloMessage` đọc thêm body JSON (không log) và coi `{ ok: false }` là
+    thất bại dù HTTP 200 (SEND hardening); giữ tương thích ngược khi mock không có `.json()`.
+  - `test/zalo-bot-v1.test.js`: viết lại theo T01–T09 của ma trận nghiệm thu (greeting/help/map,
+    prefixed/bare/natural-sentence location, nonexistent, ambiguous match/conflict, RAG fallback
+    sentinel, missing-location-evidence → RAG). `test/chat-zalo-bot-channel.test.js`: thêm T09 (câu
+    TTHC thật → RAG qua kịch bản `RAG_FAIL_CLOSED=1` + embedding lỗi có kiểm soát, cùng pattern đã
+    khoá ở `test/chat-sse-golden.test.js` "rag-abstained"), T10 (GROUP → ACK + ignore), cập nhật
+    test log cũ sang `intent=OTHER result=RAG_REPLIED`, tách test PRIVATE/GROUP cũ (GROUP giờ không
+    còn được trả lời). `test/zalo-bot.test.js`: thêm 3 test cho `sendZaloMessage` với body
+    `ok:false`/`ok:true`/thiếu `.json()`.
+  - `docs/brain/01-architecture.md`, `03-decisions.md`, `04-current-tasks.md`: cập nhật kiến trúc
+    V1 hybrid (deterministic-first + shared RAG fallback), 4 quyết định OD-01..OD-04, sửa tiêu đề
+    V0 từ "CHỜ OWNER APPROVAL"/"chưa merge" (đã stale, V0 đã PASS production) sang
+    "PRODUCTION ACCEPTED".
+- **Lý do:** review độc lập phát hiện bot không nhận được cách người dân gõ tên xã/phường tự nhiên
+  nhất (không tiền tố), và merge V1 nguyên trạng sẽ làm mất khả năng hỏi TTHC qua Zalo mà V0 đang
+  có trên production — cả hai đều phải sửa trước khi coi V1 sẵn sàng production.
+- **Kiểm tra:**
+  - `npm test`: 752/752 PASS (0 fail), gồm 15 test `zalo-bot-v1.test.js`, 14 test
+    `chat-zalo-bot-channel.test.js`, 24 test `zalo-bot.test.js`.
+  - `npm run ci`: PASS — 752/752 tests, `npm run build` (check:syntax/check:staff/check:rate-limit)
+    PASS, `npm audit --omit=dev --audit-level=high` PASS (chỉ 2 moderate `uuid`/`gaxios` có sẵn từ
+    trước, không phát sinh từ thay đổi này).
+  - `test/chat-sse-golden.test.js`: 10/10 PASS, ops byte-identical với fixture — xác nhận
+    `runChatOrchestration`/website SSE không đổi hành vi dù được gọi thêm từ nhánh Zalo.
+  - `npm run test:e2e` (Playwright, build tĩnh + 120 test UI website, không đụng Zalo backend):
+    120/120 PASS.
+  - Không log nội dung tin nhắn/reply/token/secret ở bất kỳ đường log Zalo nào, kể cả nhánh RAG mới
+    (`error_code=none`, không có `fullText`) — xác nhận bằng test cập nhật trong
+    `chat-zalo-bot-channel.test.js`.
+- **Việc còn lại (Phase 2, KHÔNG làm trong task này):** ACK-before-rate-limit, tách
+  `handleZaloBotWebhook` sang module riêng, retry 429/5xx cho `sendMessage`, dedupe theo
+  `message_id`, telemetry hardening (log `cache_status` nguồn dữ liệu). Production runtime
+  acceptance (ma trận P1–P12 qua tài khoản Zalo thật) và đóng PR #89 (OD-04) vẫn còn pending sau
+  task này.
+
+## [2026-09-24] PR #89 evidence transfer (trước khi đóng theo OD-04)
+- **Agent:** Claude Code (Sonnet 5), chép lại nguyên trạng bằng chứng do Codex/Claude Code thu thập
+  trên PR #89 (`claude/tender-faraday-e8fun5`, chưa merge) trước khi đóng PR đó theo OD-04 — tránh
+  mất bằng chứng thật khi đóng PR, không giữ hai nguồn sự thật mâu thuẫn về trạng thái production.
+- **V0 production evidence (thu thập 2026-09-23/24, xem chi tiết đầy đủ trong lịch sử PR #89 trên
+  GitHub nếu cần):**
+  - PR #88 merge SHA `1f1607f0274026cfd13829722f7deda19fe5c869`, head nguồn `7c76c4c7aa8c2…`. Final
+    review 15 hạng mục + final gate (`npm test` 731/731, `npm run build`, `npm run ci`) PASS trên
+    đúng exact head trước merge.
+  - GitHub Deployments API xác nhận deployment `environment: "Production – bandocapt"` (không phải
+    rehearsal) tại đúng merge SHA có `state: success`.
+  - Xác minh trực tiếp từ máy local: HTTPS hoạt động tới `vercel.com`, `api.vercel.com`,
+    `bandocapt.vercel.app`, `bandocapt.io.vn` (redirect HTTPS sang `www.bandocapt.io.vn`),
+    `bot-api.zaloplatforms.com`. DNS `www.bandocapt.io.vn` là CNAME Vercel, response production có
+    `server: Vercel`, HTTP 200. Hai `POST` payload vô hại tới
+    `https://www.bandocapt.io.vn/api/zalo-bot/webhook` (thiếu secret và secret sai) đều trả HTTP
+    403 — bằng chứng route/rewrite production hoạt động và fail-closed.
+  - Vercel workspace xác nhận deployment Production `dpl_2UgJhm2YWutGmdMNFevr1DC8VfS7` là `READY`,
+    đúng SHA `1f1607f0274026cfd13829722f7deda19fe5c869`, với alias `bandocapt.io.vn`,
+    `www.bandocapt.io.vn`, `bandocapt.vercel.app`. Runtime logs ghi nhận 4 smoke request webhook
+    HTTP 403 và Node.js `DEP0169` deprecation warning ở 2 bản ghi; không có webhook 5xx hay
+    application exception; runtime error aggregation không báo lỗi trong 24 giờ. Homepage HTTP 200;
+    `/api/chat` GET 405, unauthenticated POST 403.
+  - Owner xác nhận ba biến `ZALO_BOT_TOKEN`/`ZALO_BOT_WEBHOOK_SECRET`/`ZALO_BOT_WEBHOOK_URL` đã có
+    trong Vercel Production. Integration đang dùng không cung cấp quyền đọc env vars trực tiếp;
+    không có `VERCEL_TOKEN`/CLI login local trong phiên đó. Do đó env presence là owner-confirmed,
+    KHÔNG xác minh độc lập giá trị/khả năng dùng runtime tại thời điểm đó.
+  - Owner sau đó cung cấp bằng chứng riêng (ghi trong entry `[PRODUCTION ACCEPTED 2026-09-24]` ở
+    `04-current-tasks.md`): deployment `dpl_Hm4xyXjdL8Pg8oZ1zugGRDomHJFV` nhận webhook thật HTTP
+    200, `getWebhookInfo ok: true`, URL khớp, không lỗi gần nhất, log không lưu nội dung.
+- **Không xác minh được trong phiên PR #89 (do giới hạn network egress của môi trường agent lúc
+  đó, không phải lỗi code):** valid-secret smoke test thật, SSE chat response thật qua webhook,
+  đăng ký webhook thật (`zalo:webhook:set`), Phase 7/8 (owner gửi tin PRIVATE thật). Các mục này
+  sau đó được owner tự xác nhận PASS (xem verdict `ZALO_BOT_PLATFORM_V0_PRODUCTION_ACCEPTANCE_PASS`
+  ở trên) — không cần lặp lại.
+- **PR #89 disposition (OD-04):** CLOSE, không merge — nội dung của nó (chỉ sửa
+  `docs/brain/04-current-tasks.md`/`06-ai-working-log.md`) đã lỗi thời so với bằng chứng V0 PASS
+  owner cung cấp sau đó, và sẽ conflict trực tiếp với các sửa đổi cùng file trong PR #90. Toàn bộ
+  fact còn giá trị đã chép vào entry này; không cần giữ PR #89 mở chỉ để lưu trữ.
+
 ## [2026-09-24] ZALO_BOT_V1_CORE_CONVERSATION_LOCATION_LOOKUP
 - **Agent:** Codex
 - **Thay đổi:** Thêm lớp deterministic V1 cho greeting/help/map/location/fallback. Location lookup tái dùng `getPublishedLocations()` và `findVerifiedLocationMatches()` hiện có, không thêm nguồn dữ liệu. Giữ nguyên webhook auth/parser, principal rate limit và website RAG/SSE; đổi đường xử lý Zalo sau ACK sang phản hồi V1. Log webhook chỉ ghi metadata/error code, send failure không retry.

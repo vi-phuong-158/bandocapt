@@ -1,25 +1,82 @@
 # 01 - Architecture
 
-## Zalo Bot V1 Core Conversation & Location Lookup (2026-09-24)
+## Zalo Bot V1 — deterministic-first + shared RAG fallback (2026-09-26, production closure)
 
-- **Scope:** Zalo text webhook supports deterministic `GREETING`, `HELP`, `MAP`, `LOCATION_LOOKUP`, and `FALLBACK`; no AI/LLM, RAG, conversation memory, or new serverless function is introduced for this channel.
-- **Shared location source:** `lib/zalo-bot-v1.js` calls the existing `getPublishedLocations()` and `findVerifiedLocationMatches()` from `lib/published-locations.js`. That service reads the same public `Published_Locations` Google Sheet through GViz, applies the website's schema validation, cache, alias rules, conflict detection, and location resolution. No Zalo copy of the location dataset is maintained.
-- **Normalization and resolution:** `normalizeZaloMessage()` folds Vietnamese diacritics, case, punctuation, and whitespace; `stripLocationPrefix()` removes the supported `công an`, `ca`, `tìm`, and `địa chỉ` prefixes. `resolveZaloIntent()` is deterministic. Location outcomes map existing resolver `matched`, `no_match`, and ambiguity statuses to `FOUND`, `NOT_FOUND`, and `AMBIGUOUS`; the bot never selects an ambiguous result.
-- **Reply data:** location name/address/phone and coordinates-derived Google Maps URL come from the shared public dataset. Address, phone, and directions are omitted when absent; phone output additionally requires at least seven digits. The official map entry URL is centralized as `CANONICAL_MAP_URL` in `lib/zalo-bot-v1.js` (`https://bandocapt.vercel.app/`); the published map dataset currently has no per-location website deep link.
-- **Transport:** the existing `/api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot` rewrite, secret validation, parser, principal-hashed rate limit, fast ACK, `waitUntil`, and `sendZaloMessage` remain in place. After ACK, `handleZaloBotWebhook()` dispatches to `createZaloReply()` and sends the deterministic result; it no longer sends Zalo user text through RAG. Website requests continue to use the existing SSE/RAG orchestration unchanged.
-- **Privacy/error metadata:** Zalo logs contain only allowlisted event/intent/result/status/duration/error-code metadata and pseudonymous principal hash. They do not contain inbound text, reply text, payload, Zalo token, webhook secret, or Firebase credentials. Send and lookup failures are caught and logged with stable error codes.
+- **Scope:** Zalo text webhook supports deterministic `GREETING`, `HELP`, `MAP`, and `LOCATION_LOOKUP`
+  (`FOUND`/`NOT_FOUND`/`AMBIGUOUS`) with **no AI/LLM**. Every other message — including real TTHC
+  questions and "location-shaped but no place given" messages — is forwarded **verbatim** to the
+  **same** `runChatOrchestration` the website uses (OD-01: deterministic-first, shared RAG fallback,
+  never a second RAG pipeline). No new serverless function is introduced for this channel.
+- **Static intent classifier only decides GREETING/HELP/MAP.** `resolveZaloIntent()` in
+  `lib/zalo-bot-v1.js` is a small fixed-phrase regex for those three; it no longer decides LOCATION
+  vs FALLBACK. An earlier version required a message to *start with* `xã/phường/thị trấn/thị xã` or
+  `công an/ca/tìm/địa chỉ` to be treated as a location — this missed natural phrasing ("Công an
+  phường Phú Thọ ở đâu") and bare place names typed with no prefix ("Hy Cương"), which is the most
+  common way people actually type a commune name. Fixed 2026-09-26 (P0-1/P0-2).
+- **Location gate reuses the website's own classifier, not a second heuristic.** `createZaloReply()`
+  calls `isLocationLookupRequested()` (→ `lib/chat-intent.js buildRequestPlan().locationTask`) and,
+  when true, `getPublishedLocations()` + `findVerifiedLocationMatches()` from
+  `lib/published-locations.js` — the exact function the website's RAG prompt already uses, including
+  its Vietnamese-diacritic normalization, bare-place-name detection (`isBarePlaceNameQuery`),
+  preposition-based evidence ("ở Hy Cương"), and conflict/ambiguity detection. No Zalo copy of the
+  location dataset or a second normalization heuristic is maintained.
+  - `status: matched | ambiguous_match | ambiguous_conflict | no_match` → deterministic terminal
+    reply (`buildLocationReply`), **never AI**.
+  - `status: not_requested | missing_location_evidence` → falls through to shared RAG below
+    (`RAG_FALLBACK` sentinel, `{ intent: 'OTHER', result: 'RAG_REQUIRED', text: null }`) — this is
+    what makes a real procedural question ("Tôi cần làm thủ tục khai báo tạm trú cho người nước
+    ngoài") and a location question missing its place ("công an ở đâu") both reach the website's
+    RAG/abstention prompt instead of the old static "Tôi chưa hiểu yêu cầu này." (P0-4).
+- **Ambiguous UX (P0-3):** `ambiguous_match` (several *real, different* units share an alias) lists
+  up to 5 candidate **names only** (no address/phone/coordinates) and asks the user to type the full
+  name. `ambiguous_conflict` (the *same* name has contradictory rows in the source sheet — a data
+  entry issue, not multiple real units) keeps the older generic message, since listing identical
+  names would not help the user choose anything.
+- **Reply data:** location name/address/phone and coordinates-derived Google Maps URL come from the
+  shared public dataset. Address, phone, and directions are omitted when absent; phone output
+  additionally requires at least seven digits. The official map entry URL is centralized as
+  `CANONICAL_MAP_URL` in `lib/zalo-bot-v1.js` — **`https://www.bandocapt.io.vn/`**, the project's
+  custom production domain (not `*.vercel.app`; see `03-decisions.md` "Zalo Bot V1 canonical domain"
+  for the DNS/redirect evidence).
+- **PRIVATE chat only (OD-02).** `handleZaloBotWebhook()` ACKs and drops any message whose
+  `chat_type !== 'PRIVATE'` (GROUP, or an unknown/missing type) right after `parseZaloWebhook`,
+  before rate-limit and before any reply path — no deterministic reply, no RAG, no `sendMessage`,
+  logged only as `error_code=GROUP_CHAT_IGNORED` (metadata only). Group support is out of scope for
+  V1; revisit only as an explicit later decision.
+- **`sendZaloMessage` hardening:** a 2xx HTTP status alone is not treated as success. The JSON body
+  is parsed defensively (never logged) and `{ ok: false, ... }` is treated as a send failure even on
+  HTTP 200, matching how the platform can reject a request at the application layer.
+- **Transport (unchanged from V0):** the `/api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot`
+  rewrite, secret validation, parser, principal-hashed rate limit, and fast ACK before `waitUntil`
+  remain exactly as V0 built them.
+- **Privacy/error metadata:** Zalo logs contain only allowlisted event/intent/result/status/duration/
+  error-code metadata and a pseudonymous principal hash. They do not contain inbound text, reply
+  text, payload, Zalo token, webhook secret, or Firebase credentials — including the RAG-fallback
+  reply text, which is never logged verbatim (only `result=RAG_REPLIED`/`error_code`). Send and
+  lookup failures are caught and logged with stable error codes.
 - **Code Graph:**
   ```text
   Zalo text webhook
-    -> vercel.json rewrite -> api/chat.js handler (route + secret + payload + hashed rate limit)
-    -> ACK 200 -> waitUntil
-         -> lib/zalo-bot-v1.js normalizeZaloMessage -> resolveZaloIntent
-              -> static greeting/help/map/fallback
-              -> LOCATION_CANDIDATE -> lib/published-locations.js getPublishedLocations
-                   -> same Google GViz Published_Locations dataset used by website
-                   -> findVerifiedLocationMatches -> FOUND / NOT_FOUND / AMBIGUOUS
-         -> lib/zalo-bot.js splitZaloText -> sendZaloMessage -> Zalo Bot API
-  Website -> api/chat.js -> existing runChatOrchestration/RAG and location service (unchanged)
+    -> vercel.json rewrite -> api/chat.js handler (route + secret + payload)
+    -> chat_type != PRIVATE? -> ACK 200, GROUP_CHAT_IGNORED, stop (OD-02)
+    -> hashed rate limit -> ACK 200 -> waitUntil
+         -> lib/zalo-bot-v1.js resolveZaloIntent
+              -> GREETING / HELP / MAP -> static reply (no AI)
+              -> otherwise -> isLocationLookupRequested (lib/chat-intent.js buildRequestPlan, SAME
+                              gate the website uses)
+                   -> true -> lib/published-locations.js getPublishedLocations
+                        -> same Google GViz Published_Locations dataset used by website
+                        -> findVerifiedLocationMatches
+                             -> matched/ambiguous/no_match -> deterministic reply (no AI)
+                             -> missing_location_evidence -> RAG_FALLBACK sentinel
+                   -> false -> RAG_FALLBACK sentinel
+         -> RAG_FALLBACK? -> api/chat.js: runChatOrchestration({ sink: createBufferSink(), ... })
+                             -> SAME pipeline/prompt/Pinecone retrieval as the website, no SSE
+                             -> sink.result().done.fullText
+         -> lib/zalo-bot.js splitZaloText -> sendZaloMessage (checks HTTP status AND body.ok)
+            -> Zalo Bot API
+  Website -> api/chat.js -> existing runChatOrchestration/RAG and location service (unchanged;
+             test/chat-sse-golden.test.js locks byte-identical website SSE output)
   ```
 
 ## Zalo Bot Platform V0 (2026-09-23)

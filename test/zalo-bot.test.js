@@ -223,3 +223,27 @@ test('sendZaloMessage: thiếu token -> throw không gọi fetch', async () => {
     await assert.rejects(() => sendZaloMessage({ chatId: '1001', text: 'x', token: undefined, fetchImpl }));
     assert.equal(called, false);
 });
+
+// T15: HTTP 200 nhưng body application-level báo thất bại (ok:false) phải bị coi là lỗi,
+// không chỉ tin theo status code.
+test('sendZaloMessage: HTTP 200 nhưng body {ok:false} -> vẫn throw, không log body/token', async () => {
+    const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ ok: false, description: 'chat not found' }) });
+    await assert.rejects(
+        () => sendZaloMessage({ chatId: '1001', text: 'x', token: 'super-secret-token-value', fetchImpl }),
+        (err) => {
+            assert.ok(!err.message.includes('super-secret-token-value'));
+            assert.ok(!err.message.includes('chat not found'));
+            return true;
+        }
+    );
+});
+
+test('sendZaloMessage: HTTP 200 với body {ok:true} vẫn coi là thành công', async () => {
+    const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    await assert.doesNotReject(() => sendZaloMessage({ chatId: '1001', text: 'x', token: 'tok', fetchImpl }));
+});
+
+test('sendZaloMessage: body không có field ok (hoặc fetch mock không có .json) vẫn coi là thành công', async () => {
+    const fetchImpl = async () => ({ ok: true, status: 200 }); // không có .json() — mock đời cũ
+    await assert.doesNotReject(() => sendZaloMessage({ chatId: '1001', text: 'x', token: 'tok', fetchImpl }));
+});
