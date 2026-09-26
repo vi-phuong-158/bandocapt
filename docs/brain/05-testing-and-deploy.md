@@ -46,7 +46,7 @@ LLM_UTILITY_PRIMARY=deepseek
 # Strict default: không đặt LLM_UTILITY_FALLBACK. Stable: LLM_UTILITY_FALLBACK=gemini.
 # GEMINI_UTILITY_MODEL=gemini-flash-lite-latest  # chỉ dùng khi rollback utility sang Gemini
 CHAT_REQUEST_DEADLINE_MS=55000
-# Zalo Bot Platform V0 (KHÁC Zalo OA OpenAPI — không dùng OA, không GMF). Tái sử dụng /api/chat.js
+# Zalo Bot Platform (KHÁC Zalo OA OpenAPI — không dùng OA, không GMF). Tái sử dụng /api/chat.js
 # qua vercel.json rewrite /api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot, KHÔNG phải function riêng.
 ZALO_BOT_TOKEN=
 ZALO_BOT_WEBHOOK_SECRET=
@@ -109,6 +109,11 @@ node scripts/run-regression.js --delay-ms 0  # full 30 câu, có thể lọc b�
 npm run prune:telemetry  # xóa log RTDB fallback đã quá hạn theo expires_at
 npm run zalo:webhook:set # đăng ký webhook Zalo Bot Platform V0 (cần ZALO_BOT_TOKEN/ZALO_BOT_WEBHOOK_SECRET/ZALO_BOT_WEBHOOK_URL thật), không log token/secret
 ```
+
+Zalo V1 deterministic conversation/location tests are part of `npm test` (`test/zalo-bot-v1.test.js`
+and `test/chat-zalo-bot-channel.test.js`). Location lookup reads the same `Published_Locations`
+Google Sheet through `lib/published-locations.js`; there is no Zalo-specific data file or new env
+variable. Production map URL is centralized in `lib/zalo-bot-v1.js`.
 
 GitHub Actions chạy `npm ci` và `npm run ci` trên pull request và push vào `main`.
 

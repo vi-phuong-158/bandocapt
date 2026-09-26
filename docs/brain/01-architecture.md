@@ -1,5 +1,120 @@
 # 01 - Architecture
 
+## Zalo Bot V1 — real webhook payload compatibility fix (2026-09-26)
+
+- **Symptom:** owner tested with a real Zalo account ("Xin chào", "Công an phường Thanh Miếu ở đâu")
+  — Vercel Production logged the webhook request as `HTTP 200`, but the bot never replied.
+- **Root cause (MEDIUM confidence — no raw production payload was inspected, by design; see
+  security note below):** `parseZaloWebhook()` (`lib/zalo-bot.js`) required the WRAPPED envelope
+  `{ result: { event_name, message } }` — the shape documented at bot.zapps.me/docs/webhook/
+  (fetched/verified 2026-09-26) — and returned `ok:false` (silent ACK, no reply) for a FLAT envelope
+  `{ event_name, message }` at the top level. An independent third-party SDK for this exact platform
+  (`NightOwl-VN/zalobot-sdk`, `src/modules/webhook.js`) explicitly supports **both** shapes in its
+  own `parseEvent()`, which is real-world evidence that flat delivery occurs in practice for this
+  platform even though the current docs page shows only the wrapped example. This is the most
+  plausible explanation that fits "HTTP 200 with silent drop", but it was not confirmed against an
+  actual production payload — no raw body was ever logged to check.
+- **Fix:** `normalizeZaloWebhookEnvelope(body)` (`lib/zalo-bot.js`, exported for tests) accepts both
+  shapes: `body.result` when it is an object, else `body` itself. `parseZaloWebhook()` reads
+  `event_name`/`message` from the normalized envelope and returns an `envelopeShape`
+  (`'wrapped' | 'flat' | 'invalid'`) on every branch — metadata only, never body content. Webhook
+  secret verification, `BOT_MESSAGE`/unsupported-event/missing-text-or-chat semantics, and the
+  PRIVATE-only gate are unchanged; the fix only widens which envelope shape is accepted.
+- **Observability added** (all metadata-only — no message text, chat_id, from_id, token, or
+  secret): `handleZaloBotWebhook()` now logs `action=WEBHOOK_RECEIVED webhook_shape=...` on every
+  request, `action=WEBHOOK_PARSE_UNSUPPORTED parse_reason=...` when parsing fails or the event is
+  unsupported, `action=REPLY_PATH_DETERMINISTIC` / `action=REPLY_PATH_RAG` when a reply path is
+  chosen, and `action=SEND_MESSAGE_SUCCESS` / `action=SEND_MESSAGE_FAILED` on the outbound
+  `sendMessage` result. This closes the gap where production only showed `HTTP 200` with no way to
+  tell which internal step silently dropped the event.
+- **Security:** the Zalo Bot token visible in an owner-provided screenshot is treated as
+  compromised; it was never read, logged, or committed in this fix, and production runtime
+  acceptance stays blocked until the owner rotates it.
+- **Not yet confirmed:** whether flat-shape delivery was the actual production cause. If the owner
+  retests after rotating the token and the bot still does not reply, the new `action=`/
+  `webhook_shape=` log lines should make the real failure point visible without ever needing to log
+  raw payload content.
+
+## Zalo Bot V1 — deterministic-first + shared RAG fallback (2026-09-26, production closure)
+
+- **Scope:** Zalo text webhook supports deterministic `GREETING`, `HELP`, `MAP`, and `LOCATION_LOOKUP`
+  (`FOUND`/`NOT_FOUND`/`AMBIGUOUS`) with **no AI/LLM**. Every other message — including real TTHC
+  questions and "location-shaped but no place given" messages — is forwarded **verbatim** to the
+  **same** `runChatOrchestration` the website uses (OD-01: deterministic-first, shared RAG fallback,
+  never a second RAG pipeline). No new serverless function is introduced for this channel.
+- **Static intent classifier only decides GREETING/HELP/MAP.** `resolveZaloIntent()` in
+  `lib/zalo-bot-v1.js` is a small fixed-phrase regex for those three; it no longer decides LOCATION
+  vs FALLBACK. An earlier version required a message to *start with* `xã/phường/thị trấn/thị xã` or
+  `công an/ca/tìm/địa chỉ` to be treated as a location — this missed natural phrasing ("Công an
+  phường Phú Thọ ở đâu") and bare place names typed with no prefix ("Hy Cương"), which is the most
+  common way people actually type a commune name. Fixed 2026-09-26 (P0-1/P0-2).
+- **Location gate reuses the website's own classifier, not a second heuristic.** `createZaloReply()`
+  calls `isLocationLookupRequested()` (→ `lib/chat-intent.js buildRequestPlan().locationTask`) and,
+  when true, `getPublishedLocations()` + `findVerifiedLocationMatches()` from
+  `lib/published-locations.js` — the exact function the website's RAG prompt already uses, including
+  its Vietnamese-diacritic normalization, bare-place-name detection (`isBarePlaceNameQuery`),
+  preposition-based evidence ("ở Hy Cương"), and conflict/ambiguity detection. No Zalo copy of the
+  location dataset or a second normalization heuristic is maintained.
+  - `status: matched | ambiguous_match | ambiguous_conflict | no_match` → deterministic terminal
+    reply (`buildLocationReply`), **never AI**.
+  - `status: not_requested | missing_location_evidence` → falls through to shared RAG below
+    (`RAG_FALLBACK` sentinel, `{ intent: 'OTHER', result: 'RAG_REQUIRED', text: null }`) — this is
+    what makes a real procedural question ("Tôi cần làm thủ tục khai báo tạm trú cho người nước
+    ngoài") and a location question missing its place ("công an ở đâu") both reach the website's
+    RAG/abstention prompt instead of the old static "Tôi chưa hiểu yêu cầu này." (P0-4).
+- **Ambiguous UX (P0-3):** `ambiguous_match` (several *real, different* units share an alias) lists
+  up to 5 candidate **names only** (no address/phone/coordinates) and asks the user to type the full
+  name. `ambiguous_conflict` (the *same* name has contradictory rows in the source sheet — a data
+  entry issue, not multiple real units) keeps the older generic message, since listing identical
+  names would not help the user choose anything.
+- **Reply data:** location name/address/phone and coordinates-derived Google Maps URL come from the
+  shared public dataset. Address, phone, and directions are omitted when absent; phone output
+  additionally requires at least seven digits. The official map entry URL is centralized as
+  `CANONICAL_MAP_URL` in `lib/zalo-bot-v1.js` — **`https://www.bandocapt.io.vn/`**, the project's
+  custom production domain (not `*.vercel.app`; see `03-decisions.md` "Zalo Bot V1 canonical domain"
+  for the DNS/redirect evidence).
+- **PRIVATE chat only (OD-02).** `handleZaloBotWebhook()` ACKs and drops any message whose
+  `chat_type !== 'PRIVATE'` (GROUP, or an unknown/missing type) right after `parseZaloWebhook`,
+  before rate-limit and before any reply path — no deterministic reply, no RAG, no `sendMessage`,
+  logged only as `error_code=GROUP_CHAT_IGNORED` (metadata only). Group support is out of scope for
+  V1; revisit only as an explicit later decision.
+- **`sendZaloMessage` hardening:** a 2xx HTTP status alone is not treated as success. The JSON body
+  is parsed defensively (never logged) and `{ ok: false, ... }` is treated as a send failure even on
+  HTTP 200, matching how the platform can reject a request at the application layer.
+- **Transport:** the `/api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot` rewrite, secret
+  validation, principal-hashed rate limit, and fast ACK before `waitUntil` remain exactly as V0
+  built them. The parser (`parseZaloWebhook`) was hardened 2026-09-26 to accept both the wrapped and
+  flat webhook envelope shapes — see "real webhook payload compatibility fix" above.
+- **Privacy/error metadata:** Zalo logs contain only allowlisted event/intent/result/status/duration/
+  error-code metadata and a pseudonymous principal hash. They do not contain inbound text, reply
+  text, payload, Zalo token, webhook secret, or Firebase credentials — including the RAG-fallback
+  reply text, which is never logged verbatim (only `result=RAG_REPLIED`/`error_code`). Send and
+  lookup failures are caught and logged with stable error codes.
+- **Code Graph:**
+  ```text
+  Zalo text webhook
+    -> vercel.json rewrite -> api/chat.js handler (route + secret + payload)
+    -> chat_type != PRIVATE? -> ACK 200, GROUP_CHAT_IGNORED, stop (OD-02)
+    -> hashed rate limit -> ACK 200 -> waitUntil
+         -> lib/zalo-bot-v1.js resolveZaloIntent
+              -> GREETING / HELP / MAP -> static reply (no AI)
+              -> otherwise -> isLocationLookupRequested (lib/chat-intent.js buildRequestPlan, SAME
+                              gate the website uses)
+                   -> true -> lib/published-locations.js getPublishedLocations
+                        -> same Google GViz Published_Locations dataset used by website
+                        -> findVerifiedLocationMatches
+                             -> matched/ambiguous/no_match -> deterministic reply (no AI)
+                             -> missing_location_evidence -> RAG_FALLBACK sentinel
+                   -> false -> RAG_FALLBACK sentinel
+         -> RAG_FALLBACK? -> api/chat.js: runChatOrchestration({ sink: createBufferSink(), ... })
+                             -> SAME pipeline/prompt/Pinecone retrieval as the website, no SSE
+                             -> sink.result().done.fullText
+         -> lib/zalo-bot.js splitZaloText -> sendZaloMessage (checks HTTP status AND body.ok)
+            -> Zalo Bot API
+  Website -> api/chat.js -> existing runChatOrchestration/RAG and location service (unchanged;
+             test/chat-sse-golden.test.js locks byte-identical website SSE output)
+  ```
+
 ## Zalo Bot Platform V0 (2026-09-23)
 
 - **Zalo Bot Platform ≠ Zalo OA OpenAPI.** V0 dùng Bot API mới của Zalo
@@ -15,9 +130,11 @@
   gọi `sink.*`) — audit xác nhận không biến request-scoped nào rò rỉ ngoài
   `{sink, userMessage, history, clientIP, currentDate, deadlineAt, _startTime, FIREBASE_DB_URL,
   FIREBASE_AUTH, evalMode, req}`. Khối này được tách nguyên vẹn (KHÔNG đổi một dòng logic nào)
-  thành hàm `runChatOrchestration(ctx)` dùng CHUNG cho cả website (`SseSink`) và Zalo Bot
-  (`BufferSink`). Bằng chứng byte-identical: `test/chat-sse-golden.test.js` vẫn PASS nguyên vẹn.
-- **Luồng đích:** `Zalo user/group -> Zalo Bot Webhook -> vercel.json rewrite -> api/chat.js
+  thành hàm `runChatOrchestration(ctx)` dùng CHUNG cho website (`SseSink`) và kênh Zalo ban đầu ở
+  V0 (`BufferSink`). Kể từ V1, dispatch text Zalo kết thúc ở `createZaloReply()` và không gọi hàm
+  này; website vẫn dùng nguyên RAG orchestration. Bằng chứng website byte-identical:
+  `test/chat-sse-golden.test.js` vẫn PASS nguyên vẹn.
+- **Luồng V0 (đã được thay bằng luồng V1 ở trên):** `Zalo user/group -> Zalo Bot Webhook -> vercel.json rewrite -> api/chat.js
   (isZaloBotRoute) -> handleZaloBotWebhook -> runChatOrchestration({sink: BufferSink, ...}) ->
   sink.result().done.fullText -> splitZaloText -> sendZaloMessage(chat.id)`.
 - **Gate riêng cho kênh Zalo, tách biệt hoàn toàn CORS/HMAC/Turnstile/rate-limit-theo-IP của
@@ -58,6 +175,7 @@
   console). `npm run zalo:webhook:set`.
 - **Code Graph:**
   ```text
+  V0 only (superseded for supported text-message handling):
   Zalo user/group
     -> Zalo Bot Webhook (X-Bot-Api-Secret-Token header)
     -> vercel.json rewrite /api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot
@@ -659,6 +777,7 @@ precedence, so the frontend and the authoritative server/Gateway path cannot div
 | `data/tthc-index.json` | Chi muc nhe `{procedure_id,title,aliases}` de chat doi chieu nhanh | `js/tthc-catalog.js` | `scripts/generate-tthc-catalog.js --index-only` |
 | `data/tthc-catalog.json` | Catalog TTHC tinh de nguoi dung doi chieu cau tra loi AI | `js/tthc-catalog.js` | sinh tu Pinecone live + audit phi, fallback backup khi local khong co key |
 | `lib/published-locations.js` | Fetch GViz Google Sheets, cache 60s, stale fallback 5m, dedupe/conflict, merge approved aliases and resolve only current-message evidence or an immediate assistant location follow-up. Historical user turns are excluded from location scoring; returns `matched`, `no_match`, `ambiguous_match` or `ambiguous_conflict`. T1.9: nationality answers remain outside location flow | `api/google-sheet.js`, `api/chat.js`, test | `js/location-data.js`, Google Sheets GViz |
+| `lib/zalo-bot-v1.js` | V1 deterministic Zalo normalization/intents/static replies; location intent calls the same published-location fetcher/resolver as website; emits FOUND/NOT_FOUND/AMBIGUOUS without AI | `api/chat.js`, `test/zalo-bot-v1.test.js` | `js/location-data.js`, `lib/published-locations.js` |
 | `lib/location-workbooks.js` | Resolves public/private workbook IDs with fail-closed conflict and boundary checks; explicitly classifies sheet trust boundary | `api/google-sheet.js`, `lib/published-locations.js`, migration dry-run, test | environment contract only; never Google credentials |
 | `lib/operational-baseline.js` | Canonical private baseline projection, provenance validation, reconciliation and staging overlay for legacy published records | Apps Script adapter, dry-run tool, Gateway tests | `lib/staff-location-contract.js`; no Google API or private PII |
 | `lib/output-validator.js` | Fail-closed output guard: doi chieu va redact SDT/Maps/toa do/URL cong khai/so lieu phap ly khong co trong nguon xac minh; URL chi duoc giu khi xuat hien trong RAG/citation/tru so da duyet | `api/chat.js`, test | - |

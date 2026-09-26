@@ -10,6 +10,7 @@ const test = require('node:test');
 const {
     isZaloBotRoute,
     verifyZaloWebhookSecret,
+    normalizeZaloWebhookEnvelope,
     parseZaloWebhook,
     buildZaloRatePrincipal,
     splitZaloText,
@@ -81,6 +82,25 @@ function textPayload(overrides = {}) {
     };
 }
 
+// Dạng "flat" (không có wrapper `result`): body.event_name / body.message trực tiếp ở top-level.
+// Tài liệu hiện có (bot.zapps.me/docs/webhook/, xác minh 2026-09-26) mô tả dạng wrapped ở trên là
+// chính thức, nhưng SDK bên thứ ba độc lập cho nền tảng này (NightOwl-VN/zalobot-sdk) tự hỗ trợ cả
+// hai dạng — và production ACK 200 không kèm sendMessage khớp đúng triệu chứng "parser chỉ chấp
+// nhận wrapped nhưng Zalo gửi flat". Không có bằng chứng raw payload production để khẳng định chắc
+// chắn; test này khoá hành vi tương thích ngược (chấp nhận cả hai) mà không hạ chuẩn bảo mật.
+function flatTextPayload(overrides = {}) {
+    return {
+        event_name: 'message.text.received',
+        message: {
+            text: 'Xin chào',
+            chat: { id: 1001, chat_type: 'PRIVATE' },
+            from: { id: 2002, is_bot: false },
+            ...overrides.message,
+        },
+        ...overrides.top,
+    };
+}
+
 test('parseZaloWebhook: payload chính thức hợp lệ, chat PRIVATE, trả đủ trường', () => {
     const parsed = parseZaloWebhook(textPayload());
     assert.equal(parsed.ok, true);
@@ -101,9 +121,100 @@ test('parseZaloWebhook: chat_type GROUP được parse đúng', () => {
 
 test('parseZaloWebhook: body sai hình dạng tối thiểu -> ok:false, không throw', () => {
     assert.equal(parseZaloWebhook(null).ok, false);
-    assert.equal(parseZaloWebhook({}).ok, false);
-    // event_name đúng nhưng message sai hình dạng -> ok:false (không phải supported:false)
+    // {} không có `result` object -> chuẩn hoá thành envelope FLAT rỗng (không có event_name) ->
+    // ok:true/supported:false/UNSUPPORTED_EVENT (ACK an toàn), không phải INVALID_BODY -- đây là
+    // hệ quả CÓ CHỦ ĐÍCH của việc chấp nhận cả hai dạng payload (P0 fix), không phải hồi quy: {}
+    // không tự chọn là "hình dạng sai" tuyệt đối, nó là một envelope flat hợp lệ nhưng rỗng.
+    const emptyParsed = parseZaloWebhook({});
+    assert.equal(emptyParsed.ok, true);
+    assert.equal(emptyParsed.supported, false);
+    assert.equal(emptyParsed.envelopeShape, 'flat');
+    // event_name đúng nhưng message sai hình dạng -> ok:false (không phải supported:false), ở cả
+    // hai dạng envelope.
     assert.equal(parseZaloWebhook({ result: { event_name: 'message.text.received', message: 'not-an-object' } }).ok, false);
+    assert.equal(parseZaloWebhook({ event_name: 'message.text.received', message: 'not-an-object' }).ok, false);
+});
+
+// ---------------------------------------------------------------------
+// T01–T14 — Real webhook payload compatibility (wrapped vs flat envelope)
+// ---------------------------------------------------------------------
+
+test('T01: wrapped fixture (body.result.event_name/message) -> parsed.supported=true, envelopeShape=wrapped', () => {
+    const parsed = parseZaloWebhook(textPayload());
+    assert.equal(parsed.supported, true);
+    assert.equal(parsed.envelopeShape, 'wrapped');
+});
+
+test('T02: flat fixture (body.event_name/message) -> parsed.supported=true, envelopeShape=flat', () => {
+    const parsed = parseZaloWebhook(flatTextPayload());
+    assert.equal(parsed.supported, true);
+    assert.equal(parsed.envelopeShape, 'flat');
+});
+
+test('T03: wrapped và flat normalize ra cùng semantic output (text/chatType/chatId/fromId)', () => {
+    const wrapped = parseZaloWebhook(textPayload());
+    const flat = parseZaloWebhook(flatTextPayload());
+    assert.equal(wrapped.text, flat.text);
+    assert.equal(wrapped.chatType, flat.chatType);
+    assert.equal(wrapped.chatId, flat.chatId);
+    assert.equal(wrapped.fromId, flat.fromId);
+    assert.equal(wrapped.eventName, flat.eventName);
+});
+
+test('normalizeZaloWebhookEnvelope: wrapped -> envelope=body.result; flat -> envelope=body; invalid -> null', () => {
+    const body = { result: { event_name: 'x' } };
+    assert.deepEqual(normalizeZaloWebhookEnvelope(body), { envelope: body.result, shape: 'wrapped' });
+    const flatBody = { event_name: 'x' };
+    assert.deepEqual(normalizeZaloWebhookEnvelope(flatBody), { envelope: flatBody, shape: 'flat' });
+    assert.equal(normalizeZaloWebhookEnvelope(null).envelope, null);
+    assert.equal(normalizeZaloWebhookEnvelope(null).shape, 'invalid');
+    // result không phải object (vd string/null) -> vẫn coi là flat, không phải invalid.
+    assert.deepEqual(normalizeZaloWebhookEnvelope({ result: 'oops', event_name: 'x' }), { envelope: { result: 'oops', event_name: 'x' }, shape: 'flat' });
+});
+
+test('T04: invalid body (null/không phải object) -> ok:false, không throw, cả hai dạng envelope', () => {
+    assert.doesNotThrow(() => parseZaloWebhook(null));
+    assert.doesNotThrow(() => parseZaloWebhook(undefined));
+    assert.doesNotThrow(() => parseZaloWebhook('a string'));
+    assert.equal(parseZaloWebhook(null).ok, false);
+});
+
+test('T05: unsupported event ở dạng flat -> ACK an toàn (supported:false), không throw', () => {
+    const parsed = parseZaloWebhook(flatTextPayload({ top: { event_name: 'message.image.received' } }));
+    assert.equal(parsed.ok, true);
+    assert.equal(parsed.supported, false);
+    assert.equal(parsed.envelopeShape, 'flat');
+});
+
+test('T06: unsupported event ở dạng wrapped -> ACK an toàn (supported:false), không throw', () => {
+    const parsed = parseZaloWebhook(textPayload({ result: { event_name: 'message.image.received' } }));
+    assert.equal(parsed.ok, true);
+    assert.equal(parsed.supported, false);
+    assert.equal(parsed.envelopeShape, 'wrapped');
+});
+
+test('T07: BOT_MESSAGE bị bỏ qua ở cả hai dạng envelope', () => {
+    const wrapped = parseZaloWebhook(textPayload({ message: { from: { id: 9, is_bot: true } } }));
+    assert.equal(wrapped.supported, false);
+    assert.equal(wrapped.reason, 'BOT_MESSAGE');
+    const flat = parseZaloWebhook(flatTextPayload({ message: { from: { id: 9, is_bot: true } } }));
+    assert.equal(flat.supported, false);
+    assert.equal(flat.reason, 'BOT_MESSAGE');
+});
+
+test('T10: GROUP chat parse đúng ở cả hai dạng envelope (policy ignore áp dụng ở tầng handler, không phải parser)', () => {
+    const wrapped = parseZaloWebhook(textPayload({ message: { chat: { id: 5555, chat_type: 'GROUP' } } }));
+    assert.equal(wrapped.chatType, 'GROUP');
+    const flat = parseZaloWebhook(flatTextPayload({ message: { chat: { id: 5555, chat_type: 'GROUP' } } }));
+    assert.equal(flat.chatType, 'GROUP');
+});
+
+test('T11: chatId luôn lấy từ message.chat.id, không phải message.from.id, ở cả hai dạng', () => {
+    const wrapped = parseZaloWebhook(textPayload({ message: { chat: { id: 7777, chat_type: 'PRIVATE' }, from: { id: 8888, is_bot: false } } }));
+    assert.equal(wrapped.chatId, '7777');
+    assert.notEqual(wrapped.chatId, '8888');
+    const flat = parseZaloWebhook(flatTextPayload({ message: { chat: { id: 7777, chat_type: 'PRIVATE' }, from: { id: 8888, is_bot: false } } }));
+    assert.equal(flat.chatId, '7777');
 });
 
 test('parseZaloWebhook: result thiếu event_name -> vẫn ACK an toàn (supported:false), không throw', () => {
@@ -222,4 +333,28 @@ test('sendZaloMessage: thiếu token -> throw không gọi fetch', async () => {
     const fetchImpl = async () => { called = true; return { ok: true, status: 200, json: async () => ({}) }; };
     await assert.rejects(() => sendZaloMessage({ chatId: '1001', text: 'x', token: undefined, fetchImpl }));
     assert.equal(called, false);
+});
+
+// T15: HTTP 200 nhưng body application-level báo thất bại (ok:false) phải bị coi là lỗi,
+// không chỉ tin theo status code.
+test('sendZaloMessage: HTTP 200 nhưng body {ok:false} -> vẫn throw, không log body/token', async () => {
+    const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ ok: false, description: 'chat not found' }) });
+    await assert.rejects(
+        () => sendZaloMessage({ chatId: '1001', text: 'x', token: 'super-secret-token-value', fetchImpl }),
+        (err) => {
+            assert.ok(!err.message.includes('super-secret-token-value'));
+            assert.ok(!err.message.includes('chat not found'));
+            return true;
+        }
+    );
+});
+
+test('sendZaloMessage: HTTP 200 với body {ok:true} vẫn coi là thành công', async () => {
+    const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    await assert.doesNotReject(() => sendZaloMessage({ chatId: '1001', text: 'x', token: 'tok', fetchImpl }));
+});
+
+test('sendZaloMessage: body không có field ok (hoặc fetch mock không có .json) vẫn coi là thành công', async () => {
+    const fetchImpl = async () => ({ ok: true, status: 200 }); // không có .json() — mock đời cũ
+    await assert.doesNotReject(() => sendZaloMessage({ chatId: '1001', text: 'x', token: 'tok', fetchImpl }));
 });

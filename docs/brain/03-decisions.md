@@ -1,5 +1,113 @@
 # 03 — Technical Decisions
 
+## [2026-09-26] Zalo Bot V1 real webhook payload compatibility (wrapped vs flat envelope)
+
+- **Bối cảnh:** Owner test qua tài khoản Zalo thật ("Xin chào", "Công an phường Thanh Miếu ở đâu").
+  Vercel Production ghi nhận webhook `HTTP 200` cả hai lần nhưng bot không trả lời — nghĩa là
+  request tới được server và được ACK, nhưng event bị bỏ ở đâu đó sau khi tới `parseZaloWebhook`.
+- **Bằng chứng đã kiểm tra (không đoán):**
+  1. Tài liệu hiện có tại `bot.zapps.me/docs/webhook/` (fetch trực tiếp 2026-09-26) mô tả payload
+     là dạng BỌC: `{ "ok": true, "result": { "event_name", "message" } }` — khớp 100% với giả định
+     cũ của `parseZaloWebhook`, kể cả `chat.chat_type: "PRIVATE"` viết hoa.
+  2. Một SDK bên thứ ba độc lập cho cùng nền tảng này (`NightOwl-VN/zalobot-sdk`,
+     `src/modules/webhook.js`, đọc trực tiếp qua GitHub code search) tự viết `parseEvent()` hỗ trợ
+     **cả hai** dạng: `const result = payload.result && typeof payload.result === 'object' ?
+     payload.result : payload;` — tức tác giả SDK độc lập này từng gặp/phải phòng ngừa dạng FLAT
+     (không có wrapper `result`) trong thực tế triển khai trên chính nền tảng Zalo Bot.
+  3. Không có bằng chứng raw payload production (không được phép log để "xem thử" theo ràng buộc
+     bảo mật của task) — nên KHÔNG thể khẳng định chắc chắn 100% đây là nguyên nhân thật.
+- **Mức độ tin cậy: TRUNG BÌNH.** Tài liệu chính thức nói dạng bọc là đúng, nhưng bằng chứng thực tế
+  độc lập (mục 2) cho thấy dạng phẳng có xảy ra trên nền tảng này. Không loại trừ khả năng nguyên
+  nhân thật nằm ở chỗ khác (rate-limit/Firebase, timeout `waitUntil`, v.v.) — xem log
+  `action=`/`webhook_shape=` mới thêm để chẩn đoán nếu owner test lại vẫn không nhận được trả lời.
+- **Quyết định:** `parseZaloWebhook()` (`lib/zalo-bot.js`) chuẩn hoá qua
+  `normalizeZaloWebhookEnvelope(body)` trước khi đọc `event_name`/`message`: nhận `body.result` khi
+  là object, ngược lại dùng thẳng `body`. Đây là thay đổi **backward-compatible thuần tuý** — dạng
+  bọc cũ vẫn hoạt động y hệt, không nới lỏng `verifyZaloWebhookSecret`, không đổi semantics
+  `BOT_MESSAGE`/`UNSUPPORTED_EVENT`/`MISSING_TEXT_OR_CHAT`, không biến payload rác thành tin nhắn
+  tin cậy. Mọi nhánh trả về thêm field `envelopeShape` (`'wrapped'|'flat'|'invalid'`) — metadata an
+  toàn, không phải nội dung — để tầng gọi log phục vụ chẩn đoán.
+- **Observability:** thêm log `action=WEBHOOK_RECEIVED`, `action=WEBHOOK_PARSE_UNSUPPORTED`,
+  `action=REPLY_PATH_DETERMINISTIC`/`action=REPLY_PATH_RAG`,
+  `action=SEND_MESSAGE_SUCCESS`/`action=SEND_MESSAGE_FAILED` trong `handleZaloBotWebhook`
+  (`api/chat.js`) — tất cả chỉ mang metadata (event_type, chat_type, webhook_shape, intent, result,
+  error_code, duration_ms), không có text/chat_id/from_id/token/secret. Mục đích: production trước
+  đây chỉ thấy `HTTP 200`, không biết event dừng ở bước nào; log mới cho phép chẩn đoán không cần
+  đọc raw body.
+- **Bảo mật:** `ZALO_BOT_TOKEN` trong ảnh chụp trước đó của owner bị coi là compromised. Task này
+  không đọc/in/log/commit token đó hay bất kỳ secret nào; production runtime acceptance vẫn
+  `BLOCKED` cho tới khi owner rotate token.
+- **Không làm:** không đổi ACK-before-rate-limit, không tách `handleZaloBotWebhook`, không thêm
+  retry/dedupe, không mở rộng sang GROUP hay tính năng mới — đúng phạm vi "chỉ sửa compatibility +
+  observability" của task.
+
+## [2026-09-26] Zalo Bot V1 production closure — deterministic-first + shared RAG fallback, PRIVATE-only, canonical custom domain
+
+Kế thừa và **thay thế một phần** quyết định 2026-09-24 bên dưới (giữ nguyên: dùng chung
+`published-locations.js`, không dataset riêng, không endpoint mới). Bối cảnh: review kiến trúc độc
+lập ngày 2026-09-25 (verdict `ZALO_BOT_ARCHITECTURE_SOUND_WITH_TARGETED_HARDENING_REQUIRED`) tìm ra
+bot không nhận tên xã/phường gõ trần/không đúng đầu câu, và merge V1 nguyên trạng sẽ làm mất khả
+năng hỏi TTHC qua Zalo mà V0 đang có trên production. Owner đã chốt 4 quyết định (OD-01..OD-04) và
+yêu cầu sửa trước khi merge PR #90.
+
+- **OD-01 — Conversation model: deterministic-first, shared RAG fallback (không phải deterministic-only, không phải full-RAG-only).**
+  `resolveZaloIntent()` chỉ còn phân loại 3 intent tĩnh (`GREETING`/`HELP`/`MAP`); location dùng
+  chung `isLocationLookupRequested`/`findVerifiedLocationMatches` của website
+  (`lib/chat-intent.js`/`lib/published-locations.js`) — nhận đúng câu tự nhiên ("Công an phường Phú
+  Thọ ở đâu") và tên trần không tiền tố ("Hy Cương"), không còn heuristic Zalo-riêng bắt đầu-bằng-từ-khóa.
+  Mọi tin nhắn không phải GREETING/HELP/MAP và không phải yêu cầu tra cứu địa điểm tất định (bao gồm
+  câu hỏi TTHC thật và "hỏi địa điểm nhưng chưa nêu xã/phường") được `lib/zalo-bot-v1.js` trả về
+  sentinel `RAG_FALLBACK` (`{ intent: 'OTHER', result: 'RAG_REQUIRED', text: null }`) — module này
+  không biết gì về RAG, chỉ báo hiệu "không tất định được". `api/chat.js`
+  (`handleZaloBotWebhook`) là nơi DUY NHẤT gọi `runChatOrchestration({ sink: createBufferSink(),
+  userMessage: parsed.text, history: [], ... })` — CÙNG pipeline/prompt/Pinecone retrieval/provider
+  mà website SSE dùng, không dựng RAG riêng, không duplicate. Vì vậy location lookup vẫn tuyệt đối
+  tất định (không AI), còn khả năng hỏi TTHC qua Zalo (có từ V0) được giữ lại qua V1 thay vì bị thay
+  bằng câu tĩnh "Tôi chưa hiểu yêu cầu này.".
+- **OD-02 — Group: PRIVATE only.** `handleZaloBotWebhook()` ACK và bỏ qua ngay mọi tin nhắn có
+  `chat_type !== 'PRIVATE'` (GROUP hoặc `UNKNOWN` khi thiếu field) — trước rate-limit, trước mọi
+  reply path. Không @mention, không group UX, không phân tích hội thoại nhóm. Log
+  `error_code=GROUP_CHAT_IGNORED` (metadata only). Group là phạm vi cho quyết định sau, không phải
+  việc của V1.
+- **OD-03 — Canonical domain: custom domain, không phải `*.vercel.app`.** Xác minh trực tiếp
+  2026-09-26 (`curl -I`, không cần Vercel token): `https://bandocapt.io.vn/` trả HTTP 308 redirect
+  sang `https://www.bandocapt.io.vn/`; domain đích trả HTTP 200 với đúng
+  Content-Security-Policy production đã khai báo trong `vercel.json`. `CANONICAL_MAP_URL` trong
+  `lib/zalo-bot-v1.js` đổi từ `https://bandocapt.vercel.app/` sang `https://www.bandocapt.io.vn/`.
+  Không có helper canonical-URL dùng chung trong repo tại thời điểm này nên hằng số này vẫn là nguồn
+  duy nhất cho URL bản đồ gửi qua Zalo; không tạo abstraction mới cho một hằng số.
+- **OD-04 — PR #89: CLOSE, không merge (xử lý sau khi PR #90 code/test ổn định).** PR #89 chỉnh sửa
+  cùng entry `04-current-tasks.md` với PR #90 (sẽ conflict), tiêu đề còn ghi
+  "AWAITING VERCEL AUTH"/"chưa merge" dù V0 đã có bằng chứng production PASS — dữ liệu DNS/deployment
+  ID hữu ích của nó (nếu còn giá trị) được chuyển vào `06-ai-working-log.md` trước khi đóng, không
+  giữ hai nguồn sự thật mâu thuẫn về trạng thái production.
+- **Ambiguous UX (P0-3):** `ambiguous_match` (nhiều đơn vị THẬT khác nhau cùng khớp alias) liệt kê
+  tối đa 5 tên (không địa chỉ/SĐT/toạ độ), yêu cầu người dùng gõ tên đầy đủ.
+  `ambiguous_conflict` (CÙNG một tên nhưng dữ liệu sheet mâu thuẫn — lỗi nhập liệu, không phải nhiều
+  đơn vị) giữ nguyên câu trả lời tổng quát cũ vì liệt kê tên trùng hệt nhau không giúp người dùng
+  chọn được gì.
+- **`sendZaloMessage` hardening:** không chỉ tin theo `res.ok`/HTTP status — body JSON được đọc
+  (không log) và `{ ok: false }` dù HTTP 200 vẫn bị coi là thất bại (giữ nguyên hành vi cũ khi mock
+  không có `.json()`, không phá test cũ).
+- **Không làm trong đợt này (Phase 2 backlog):** không đổi thứ tự ACK/rate-limit, không tách
+  `handleZaloBotWebhook` sang module riêng, không thêm retry 429/5xx cho `sendMessage`, không dedupe
+  theo `message_id`, không group support, không menu/FAQ mới, không analytics mới.
+
+## [2026-09-24] Zalo Bot V1 deterministic intents reuse website's published-location service
+
+> **Superseded 2026-09-26** by the decision above for: location-gate mechanism (no longer a
+> Zalo-specific prefix heuristic), "text Zalo không vào RAG" (now deterministic-first + shared RAG
+> fallback via OD-01), and `CANONICAL_MAP_URL` value (now the custom domain per OD-03). Kept below
+> for history; do not treat the superseded bullets as current behavior.
+
+- **Bối cảnh:** V0 webhook/transport đã có; V1 cần lời chào, trợ giúp, URL bản đồ và tra cứu trụ sở nhỏ gọn, deterministic, không gọi AI/LLM.
+- **Quyết định:** Thêm `lib/zalo-bot-v1.js` làm lớp chuẩn hóa, phân intent và dựng phản hồi. Với location lookup, module gọi trực tiếp `getPublishedLocations()` và `findVerifiedLocationMatches()` của `lib/published-locations.js`, cùng service/Google Sheet `Published_Locations` mà website sử dụng. Không tạo dữ liệu hoặc database riêng cho Zalo, không thêm endpoint/function.
+- **Thứ tự resolution:** Prefix cơ bản được bỏ trước lookup; service location hiện có giữ thứ tự điểm ưu tiên tên chuẩn/tên đã chuẩn hóa/alias đã duyệt và phát hiện ambiguity/conflict. Bot chỉ trả một record khi kết quả duy nhất; không match thì báo không tìm thấy, nhiều match thì hỏi tên đầy đủ.
+- **Ranh giới hành vi:** Các intent V1 kết thúc trước `runChatOrchestration`, vì vậy text Zalo không vào RAG, Gemini, DeepSeek hay bất kỳ AI API nào. Orchestration và SSE của website không đổi. Webhook vẫn ACK trước, dùng `waitUntil` cho resolve/send; lỗi gửi không retry vô hạn.
+- **URL:** Dùng một hằng `CANONICAL_MAP_URL` cho production map root vì repo hiện không có per-location website deep-link. URL chỉ đường Google Maps tiếp tục lấy từ tọa độ đã chuẩn hóa bởi shared location service.
+- **Logging:** Chỉ log metadata allowlist và mã lỗi ổn định; không nối error message từ network/API vào logs vì chuỗi lỗi có thể chứa URL/token/credential. `ZALO_SEND_FAILED`, `LOCATION_NOT_FOUND`, `LOCATION_AMBIGUOUS`, `ZALO_WEBHOOK_INVALID`, `MESSAGE_UNSUPPORTED`, `INTERNAL_ERROR` được phân loại riêng.
+- **Không làm:** Không đổi source sheet/schema, website handler, RAG/prompt, deployment environment hay Zalo webhook credentials; không thêm hội thoại nhiều lượt.
+
 ## [2026-09-23] Zalo Bot Platform V0 tái sử dụng `api/chat.js` qua rewrite, không phải function riêng
 
 - **Bối cảnh:** Cần tích hợp Zalo Bot Platform mới của Zalo (khác Zalo OA OpenAPI, không dùng GMF)
