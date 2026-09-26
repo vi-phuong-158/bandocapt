@@ -1,5 +1,46 @@
 # 03 — Technical Decisions
 
+## [2026-09-26] Zalo Bot V1 real webhook payload compatibility (wrapped vs flat envelope)
+
+- **Bối cảnh:** Owner test qua tài khoản Zalo thật ("Xin chào", "Công an phường Thanh Miếu ở đâu").
+  Vercel Production ghi nhận webhook `HTTP 200` cả hai lần nhưng bot không trả lời — nghĩa là
+  request tới được server và được ACK, nhưng event bị bỏ ở đâu đó sau khi tới `parseZaloWebhook`.
+- **Bằng chứng đã kiểm tra (không đoán):**
+  1. Tài liệu hiện có tại `bot.zapps.me/docs/webhook/` (fetch trực tiếp 2026-09-26) mô tả payload
+     là dạng BỌC: `{ "ok": true, "result": { "event_name", "message" } }` — khớp 100% với giả định
+     cũ của `parseZaloWebhook`, kể cả `chat.chat_type: "PRIVATE"` viết hoa.
+  2. Một SDK bên thứ ba độc lập cho cùng nền tảng này (`NightOwl-VN/zalobot-sdk`,
+     `src/modules/webhook.js`, đọc trực tiếp qua GitHub code search) tự viết `parseEvent()` hỗ trợ
+     **cả hai** dạng: `const result = payload.result && typeof payload.result === 'object' ?
+     payload.result : payload;` — tức tác giả SDK độc lập này từng gặp/phải phòng ngừa dạng FLAT
+     (không có wrapper `result`) trong thực tế triển khai trên chính nền tảng Zalo Bot.
+  3. Không có bằng chứng raw payload production (không được phép log để "xem thử" theo ràng buộc
+     bảo mật của task) — nên KHÔNG thể khẳng định chắc chắn 100% đây là nguyên nhân thật.
+- **Mức độ tin cậy: TRUNG BÌNH.** Tài liệu chính thức nói dạng bọc là đúng, nhưng bằng chứng thực tế
+  độc lập (mục 2) cho thấy dạng phẳng có xảy ra trên nền tảng này. Không loại trừ khả năng nguyên
+  nhân thật nằm ở chỗ khác (rate-limit/Firebase, timeout `waitUntil`, v.v.) — xem log
+  `action=`/`webhook_shape=` mới thêm để chẩn đoán nếu owner test lại vẫn không nhận được trả lời.
+- **Quyết định:** `parseZaloWebhook()` (`lib/zalo-bot.js`) chuẩn hoá qua
+  `normalizeZaloWebhookEnvelope(body)` trước khi đọc `event_name`/`message`: nhận `body.result` khi
+  là object, ngược lại dùng thẳng `body`. Đây là thay đổi **backward-compatible thuần tuý** — dạng
+  bọc cũ vẫn hoạt động y hệt, không nới lỏng `verifyZaloWebhookSecret`, không đổi semantics
+  `BOT_MESSAGE`/`UNSUPPORTED_EVENT`/`MISSING_TEXT_OR_CHAT`, không biến payload rác thành tin nhắn
+  tin cậy. Mọi nhánh trả về thêm field `envelopeShape` (`'wrapped'|'flat'|'invalid'`) — metadata an
+  toàn, không phải nội dung — để tầng gọi log phục vụ chẩn đoán.
+- **Observability:** thêm log `action=WEBHOOK_RECEIVED`, `action=WEBHOOK_PARSE_UNSUPPORTED`,
+  `action=REPLY_PATH_DETERMINISTIC`/`action=REPLY_PATH_RAG`,
+  `action=SEND_MESSAGE_SUCCESS`/`action=SEND_MESSAGE_FAILED` trong `handleZaloBotWebhook`
+  (`api/chat.js`) — tất cả chỉ mang metadata (event_type, chat_type, webhook_shape, intent, result,
+  error_code, duration_ms), không có text/chat_id/from_id/token/secret. Mục đích: production trước
+  đây chỉ thấy `HTTP 200`, không biết event dừng ở bước nào; log mới cho phép chẩn đoán không cần
+  đọc raw body.
+- **Bảo mật:** `ZALO_BOT_TOKEN` trong ảnh chụp trước đó của owner bị coi là compromised. Task này
+  không đọc/in/log/commit token đó hay bất kỳ secret nào; production runtime acceptance vẫn
+  `BLOCKED` cho tới khi owner rotate token.
+- **Không làm:** không đổi ACK-before-rate-limit, không tách `handleZaloBotWebhook`, không thêm
+  retry/dedupe, không mở rộng sang GROUP hay tính năng mới — đúng phạm vi "chỉ sửa compatibility +
+  observability" của task.
+
 ## [2026-09-26] Zalo Bot V1 production closure — deterministic-first + shared RAG fallback, PRIVATE-only, canonical custom domain
 
 Kế thừa và **thay thế một phần** quyết định 2026-09-24 bên dưới (giữ nguyên: dùng chung

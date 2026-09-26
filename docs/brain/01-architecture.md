@@ -1,5 +1,40 @@
 # 01 - Architecture
 
+## Zalo Bot V1 — real webhook payload compatibility fix (2026-09-26)
+
+- **Symptom:** owner tested with a real Zalo account ("Xin chào", "Công an phường Thanh Miếu ở đâu")
+  — Vercel Production logged the webhook request as `HTTP 200`, but the bot never replied.
+- **Root cause (MEDIUM confidence — no raw production payload was inspected, by design; see
+  security note below):** `parseZaloWebhook()` (`lib/zalo-bot.js`) required the WRAPPED envelope
+  `{ result: { event_name, message } }` — the shape documented at bot.zapps.me/docs/webhook/
+  (fetched/verified 2026-09-26) — and returned `ok:false` (silent ACK, no reply) for a FLAT envelope
+  `{ event_name, message }` at the top level. An independent third-party SDK for this exact platform
+  (`NightOwl-VN/zalobot-sdk`, `src/modules/webhook.js`) explicitly supports **both** shapes in its
+  own `parseEvent()`, which is real-world evidence that flat delivery occurs in practice for this
+  platform even though the current docs page shows only the wrapped example. This is the most
+  plausible explanation that fits "HTTP 200 with silent drop", but it was not confirmed against an
+  actual production payload — no raw body was ever logged to check.
+- **Fix:** `normalizeZaloWebhookEnvelope(body)` (`lib/zalo-bot.js`, exported for tests) accepts both
+  shapes: `body.result` when it is an object, else `body` itself. `parseZaloWebhook()` reads
+  `event_name`/`message` from the normalized envelope and returns an `envelopeShape`
+  (`'wrapped' | 'flat' | 'invalid'`) on every branch — metadata only, never body content. Webhook
+  secret verification, `BOT_MESSAGE`/unsupported-event/missing-text-or-chat semantics, and the
+  PRIVATE-only gate are unchanged; the fix only widens which envelope shape is accepted.
+- **Observability added** (all metadata-only — no message text, chat_id, from_id, token, or
+  secret): `handleZaloBotWebhook()` now logs `action=WEBHOOK_RECEIVED webhook_shape=...` on every
+  request, `action=WEBHOOK_PARSE_UNSUPPORTED parse_reason=...` when parsing fails or the event is
+  unsupported, `action=REPLY_PATH_DETERMINISTIC` / `action=REPLY_PATH_RAG` when a reply path is
+  chosen, and `action=SEND_MESSAGE_SUCCESS` / `action=SEND_MESSAGE_FAILED` on the outbound
+  `sendMessage` result. This closes the gap where production only showed `HTTP 200` with no way to
+  tell which internal step silently dropped the event.
+- **Security:** the Zalo Bot token visible in an owner-provided screenshot is treated as
+  compromised; it was never read, logged, or committed in this fix, and production runtime
+  acceptance stays blocked until the owner rotates it.
+- **Not yet confirmed:** whether flat-shape delivery was the actual production cause. If the owner
+  retests after rotating the token and the bot still does not reply, the new `action=`/
+  `webhook_shape=` log lines should make the real failure point visible without ever needing to log
+  raw payload content.
+
 ## Zalo Bot V1 — deterministic-first + shared RAG fallback (2026-09-26, production closure)
 
 - **Scope:** Zalo text webhook supports deterministic `GREETING`, `HELP`, `MAP`, and `LOCATION_LOOKUP`
@@ -46,9 +81,10 @@
 - **`sendZaloMessage` hardening:** a 2xx HTTP status alone is not treated as success. The JSON body
   is parsed defensively (never logged) and `{ ok: false, ... }` is treated as a send failure even on
   HTTP 200, matching how the platform can reject a request at the application layer.
-- **Transport (unchanged from V0):** the `/api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot`
-  rewrite, secret validation, parser, principal-hashed rate limit, and fast ACK before `waitUntil`
-  remain exactly as V0 built them.
+- **Transport:** the `/api/zalo-bot/webhook -> /api/chat?__channel=zalo_bot` rewrite, secret
+  validation, principal-hashed rate limit, and fast ACK before `waitUntil` remain exactly as V0
+  built them. The parser (`parseZaloWebhook`) was hardened 2026-09-26 to accept both the wrapped and
+  flat webhook envelope shapes — see "real webhook payload compatibility fix" above.
 - **Privacy/error metadata:** Zalo logs contain only allowlisted event/intent/result/status/duration/
   error-code metadata and a pseudonymous principal hash. They do not contain inbound text, reply
   text, payload, Zalo token, webhook secret, or Firebase credentials — including the RAG-fallback

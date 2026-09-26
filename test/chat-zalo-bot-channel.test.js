@@ -92,6 +92,23 @@ function officialTextPayload({ text = 'Thời tiết hôm nay thế nào?', chat
     };
 }
 
+// Dạng "flat" — không có wrapper `result`, body.event_name/message ở top-level. Tài liệu hiện có
+// (bot.zapps.me/docs/webhook/, xác minh 2026-09-26) mô tả dạng wrapped ở trên là chính thức, nhưng
+// một SDK bên thứ ba độc lập cho nền tảng này tự hỗ trợ cả hai dạng, và production ACK 200 không
+// kèm sendMessage (owner test 2026-09-26) khớp đúng triệu chứng "parser chỉ nhận wrapped nhưng
+// Zalo gửi flat". Không có bằng chứng raw payload production để khẳng định chắc chắn shape thật;
+// các test này khoá khả năng tương thích ngược mà KHÔNG hạ chuẩn bảo mật/semantics khác.
+function flatTextPayload({ text = 'Thời tiết hôm nay thế nào?', chatId = '1001', chatType = 'PRIVATE', fromId = '2002', isBot = false } = {}) {
+    return {
+        event_name: 'message.text.received',
+        message: {
+            text,
+            chat: { id: chatId, chat_type: chatType },
+            from: { id: fromId, is_bot: isBot },
+        },
+    };
+}
+
 // ---------------------------------------------------------------------
 // Mock fetch: rate-limit Firebase ETag/CAS (usage_zalo_bot) + Zalo sendMessage.
 // Không mock Pinecone/Gemini/DeepSeek — kịch bản "thời tiết" không chạm mạng đó.
@@ -423,4 +440,193 @@ test('Zalo Bot: rate-limit key theo principal (chat_type/chat_id/from_id), khôn
     await flushZaloBackgroundWork();
     const uniqueAfterDifferentChat = new Set(rateLimitUrls);
     assert.equal(uniqueAfterDifferentChat.size, 2, 'chat_id khác phải tạo bucket rate-limit khác');
+});
+
+// =======================================================================
+// REAL WEBHOOK PAYLOAD COMPATIBILITY — production ACK 200 nhưng không có sendMessage nào ra đi
+// (owner test 2026-09-26: "Xin chào", "Công an phường Thanh Miếu ở đâu"). Tài liệu hiện có
+// (bot.zapps.me/docs/webhook/) mô tả dạng wrapped { result: { event_name, message } } là chính
+// thức, nhưng một SDK bên thứ ba độc lập cho nền tảng này tự hỗ trợ CẢ dạng flat { event_name,
+// message } — khớp đúng triệu chứng "parser cũ chỉ nhận wrapped". Các test dưới đây khoá khả năng
+// tương thích ngược qua toàn bộ handler thật (không bypass parser), ở cả hai dạng envelope.
+// =======================================================================
+
+test('T08: PRIVATE text dạng flat -> reply path chạy đầy đủ (ACK, không duplicate reply)', async () => {
+    const { sentMessages } = installZaloFetchMock();
+    await handler(zaloRequest({ body: flatTextPayload({ text: 'trợ giúp', chatId: '1101' }) }), createRes());
+    await flushZaloBackgroundWork();
+    assert.equal(sentMessages.length, 1);
+    assert.equal(sentMessages[0].body.chat_id, '1101');
+    assert.match(sentMessages[0].body.text, /Nhập tên xã\/phường/);
+});
+
+test('T09b: PRIVATE text dạng wrapped -> reply path chạy đầy đủ (ACK, không duplicate reply)', async () => {
+    const { sentMessages } = installZaloFetchMock();
+    await handler(zaloRequest({ body: officialTextPayload({ text: 'trợ giúp', chatId: '1102' }) }), createRes());
+    await flushZaloBackgroundWork();
+    assert.equal(sentMessages.length, 1);
+    assert.equal(sentMessages[0].body.chat_id, '1102');
+    assert.match(sentMessages[0].body.text, /Nhập tên xã\/phường/);
+});
+
+test('T10b: GROUP chat dạng flat -> ACK + bỏ qua an toàn (chính sách V1, không phải lỗi parser)', async () => {
+    const { sentMessages } = installZaloFetchMock();
+    const res = createRes();
+    await handler(zaloRequest({ body: flatTextPayload({ chatType: 'GROUP', chatId: '1103' }) }), res);
+    await flushZaloBackgroundWork();
+    assert.deepEqual(res._calls[0], { type: 'status', code: 200 });
+    assert.equal(sentMessages.length, 0);
+});
+
+test('T11: sendMessage dùng đúng chat.id, KHÔNG dùng from.id làm đích, ở cả hai dạng envelope', async () => {
+    const { sentMessages } = installZaloFetchMock();
+    await handler(zaloRequest({ body: officialTextPayload({ text: 'trợ giúp', chatId: '9991', fromId: '8881' }) }), createRes());
+    await handler(zaloRequest({ body: flatTextPayload({ text: 'trợ giúp', chatId: '9992', fromId: '8882' }) }), createRes());
+    await flushZaloBackgroundWork();
+    assert.equal(sentMessages.length, 2);
+    assert.equal(sentMessages[0].body.chat_id, '9991');
+    assert.equal(sentMessages[1].body.chat_id, '9992');
+    const bodies = sentMessages.map(m => m.body.chat_id);
+    assert.ok(!bodies.includes('8881') && !bodies.includes('8882'), 'sendMessage không được dùng from.id làm chat_id');
+});
+
+test('T13: log webhook_shape=flat không rò rỉ nội dung/token/secret/chat_id/from_id', async () => {
+    installZaloFetchMock();
+    const originalInfo = console.info;
+    const originalWarn = console.warn;
+    const logged = [];
+    console.info = (...args) => { logged.push(args.join(' ')); };
+    console.warn = (...args) => { logged.push(args.join(' ')); };
+    try {
+        await handler(zaloRequest({ body: flatTextPayload({ text: 'nội dung nhạy cảm không được log', chatId: '7771', fromId: '6661' }) }), createRes());
+        await flushZaloBackgroundWork();
+    } finally {
+        console.info = originalInfo;
+        console.warn = originalWarn;
+    }
+    const joined = logged.join('\n');
+    assert.match(joined, /webhook_shape=flat/);
+    assert.match(joined, /action=REPLY_PATH_RAG|action=REPLY_PATH_DETERMINISTIC/);
+    assert.ok(!joined.includes('nội dung nhạy cảm không được log'));
+    assert.ok(!joined.includes('7771'));
+    assert.ok(!joined.includes('6661'));
+    assert.ok(!joined.includes(process.env.ZALO_BOT_WEBHOOK_SECRET));
+    assert.ok(!joined.includes(process.env.ZALO_BOT_TOKEN));
+});
+
+test('T14b: sendMessage HTTP 200 nhưng body {ok:false} vẫn bị coi là thất bại (đường tích hợp thật)', async () => {
+    installZaloFetchMock();
+    const originalFetch = global.fetch;
+    const originalError = console.error;
+    const logged = [];
+    global.fetch = async (url, options = {}) => {
+        if (String(url).includes('/usage_zalo_bot/')) return originalFetch(url, options);
+        if (String(url).includes('/sendMessage')) {
+            return { ok: true, status: 200, json: async () => ({ ok: false, description: 'chat not found' }) };
+        }
+        return originalFetch(url, options);
+    };
+    console.error = (...args) => logged.push(args.join(' '));
+    try {
+        await handler(zaloRequest({ body: officialTextPayload({ text: 'trợ giúp' }) }), createRes());
+        await flushZaloBackgroundWork();
+    } finally {
+        global.fetch = originalFetch;
+        console.error = originalError;
+    }
+    assert.match(logged.join('\n'), /action=SEND_MESSAGE_FAILED/);
+    assert.match(logged.join('\n'), /error_code=ZALO_SEND_FAILED/);
+    assert.doesNotMatch(logged.join('\n'), /chat not found/);
+});
+
+test('T15: "Xin chào" (dạng flat, đúng như owner test production) -> deterministic V1 greeting', async () => {
+    const { sentMessages } = installZaloFetchMock();
+    await handler(zaloRequest({ body: flatTextPayload({ text: 'Xin chào', chatId: '2201' }) }), createRes());
+    await flushZaloBackgroundWork();
+    assert.equal(sentMessages.length, 1);
+    assert.match(sentMessages[0].body.text, /trợ lý Bản đồ Công an Phú Thọ/);
+});
+
+// ---------------------------------------------------------------------
+// T16 — "Công an phường Thanh Miếu ở đâu" (đúng câu owner test production 2026-09-26): mock
+// Google Sheets GViz với MỘT bản ghi Published_Locations hợp lệ, đi qua toàn bộ handler thật
+// (không bypass parser/location resolver) ở cả hai dạng envelope.
+// ---------------------------------------------------------------------
+function buildPublishedLocationsGvizPayload(rows) {
+    return {
+        table: {
+            cols: [
+                { label: 'record_id' },
+                { label: 'Tên đơn vị' },
+                { label: 'Loại đơn vị' },
+                { label: 'Địa chỉ' },
+                { label: 'Số điện thoại' },
+                { label: 'Tọa độ' },
+                { label: 'search_aliases' },
+            ],
+            rows: rows.map(row => ({
+                c: [
+                    { v: row.id },
+                    { v: row.name },
+                    { v: row.type || 'Trụ sở' },
+                    { v: row.address },
+                    { v: row.phone || '' },
+                    { v: row.coordinates },
+                    { v: row.searchAliases || '' },
+                ],
+            })),
+        },
+    };
+}
+
+function installZaloAndPublishedLocationsFetchMock() {
+    const { rateLimitUrls, sentMessages } = installZaloFetchMock();
+    const originalFetch = global.fetch;
+    const gvizPayload = buildPublishedLocationsGvizPayload([
+        { id: 'thanh-mieu-1', name: 'Công an phường Thanh Miếu', address: 'Địa chỉ Thanh Miếu', phone: '02101112222', coordinates: '21.31,105.41' },
+    ]);
+    global.fetch = async (url, options = {}) => {
+        const target = String(url);
+        if (target.includes('docs.google.com/spreadsheets')) {
+            return new Response(`google.visualization.Query.setResponse(${JSON.stringify(gvizPayload)});`);
+        }
+        return originalFetch(url, options);
+    };
+    return { rateLimitUrls, sentMessages, restore: () => { global.fetch = originalFetch; } };
+}
+
+test('T16: "Công an phường Thanh Miếu ở đâu" -> location resolver trả đúng bản ghi Published_Locations (wrapped)', async () => {
+    const originalSheetId = process.env.PUBLIC_LOCATION_SPREADSHEET_ID;
+    process.env.PUBLIC_LOCATION_SPREADSHEET_ID = 'zalo-test-published-locations-workbook';
+    const { resetPublishedLocationsCache } = require('../lib/published-locations');
+    resetPublishedLocationsCache();
+    const { sentMessages } = installZaloAndPublishedLocationsFetchMock();
+    try {
+        await handler(zaloRequest({ body: officialTextPayload({ text: 'Công an phường Thanh Miếu ở đâu', chatId: '2301' }) }), createRes());
+        await flushZaloBackgroundWork();
+    } finally {
+        resetPublishedLocationsCache();
+        if (originalSheetId === undefined) delete process.env.PUBLIC_LOCATION_SPREADSHEET_ID; else process.env.PUBLIC_LOCATION_SPREADSHEET_ID = originalSheetId;
+    }
+    assert.equal(sentMessages.length, 1);
+    assert.match(sentMessages[0].body.text, /Công an phường Thanh Miếu/);
+    assert.match(sentMessages[0].body.text, /Địa chỉ Thanh Miếu/);
+});
+
+test('T16b: "Công an phường Thanh Miếu ở đâu" -> location resolver trả đúng bản ghi Published_Locations (flat)', async () => {
+    const originalSheetId = process.env.PUBLIC_LOCATION_SPREADSHEET_ID;
+    process.env.PUBLIC_LOCATION_SPREADSHEET_ID = 'zalo-test-published-locations-workbook';
+    const { resetPublishedLocationsCache } = require('../lib/published-locations');
+    resetPublishedLocationsCache();
+    const { sentMessages } = installZaloAndPublishedLocationsFetchMock();
+    try {
+        await handler(zaloRequest({ body: flatTextPayload({ text: 'Công an phường Thanh Miếu ở đâu', chatId: '2302' }) }), createRes());
+        await flushZaloBackgroundWork();
+    } finally {
+        resetPublishedLocationsCache();
+        if (originalSheetId === undefined) delete process.env.PUBLIC_LOCATION_SPREADSHEET_ID; else process.env.PUBLIC_LOCATION_SPREADSHEET_ID = originalSheetId;
+    }
+    assert.equal(sentMessages.length, 1);
+    assert.match(sentMessages[0].body.text, /Công an phường Thanh Miếu/);
+    assert.match(sentMessages[0].body.text, /Địa chỉ Thanh Miếu/);
 });

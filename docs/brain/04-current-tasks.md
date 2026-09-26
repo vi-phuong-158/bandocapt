@@ -160,6 +160,17 @@ của ma trận nghiệm thu (xem dưới) chưa chạy qua tài khoản Zalo th
 - **Còn lại trước khi merge PR #90:** chạy ma trận nghiệm thu production tối thiểu (P1–P12, xem
   `06-ai-working-log.md`) qua tài khoản Zalo thật sau khi deploy Preview/Production đúng head này;
   đóng PR #89 (OD-04) sau khi PR #90 ổn định.
+- **2026-09-26 (webhook payload compatibility fix — BLOCKED bởi token rotation):** owner test qua
+  Zalo thật ("Xin chào", "Công an phường Thanh Miếu ở đâu") — Vercel Production ghi `HTTP 200` cả
+  hai lần nhưng bot không trả lời. Sửa `parseZaloWebhook` (`lib/zalo-bot.js`) chấp nhận cả webhook
+  envelope dạng bọc (`body.result.event_name/message`, đúng tài liệu bot.zapps.me/docs/webhook/) lẫn
+  dạng phẳng (`body.event_name/message` — bằng chứng TRUNG BÌNH: một SDK bên thứ ba độc lập cho nền
+  tảng này tự hỗ trợ cả hai dạng). Thêm log `action=`/`webhook_shape=` (metadata-only) để chẩn đoán
+  nếu vẫn không có phản hồi sau khi owner rotate token. Chi tiết: `03-decisions.md`,
+  `06-ai-working-log.md` (2026-09-26, "webhook payload compatibility fix"). **Ảnh owner chụp trước
+  đó đã lộ `ZALO_BOT_TOKEN` — coi là compromised; không rotate/dùng token cũ để test lại.**
+  Verdict: `ZALO_BOT_V1_CODE_READY_PENDING_PRODUCTION_ACCEPTANCE`. Production acceptance
+  `BLOCKED: PRODUCTION_ACCEPTANCE_BLOCKED_TOKEN_ROTATION_REQUIRED` cho tới khi owner rotate token.
 
 ---
 

@@ -2226,14 +2226,18 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
     }
 
     const parsed = parseZaloWebhook(req.body);
+    // Chỉ metadata an toàn (shape 'wrapped'/'flat'/'invalid', không phải nội dung) — mục đích
+    // duy nhất: khi production chỉ thấy HTTP 200 mà không có sendMessage, log này cho biết event
+    // có tới được parser hay không và bị dừng ở bước nào, KHÔNG cần đọc/log raw body.
+    console.info(`[zalo-bot] action=WEBHOOK_RECEIVED webhook_shape=${parsed.envelopeShape || 'unknown'}`);
     if (!parsed.ok) {
-        console.warn('[zalo-bot] error_code=ZALO_WEBHOOK_INVALID http_status=200');
+        console.warn(`[zalo-bot] action=WEBHOOK_PARSE_UNSUPPORTED parse_reason=${parsed.reason} webhook_shape=${parsed.envelopeShape} error_code=ZALO_WEBHOOK_INVALID http_status=200`);
         return res.status(200).json({ ok: true });
     }
     if (!parsed.supported) {
         // Event khác, tin nhắn từ bot, hoặc thiếu text/chat: ACK an toàn, không xử lý nội dung.
         const eventType = parsed.eventName === 'message.text.received' ? parsed.eventName : 'unsupported';
-        console.info(`[zalo-bot] event_type=${eventType} result=IGNORED error_code=MESSAGE_UNSUPPORTED http_status=200`);
+        console.info(`[zalo-bot] action=WEBHOOK_PARSE_UNSUPPORTED event_type=${eventType} parse_reason=${parsed.reason} webhook_shape=${parsed.envelopeShape} result=IGNORED error_code=MESSAGE_UNSUPPORTED http_status=200`);
         return res.status(200).json({ ok: true });
     }
 
@@ -2242,7 +2246,7 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
     // của principal. parseZaloWebhook trả 'UNKNOWN' khi thiếu chat_type — cũng bị chặn ở đây
     // (fail-closed: chỉ đúng 'PRIVATE' mới được xử lý tiếp).
     if (parsed.chatType !== 'PRIVATE') {
-        console.info(`[zalo-bot] event_type=message.text.received chat_type=${parsed.chatType} result=IGNORED error_code=GROUP_CHAT_IGNORED http_status=200`);
+        console.info(`[zalo-bot] action=GROUP_CHAT_IGNORED event_type=message.text.received chat_type=${parsed.chatType} webhook_shape=${parsed.envelopeShape} result=IGNORED error_code=GROUP_CHAT_IGNORED http_status=200`);
         return res.status(200).json({ ok: true });
     }
 
@@ -2296,6 +2300,7 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
                 // (OD-01) -> chuyển NGUYÊN VĂN sang shared RAG orchestration: CÙNG pipeline,
                 // CÙNG prompt, CÙNG Pinecone retrieval mà website dùng, qua BufferSink (không
                 // phát SSE). Không dựng RAG riêng cho Zalo, không duplicate logic.
+                console.info('[zalo-bot] action=REPLY_PATH_RAG');
                 const ragSink = createBufferSink();
                 await runChatOrchestration({
                     sink: ragSink,
@@ -2317,6 +2322,8 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
                 reply = fullText
                     ? { intent: 'OTHER', result: 'RAG_REPLIED', text: fullText }
                     : { intent: 'OTHER', result: 'INTERNAL_ERROR', text: ZALO_FALLBACK_ERROR_TEXT };
+            } else {
+                console.info(`[zalo-bot] action=REPLY_PATH_DETERMINISTIC intent=${reply.intent}`);
             }
         } catch (e) {
             reply = { intent: detectedIntent.intent, result: 'INTERNAL_ERROR', text: ZALO_FALLBACK_ERROR_TEXT };
@@ -2330,7 +2337,7 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
                 await sendZaloMessage({ chatId, text: chunk });
             } catch (e) {
                 sendStatus = 502;
-                console.error(`[zalo-bot] intent=${reply.intent} result=${reply.result} http_status=502 error_code=ZALO_SEND_FAILED duration_ms=${Date.now() - startedAt}`);
+                console.error(`[zalo-bot] action=SEND_MESSAGE_FAILED intent=${reply.intent} result=${reply.result} http_status=502 error_code=ZALO_SEND_FAILED duration_ms=${Date.now() - startedAt}`);
                 break;
             }
         }
@@ -2338,7 +2345,7 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
             const errorCode = reply.result === 'NOT_FOUND' ? 'LOCATION_NOT_FOUND'
                 : reply.result === 'AMBIGUOUS' ? 'LOCATION_AMBIGUOUS'
                 : reply.result === 'INTERNAL_ERROR' ? 'INTERNAL_ERROR' : 'none';
-            console.info(`[zalo-bot] event_type=message.text.received intent=${reply.intent} result=${reply.result} error_code=${errorCode} http_status=200 duration_ms=${Date.now() - startedAt}`);
+            console.info(`[zalo-bot] action=SEND_MESSAGE_SUCCESS event_type=message.text.received intent=${reply.intent} result=${reply.result} error_code=${errorCode} http_status=200 duration_ms=${Date.now() - startedAt}`);
         }
     })());
 }

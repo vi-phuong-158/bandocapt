@@ -1,5 +1,70 @@
 # 06 — AI Working Log
 
+## [2026-09-26] ZALO_BOT_V1_WEBHOOK_COMPATIBILITY_FIX (real Zalo test: HTTP 200, no reply)
+- **Agent:** Claude Code (Sonnet 5)
+- **Bối cảnh:** Owner test qua tài khoản Zalo thật ("Xin chào", "Công an phường Thanh Miếu ở đâu",
+  13:02:42 và 13:03:07 giờ VN). Vercel Production ghi nhận đúng `POST /api/zalo-bot/webhook ->
+  HTTP 200` cả hai lần, nhưng bot không trả lời — Zalo→webhook→Vercel thông, lỗi nằm sau khi webhook
+  tới server. **Ảnh owner chụp trước đó đã lộ `ZALO_BOT_TOKEN` — coi là compromised trong suốt task
+  này; không đọc/log/commit token, không dump raw production payload, chỉ ghi metadata tối thiểu.**
+- **Audit (Bước A):** đọc lại `lib/zalo-bot.js`, `lib/zalo-bot-v1.js`, `api/chat.js`,
+  `vercel.json`, `scripts/register-zalo-bot-webhook.js`, cả 3 file test Zalo, và `docs/brain` liên
+  quan. Xác nhận điểm có thể ACK 200 mà không gửi tin: `parseZaloWebhook` trả `ok:false` khi
+  `body.result` không phải object — nhánh này ACK 200 và return NGAY, không chạm `waitUntil`/RAG.
+- **Xác minh payload contract (Bước B) — evidence, không đoán:**
+  1. `bot.zapps.me/docs/webhook/` (fetch trực tiếp 2026-09-26): tài liệu hiện có mô tả payload dạng
+     BỌC `{ "ok": true, "result": { "event_name", "message" } }`, ví dụ mẫu dùng đúng text
+     "Xin chào" và `chat.chat_type: "PRIVATE"` — khớp 100% giả định cũ của parser.
+  2. `NightOwl-VN/zalobot-sdk` (`src/modules/webhook.js`, đọc qua GitHub code search — SDK độc lập
+     của bên thứ ba cho CHÍNH nền tảng Zalo Bot Platform này): tự viết `parseEvent()` hỗ trợ CẢ
+     dạng bọc lẫn dạng phẳng `{ event_name, message }` không có wrapper `result` — bằng chứng thực
+     tế độc lập rằng dạng phẳng có xảy ra trên nền tảng này, dù không phải dạng tài liệu chính thức
+     hiện mô tả.
+  3. Không có bằng chứng raw production payload (không được phép log để "xem thử") — do đó **mức độ
+     tin cậy của root cause là TRUNG BÌNH**, không phải fact tuyệt đối. Không loại trừ nguyên nhân
+     khác (rate-limit/Firebase, timeout `waitUntil`) — đây là lý do Bước D (observability) bắt buộc
+     đi kèm, để owner test lại có thể tự chẩn đoán qua log thay vì đoán tiếp.
+- **Thay đổi (Bước C/D):**
+  - `lib/zalo-bot.js`: thêm `normalizeZaloWebhookEnvelope(body)` (export để test) — nhận
+    `body.result` khi là object, ngược lại dùng `body`. `parseZaloWebhook` đọc `event_name`/`message`
+    từ envelope đã chuẩn hoá, mọi nhánh trả về thêm `envelopeShape` ('wrapped'|'flat'|'invalid').
+    KHÔNG đổi `verifyZaloWebhookSecret`, `BOT_MESSAGE`/`UNSUPPORTED_EVENT`/`MISSING_TEXT_OR_CHAT`
+    semantics, KHÔNG nới lỏng bất kỳ điều kiện tin cậy nào.
+  - `api/chat.js` (`handleZaloBotWebhook`): thêm log metadata-only `action=WEBHOOK_RECEIVED
+    webhook_shape=...` (mọi request), `action=WEBHOOK_PARSE_UNSUPPORTED parse_reason=...` (parse
+    lỗi/event không hỗ trợ), `action=REPLY_PATH_DETERMINISTIC`/`action=REPLY_PATH_RAG` (chọn đường
+    trả lời), `action=SEND_MESSAGE_SUCCESS`/`action=SEND_MESSAGE_FAILED` (kết quả gửi). Không log
+    text/chat_id/from_id/token/secret ở bất kỳ dòng nào trong số này.
+- **Test (Bước E):** `test/zalo-bot.test.js` +11 test (T01–T07, T10, T11 tương đương ở mức unit:
+  wrapped/flat parity, `normalizeZaloWebhookEnvelope`, invalid body, unsupported event cả hai dạng,
+  BOT_MESSAGE cả hai dạng, chatId lấy từ `chat.id` không phải `from.id`) và sửa 1 test cũ (`{}` giờ
+  là flat-envelope-rỗng-unsupported thay vì INVALID_BODY — hệ quả CÓ CHỦ ĐÍCH của việc chấp nhận
+  flat, không phải hồi quy). `test/chat-zalo-bot-channel.test.js` +11 test tích hợp qua handler thật
+  (không bypass parser): PRIVATE text/GROUP cả hai dạng envelope, sendMessage dùng đúng `chat.id`
+  không phải `from.id`, log không rò rỉ nội dung/chat_id/from_id ở dạng flat, sendMessage
+  `{ok:false}` qua đường tích hợp thật, và quan trọng nhất — **T15/T16 tái tạo đúng 2 câu owner đã
+  test thật ("Xin chào", "Công an phường Thanh Miếu ở đâu") ở CẢ hai dạng envelope**, dùng mock
+  Google Sheets GViz tối thiểu cho T16 (một bản ghi Published_Locations).
+- **Kiểm tra:**
+  - `node --test test/zalo-bot.test.js test/chat-zalo-bot-channel.test.js test/zalo-bot-v1.test.js`:
+    tất cả PASS, chạy lại 2 lần để loại flaky — ổn định.
+  - `npm test`: 771/771 PASS (752 trước đó + 19 test mới).
+  - `npm run ci`: PASS (build/syntax/staff/rate-limit sạch; audit High gate PASS, chỉ 2 moderate
+    `uuid`/`gaxios` có sẵn từ trước).
+  - `test/chat-sse-golden.test.js`: 10/10 PASS, byte-identical — website không đổi hành vi.
+  - `npm run test:e2e`: 120/120 PASS (16.7 phút, website UI/E2E — không đụng Zalo backend).
+- **File đã sửa (IN_SCOPE, xác nhận qua `git status`/`git diff --check` trước commit):**
+  `lib/zalo-bot.js`, `api/chat.js`, `test/zalo-bot.test.js`, `test/chat-zalo-bot-channel.test.js`,
+  `docs/brain/01-architecture.md`, `03-decisions.md`, `04-current-tasks.md`, `06-ai-working-log.md`.
+  Không có `test-results` scratch, screenshot, log, credential, `.env`, hay thay đổi ngoài phạm vi
+  trong commit.
+- **Production runtime acceptance:** `BLOCKED: PRODUCTION_ACCEPTANCE_BLOCKED_TOKEN_ROTATION_REQUIRED`
+  — token cũ đã lộ, owner cần rotate trước khi test A1–A9 thật. Không tự rotate/xử lý secret.
+- **Verdict:** `ZALO_BOT_V1_CODE_READY_PENDING_PRODUCTION_ACCEPTANCE`. Root cause được evidence hỗ
+  trợ ở mức TRUNG BÌNH (không phải chắc chắn tuyệt đối do không có raw payload); unit/integration
+  test PASS; CI cần xác nhận sau khi push. Không tuyên bố
+  `ZALO_BOT_V1_PRODUCTION_ACCEPTANCE_PASS` — chưa có test Zalo thật với token đã rotate.
+
 ## [2026-09-26] ZALO_BOT_V1_PRODUCTION_CLOSURE
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** Tiếp nối review kiến trúc độc lập 2026-09-25
