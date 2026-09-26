@@ -171,6 +171,11 @@ của ma trận nghiệm thu (xem dưới) chưa chạy qua tài khoản Zalo th
   đó đã lộ `ZALO_BOT_TOKEN` — coi là compromised; không rotate/dùng token cũ để test lại.**
   Verdict: `ZALO_BOT_V1_CODE_READY_PENDING_PRODUCTION_ACCEPTANCE`. Production acceptance
   `BLOCKED: PRODUCTION_ACCEPTANCE_BLOCKED_TOKEN_ROTATION_REQUIRED` cho tới khi owner rotate token.
+- **Cập nhật 2026-09-26 — Preview runtime acceptance (tài khoản Zalo thật):** owner chủ động chấp nhận
+  rủi ro dùng token cũ (sẽ rotate sau). PASS: A1/A2/A3/A6/A7/A8/A10. A4/A5 chưa kiểm được trên Preview
+  (workbook Preview chỉ 1 dòng) — logic FOUND đúng khi kiểm offline với dữ liệu thật. A9: Zalo không
+  chuyển tin nhóm tới webhook. Owner quyết định merge PR #90 để nghiệm thu A1/A4/A5 trên production.
+  **Việc còn lại:** rotate `ZALO_BOT_TOKEN` + bypass secret Preview; nghiệm thu A1/A4/A5 trên production.
 
 ---
 

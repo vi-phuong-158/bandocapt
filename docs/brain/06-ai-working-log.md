@@ -1,5 +1,33 @@
 # 06 — AI Working Log
 
+## [2026-09-26] ZALO_BOT_V1_PREVIEW_RUNTIME_ACCEPTANCE + fix script đăng ký webhook
+- **Agent:** Claude Code
+- **Bối cảnh:** Chạy nghiệm thu runtime thật trên Vercel Preview của `f5da430` (deployment
+  `dpl_7gymqPpDnZrk4NzHJBVJ1hcCA4jw`, build SAU khi thêm `ZALO_BOT_TOKEN`/`ZALO_BOT_WEBHOOK_SECRET`
+  vào scope Preview) bằng tài khoản Zalo thật của owner. Preview bật Vercel Deployment Protection →
+  webhook chỉ tới được app qua "Protection Bypass for Automation" dạng query param (Zalo không gửi
+  được header tuỳ ý); đã xác minh request vào tới `api/chat.js` (403 `FORBIDDEN` của app, không phải
+  401 của Vercel) trước khi `setWebhook`. Token Zalo cũ (đã lộ) vẫn dùng — owner chủ động chấp nhận
+  rủi ro, sẽ rotate sau. Không secret nào được commit/log.
+- **Bằng chứng root cause cũ (task trước):** log runtime thật ghi `webhook_shape=flat` cho MỌI tin
+  nhắn Zalo → xác nhận parser cũ (chỉ đọc `body.result`) là nguyên nhân bot im lặng trên production.
+- **Bug mới phát hiện + sửa:** `scripts/register-zalo-bot-webhook.js` chỉ kiểm tra HTTP status. Zalo
+  Bot API trả HTTP 200 kèm `{ ok:false, description }` khi từ chối (vd `secret_token` sai charset —
+  chỉ cho phép `A-Z a-z 0-9 _ -`) → script in "thành công" giả. Tách `isSetWebhookSuccess(response,
+  body)` kiểm tra cả `body.ok`; chỉ chạy `main()` khi gọi trực tiếp để test được.
+- **File đã sửa:** `scripts/register-zalo-bot-webhook.js`, `test/register-zalo-bot-webhook.test.js`
+  (mới), `docs/brain/06-ai-working-log.md`, `docs/brain/04-current-tasks.md`.
+- **Kết quả nghiệm thu Preview:** A1 Xin chào, A2 trợ giúp, A3 bản đồ (có link canonical), A6 RAG
+  (`REPLY_PATH_RAG`, đúng chủ đề), A7 địa danh không tồn tại (NOT_FOUND, không bịa), A8 sticker
+  (`WEBHOOK_PARSE_UNSUPPORTED`, không trả lời), A10 an toàn log (0 lần xuất hiện token/secret/bypass/
+  nội dung tin/raw id/raw body trong log thô) — PASS. A4/A5 (Hy Cương/Thanh Miếu): Preview trả
+  NOT_FOUND vì `PUBLIC_LOCATION_SPREADSHEET_ID` của Preview trỏ workbook test chỉ 1 dòng (Production
+  142 dòng) — kiểm offline cùng code với snapshot dữ liệu thật → FOUND đúng; chuyển nghiệm thu thật
+  sang production sau merge. A9 nhóm: bot im lặng, nhưng Zalo không chuyển tin nhóm tới webhook nên
+  cổng `GROUP_CHAT_IGNORED` chưa được kích hoạt ở runtime (chỉ có unit test).
+- **Kiểm tra:** `npm test` 775/775 PASS, `npm run ci` exit 0 (2 advisory moderate có sẵn, dưới ngưỡng
+  `high`).
+
 ## [2026-09-26] ZALO_BOT_V1_WEBHOOK_COMPATIBILITY_FIX (real Zalo test: HTTP 200, no reply)
 - **Agent:** Claude Code (Sonnet 5)
 - **Bối cảnh:** Owner test qua tài khoản Zalo thật ("Xin chào", "Công an phường Thanh Miếu ở đâu",
