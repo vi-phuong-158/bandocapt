@@ -176,6 +176,20 @@ của ma trận nghiệm thu (xem dưới) chưa chạy qua tài khoản Zalo th
   (workbook Preview chỉ 1 dòng) — logic FOUND đúng khi kiểm offline với dữ liệu thật. A9: Zalo không
   chuyển tin nhóm tới webhook. Owner quyết định merge PR #90 để nghiệm thu A1/A4/A5 trên production.
   **Việc còn lại:** rotate `ZALO_BOT_TOKEN` + bypass secret Preview; nghiệm thu A1/A4/A5 trên production.
+- **Cập nhật 2026-09-27:** PR #90 đã merge (`ee2e398`), production deploy, webhook trỏ về
+  `https://www.bandocapt.io.vn/api/zalo-bot/webhook`. Owner xác nhận qua tài khoản Zalo thật trên
+  production: A1 Xin chào, A4 Hy Cương (Công an Xã Hy Cương, đúng địa chỉ/SĐT), A5 "Công an phường
+  Thanh Miếu ở đâu" (Công an Phường Thanh Miếu, đúng địa chỉ/SĐT) — PASS. Còn: rotate token.
+
+## [CODE READY — CHỜ OWNER REVIEW 2026-09-27] ZALO_BOT_UX_HARDENING
+
+Branch `feat/zalo-bot-ux-hardening` (từ `main` `ee2e398`), chưa merge, không đụng production.
+- DONE: `formatForZalo` — không còn `**`/heading/link Markdown trên Zalo (kể cả câu trả lời RAG thật).
+- DONE: HELP/GREETING giới thiệu cả tra cứu địa điểm và hỏi TTHC, ví dụ được test đi đúng nhánh.
+- DONE: ảnh/sticker/voice ở chat riêng, vượt hạn mức, lỗi rate-limit → có phản hồi thay vì im lặng.
+- BLOCKED: deep-link "Xem trên Bản đồ CA Phú Thọ" tới đúng đơn vị — frontend chưa có route để mở
+  thẳng một marker; cần task frontend riêng.
+- NGOÀI SCOPE vòng này: hội thoại nhiều lượt (session theo chatId, TTL 10–15 phút).
 
 ---
 

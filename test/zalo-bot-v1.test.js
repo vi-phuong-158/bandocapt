@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
     CANONICAL_MAP_URL,
+    HELP_EXAMPLES,
     RAG_FALLBACK,
     normalizeZaloMessage,
     resolveZaloIntent,
@@ -55,7 +56,9 @@ test('T01/T02/T03: greeting/help/map are recognized as static deterministic inte
 
 test('T01/T02/T03: greeting/help/map replies are static and map uses canonical custom domain', async () => {
     assert.match((await createZaloReply('xin chào', { getPublishedLocations: shouldNotLoadLocations })).text, /trợ lý Bản đồ Công an Phú Thọ/);
-    assert.match((await createZaloReply('trợ giúp', { getPublishedLocations: shouldNotLoadLocations })).text, /Nhập tên xã\/phường/);
+    assert.match((await createZaloReply('xin chào', { getPublishedLocations: shouldNotLoadLocations })).text, /thủ tục hành chính/);
+    const helpText = (await createZaloReply('trợ giúp', { getPublishedLocations: shouldNotLoadLocations })).text;
+    for (const example of Object.values(HELP_EXAMPLES)) assert.ok(helpText.includes(`"${example}"`), `HELP phải có ví dụ ${example}`);
     const mapReply = await createZaloReply('bản đồ', { getPublishedLocations: shouldNotLoadLocations });
     assert.equal(mapReply.text, `Bản đồ Công an Phú Thọ: ${CANONICAL_MAP_URL}`);
     assert.equal(CANONICAL_MAP_URL, 'https://www.bandocapt.io.vn/');
@@ -199,4 +202,31 @@ test('missing_location_evidence (location-shaped request without a place) falls 
         findVerifiedLocationMatches,
     });
     assert.deepEqual(reply, RAG_FALLBACK);
+});
+
+// --- UX hardening: mỗi ví dụ HELP phải đi đúng nhánh khi người dùng gõ lại nguyên văn ------
+test('HELP examples route correctly against the real Published_Locations snapshot', async () => {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const { getPublishedLocations } = require('../lib/published-locations');
+    const payload = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'fixtures/published-locations-snapshot.json'), 'utf8'));
+    const originalSheetId = process.env.PUBLIC_LOCATION_SPREADSHEET_ID;
+    process.env.PUBLIC_LOCATION_SPREADSHEET_ID = 'help-examples-snapshot';
+    let dataset;
+    try {
+        dataset = await getPublishedLocations({
+            fetchImpl: async () => new Response(`google.visualization.Query.setResponse(${JSON.stringify(payload)});`),
+            forceRefresh: true,
+        });
+    } finally {
+        if (originalSheetId === undefined) delete process.env.PUBLIC_LOCATION_SPREADSHEET_ID; else process.env.PUBLIC_LOCATION_SPREADSHEET_ID = originalSheetId;
+    }
+    const options = { getPublishedLocations: async () => dataset };
+
+    const location = await createZaloReply(HELP_EXAMPLES.location, options);
+    assert.equal(location.result, 'FOUND');
+    assert.match(location.text, /^Công an Phường Thanh Miếu/);
+
+    assert.equal(await createZaloReply(HELP_EXAMPLES.procedure, options), RAG_FALLBACK);
+    assert.equal(await createZaloReply(HELP_EXAMPLES.foreigner, options), RAG_FALLBACK);
 });

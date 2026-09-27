@@ -1,5 +1,25 @@
 # 01 - Architecture
 
+## Zalo Bot UX hardening (2026-09-27)
+
+- **Output formatting:** every Zalo reply goes through `api/chat.js deliverZaloReply()` ->
+  `lib/zalo-bot.js formatForZalo()` before `splitZaloText()`. Zalo shows raw text, so the website's
+  Markdown (`**bold**`, `###` headings, `-` bullets, `[label](url)`, tables, code) is converted to
+  plain text; emoji, newlines and URLs are preserved (URLs are shielded before emphasis removal).
+  Empty links `[label]()` — produced on purpose by `lib/output-validator.js` when it redacts an
+  unverified URL — become just the label. Deterministic replies (no Markdown) pass through unchanged.
+  The shared RAG pipeline and its output validator are NOT modified.
+- **HELP/GREETING:** HELP now shows real examples for both location lookup and administrative
+  procedures (`HELP_EXAMPLES` in `lib/zalo-bot-v1.js`); a test locks that each example routes to the
+  right branch (location -> deterministic FOUND, procedures -> shared RAG).
+- **No more silent replies:** the 4 documented non-text user events (`message.image/sticker/voice/
+  unsupported.received`) in a PRIVATE chat get a static "text only" hint; rate-limit exceeded gets a
+  static limit message; rate-limit store failure gets the existing fallback text. None of these run
+  deterministic lookup or RAG. GROUP chats, bot messages and unknown events stay silent.
+- **Map deep-link: not implemented.** The frontend (`app.js`, `js/*.js`) has no URL-based routing to
+  select a unit (no `location.search`/`location.hash`/`pushState` handling), so "Xem trên Bản đồ CA
+  Phú Thọ" keeps linking to the home page. A per-unit link needs a frontend route first.
+
 ## Zalo Bot V1 — real webhook payload compatibility fix (2026-09-26)
 
 - **Symptom:** owner tested with a real Zalo account ("Xin chào", "Công an phường Thanh Miếu ở đâu")
@@ -92,10 +112,15 @@
   lookup failures are caught and logged with stable error codes.
 - **Code Graph:**
   ```text
-  Zalo text webhook
+  Zalo webhook (text, or image/sticker/voice/unsupported user message)
     -> vercel.json rewrite -> api/chat.js handler (route + secret + payload)
+    -> lib/zalo-bot.js parseZaloWebhook: text -> supported; the 4 documented non-text user
+       events -> supported:false + replyTarget (chat only, content never read); anything else
+       -> ACK 200, WEBHOOK_PARSE_UNSUPPORTED, stop
     -> chat_type != PRIVATE? -> ACK 200, GROUP_CHAT_IGNORED, stop (OD-02)
     -> hashed rate limit -> ACK 200 -> waitUntil
+         -> limit exceeded / store error -> static RATE_LIMITED_TEXT / fallback text (no AI)
+         -> non-text -> static NON_TEXT_MESSAGE_TEXT (no AI, no RAG)
          -> lib/zalo-bot-v1.js resolveZaloIntent
               -> GREETING / HELP / MAP -> static reply (no AI)
               -> otherwise -> isLocationLookupRequested (lib/chat-intent.js buildRequestPlan, SAME
@@ -109,8 +134,10 @@
          -> RAG_FALLBACK? -> api/chat.js: runChatOrchestration({ sink: createBufferSink(), ... })
                              -> SAME pipeline/prompt/Pinecone retrieval as the website, no SSE
                              -> sink.result().done.fullText
-         -> lib/zalo-bot.js splitZaloText -> sendZaloMessage (checks HTTP status AND body.ok)
-            -> Zalo Bot API
+         -> api/chat.js deliverZaloReply (every outgoing reply)
+              -> lib/zalo-bot.js formatForZalo (strip website Markdown; keep emoji/newlines/URLs)
+              -> splitZaloText -> sendZaloMessage (checks HTTP status AND body.ok)
+              -> Zalo Bot API
   Website -> api/chat.js -> existing runChatOrchestration/RAG and location service (unchanged;
              test/chat-sse-golden.test.js locks byte-identical website SSE output)
   ```
@@ -152,7 +179,8 @@
      (`buildZaloRatePrincipal`), băm bằng `hashForLog` hiện có trước khi dùng làm key Firebase
      (`usage_zalo_bot/<ngày>/<hash>.json`) — KHÔNG dùng IP webhook server của Zalo (mọi webhook đến
      từ cùng hạ tầng Zalo, không đại diện người dùng cuối). Vượt hạn mức/lỗi hạ tầng → ACK `200`
-     im lặng (không trả lời), tránh Zalo coi lỗi và tạo retry storm.
+     (tránh Zalo coi lỗi và tạo retry storm); từ 2026-09-27 kèm một câu tĩnh báo giới hạn/lỗi
+     thay vì im lặng — vẫn không chạy deterministic/RAG.
   4. ACK `200` NGAY sau khi qua rate-limit, TRƯỚC khi chạy RAG — tránh Zalo webhook timeout/retry
      storm khi RAG mất nhiều giây. Phần còn lại (`runChatOrchestration` + gửi trả lời) chạy trong
      `waitUntil(...)` (cùng cơ chế `@vercel/functions` `waitUntil` đã dùng cho
@@ -167,8 +195,8 @@
      bằng nguyên văn — không mất/đổi ký tự nào. `sendZaloMessage` gửi tuần tự từng đoạn tới đúng
      `chat.id` qua `POST /sendMessage`.
 - **`lib/zalo-bot.js`** — adapter transport thuần, KHÔNG chứa RAG: `isZaloBotRoute`,
-  `verifyZaloWebhookSecret`, `parseZaloWebhook`, `buildZaloRatePrincipal`, `splitZaloText`,
-  `sendZaloMessage`. `api/chat.js` là nơi DUY NHẤT gọi các hàm này kết hợp với
+  `verifyZaloWebhookSecret`, `parseZaloWebhook`, `buildZaloRatePrincipal`, `formatForZalo`,
+  `splitZaloText`, `sendZaloMessage`. `api/chat.js` là nơi DUY NHẤT gọi các hàm này kết hợp với
   `runChatOrchestration`/`createBufferSink` — không có pipeline chatbot thứ hai ở đâu khác.
 - **`scripts/register-zalo-bot-webhook.js`** — script một lần gọi `setWebhook` (đọc
   `ZALO_BOT_TOKEN`/`ZALO_BOT_WEBHOOK_SECRET`/`ZALO_BOT_WEBHOOK_URL` từ env, không in token/secret ra

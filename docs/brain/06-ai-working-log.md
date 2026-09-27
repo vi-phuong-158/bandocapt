@@ -1,5 +1,23 @@
 # 06 — AI Working Log
 
+## [2026-09-27] ZALO_BOT_UX_HARDENING
+- **Agent:** Claude Code
+- **Thay đổi:** (1) `formatForZalo()` chuyển Markdown của câu trả lời (website/RAG) sang text thô cho
+  Zalo, giữ emoji/xuống dòng/URL, thu link rỗng `[nhãn]()` (do output-validator gỡ URL chưa xác minh)
+  về còn nhãn; áp cho mọi tin gửi qua `deliverZaloReply()`. (2) HELP/GREETING giới thiệu cả tra cứu
+  địa điểm và TTHC, ví dụ thật. (3) Ảnh/sticker/voice/unsupported ở chat riêng nhận câu hướng dẫn
+  tĩnh; vượt hạn mức/lỗi rate-limit nhận câu tĩnh — không còn im lặng, vẫn không chạy RAG.
+  (4) Deep-link bản đồ theo đơn vị: KHÔNG làm — frontend chưa có route.
+- **File đã sửa:** `lib/zalo-bot.js`, `lib/zalo-bot-v1.js`, `api/chat.js` (chỉ `handleZaloBotWebhook`
+  + `deliverZaloReply` mới), `test/zalo-bot.test.js`, `test/zalo-bot-v1.test.js`,
+  `test/chat-zalo-bot-channel.test.js`, `test/zalo-bot-ux.test.js` (mới), `docs/brain/01-architecture.md`,
+  `docs/brain/03-decisions.md`, `docs/brain/04-current-tasks.md`, `docs/brain/06-ai-working-log.md`.
+- **Lý do:** scope owner chốt sau nghiệm thu production V1; không đổi location matching, shared RAG,
+  output-validator, hay bảo mật webhook.
+- **Kiểm tra:** test E2E mới đi qua handler thật với câu trả lời RAG có Markdown (Pinecone/Gemini giả
+  lập) — chính test này phát hiện trường hợp link rỗng do output-validator. 4 test cũ khoá hành vi đã
+  đổi được cập nhật có chủ đích (ảnh ở chat riêng; nội dung HELP). `npm run ci` exit 0 — 790/790 PASS.
+
 ## [2026-09-26] ZALO_BOT_V1_PREVIEW_RUNTIME_ACCEPTANCE + fix script đăng ký webhook
 - **Agent:** Claude Code
 - **Bối cảnh:** Chạy nghiệm thu runtime thật trên Vercel Preview của `f5da430` (deployment

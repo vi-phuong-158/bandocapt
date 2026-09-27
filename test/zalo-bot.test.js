@@ -358,3 +358,88 @@ test('sendZaloMessage: body không có field ok (hoặc fetch mock không có .j
     const fetchImpl = async () => ({ ok: true, status: 200 }); // không có .json() — mock đời cũ
     await assert.doesNotReject(() => sendZaloMessage({ chatId: '1001', text: 'x', token: 'tok', fetchImpl }));
 });
+
+// ---------------------------------------------------------------------
+// ZALO BOT UX HARDENING — formatForZalo + replyTarget cho tin không phải văn bản
+// ---------------------------------------------------------------------
+const { formatForZalo, NON_TEXT_MESSAGE_EVENTS } = require('../lib/zalo-bot');
+
+test('formatForZalo: bỏ ký hiệu Markdown của câu trả lời RAG, giữ emoji/xuống dòng/URL', () => {
+    const rag = [
+        '**Có, phải khai báo tạm trú.**',
+        '',
+        '### Hồ sơ',
+        '**📋 Hồ sơ cần chuẩn bị**',
+        '- Tờ khai **NA17** (bản chính)',
+        '* Hộ chiếu *còn hạn*',
+        '1. Nộp tại **Công an phường**',
+        '- [📍 Chỉ đường Google Maps](<https://www.google.com/maps/search/?api=1&query=21.304528,105.415528>)',
+        '📚 **Căn cứ:** [Luật Xuất nhập cảnh — Điều 33]',
+    ].join('\n');
+    assert.equal(formatForZalo(rag), [
+        'Có, phải khai báo tạm trú.',
+        '',
+        'Hồ sơ',
+        '📋 Hồ sơ cần chuẩn bị',
+        '• Tờ khai NA17 (bản chính)',
+        '• Hộ chiếu còn hạn',
+        '1. Nộp tại Công an phường',
+        '• 📍 Chỉ đường Google Maps: https://www.google.com/maps/search/?api=1&query=21.304528,105.415528',
+        '📚 Căn cứ: [Luật Xuất nhập cảnh — Điều 33]',
+    ].join('\n'));
+});
+
+test('formatForZalo: URL không bị cắt nhầm (dấu _, * trong/quanh URL; link có nhãn trùng URL)', () => {
+    assert.equal(formatForZalo('Xem **https://www.bandocapt.io.vn/**'), 'Xem https://www.bandocapt.io.vn/');
+    assert.equal(formatForZalo('[https://a.vn/x_y__z](https://a.vn/x_y__z)'), 'https://a.vn/x_y__z');
+    assert.equal(formatForZalo('Link: https://a.vn/path_with__underscores?q=1'), 'Link: https://a.vn/path_with__underscores?q=1');
+    assert.equal(formatForZalo('ma_ho_so và snake_case giữ nguyên'), 'ma_ho_so và snake_case giữ nguyên');
+});
+
+test('formatForZalo: link rỗng do output-validator gỡ URL chưa xác minh -> chỉ giữ nhãn', () => {
+    assert.equal(formatForZalo('- [📍 Chỉ đường Google Maps]()'), '• 📍 Chỉ đường Google Maps');
+    assert.equal(formatForZalo('Xem [**Danh mục**](<>) để tra cứu'), 'Xem Danh mục để tra cứu');
+});
+
+test('formatForZalo: bảng, đường kẻ, blockquote, code, <br>, dòng trống thừa', () => {
+    const text = '> Lưu ý `quan trọng`\n\n\n\n---\n| Mục | Phí |\n|---|:---:|\n| Cấp mới | 50.000đ |\nDòng 1<br>Dòng 2';
+    assert.equal(formatForZalo(text), 'Lưu ý quan trọng\n\nMục — Phí\nCấp mới — 50.000đ\nDòng 1\nDòng 2');
+});
+
+test('formatForZalo: idempotent và giữ nguyên văn các câu trả lời tất định không có Markdown', () => {
+    const location = 'Công an Phường Thanh Miếu\n📍 Địa chỉ: Số 1028 Đường Hùng Vương\n☎️ Điện thoại: 02103863928\n🗺️ Xem trên Bản đồ CA Phú Thọ: https://www.bandocapt.io.vn/\nChỉ đường: https://www.google.com/maps/search/?api=1&query=21.304528,105.415528';
+    assert.equal(formatForZalo(location), location);
+    assert.equal(formatForZalo(formatForZalo('**a**\n- b')), formatForZalo('**a**\n- b'));
+    assert.equal(formatForZalo(''), '');
+    assert.equal(formatForZalo(null), '');
+});
+
+test('parseZaloWebhook: 4 loại tin không phải văn bản có replyTarget (chat.id), vẫn supported:false', () => {
+    assert.deepEqual([...NON_TEXT_MESSAGE_EVENTS].sort(), [
+        'message.image.received', 'message.sticker.received', 'message.unsupported.received', 'message.voice.received',
+    ]);
+    for (const eventName of NON_TEXT_MESSAGE_EVENTS) {
+        for (const body of [
+            { result: { event_name: eventName, message: { chat: { id: 77, chat_type: 'PRIVATE' }, from: { id: 88 } } } },
+            { event_name: eventName, message: { chat: { id: 77, chat_type: 'PRIVATE' }, from: { id: 88 } } },
+        ]) {
+            const parsed = parseZaloWebhook(body);
+            assert.equal(parsed.supported, false);
+            assert.equal(parsed.reason, 'UNSUPPORTED_EVENT');
+            assert.deepEqual(parsed.replyTarget, { chatId: '77', chatType: 'PRIVATE', fromId: '88' });
+            assert.equal(parsed.text, undefined, 'không bao giờ lộ nội dung tin không phải văn bản');
+        }
+    }
+});
+
+test('parseZaloWebhook: không có replyTarget cho event lạ, tin từ bot, hoặc thiếu chat.id', () => {
+    const cases = [
+        { event_name: 'message.reaction.received', message: { chat: { id: 1, chat_type: 'PRIVATE' }, from: { id: 2 } } },
+        { event_name: 'message.image.received', message: { chat: { id: 1, chat_type: 'PRIVATE' }, from: { id: 2, is_bot: true } } },
+        { event_name: 'message.image.received', message: { chat: {}, from: { id: 2 } } },
+        { event_name: 'message.image.received' },
+    ];
+    for (const body of cases) assert.equal(parseZaloWebhook(body).replyTarget, undefined);
+    const group = parseZaloWebhook({ event_name: 'message.image.received', message: { chat: { id: 1, chat_type: 'GROUP' }, from: { id: 2 } } });
+    assert.equal(group.replyTarget.chatType, 'GROUP', 'parser giữ chat_type; chính sách chặn GROUP nằm ở handler');
+});

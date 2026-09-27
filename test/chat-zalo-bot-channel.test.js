@@ -42,6 +42,7 @@ require.cache[vercelFunctionsPath] = {
 };
 
 const handler = require('../api/chat');
+const { NON_TEXT_MESSAGE_TEXT, RATE_LIMITED_TEXT } = require('../lib/zalo-bot-v1');
 
 async function flushZaloBackgroundWork() {
     // Vòng lặp nhỏ vì runChatOrchestration tự lên lịch waitUntil bổ sung
@@ -200,9 +201,10 @@ test('Zalo Bot: tin nhắn từ bot (is_bot=true) -> ACK, không đưa vào RAG'
 });
 
 // ---------------------------------------------------------------------
-// 4) Non-text event -> ACK/no RAG
+// 4) Non-text event (ảnh) ở chat riêng -> ACK + đúng 1 câu hướng dẫn tĩnh, không RAG.
+// Trước UX hardening, bot im lặng hoàn toàn với ảnh/sticker/voice (người dùng tưởng bot hỏng).
 // ---------------------------------------------------------------------
-test('Zalo Bot: event không phải message.text.received -> ACK, không RAG, không throw 500', async () => {
+test('Zalo Bot: ảnh ở chat PRIVATE -> ACK 200, gửi đúng 1 câu hướng dẫn nhập văn bản, không RAG', async () => {
     const { sentMessages } = installZaloFetchMock();
     const res = createRes();
     const payload = {
@@ -215,7 +217,9 @@ test('Zalo Bot: event không phải message.text.received -> ACK, không RAG, kh
 
     assert.deepEqual(res._calls[0], { type: 'status', code: 200 });
     await flushZaloBackgroundWork();
-    assert.equal(sentMessages.length, 0);
+    assert.equal(sentMessages.length, 1);
+    assert.equal(sentMessages[0].body.chat_id, '1001');
+    assert.equal(sentMessages[0].body.text, NON_TEXT_MESSAGE_TEXT);
 });
 
 // ---------------------------------------------------------------------
@@ -289,7 +293,7 @@ test('Zalo Bot: lỗi sendMessage được xử lý an toàn và log mã lỗi k
         console.error = originalError;
     }
     assert.match(logged.join('\n'), /error_code=ZALO_SEND_FAILED/);
-    assert.doesNotMatch(logged.join('\n'), /Nhập tên xã\/phường|zalo-test-bot-token|zalo-test-webhook-secret/);
+    assert.doesNotMatch(logged.join('\n'), /Thủ tục hành chính|Thanh Miếu|zalo-test-bot-token|zalo-test-webhook-secret/);
 });
 
 // ---------------------------------------------------------------------
@@ -457,7 +461,7 @@ test('T08: PRIVATE text dạng flat -> reply path chạy đầy đủ (ACK, khô
     await flushZaloBackgroundWork();
     assert.equal(sentMessages.length, 1);
     assert.equal(sentMessages[0].body.chat_id, '1101');
-    assert.match(sentMessages[0].body.text, /Nhập tên xã\/phường/);
+    assert.match(sentMessages[0].body.text, /Thủ tục hành chính/);
 });
 
 test('T09b: PRIVATE text dạng wrapped -> reply path chạy đầy đủ (ACK, không duplicate reply)', async () => {
@@ -466,7 +470,7 @@ test('T09b: PRIVATE text dạng wrapped -> reply path chạy đầy đủ (ACK, 
     await flushZaloBackgroundWork();
     assert.equal(sentMessages.length, 1);
     assert.equal(sentMessages[0].body.chat_id, '1102');
-    assert.match(sentMessages[0].body.text, /Nhập tên xã\/phường/);
+    assert.match(sentMessages[0].body.text, /Thủ tục hành chính/);
 });
 
 test('T10b: GROUP chat dạng flat -> ACK + bỏ qua an toàn (chính sách V1, không phải lỗi parser)', async () => {
@@ -629,4 +633,128 @@ test('T16b: "Công an phường Thanh Miếu ở đâu" -> location resolver tr�
     assert.equal(sentMessages.length, 1);
     assert.match(sentMessages[0].body.text, /Công an phường Thanh Miếu/);
     assert.match(sentMessages[0].body.text, /Địa chỉ Thanh Miếu/);
+});
+
+// =======================================================================
+// ZALO BOT UX HARDENING — tin không phải văn bản và lỗi rate-limit không còn im lặng.
+// Vẫn giữ nguyên các cổng an toàn: chỉ PRIVATE, bỏ qua tin từ bot, event lạ vẫn im lặng,
+// không bao giờ đưa nội dung ảnh/sticker/voice vào RAG, rate-limit bị chặn thì không chạy RAG.
+// =======================================================================
+
+function nonTextPayload({ eventName, chatId = '5001', chatType = 'PRIVATE', fromId = '6001', isBot = false, flat = false }) {
+    const envelope = { event_name: eventName, message: { chat: { id: chatId, chat_type: chatType }, from: { id: fromId, is_bot: isBot } } };
+    return flat ? envelope : { result: envelope };
+}
+
+function captureConsole(method) {
+    const original = console[method];
+    const logged = [];
+    console[method] = (...args) => logged.push(args.join(' '));
+    return { logged, restore: () => { console[method] = original; } };
+}
+
+test('UX01: sticker/voice/unsupported ở chat PRIVATE -> mỗi event đúng 1 câu hướng dẫn, log metadata không có nội dung', async () => {
+    const { sentMessages } = installZaloFetchMock();
+    const info = captureConsole('info');
+    try {
+        for (const eventName of ['message.sticker.received', 'message.voice.received', 'message.unsupported.received']) {
+            await handler(zaloRequest({ body: nonTextPayload({ eventName, chatId: `c-${eventName}` }) }), createRes());
+            await flushZaloBackgroundWork();
+        }
+    } finally {
+        info.restore();
+    }
+    assert.equal(sentMessages.length, 3);
+    for (const sent of sentMessages) assert.equal(sent.body.text, NON_TEXT_MESSAGE_TEXT);
+    const joined = info.logged.join('\n');
+    assert.match(joined, /action=REPLY_PATH_NON_TEXT event_type=message\.sticker\.received/);
+    assert.match(joined, /action=SEND_MESSAGE_SUCCESS event_type=message\.voice\.received intent=NON_TEXT result=NON_TEXT_REPLIED error_code=MESSAGE_UNSUPPORTED/);
+    assert.doesNotMatch(joined, /REPLY_PATH_RAG/);
+});
+
+test('UX02: ảnh dạng flat ở chat PRIVATE -> cùng hành vi với dạng wrapped', async () => {
+    const { sentMessages } = installZaloFetchMock();
+    await handler(zaloRequest({ body: nonTextPayload({ eventName: 'message.image.received', chatId: '5002', flat: true }) }), createRes());
+    await flushZaloBackgroundWork();
+    assert.equal(sentMessages.length, 1);
+    assert.equal(sentMessages[0].body.chat_id, '5002');
+    assert.equal(sentMessages[0].body.text, NON_TEXT_MESSAGE_TEXT);
+});
+
+test('UX03: ảnh trong GROUP, ảnh từ bot, event lạ -> vẫn ACK 200 và im lặng', async () => {
+    const { sentMessages, rateLimitUrls } = installZaloFetchMock();
+    const info = captureConsole('info');
+    try {
+        const cases = [
+            nonTextPayload({ eventName: 'message.image.received', chatType: 'GROUP' }),
+            nonTextPayload({ eventName: 'message.sticker.received', isBot: true }),
+            nonTextPayload({ eventName: 'message.reaction.received' }),
+            { result: { event_name: 'message.image.received' } },
+        ];
+        for (const body of cases) {
+            const res = createRes();
+            await handler(zaloRequest({ body }), res);
+            assert.deepEqual(res._calls[0], { type: 'status', code: 200 });
+        }
+        await flushZaloBackgroundWork();
+    } finally {
+        info.restore();
+    }
+    assert.equal(sentMessages.length, 0);
+    assert.equal(rateLimitUrls.length, 0, 'event bị bỏ qua không được tiêu tốn hạn mức rate-limit');
+    assert.match(info.logged.join('\n'), /action=GROUP_CHAT_IGNORED event_type=message\.image\.received chat_type=GROUP/);
+});
+
+function installRateLimitFetchMock({ getCount = null, putStatus = 200 }) {
+    const sentMessages = [];
+    let nonZaloCalls = 0;
+    global.fetch = async (url, options = {}) => {
+        const target = String(url);
+        if (target.includes('/usage_zalo_bot/')) {
+            const method = (options.method || 'GET').toUpperCase();
+            if (method === 'GET') {
+                return { ok: true, status: 200, headers: { get: () => 'etag-1' }, json: async () => getCount };
+            }
+            return { ok: putStatus === 200, status: putStatus, json: async () => ({}) };
+        }
+        if (target.includes('bot-api.zaloplatforms.com') && target.includes('/sendMessage')) {
+            sentMessages.push({ url: target, body: JSON.parse(options.body) });
+            return { ok: true, status: 200, json: async () => ({ ok: true }) };
+        }
+        nonZaloCalls += 1;
+        throw new Error(`zalo-bot rate-limit test: unmocked fetch ${target}`);
+    };
+    return { sentMessages, nonZaloCalls: () => nonZaloCalls };
+}
+
+test('UX04: vượt hạn mức ngày -> gửi câu báo giới hạn tĩnh, KHÔNG chạy deterministic/RAG', async () => {
+    const { sentMessages, nonZaloCalls } = installRateLimitFetchMock({ getCount: { count: 9999 } });
+    await handler(zaloRequest({ body: officialTextPayload({ text: 'Công an phường Thanh Miếu ở đâu', chatId: '5101' }) }), createRes());
+    await flushZaloBackgroundWork();
+    assert.equal(sentMessages.length, 1);
+    assert.equal(sentMessages[0].body.chat_id, '5101');
+    assert.equal(sentMessages[0].body.text, RATE_LIMITED_TEXT);
+    assert.equal(nonZaloCalls(), 0, 'không được gọi Google Sheets/Gemini/Pinecone khi đã vượt hạn mức');
+});
+
+test('UX05: lỗi hạ tầng rate-limit -> gửi câu lỗi thân thiện, KHÔNG chạy deterministic/RAG', async () => {
+    const { sentMessages, nonZaloCalls } = installRateLimitFetchMock({ putStatus: 500 });
+    await handler(zaloRequest({ body: officialTextPayload({ text: 'Làm hộ chiếu cần giấy tờ gì?', chatId: '5102' }) }), createRes());
+    await flushZaloBackgroundWork();
+    assert.equal(sentMessages.length, 1);
+    assert.match(sentMessages[0].body.text, /hệ thống đang gặp sự cố tạm thời/);
+    assert.equal(nonZaloCalls(), 0);
+});
+
+test('UX06: HELP gửi qua Zalo giới thiệu cả tra cứu địa điểm lẫn thủ tục hành chính, không có Markdown', async () => {
+    const { sentMessages } = installZaloFetchMock();
+    await handler(zaloRequest({ body: officialTextPayload({ text: 'trợ giúp', chatId: '5201' }) }), createRes());
+    await flushZaloBackgroundWork();
+    assert.equal(sentMessages.length, 1);
+    const text = sentMessages[0].body.text;
+    assert.match(text, /Công an phường Thanh Miếu ở đâu\?/);
+    assert.match(text, /Làm hộ chiếu cần giấy tờ gì\?/);
+    assert.match(text, /Người nước ngoài khai báo tạm trú thế nào\?/);
+    assert.match(text, /nhập "bản đồ"/);
+    assert.doesNotMatch(text, /\*\*|^#+\s|\]\(/m);
 });

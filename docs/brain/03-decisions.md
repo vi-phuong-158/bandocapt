@@ -1,5 +1,26 @@
 # 03 — Technical Decisions
 
+## [2026-09-27] Zalo Bot UX hardening — formatter riêng, HELP có TTHC, không còn im lặng
+
+- **Bối cảnh:** sau khi V1 chạy production, owner thấy câu trả lời RAG trên Zalo lộ nguyên ký hiệu
+  Markdown (`**...**`), HELP không nhắc tới khả năng hỏi thủ tục hành chính, và bot im lặng với
+  ảnh/sticker/voice. Owner chốt scope 4 mục; không đổi location matching, shared RAG hay bảo mật webhook.
+- **Formatter ở tầng transport Zalo, không sửa prompt RAG:** prompt và output-validator được website
+  dùng chung (Markdown là đúng cho website). `formatForZalo()` (`lib/zalo-bot.js`) chuyển Markdown
+  sang text thô chỉ ở đầu ra Zalo. Link rỗng `[nhãn]()` do output-validator cố ý gỡ URL chưa xác
+  minh được thu về còn nhãn — không nới lỏng validator.
+- **Thay đổi quyết định V0 "event không phải text → ACK im lặng":** chỉ đúng 4 event tin nhắn người
+  dùng đã tài liệu hoá (`message.image/sticker/voice/unsupported.received`, bot.zapps.me/docs/webhook/,
+  xác minh 2026-09-27), ở chat PRIVATE, không phải từ bot, sau khi qua rate-limit, nhận một câu
+  hướng dẫn tĩnh. Nội dung ảnh/sticker/voice không được đọc, không vào RAG. Event lạ, GROUP, tin từ
+  bot vẫn im lặng như cũ.
+- **Thay đổi quyết định "vượt hạn mức/lỗi rate-limit → ACK im lặng":** vẫn fail-closed (không chạy
+  deterministic/RAG) nhưng gửi một câu tĩnh. Đánh đổi chấp nhận: người dùng spam sau khi vượt hạn
+  mức vẫn nhận 1 tin tĩnh cho mỗi tin gửi (tỉ lệ 1:1, không khuếch đại, không tốn AI).
+- **Không làm deep-link bản đồ theo đơn vị:** frontend chưa có route/query nào để mở thẳng một marker
+  (không xử lý `location.search`/`location.hash`/`pushState`). Theo yêu cầu "không phát minh route
+  chưa tồn tại", link vẫn về trang chủ; cần làm route ở frontend trước.
+
 ## [2026-09-26] Zalo Bot V1 real webhook payload compatibility (wrapped vs flat envelope)
 
 - **Bối cảnh:** Owner test qua tài khoản Zalo thật ("Xin chào", "Công an phường Thanh Miếu ở đâu").
