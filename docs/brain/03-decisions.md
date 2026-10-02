@@ -1,5 +1,16 @@
 # 03 — Technical Decisions
 
+## [2026-10-02] Redis/QStash batching and short private sessions
+
+- User chốt toàn bộ review, nhớ ngắn 5 phút và hàng đợi bền vững. Thêm SDK chính thức @upstash/qstash để verify JWT; publish REST dùng fetch chuẩn. Lý do dependency/dịch vụ mới: delay/retry không phụ thuộc vòng đời waitUntil 60s.
+- Tái sử dụng Redis REST nhưng namespace riêng theo môi trường/deployment; chỉ namespace Zalo mới lưu nội dung tạm được người dùng chấp nhận. Namespace public contribution tiếp tục chỉ counter; không thay nguồn dữ liệu Sheets/Pinecone.
+- Gom 3s/max8s là heuristic. Dedupe ID 24h; không dedupe theo nội dung khi thiếu ID. Quota Zalo chuyển Redis để claim/reservation idempotent nguyên tử; website rate limit giữ Firebase.
+- Chỉ ACK 200 sau persist + publish; 503 khi hạ tầng lỗi. Redis due index + signed sweep đảm bảo có đường phục hồi khi publish thất bại. Session tối đa3 cặp/TTL5phút; batch TTL10phút; content không vào telemetry/console/queue.
+- Owner fencing/lease65s, max4 processing attempts. Delivery ambiguous không resend, có thể thiếu phản hồi; không hứa exactly-once. Confirmed chunks không gửi lại; reply persisted tránh generation lại trong delivery retry.
+- Worker co-host trên api/chat giữ budget12 function. Preview URL/namespace theo deployment, lịch tương ứng phải được đăng ký và drain trước xóa; batching OFF cho đến service configuration + Preview/Zalo acceptance.
+- Chi tiết vận hành/rollout/giới hạn trong docs/zalo-chat-hardening.md; không tự bật/promote Production.
+- CI phát hiện hai dependency gián tiếp cũ mức high: cập nhật bản vá @grpc/grpc-js 1.14.5 và brace-expansion 2.1.7 trong lockfile, không đổi interface hay nâng major. Audit production tiếp tục chặn mức high; ba cảnh báo moderate còn lại được ghi nhận, không dùng audit fix --force.
+
 ## [2026-10-02] Zalo reply flow: mixed intent and absolute delivery deadline
 
 - RequestPlan là nguồn intent duy nhất; không trả location sớm khi còn nội dung thủ tục/pháp lý.

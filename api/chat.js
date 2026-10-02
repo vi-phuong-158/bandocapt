@@ -48,7 +48,10 @@ const {
     sendZaloMessage,
     ZALO_MAX_TEXT_LENGTH,
 } = require('../lib/zalo-bot');
-const { createZaloReply, resolveZaloIntent, NON_TEXT_MESSAGE_TEXT, RATE_LIMITED_TEXT } = require('../lib/zalo-bot-v1');
+const { createZaloReply, NON_TEXT_MESSAGE_TEXT, RATE_LIMITED_TEXT } = require('../lib/zalo-bot-v1');
+const { createZaloBatchStore, hashPrincipal } = require('../lib/zalo-batch-store');
+const { assertQStashConfig, publishZaloJob, verifyZaloJob } = require('../lib/zalo-qstash');
+const { processZaloBatch } = require('../lib/zalo-batch-worker');
 
 // Kiểm tra biến môi trường nhạy cảm không được phép tồn tại ở production.
 // Vercel Preview (VERCEL_ENV === 'preview') được phép dùng EVAL_BYPASS_TOKEN cho acceptance/eval test,
@@ -1945,6 +1948,8 @@ module.exports = async function handler(req, res) {
     const deadlineMs = getPositiveEnvInt('CHAT_REQUEST_DEADLINE_MS', 55000);
     const deadlineAt = _startTime + deadlineMs;
 
+    if (req.query?.__channel === 'zalo_worker') return handleZaloWorker(req, res);
+
     // --- [ZALO BOT PLATFORM V0] Kênh riêng, tách biệt hoàn toàn khỏi CORS/HMAC/
     // Turnstile/rate-limit-theo-IP của website bên dưới. Route (`__channel=zalo_bot`,
     // đến từ rewrite /api/zalo-bot/webhook) là điều kiện thứ nhất; verifyZaloWebhookSecret
@@ -2207,6 +2212,24 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
     }
 
     const principal = buildZaloRatePrincipal(target);
+    if (isTruthyEnv('ZALO_BOT_BATCHING_ENABLED')) {
+        try {
+            assertQStashConfig();
+            const store = createZaloBatchStore();
+            const chatHash = hashPrincipal(principal);
+            const validation = parsed.supported ? validateChatContent(parsed.text) : null;
+            const kind = !parsed.supported ? 'non_text' : validation.ok ? 'text' : 'invalid';
+            const text = kind === 'text' ? parsed.text : kind === 'invalid' ? validation.detail : '';
+            const messageHash = target.messageId ? hashPrincipal(`message:${principal}:${target.messageId}`) : '';
+            const queued = await store.append({ chatHash, chatId: target.chatId, messageHash, kind, text });
+            if (queued.batchId) await publishZaloJob({ chatHash, batchId: queued.batchId }, queued.dueAt);
+            logger.info(`[zalo-bot] action=BATCH_INGRESS result=${queued.status} dedupe_unavailable=${messageHash ? 'false' : 'true'}`);
+            return res.status(200).json({ ok: true });
+        } catch (_) {
+            logger.error('[zalo-bot] action=BATCH_INGRESS_FAILED error_code=INFRASTRUCTURE_UNAVAILABLE');
+            return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
+        }
+    }
     const currentDate = getVnDateKeyForZalo();
     const FIREBASE_DB_URL = process.env.FIREBASE_DB_URL || '';
     const FIREBASE_AUTH = process.env.FIREBASE_DB_SECRET ? `?auth=${process.env.FIREBASE_DB_SECRET}` : '';
@@ -2255,7 +2278,6 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
     res.status(200).json({ ok: true });
 
     waitUntil((async () => {
-        const startedAt = Date.now();
         if (blockedReply) {
             await deliverZaloReply({ chatId, eventName: parsed.eventName, reply: blockedReply, startedAt: _startTime, deadlineAt });
             return;
@@ -2271,10 +2293,42 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
             });
             return;
         }
-        const reply = await resolveZaloTurn({ text: parsed.text, history: [], principal, req, startedAt: _startTime, deadlineAt });
+        const reply = await resolveZaloTurn({ text: parsed.text, history: [], principal, req, startedAt: _startTime, deadlineAt: Math.min(deadlineAt, _startTime + 55000) });
 
         await deliverZaloReply({ chatId, eventName: parsed.eventName, reply, startedAt: _startTime, deadlineAt });
     })());
+}
+
+async function handleZaloWorker(req, res) {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'METHOD_NOT_ALLOWED' });
+    try {
+        const job = await verifyZaloJob(req);
+        if (!job) return res.status(403).json({ error: 'FORBIDDEN' });
+        const store = createZaloBatchStore();
+        // Keep draining accepted work even when batching is disabled for rollback.
+        if (job.type === 'sweep') {
+            const due = await store.dueJobs();
+            const jobs = Array.isArray(due.jobs) ? due.jobs : [];
+            const results = await Promise.allSettled(jobs.map(item => publishZaloJob(item, item.dueAt)));
+            const failed = results.filter(item => item.status === 'rejected').length;
+            logger.info(`[zalo-bot] action=BATCH_SWEEP job_count=${jobs.length} expired_count=${due.expired} failed_count=${failed}`);
+            return res.status(failed ? 503 : 200).json({ status: failed ? 'retry' : 'swept', count: jobs.length, expired: due.expired });
+        }
+        const result = await processZaloBatch({ job, store, resolveTurn: resolveZaloTurn, sanitizeHistory, req });
+        logger.info(`[zalo-bot] action=BATCH_WORKER result=${result.status} fragment_count=${result.fragmentCount || 0} duration_ms=${result.durationMs || 0}`);
+        if (['deferred', 'blocked'].includes(result.status)) {
+            await publishZaloJob(job, result.dueAt);
+            return res.status(200).json({ status: result.status });
+        }
+        if (['busy', 'retry'].includes(result.status)) {
+            res.setHeader('Retry-After', String(result.retryAfter || Math.max(1, Math.ceil((result.dueAt - Date.now()) / 1000))));
+            return res.status(503).json({ status: 'retry' });
+        }
+        return res.status(200).json({ status: result.status });
+    } catch (_) {
+        logger.error('[zalo-bot] action=BATCH_WORKER_FAILED error_code=INFRASTRUCTURE_UNAVAILABLE');
+        return res.status(503).json({ error: 'SERVICE_UNAVAILABLE' });
+    }
 }
 
 // Shared turn resolver: validated text/history in, validated final answer out.

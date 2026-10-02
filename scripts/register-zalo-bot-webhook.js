@@ -21,6 +21,14 @@ function isSetWebhookSuccess(response, body) {
     return true;
 }
 
+function getWebhookUrl(env = process.env) {
+    const value = env.ZALO_BOT_WEBHOOK_URL;
+    if (env.VERCEL_ENV !== 'preview' || !env.VERCEL_AUTOMATION_BYPASS_SECRET) return value;
+    const url = new URL(value);
+    url.searchParams.set('x-vercel-protection-bypass', env.VERCEL_AUTOMATION_BYPASS_SECRET);
+    return url.href;
+}
+
 async function main() {
     const missing = REQUIRED_ENVS.filter(name => !process.env[name]);
     if (missing.length > 0) {
@@ -31,7 +39,7 @@ async function main() {
 
     const token = process.env.ZALO_BOT_TOKEN;
     const secret = process.env.ZALO_BOT_WEBHOOK_SECRET;
-    const url = process.env.ZALO_BOT_WEBHOOK_URL;
+    const url = getWebhookUrl();
 
     if (secret.length < 8 || secret.length > 256) {
         console.error('ZALO_BOT_WEBHOOK_SECRET phải dài từ 8 đến 256 ký tự.');
@@ -72,27 +80,20 @@ async function main() {
 
     if (!isSetWebhookSuccess(response, body)) {
         console.error(`setWebhook thất bại: HTTP ${response.status}.`);
-        if (body && typeof body.description === 'string') {
-            console.error(`Mô tả từ Zalo: ${body.description}`);
-        }
         process.exitCode = 1;
         return;
     }
 
     console.log('Đăng ký webhook Zalo Bot Platform thành công.');
-    if (body && typeof body === 'object') {
-        // Chỉ in các trường phản hồi không nhạy cảm — không có token/secret nào
-        // trong response setWebhook, nhưng vẫn chọn lọc tường minh thay vì in nguyên body.
-        const { ok, result, description } = body;
-        console.log(JSON.stringify({ ok, result, description }, null, 2));
-    }
+    // Provider responses can echo a Preview URL containing a protection bypass secret.
+    console.log(JSON.stringify({ ok: true }));
 }
 
 if (require.main === module) {
     main().catch(err => {
-        console.error('Lỗi khi đăng ký webhook Zalo Bot:', err.message);
+        console.error('ZALO_WEBHOOK_REGISTRATION_FAILED');
         process.exitCode = 1;
     });
 }
 
-module.exports = { isSetWebhookSuccess };
+module.exports = { isSetWebhookSuccess, getWebhookUrl };

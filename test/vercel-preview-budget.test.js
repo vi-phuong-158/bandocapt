@@ -26,5 +26,8 @@ test('Vercel Preview stays within the Hobby serverless-function budget', () => {
     }, {
         source: '/api/zalo-bot/webhook',
         destination: '/api/chat?__channel=zalo_bot',
+    }, {
+        source: '/api/zalo-bot/worker',
+        destination: '/api/chat?__channel=zalo_worker',
     }]);
 });

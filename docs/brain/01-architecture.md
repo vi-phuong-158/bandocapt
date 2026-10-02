@@ -1,5 +1,14 @@
 # 01 - Architecture
 
+## Zalo chat hardening — Redis/QStash (2026-10-02)
+
+- Batching mặc định OFF; ON: webhook validate từng mảnh, append Redis nguyên tử/dedupe/spam-limit -> publish QStash -> ACK. Hạ tầng lỗi trả 503; due index là outbox, sweep mỗi phút phục hồi việc chưa giao/lease hết hạn.
+- Rewrite worker `/api/zalo-bot/worker -> /api/chat?__channel=zalo_worker` không thêm function. QStash SDK xác thực JWT trên raw text/plain body và URL dự kiến; callback chỉ metadata. Job chỉ chứa chat hash/batch UUID, không chứa hội thoại.
+- Redis namespace production/preview/deployment riêng; private chat state TTL 10 phút, session 6 items/sanitizer TTL 5 phút; dedupe/done metadata 24h; quota theo ngày VN một lần/batch + spam 30/phút. State có routing chat ID riêng tư để gửi phản hồi, không ghi ID vào logs.
+- Worker owner/lease 65s fencing, max 4 processing attempts, budget55s/RAG40s; persisted chunks/nextChunk/inFlight. Unknown delivery kết thúc không tự resend; 429 resume chunk chưa xác nhận. OFF không chặn worker drain.
+- Code Graph: Zalo webhook -> chat-validation -> zalo-batch-store.append (Lua) -> zalo-qstash.publish -> signed worker (api/chat) -> zalo-batch-worker -> store.claim -> resolveZaloTurn/history/shared RAG -> persisted reply -> markSending/send/markSent -> finish/session/delete content. QStash schedule -> worker sweep -> due index -> publish. Website SSE giữ đường hiện có.
+- Module interfaces/config/retention/Preview acceptance: [../zalo-chat-hardening.md](../zalo-chat-hardening.md). Nhật ký/tasks cũ chuyển `docs/brain/archive`, giữ nguyên lịch sử.
+
 ## Zalo chat hardening — reply flow (2026-10-02)
 
 - `resolveZaloTurn` nhận validated text + sanitized history, tạo phản hồi bằng deterministic-first/shared RAG. `createZaloReply` chỉ kết thúc địa điểm khi RequestPlan.isPureLocation, truyền history vào classifier/resolver.

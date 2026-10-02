@@ -34,7 +34,7 @@
 
 ## Style code
 
-- **Ngôn ngữ / runtime:** JavaScript (ES2020+), Node.js 20 CommonJS cho serverless.
+- **Ngôn ngữ / runtime:** JavaScript (ES2020+), Node.js 24 CommonJS cho serverless.
   Frontend dùng Vanilla JS (không module bundler, không TypeScript).
 - **Format:** 4 spaces indent. Single quotes trong JS (`'string'`).
 - **Linter / formatter:** không có linter cấu hình — theo style code hiện tại trong file.

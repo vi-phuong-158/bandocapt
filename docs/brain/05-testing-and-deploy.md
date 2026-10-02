@@ -1,5 +1,13 @@
 # 05 — Testing & Deploy
 
+## Zalo hardening — cấu hình và nghiệm thu (2026-10-02)
+
+- Hướng dẫn hiện hành: [../zalo-chat-hardening.md](../zalo-chat-hardening.md).
+- Thêm KV_REST_API_URL/TOKEN, QSTASH_TOKEN, QSTASH_CURRENT_SIGNING_KEY, QSTASH_NEXT_SIGNING_KEY, ZALO_BOT_WORKER_URL; ZALO_BOT_BATCHING_ENABLED mặc định OFF. Preview tự lấy worker URL theo VERCEL_URL; local registration cần cùng VERCEL_ENV/VERCEL_URL.
+- `npm run zalo:worker:schedule` đăng ký/cập nhật sweep mỗi phút bằng QStash; không in secrets. Cấu hình service trước khi chạy; không chạy lệnh này vào Production khi chưa Preview acceptance.
+- CI thêm Redis7 service/ZALO_TEST_REDIS_PORT=6379 chạy production Lua qua transport adapter. Không có local Redis thì suite này SKIP và phải ghi rõ; chỉ đặt cổng localhost test.
+- Rollout: OFF -> configure services/sweep -> Preview ON -> Zalo acceptance -> Production rollout riêng. OFF vẫn drain worker cũ.
+
 > Mọi lệnh để dựng môi trường, chạy, test, build, deploy. Agent đọc đây thay vì đoán lệnh.
 
 ## Cài đặt môi trường local
