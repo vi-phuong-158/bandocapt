@@ -14,11 +14,10 @@ const response = () => ({ code: 0, payload: null, headers: {}, status(code) { th
 
 function signedRequest(job) {
     const body = JSON.stringify(job);
-    const encodedHeader = Buffer.from(JSON.stringify({ alg: 'HS256' })).toString('base64url');
-    const payload = Buffer.from(JSON.stringify({ iss: 'Upstash', sub: process.env.ZALO_BOT_WORKER_URL, exp: Math.floor(Date.now() / 1000) + 300, nbf: Math.floor(Date.now() / 1000) - 30, body: crypto.createHash('sha256').update(body).digest('base64url') })).toString('base64url');
-    const input = `${encodedHeader}.${payload}`;
-    const signature = `${input}.${crypto.createHmac('sha256', process.env.QSTASH_CURRENT_SIGNING_KEY).update(input).digest('base64url')}`;
-    return { method: 'POST', query: { __channel: 'zalo_worker' }, headers: { 'content-type': 'text/plain', 'upstash-signature': signature }, body };
+    const timestamp = String(Math.floor(Date.now() / 1000));
+    const signature = crypto.createHmac('sha256', process.env.ZALO_BOT_WORKER_SECRET)
+        .update(`${timestamp}\n${process.env.ZALO_BOT_WORKER_URL}\n${body}`).digest('hex');
+    return { method: 'POST', query: { __channel: 'zalo_worker' }, headers: { 'content-type': 'text/plain', 'x-zalo-worker-timestamp': timestamp, 'x-zalo-worker-signature': signature }, body };
 }
 
 const integration = (name, fn) => test(name, { skip: !process.env.ZALO_TEST_REDIS_PORT }, fn);
@@ -29,17 +28,17 @@ integration('actual handler: fragmented webhook, duplicate, signed worker, diagn
     const originalNow = Date.now;
     let now = originalNow();
     Date.now = () => now;
-    Object.assign(process.env, { NODE_ENV: 'development', VERCEL_ENV: 'development', ZALO_BOT_BATCHING_ENABLED: 'on', KV_REST_API_URL: 'https://redis.test', KV_REST_API_TOKEN: 'fake', CHAT_LOG_HASH_SALT: crypto.randomUUID(), ZALO_BOT_WEBHOOK_SECRET: 'test-webhook-secret', ZALO_BOT_TOKEN: 'test-only-token', QSTASH_TOKEN: 'test-only-queue-token', QSTASH_CURRENT_SIGNING_KEY: 'test-current-key', QSTASH_NEXT_SIGNING_KEY: 'test-next-key', ZALO_BOT_WORKER_URL: 'https://worker.test/api/zalo-bot/worker', FIREBASE_DB_URL: 'https://telemetry.test', CHAT_DIAGNOSTIC_LOG: 'on', CHAT_DIAGNOSTIC_LOG_APPROVED: 'on', CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE: '1' });
+    Object.assign(process.env, { NODE_ENV: 'development', VERCEL_ENV: 'development', ZALO_BOT_BATCHING_ENABLED: 'on', KV_REST_API_URL: 'https://redis.test', KV_REST_API_TOKEN: 'fake', CHAT_LOG_HASH_SALT: crypto.randomUUID(), ZALO_BOT_WEBHOOK_SECRET: 'test-webhook-secret', ZALO_BOT_TOKEN: 'test-only-token', CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32), CLOUDFLARE_ZALO_QUEUE_ID: 'b'.repeat(32), CLOUDFLARE_ZALO_QUEUE_TOKEN: 'test-only-queue-token', ZALO_BOT_WORKER_SECRET: 'test-current-key'.repeat(3), ZALO_BOT_WORKER_URL: 'https://worker.test/api/zalo-bot/worker', FIREBASE_DB_URL: 'https://telemetry.test', CHAT_DIAGNOSTIC_LOG: 'on', CHAT_DIAGNOSTIC_LOG_APPROVED: 'on', CHAT_DIAGNOSTIC_LOG_SAMPLE_RATE: '1' });
     delete process.env.CHAT_DIAGNOSTIC_LOG_UNTIL;
     delete process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
     const jobs = [], sends = [], writes = [];
     let failQueue = false;
     global.fetch = async (url, options) => {
         if (String(url) === 'https://redis.test') return { ok: true, json: async () => ({ result: await redisCommand(JSON.parse(options.body)) }) };
-        if (String(url).startsWith('https://qstash.upstash.io/')) {
+        if (String(url).startsWith('https://api.cloudflare.com/client/v4/')) {
             if (failQueue) throw new Error('queue unavailable');
-            jobs.push(JSON.parse(options.body));
-            return { ok: true, json: async () => ({ messageId: 'queued' }) };
+            jobs.push(JSON.parse(options.body).body);
+            return { ok: true, json: async () => ({ success: true }) };
         }
         if (String(url).includes('/sendMessage')) { sends.push(JSON.parse(options.body)); return { ok: true, status: 200, json: async () => ({ ok: true }) }; }
         if (String(url).startsWith('https://telemetry.test/')) { writes.push({ url, body: JSON.parse(options.body) }); return { ok: true, json: async () => ({}) }; }
@@ -79,7 +78,7 @@ integration('actual handler: fragmented webhook, duplicate, signed worker, diagn
         const sweep = response(); await handler(signedRequest({ type: 'sweep' }), sweep);
         assert.equal(sweep.code, 200);
         assert.ok(sweep.payload.count > 0);
-        const missingSignature = signedRequest(jobs.at(-1)); delete missingSignature.headers['upstash-signature'];
+        const missingSignature = signedRequest(jobs.at(-1)); delete missingSignature.headers['x-zalo-worker-signature'];
         const forbidden = response(); await handler(missingSignature, forbidden);
         assert.equal(forbidden.code, 403);
     } finally {

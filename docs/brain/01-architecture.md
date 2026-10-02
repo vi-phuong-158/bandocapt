@@ -1,13 +1,15 @@
 # 01 - Architecture
 
-## Zalo chat hardening — Redis/QStash (2026-10-02)
+## Zalo chat hardening — Redis/Cloudflare Queues Free (2026-10-03)
 
-- Batching mặc định OFF; ON: webhook validate từng mảnh, append Redis nguyên tử/dedupe/spam-limit -> publish QStash -> ACK. Hạ tầng lỗi trả 503; due index là outbox, sweep mỗi phút phục hồi việc chưa giao/lease hết hạn.
-- Rewrite worker `/api/zalo-bot/worker -> /api/chat?__channel=zalo_worker` không thêm function. QStash SDK xác thực JWT trên raw text/plain body và URL dự kiến; callback chỉ metadata. Job chỉ chứa chat hash/batch UUID, không chứa hội thoại.
-- Redis namespace production/preview/deployment riêng; private chat state TTL 10 phút, session 6 items/sanitizer TTL 5 phút; dedupe/done metadata 24h; quota theo ngày VN một lần/batch + spam 30/phút. State có routing chat ID riêng tư để gửi phản hồi, không ghi ID vào logs.
-- Worker owner/lease 65s fencing, max 4 processing attempts, budget55s/RAG40s; persisted chunks/nextChunk/inFlight. Unknown delivery kết thúc không tự resend; 429 resume chunk chưa xác nhận. OFF không chặn worker drain.
-- Code Graph: Zalo webhook -> chat-validation -> zalo-batch-store.append (Lua) -> zalo-qstash.publish -> signed worker (api/chat) -> zalo-batch-worker -> store.claim -> resolveZaloTurn/history/shared RAG -> persisted reply -> markSending/send/markSent -> finish/session/delete content. QStash schedule -> worker sweep -> due index -> publish. Website SSE giữ đường hiện có.
-- Module interfaces/config/retention/Preview acceptance: [../zalo-chat-hardening.md](../zalo-chat-hardening.md). Nhật ký/tasks cũ chuyển `docs/brain/archive`, giữ nguyên lịch sử.
+- Provider queue đổi QStash -> Cloudflare theo yêu cầu owner, chỉ trả phí API AI. Vercel Node24 giữ webhook/RAG/Redis worker, CF Worker chỉ HMAC/fetch metadata. Batching mặc định OFF; hạ tầng dùng Free trong hạn mức, không tự nâng gói.
+- ON: validate -> Redis append/dedupe/spam gate -> Cloudflare REST publish xác nhận success -> ACK. Queue delay tới dueAt; failed persist/publish trả503, Redis due index là outbox.
+- Cloudflare consumer gọi cố định `/api/zalo-bot/worker` với raw text/plain body, HMAC-SHA256 ký timestamp+URL+body, cửa sổ60s; Vercel timing-safe verify. Queue chỉ chatHash/batchId, callback chỉ metadata. Không thêm Vercel function thứ13.
+- Cron Trigger mỗi phút gọi sweep trực tiếp; không queue các tick rỗng. Consumer batchsize1, transport retry tối đa3, delay10/20/40 hoặc Retry-After (lease65s); 200 phải có status hợp lệ, không ACK HTML/protection hoặc200 bất kỳ.
+- Redis giữ3s/max8s buffer, 10phút batchTTL,5phút session3cặp, dedupe/done24h, quota Việt Nam50batch/ngày/spam30phút. Claim/fencing/lease65s/4 processing attempts/deadline55s/RAG40s/chunk persistence/delivery_unknown giữ nguyên.
+- Queue/consumer riêng theo environment/deployment. Preview callback immutable phải khớp VERCEL_URL/namespace; drain trước đổi callback hoặc tạo consumer riêng. Cấu hình trong cloudflare/zalo-queue/wrangler.toml; Wrangler chỉ devDependency. No observability event/payload capture; application logs chỉ status.
+- **Code Graph:** Zalo webhook -> chat-validation -> zalo-batch-store.append (Lua) -> zalo-queue.publishZaloJob (Cloudflare REST) -> CF Queue -> cloudflare/zalo-queue/worker.mjs.queue -> signed api/chat.handleZaloWorker -> zalo-queue.verifyZaloJob -> zalo-batch-worker -> claim -> resolveZaloTurn(history/shared RAG) -> persisted reply -> markSending/send/markSent -> finish/session/delete. CF worker.scheduled (Cron) -> signed sweep -> Redis due index -> publish. Website SSE giữ nguyên.
+- Removed lib/zalo-qstash.js, scripts/register-zalo-bot-worker.js và QStash SDK. Config/Free quotas/callback binding/acceptance/drain: [../zalo-chat-hardening.md](../zalo-chat-hardening.md). Quyết định2026-10-02 về Redis/retention/delivery vẫn hiệu lực; phần provider QStash được thay bởi quyết định2026-10-03.
 
 ## Zalo chat hardening — reply flow (2026-10-02)
 

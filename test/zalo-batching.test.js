@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const { createZaloBatchStore, hashPrincipal, storeNamespace, dayWindow } = require('../lib/zalo-batch-store');
 const { processZaloBatch } = require('../lib/zalo-batch-worker');
-const { publishZaloJob, verifyZaloJob, workerUrl } = require('../lib/zalo-qstash');
+const { publishZaloJob, verifyZaloJob, workerUrl } = require('../lib/zalo-queue');
 
 // CI uses a real isolated Redis service. The REST adapter below only translates
 // transport; it executes the production Lua scripts, not a JS copy of transitions.
@@ -160,22 +160,25 @@ integration('Redis Lua: Redis expiry removes history before the next session', a
     assert.deepEqual(c.history, {});
 });
 
-test('environment namespace and QStash publishing carry no chat content or raw IDs', async () => {
+test('environment namespace and Cloudflare publishing carry no chat content or raw IDs', async () => {
     assert.notEqual(storeNamespace({ VERCEL_ENV: 'production' }), storeNamespace({ VERCEL_ENV: 'preview' }));
     assert.notEqual(storeNamespace({ VERCEL_ENV: 'preview', VERCEL_URL: 'one.test' }), storeNamespace({ VERCEL_ENV: 'preview', VERCEL_URL: 'two.test' }));
-    const env = { QSTASH_TOKEN: 'test', QSTASH_CURRENT_SIGNING_KEY: 'test', QSTASH_NEXT_SIGNING_KEY: 'test', ZALO_BOT_WORKER_URL: 'https://worker.test/api/zalo-bot/worker', VERCEL_AUTOMATION_BYPASS_SECRET: 'fake-bypass-secret' };
+    const env = { CLOUDFLARE_ACCOUNT_ID: 'a'.repeat(32), CLOUDFLARE_ZALO_QUEUE_ID: 'b'.repeat(32), CLOUDFLARE_ZALO_QUEUE_TOKEN: 'test', ZALO_BOT_WORKER_SECRET: 'test-secret'.repeat(4), ZALO_BOT_WORKER_URL: 'https://worker.test/api/zalo-bot/worker' };
     const job = { chatHash: 'a'.repeat(64), batchId: crypto.randomUUID(), text: 'PRIVATE', chatId: 'RAW_ID' };
-    await publishZaloJob(job, 5000, { env, fetchImpl: async (_, options) => {
-        assert.equal(options.headers['Content-Type'], 'text/plain');
-        assert.equal(options.headers['Upstash-Retry-Delay'], '10000 * pow(2, retried)');
-        assert.equal(options.headers['Upstash-Forward-x-vercel-protection-bypass'], 'fake-bypass-secret');
-        assert.equal(options.headers['Upstash-Redact-Fields'], 'header[x-vercel-protection-bypass]');
+    await publishZaloJob(job, 5000, { env, now: () => 1500, fetchImpl: async (url, options) => {
+        assert.equal(url, `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/queues/${env.CLOUDFLARE_ZALO_QUEUE_ID}/messages`);
+        const payload = JSON.parse(options.body);
+        assert.equal(payload.content_type, 'json');
+        assert.equal(payload.delay_seconds, 4);
+        assert.equal(options.redirect, 'error');
+        assert.equal(Object.keys(payload.body).length, 2);
         assert.equal(options.body.includes('PRIVATE'), false);
         assert.equal(options.body.includes('RAW_ID'), false);
-        return { ok: true, json: async () => ({ messageId: 'job' }) };
+        return { ok: true, json: async () => ({ success: true }) };
     } });
     assert.equal(await verifyZaloJob({ method: 'POST', headers: { 'content-type': 'application/json' }, body: job }, { env }), null);
     await assert.rejects(publishZaloJob(job, 5000, { env, fetchImpl: async () => { throw new Error('token content'); } }), /ZALO_QUEUE_FAILED/);
+    await assert.rejects(publishZaloJob(job, 5000, { env, fetchImpl: async () => ({ ok: true, json: async () => ({ success: false }) }) }), /ZALO_QUEUE_FAILED/);
     assert.equal(workerUrl({ ...env, VERCEL_ENV: 'preview', VERCEL_URL: 'preview.test' }), 'https://preview.test/api/zalo-bot/worker');
 });
 
@@ -194,30 +197,27 @@ test('Redis operations abort within the remaining worker deadline', async () => 
     assert.equal(aborted, true);
 });
 
-test('QStash verifies exact body, subject, expiry and both signing keys', async () => {
-    const env = { QSTASH_TOKEN: 'test', QSTASH_CURRENT_SIGNING_KEY: 'current-test-key', QSTASH_NEXT_SIGNING_KEY: 'next-test-key', ZALO_BOT_WORKER_URL: 'https://worker.test/api/zalo-bot/worker' };
-    const body = JSON.stringify({ chatHash: 'b'.repeat(64), batchId: crypto.randomUUID() });
-    const sign = (key, overrides = {}) => {
-        const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
-        const payload = Buffer.from(JSON.stringify({ iss: 'Upstash', sub: env.ZALO_BOT_WORKER_URL, exp: Math.floor(Date.now() / 1000) + 60, nbf: Math.floor(Date.now() / 1000) - 1, body: crypto.createHash('sha256').update(body).digest('base64url'), ...overrides })).toString('base64url');
-        const input = `${header}.${payload}`;
-        return `${input}.${crypto.createHmac('sha256', key).update(input).digest('base64url')}`;
-    };
-    const request = signature => ({ method: 'POST', headers: { 'content-type': 'text/plain', 'upstash-signature': signature }, body });
-    for (const key of [env.QSTASH_CURRENT_SIGNING_KEY, env.QSTASH_NEXT_SIGNING_KEY]) assert.deepEqual(await verifyZaloJob(request(sign(key)), { env }), JSON.parse(body));
-    assert.equal(await verifyZaloJob({ ...request(sign(env.QSTASH_CURRENT_SIGNING_KEY)), body: body + ' ' }, { env }), null);
-    assert.equal(await verifyZaloJob(request(sign(env.QSTASH_CURRENT_SIGNING_KEY, { sub: 'https://attacker.test' })), { env }), null);
-    assert.equal(await verifyZaloJob(request(sign(env.QSTASH_CURRENT_SIGNING_KEY, { exp: 1 })), { env }), null);
-});
-
-test('worker schedule uses an idempotent environment-specific ID and contains only metadata', async () => {
-    const { registerWorkerSchedule } = require('../scripts/register-zalo-bot-worker');
-    const env = { QSTASH_TOKEN: 'test', QSTASH_CURRENT_SIGNING_KEY: 'key', QSTASH_NEXT_SIGNING_KEY: 'key2', ZALO_BOT_WORKER_URL: 'https://worker.test/api/zalo-bot/worker', KV_REST_API_URL: 'test', KV_REST_API_TOKEN: 'test', CHAT_LOG_HASH_SALT: 'salt' };
-    const calls = [];
-    await registerWorkerSchedule({ env, client: { schedules: { create: async value => { calls.push(value); return { scheduleId: 'test' }; } } } });
-    assert.equal(calls[0].cron, '* * * * *');
-    assert.equal(calls[0].headers['Content-Type'], 'text/plain');
-    assert.deepEqual(JSON.parse(calls[0].body), { type: 'sweep' });
+test('Cloudflare callbacks verify exact body, destination, timestamp and signed schema', async () => {
+    const env = { ZALO_BOT_WORKER_SECRET: 'test-current-key'.repeat(3), ZALO_BOT_WORKER_URL: 'https://worker.test/api/zalo-bot/worker' };
+    const job = { chatHash: 'b'.repeat(64), batchId: crypto.randomUUID() };
+    const body = JSON.stringify(job);
+    const sign = (raw = body, timestamp = String(Math.floor(Date.now() / 1000)), url = env.ZALO_BOT_WORKER_URL) => ({
+        method: 'POST', headers: { 'content-type': 'text/plain', 'x-zalo-worker-timestamp': timestamp,
+            'x-zalo-worker-signature': crypto.createHmac('sha256', env.ZALO_BOT_WORKER_SECRET).update(`${timestamp}\n${url}\n${raw}`).digest('hex') }, body: raw,
+    });
+    assert.deepEqual(await verifyZaloJob(sign(), { env }), job);
+    assert.equal(await verifyZaloJob({ ...sign(), body: body + ' ' }, { env }), null);
+    assert.equal(await verifyZaloJob(sign(body, '1000000000'), { env }), null);
+    assert.equal(await verifyZaloJob(sign(body, String(Math.floor(Date.now() / 1000) + 120)), { env }), null);
+    assert.equal(await verifyZaloJob(sign(body, undefined, 'https://attacker.test'), { env }), null);
+    assert.equal(await verifyZaloJob({ ...sign(), body: job }, { env }), null);
+    assert.equal(await verifyZaloJob(sign(JSON.stringify({ ...job, text: 'PRIVATE' })), { env }), null);
+    assert.equal(await verifyZaloJob(sign('null'), { env }), null);
+    assert.deepEqual(await verifyZaloJob(sign('{"type":"sweep"}'), { env }), { type: 'sweep' });
+    assert.equal(await verifyZaloJob(sign('x'.repeat(2049)), { env }), null);
+    const req = sign(); req.body = undefined;
+    req[Symbol.asyncIterator] = async function* () { yield Buffer.from(body.slice(0, 20)); yield Buffer.from(body.slice(20)); };
+    assert.deepEqual(await verifyZaloJob(req, { env }), job);
 });
 
 test('Preview webhook URL uses automation bypass without changing Production URL', () => {

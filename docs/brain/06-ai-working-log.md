@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-10-03] Chuyển Zalo queue sang Cloudflare Free
+- **Agent:** Codex
+- **Thay đổi:** bỏ SDK/module/schedule QStash; Cloudflare REST publisher, HMAC raw-body callbacks, consumer Worker metadata-only, Cron sweep mỗi phút. Queue/consumer tách Preview/Production, batchsize1/transport retry3, tôn trọng Retry-After, từ chối HTML/protection200 giả. Wrangler devDependency4.147.0 và dry-run CI; config/Free quotas/drain/acceptance cập nhật.
+- **File đã sửa:** api/chat.js, lib/zalo-{queue,batch-store}.js, lib/zalo-qstash.js (xóa), cloudflare/zalo-queue/{worker.mjs,wrangler.toml}, scripts/register-zalo-bot-worker.js (xóa), package{,-lock}.json, .gitignore, .github/workflows/ci.yml, test/{zalo-batching,zalo-batch-handler,zalo-cloudflare-consumer}.test.js, docs/zalo-chat-hardening.md, docs/brain/{01,03,04,05,06}.
+- **Lý do:** owner yêu cầu thay Cloudflare và không thêm phí hạ tầng; giữ webhook/RAG/Redis và3s/max8s batching/deadline/fencing/retention. Free có hạn mức, không tự nâng gói.
+- **Kiểm tra:** 823 local tests:814 PASS/9 Redis SKIP; build, Wrangler dry-run và hai validator PASS. Production audit high PASS (còn3 moderate cũ); Node/WebCrypto HMAC tương thích, deny/tamper/timestamp/destination/schema, consumer retry/cron/privacy PASS. Test/build dùng snapshot temp sạch vì dist checkout Windows EPERM; CI chạy Redis7 và Playwright qua PR94. Máy chưa authenticated Cloudflare (`wrangler whoami`), chưa deploy consumer/config credentials/enable batching hoặc nghiệm thu Zalo thật; Production không thay đổi.
+
 ## [2026-10-02] Zalo hardening — đợt 3 Redis/QStash batching
 - **Agent:** Codex
 - **Thay đổi:** buffer nguyên tử 3s/max8s, dedupe ID24h, quota batch/ngày Việt Nam, spam gate30/phút; session3 cặp/5phút; lease65s/fencing/retry/sweep; response/chunk persistence; delivery unknown không resend; worker ký QStash dùng chung function chat. Batching mặc định OFF. Thêm cấu hình Preview protection và lịch sweep; archive tài liệu lịch sử, sửa provider/runtime và cập nhật Code Graph.

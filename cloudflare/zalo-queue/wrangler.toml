@@ -1,0 +1,41 @@
+name = "bandocapt-zalo-queue"
+main = "worker.mjs"
+compatibility_date = "2026-10-03"
+workers_dev = true
+
+# Metadata-only application logs; no provider event/payload capture.
+[observability]
+enabled = false
+
+[env.preview]
+name = "bandocapt-zalo-preview"
+
+[env.preview.vars]
+# Set the immutable Vercel deployment URL before deploying this consumer.
+ZALO_BOT_WORKER_URL = ""
+
+[env.preview.triggers]
+crons = ["* * * * *"]
+
+[[env.preview.queues.consumers]]
+queue = "bandocapt-zalo-preview"
+max_batch_size = 1
+max_batch_timeout = 0
+max_retries = 3
+retry_delay = 10
+
+[env.production]
+name = "bandocapt-zalo-production"
+
+[env.production.vars]
+ZALO_BOT_WORKER_URL = "https://bandocapt.vercel.app/api/zalo-bot/worker"
+
+[env.production.triggers]
+crons = ["* * * * *"]
+
+[[env.production.queues.consumers]]
+queue = "bandocapt-zalo-production"
+max_batch_size = 1
+max_batch_timeout = 0
+max_retries = 3
+retry_delay = 10

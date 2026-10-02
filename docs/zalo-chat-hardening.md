@@ -1,35 +1,62 @@
-# Zalo chat hardening — cấu hình và nghiệm thu
+# Zalo chat hardening — Cloudflare Queues Free và nghiệm thu
 
 ## Cấu hình
 
-Batching mặc định OFF. Bản sửa validation/privacy/mixed intent/deadline hoạt động cả khi OFF; khi ON, webhook chuyển sang Redis/QStash. Worker vẫn xử lý hết công việc đã nhận khi OFF.
+Từ 2026-10-03, Cloudflare Queues thay QStash theo yêu cầu owner. Batching mặc định OFF. Validation/privacy/mixed intent/deadline hoạt động cả khi OFF; khi ON, webhook chuyển sang Redis/Cloudflare Queues. Worker vẫn xử lý hết công việc đã nhận khi OFF.
 
-| Biến server-only | Yêu cầu |
+### Biến server-only trên Vercel
+
+| Biến | Yêu cầu |
 | --- | --- |
-| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Redis REST read/write, cấu hình riêng theo môi trường |
-| `CHAT_LOG_HASH_SALT` | Salt HMAC không rỗng; không đổi trong khi còn công việc/phiên đang xử lý |
-| `QSTASH_TOKEN` | Publish và quản lý lịch sweep |
-| `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY` | SDK xác thực JWT; hỗ trợ chuyển signing key |
-| `ZALO_BOT_WORKER_URL` | HTTPS URL `/api/zalo-bot/worker`, không query/credential; dùng cho local đăng ký lịch và Production |
-| `ZALO_BOT_BATCHING_ENABLED` | `on`/`true` mới bật; còn lại OFF |
-| `ZALO_BOT_TOKEN`, `ZALO_BOT_WEBHOOK_SECRET` | Giữ xác thực và transport Bot Platform hiện có |
-| `VERCEL_AUTOMATION_BYPASS_SECRET` | System env khi Automation Bypass bật; dùng cho protected Preview, không in/log secret |
-| `CHAT_DAILY_IP_LIMIT` | Hạn mức lượt Zalo đã gom/ngày, mặc định 50; không đổi quota website |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Redis REST read/write riêng theo môi trường |
+| `CHAT_LOG_HASH_SALT` | Salt HMAC; không đổi khi còn công việc/phiên đang xử lý |
+| `CLOUDFLARE_ACCOUNT_ID` | Account ID32 ký tự hex |
+| `CLOUDFLARE_ZALO_QUEUE_ID` | Queue ID32 ký tự hex; Queue riêng cho môi trường/deployment |
+| `CLOUDFLARE_ZALO_QUEUE_TOKEN` | API token có quyền Queues Write trên account cần dùng; không dùng Global API key |
+| `ZALO_BOT_WORKER_SECRET` | Secret ngẫu nhiên ít nhất32 ký tự, giống secret trên consumer tương ứng |
+| `ZALO_BOT_WORKER_URL` | HTTPS URL `/api/zalo-bot/worker`, không query/credential; Production dùng URL ổn định |
+| `ZALO_BOT_BATCHING_ENABLED` | `on`/`true` mới bật, còn lại OFF |
+| `ZALO_BOT_TOKEN`, `ZALO_BOT_WEBHOOK_SECRET` | Giữ transport/xác thực Zalo hiện có |
+| `CHAT_DAILY_IP_LIMIT` | Quota Zalo batch/ngày, mặc định50; website không đổi |
 
-Trên Vercel Preview, worker tự lấy URL deployment từ `VERCEL_URL` và namespace riêng theo deployment. Khi đăng ký sweep từ máy local, đặt `VERCEL_ENV=preview`, `VERCEL_URL=<deployment-host>` tương ứng để URL và namespace khớp. Production dùng URL cấu hình cố định và namespace production. Không dùng namespace Preview để nghiệm thu Production.
+Preview worker tự lấy URL deployment từ `VERCEL_URL`; consumer Cloudflare phải trỏ **đúng URL immutable này**. Namespace Redis Preview vẫn riêng theo deployment. Production dùng URL cấu hình ổn định. Queue/consumer Preview và Production độc lập; không dùng credential hoặc queue chung để nghiệm thu.
 
-Không commit `.env*`, token/signing key hoặc output lệnh env pull. Chỉ lưu biến môi trường qua quản trị Vercel. Redis phải chỉ được truy cập bằng credential server; namespace public contribution vẫn chỉ lưu counter như trước.
+### Cấu hình Cloudflare consumer
 
-## Chi phí QStash
+File `cloudflare/zalo-queue/wrangler.toml` có hai environment `preview`/`production`, queue mỗi environment và Cron Trigger mỗi phút. Wrangler là devDependency; không nằm trong runtime Vercel. Chọn Workers Free, không nâng gói trả phí.
 
-Lịch sweep mỗi phút tạo 1.440 deliveries/ngày, khoảng 43.200/30 ngày, chưa tính batch jobs và retries. Gói Free công bố 1.000 deliveries/ngày nên không đủ cho cấu hình này. Usage-based công bố $1/100.000 deliveries: riêng sweep khoảng $0,43/30 ngày, cộng jobs/retry và các phí provider khác nếu có. Kiểm tra [bảng giá hiện hành](https://upstash.com/pricing/qstash) trước khi bật; source/PR và Preview batching OFF không tự tạo tài khoản hay kích hoạt gói trả phí.
+- `ZALO_BOT_WORKER_URL`: URL callback cố định trong `[env.preview.vars]` hoặc `[env.production.vars]`, phải giống URL worker dự kiến trên Vercel.
+- `ZALO_BOT_WORKER_SECRET`: đặt bằng Wrangler secrets hoặc dashboard, không ghi vào toml/source.
+- `VERCEL_AUTOMATION_BYPASS_SECRET`: secret chỉ cần khi callback Preview có deployment protection; đặt trên Cloudflare qua secrets/dashboard. Chỉ gửi bằng header, không vào queue body hoặc logs.
+- Consumer chỉ nhận metadata `{chatHash,batchId}`; không có conversation/AI/Zalo token/Redis credential trên Cloudflare.
+- Callback HMAC-SHA256 ký `timestamp + "\n" + callbackURL + "\n" + rawBody`, cửa sổ60s. Header `x-zalo-worker-timestamp`, `x-zalo-worker-signature`; `text/plain` giữ nguyên raw body trên Vercel. Redis claim/done kiểm soát replay.
 
-## Đăng ký worker
+Không commit `.env*`, `.dev.vars*`, token hoặc output chứa secret. Observability capture của Worker tắt; ứng dụng chỉ log trạng thái cố định. Queue body có thể được xem trong Cloudflare dashboard nhưng chỉ gồm hai khóa metadata.
 
-1. Deploy Preview với batching OFF, dùng bot test và credentials riêng cho nghiệm thu.
-2. Cấu hình các biến Redis/QStash trên branch Preview. Project hiện bật protection cho Preview; dùng Automation Bypass hiện có. QStash gửi bypass bằng header và cấu hình redaction để secret không xuất hiện trong console/DLQ provider; lịch sweep cũng áp dụng. Script webhook thêm bypass query riêng khi VERCEL_ENV=preview và không in URL/response provider. Dùng bot test riêng khi đăng ký webhook Preview; không tắt protection toàn project.
-3. Chạy `npm run zalo:worker:schedule` trong môi trường được inject đủ biến. Script đọc `.env.local` nếu có; không tự tải/in secret. Schedule ID ổn định theo namespace, cron `* * * * *`, body chỉ `{ "type": "sweep" }`. Đăng ký lại cùng ID cập nhật lịch, không tạo lịch trùng.
-4. Chỉ bật `ZALO_BOT_BATCHING_ENABLED=on` trên Preview sau khi chữ ký worker và lịch sweep được kiểm tra. Nếu tạo deployment Preview mới, đăng ký lịch đúng URL/namespace mới; giữ lịch cũ tới khi drain xong rồi xóa qua console QStash.
+## Hạn mức miễn phí
+
+Theo [Cloudflare Queues pricing](https://developers.cloudflare.com/queues/platform/pricing/), Free có10.000 operations/ngày, retention24h; job nhỏ thường3 operations (write/read/delete), retry thêm read. **Không tương đương10.000 câu hỏi**: mỗi mảnh publish job, deferred/retry/sweep phục hồi có thể tăng số operations. Hạn mức dùng chung toàn account, gồm Preview và Production.
+
+[Workers Free](https://developers.cloudflare.com/workers/platform/pricing/) có100.000 requests/ngày và CPU10ms/invocation. Consumer batchsize1 để giảm CPU, chỉ HMAC/fetch metadata; thời gian chờ network không phải CPU. Phải đo CPU thật trên Preview, không tự nâng plan nếu vượt giới hạn. Sweep đi thẳng Cron -> Vercel, khoảng1.440 callback/ngày/môi trường, không đưa các tick vào Queue; sweep chỉ publish khi có việc đến hạn.
+
+Redis/Vercel vẫn phải trong hạn mức Free hiện có. Khi quota/hạ tầng lỗi, trả503 và phục hồi từ outbox trong10phút; không cam kết miễn phí vô hạn hoặc phục hồi sau khi dữ liệu đã hết hạn. Chưa có tài khoản/config thì chưa deploy consumer hoặc bật batching.
+
+## Thiết lập Preview
+
+1. Giữ Vercel batching OFF, deploy nhánh PR và ghi URL immutable của deployment. Dùng bot test riêng khi nghiệm thu Zalo; không đổi webhook bot Production.
+2. Đăng nhập Cloudflare Workers Free từ máy vận hành bằng `npx wrangler login`. Chỉ bước owner đăng nhập có tương tác; không gửi credential vào chat.
+3. Tạo Queue riêng: `npx wrangler queues create bandocapt-zalo-preview`. Lấy Queue ID từ dashboard/kết quả lệnh. Queue Production chỉ tạo sau nghiệm thu Preview. Nếu tạo nhiều Preview hoạt động cùng lúc, mỗi deployment có Queue/Worker riêng và tên riêng trong bản config vận hành.
+4. Sửa callback Preview trong toml thành `https://<immutable-deployment-host>/api/zalo-bot/worker`; đối chiếu tên queue với Queue vừa tạo. Account ID có thể đặt qua `CLOUDFLARE_ACCOUNT_ID` trên máy deploy.
+5. Tạo secret ngẫu nhiên và lưu giống nhau trên Vercel Preview và Cloudflare Preview. Ví dụ đặt Cloudflare secret bằng `npx wrangler secret put ZALO_BOT_WORKER_SECRET --config cloudflare/zalo-queue/wrangler.toml --env preview`; nhập qua prompt. Đặt bypass secret tương tự bằng `wrangler secret put VERCEL_AUTOMATION_BYPASS_SECRET` cho Preview được bảo vệ.
+6. Tạo API token scoped Queues Write, đặt token/Account ID/Queue ID và worker secret trên Vercel Preview. Không đưa token deploy Wrangler vào ứng dụng. SDK QStash và QSTASH_* không còn được dùng.
+7. Kiểm tra artifact `npm run zalo:queue:check`, rồi `npm run zalo:queue:deploy:preview`. Cấu hình này deploy consumer và Cron mỗi phút; không tạo schedule qua QStash. Không deploy environment mặc định không có consumer.
+8. Kiểm tra callback ký đúng, callback sai/thiếu chữ ký bị403, sweep chạy được và quota/CPU trên dashboard. Chỉ sau đó bật batching Preview và chạy ma trận bên dưới. Ghi URL/SHA/QueueID (metadata), kết quả từng ca; không ghi secrets.
+
+### Preview mới và rollback
+
+Callback consumer cố định cho một deployment, không route tùy ý theo queue body. Khi thay Preview deployment: đặt ingress cũ OFF, giữ consumer/URL/credential/sweep cũ tới khi Redis pending/active drain hết rồi mới đổi callback và Queue ID; hoặc tạo Queue/consumer riêng cho deployment mới. **Không trỏ consumer cũ vào namespace deployment mới khi còn công việc.** Vercel tạo Preview mới sau thay config/commit: đối chiếu URL cuối cùng trên consumer trước bật flag. Khi deploy lại config, commit không được chứa secret; nếu đã bật batch, làm quy trình drain này trước.
+
+Production chỉ cấu hình/deploy `npm run zalo:queue:deploy:production` sau nghiệm thu. OFF vẫn drain worker đã nhận. Rollback code provider phải drain Cloudflare jobs trước đổi transport/secret; QStash chưa từng cấu hình/bật ở đợt trước nên hiện không có việc QStash cần di chuyển.
 
 ## Hành vi và lưu trữ
 
@@ -37,7 +64,7 @@ Lịch sweep mỗi phút tạo 1.440 deliveries/ngày, khoảng 43.200/30 ngày,
 - Dedupe message ID băm, TTL 24 giờ. Thiếu ID vẫn xử lý và ghi `dedupe_unavailable`; không dùng text làm ID. Giới hạn spam 30 tin/phút theo cửa sổ phút cố định.
 - Một batch chỉ reservation quota ngày một lần, nguyên tử với claim, theo giờ Việt Nam. Các batch vượt quota nhận câu hướng dẫn tĩnh, không chạy AI.
 - Redis private: `chat` chứa routing chat ID và pending/active content (TTL 10 phút), `session` giữ tối đa 6 history items qua sanitizer (user 1.000/model 500 ký tự), TTL 5 phút không hoạt động; xóa content batch sau hoàn tất. `dedupe`, `done` chỉ metadata, TTL 24 giờ; `minute`/`daily` chỉ counters có TTL.
-- `due` là sorted index chỉ chứa chat hash; sweep loại entry đã mất state và phát metadata expired. Không có nội dung trong QStash job, response worker hoặc diagnostic logs.
+- `due` là sorted index chỉ chứa chat hash; sweep loại entry đã mất state và phát metadata expired. Không có nội dung trong Cloudflare Queue job, response worker hoặc diagnostic logs.
 - Claim có owner token + lease 65 giây. Tin đến sau claim vào batch tiếp theo; mỗi principal PRIVATE chỉ một batch active. Batch tối đa 4 processing attempts, giữ phản hồi và chỉ số chunk đã xác nhận; retry 10/20/40 giây. Sweep mỗi phút phục hồi publish failure/lease hết hạn, công việc quá 10 phút bỏ bằng status expired.
 - Worker có deadline 55 giây; RAG đến giây 40, gửi từng chunk tối đa 8 giây trong phần thời gian còn lại. HTTP 429 của sendMessage retry từ chunk chưa xác nhận; lỗi network/5xx/JSON không xác nhận hoặc worker chết khi đang gửi -> `delivery_unknown`, không tự gửi lại. Không cam kết exactly-once delivery.
 - Khi lỗi lưu/giao việc, webhook trả 503. Bộ đệm đã ghi vẫn nằm trong outbox để sweep phục hồi; không giả định Zalo chắc chắn retry.
@@ -74,8 +101,8 @@ Windows checkout có thể bị khóa quyền xóa `dist`; chạy bộ kiểm th
 
 ## Phát hành và vận hành
 
-- Thứ tự PR: validation/privacy -> reply flow -> batching. Hai PR sau dựa trên nhánh đợt trước để review diff riêng; retarget main sau khi đợt trước merge.
+- Thứ tự PR: validation/privacy -> reply flow -> batching (PR94 đã đổi Cloudflare theo quyết định2026-10-03). Hai PR sau dựa trên nhánh đợt trước để review diff riêng; retarget main sau khi đợt trước merge.
 - Ghi URL, SHA, cấu hình environment và bằng chứng từng ca Preview; không tuyên bố acceptance khi chưa có tài khoản Zalo thật.
-- Sau Preview PASS mới cấu hình Redis/QStash Production, đăng ký sweep Production và bật cờ. Khởi đầu theo dõi mỗi ngày: số batch, fragment_count, duration_ms, retry/busy, expired, delivery_unknown/failed và sweep failure.
+- Sau Preview PASS mới cấu hình Redis/Cloudflare Queues Production, deploy consumer/Cron Production và bật cờ. Khởi đầu theo dõi mỗi ngày: số batch, fragment_count, duration_ms, retry/busy, expired, delivery_unknown/failed và sweep failure.
 - Rollback: đặt cờ OFF, giữ code worker/schedule/Redis tới khi hết pending/active. Không xóa credential hoặc đổi salt khi đang drain; chưa merge hoặc promote tự động.
 - Rà soát địa điểm có verified_at hằng tháng qua nguồn công khai/người duyệt hiện có. Rà soát pháp lý theo governance/approval hiện có. Đo mở chỉ đường/gọi điện giữ trong backlog, không thêm endpoint analytics.

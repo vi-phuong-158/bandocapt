@@ -50,7 +50,7 @@ const {
 } = require('../lib/zalo-bot');
 const { createZaloReply, NON_TEXT_MESSAGE_TEXT, RATE_LIMITED_TEXT } = require('../lib/zalo-bot-v1');
 const { createZaloBatchStore, hashPrincipal } = require('../lib/zalo-batch-store');
-const { assertQStashConfig, publishZaloJob, verifyZaloJob } = require('../lib/zalo-qstash');
+const { assertZaloQueueConfig, publishZaloJob, verifyZaloJob } = require('../lib/zalo-queue');
 const { processZaloBatch } = require('../lib/zalo-batch-worker');
 
 // Kiểm tra biến môi trường nhạy cảm không được phép tồn tại ở production.
@@ -2214,7 +2214,7 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
     const principal = buildZaloRatePrincipal(target);
     if (isTruthyEnv('ZALO_BOT_BATCHING_ENABLED')) {
         try {
-            assertQStashConfig();
+            assertZaloQueueConfig();
             const store = createZaloBatchStore();
             const chatHash = hashPrincipal(principal);
             const validation = parsed.supported ? validateChatContent(parsed.text) : null;
