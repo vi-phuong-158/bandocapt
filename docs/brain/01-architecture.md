@@ -1,5 +1,12 @@
 # 01 - Architecture
 
+## Zalo chat hardening — validation/privacy (2026-10-02)
+
+- Website và Zalo dùng `lib/chat-validation.js` cho giới hạn 1.000 ký tự và detector injection hiện có; website vẫn giữ HMAC/Turnstile/SSE.
+- Orchestration nhận `channel` và `allowContentLogging`; kênh `zalo_bot` luôn chặn diagnostic content và `/logs.question`, bất kể diagnostic website bật. AsyncLocalStorage cô lập việc redaction console của utility/provider giữa các invocation; groundedness không gửi trích nội dung Zalo qua Telegram.
+- Metrics giữ channel, các facet RequestPlan đã allowlist và location_status, không giữ question/answer.
+- Code Graph: website body / Zalo parsed text -> chat-validation -> shared runChatOrchestration -> channel policy -> metadata telemetry. Zalo -> formatForZalo -> split -> sendMessage như PR #91.
+
 ## Zalo Bot UX hardening (2026-09-27)
 
 - **Output formatting:** every Zalo reply goes through `api/chat.js deliverZaloReply()` ->

@@ -1,5 +1,11 @@
 # 04 — Current Tasks
 
+## Trạng thái hiện hành — Zalo chat hardening (2026-10-02)
+
+- Theo yêu cầu người dùng: triển khai 3 đợt từ main PR #91. Đợt 1 shared validation/privacy hoàn thành source; 43 targeted tests gồm golden SSE PASS.
+- Đang làm: mixed intent, delivery deadline; sau đó Redis/QStash, gom 3s/max8s và phiên 5 phút.
+- Chưa cấu hình dịch vụ, nghiệm thu Preview/Zalo thật hoặc bật Production. Không xem các ghi nhận lịch sử bên dưới là trạng thái nghiệm thu của thay đổi mới.
+
 ## [IN REVIEW / READY FOR RECHECK 2026-09-06] PR #73 — Mobile Real-Device UX Fixes & Integration with Main
 
 - Branch: `fix/mobile-real-device-ux` (PR #73 Draft).

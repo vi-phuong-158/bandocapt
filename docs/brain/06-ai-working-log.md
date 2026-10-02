@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-10-02] Zalo hardening — đợt 1 validation và privacy
+- **Agent:** Codex
+- **Thay đổi:** validation nội dung chung; channel policy khóa diagnostic/log content Zalo; allowlist metrics; redaction console theo async context; không gửi claims Zalo vào Telegram.
+- **File đã sửa:** api/chat.js, lib/chat-validation.js, test/chat-channel-privacy.test.js, test/chat-zalo-bot-channel.test.js, docs/brain/{01,03,04,06}.
+- **Lý do:** đóng hai lỗi P1 theo review và kế hoạch đã được yêu cầu triển khai.
+- **Kiểm tra:** 43 targeted tests PASS, gồm handler diagnostic-on, injection/oversize và golden SSE. Test runner cần quyền chạy subprocess; không gọi API production.
+
 ## [2026-09-27] ZALO_BOT_UX_HARDENING
 - **Agent:** Claude Code
 - **Thay đổi:** (1) `formatForZalo()` chuyển Markdown của câu trả lời (website/RAG) sang text thô cho

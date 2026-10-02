@@ -1,5 +1,12 @@
 # 03 — Technical Decisions
 
+## [2026-10-02] Zalo hardening: shared input validation and channel privacy
+
+- User yêu cầu triển khai toàn bộ review và bổ sung gom tin/ngữ cảnh ngắn, thay thế các mục Phase 2 trước đây chỉ hoãn tính năng này.
+- Tách detector/normalizer/validation nội dung sang module chung; giữ nguyên pattern, thông báo và hợp đồng website.
+- Diagnostic opt-in của website không cho phép lưu nội dung Zalo. Channel policy được truyền tới từng telemetry path; console của RAG dùng AsyncLocalStorage để redaction an toàn khi các kênh chạy đồng thời.
+- Đợt 1 không thay RAG prompt, corpus hay nguồn dữ liệu; các thay đổi gom tin triển khai sau, mặc định tắt tới nghiệm thu.
+
 ## [2026-09-27] Zalo Bot UX hardening — formatter riêng, HELP có TTHC, không còn im lặng
 
 - **Bối cảnh:** sau khi V1 chạy production, owner thấy câu trả lời RAG trên Zalo lộ nguyên ký hiệu
