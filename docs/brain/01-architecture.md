@@ -1,5 +1,12 @@
 # 01 - Architecture
 
+## Zalo chat hardening — reply flow (2026-10-02)
+
+- `resolveZaloTurn` nhận validated text + sanitized history, tạo phản hồi bằng deterministic-first/shared RAG. `createZaloReply` chỉ kết thúc địa điểm khi RequestPlan.isPureLocation, truyền history vào classifier/resolver.
+- Shared RequestPlan kế thừa thủ tục đang chờ khi người dùng trả lời ngắn địa bàn sau câu hỏi làm rõ; câu hỏi rõ chủ đề mới dùng intent hiện tại.
+- Code Graph: resolveZaloTurn -> validateChatContent/sanitizeHistory -> createZaloReply(history) -> pure location / shared orchestration(channel=zalo_bot) -> format/split -> delivery(global deadline).
+- Ngân sách resolver/RAG tối đa 40 giây, chừa 15 giây delivery; mỗi send tối đa 8 giây và không vượt absolute deadline. Worker persistence/resume thực hiện ở đợt 3.
+
 ## Zalo chat hardening — validation/privacy (2026-10-02)
 
 - Website và Zalo dùng `lib/chat-validation.js` cho giới hạn 1.000 ký tự và detector injection hiện có; website vẫn giữ HMAC/Turnstile/SSE.

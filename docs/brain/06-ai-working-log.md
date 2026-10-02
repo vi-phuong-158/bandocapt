@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-10-02] Zalo hardening — đợt 2 reply flow
+- **Agent:** Codex
+- **Thay đổi:** mixed intent vào shared RAG; giữ thủ tục trong location clarification; resolver nhận sanitized history; absolute deadline và timeout gửi theo thời gian còn lại.
+- **File đã sửa:** api/chat.js, lib/chat-intent.js, lib/zalo-bot-v1.js, test/zalo-chat-flow.test.js, docs/brain/{01,03,06}.
+- **Lý do:** trả lời đủ yêu cầu và chừa thời gian gửi trên function 60s.
+- **Kiểm tra:** 61 targeted tests PASS, gồm mixed intent, clarification/topic change, deadline, PR #91 và golden SSE. Chưa nghiệm thu production.
+
 ## [2026-10-02] Zalo hardening — đợt 1 validation và privacy
 - **Agent:** Codex
 - **Thay đổi:** validation nội dung chung; channel policy khóa diagnostic/log content Zalo; allowlist metrics; redaction console theo async context; không gửi claims Zalo vào Telegram.

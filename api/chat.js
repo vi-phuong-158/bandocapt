@@ -2257,7 +2257,7 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
     waitUntil((async () => {
         const startedAt = Date.now();
         if (blockedReply) {
-            await deliverZaloReply({ chatId, eventName: parsed.eventName, reply: blockedReply, startedAt });
+            await deliverZaloReply({ chatId, eventName: parsed.eventName, reply: blockedReply, startedAt: _startTime, deadlineAt });
             return;
         }
         if (!parsed.supported) {
@@ -2266,53 +2266,52 @@ async function handleZaloBotWebhook(req, res, { _startTime, deadlineAt }) {
                 chatId,
                 eventName: parsed.eventName,
                 reply: { intent: 'NON_TEXT', result: 'NON_TEXT_REPLIED', text: NON_TEXT_MESSAGE_TEXT },
-                startedAt,
+                startedAt: _startTime,
+                deadlineAt,
             });
             return;
         }
-        const detectedIntent = resolveZaloIntent(parsed.text);
-        let reply;
-        try {
-            reply = await createZaloReply(parsed.text);
-            if (reply.result === 'RAG_REQUIRED') {
-                // Không phải GREETING/HELP/MAP, không phải yêu cầu tra cứu địa điểm tất định
-                // (OD-01) -> chuyển NGUYÊN VĂN sang shared RAG orchestration: CÙNG pipeline,
-                // CÙNG prompt, CÙNG Pinecone retrieval mà website dùng, qua BufferSink (không
-                // phát SSE). Không dựng RAG riêng cho Zalo, không duplicate logic.
-                logger.info('[zalo-bot] action=REPLY_PATH_RAG');
-                const ragSink = createBufferSink();
-                await runChatOrchestration({
-                    channel: 'zalo_bot',
-                    allowContentLogging: false,
-                    sink: ragSink,
-                    userMessage: parsed.text,
-                    history: [],
-                    clientIP: principal,
-                    currentDate,
-                    deadlineAt,
-                    _startTime,
-                    FIREBASE_DB_URL,
-                    FIREBASE_AUTH,
-                    evalMode: false,
-                    req,
-                });
-                const ragResult = ragSink.result();
-                const fullText = ragResult.done && typeof ragResult.done.fullText === 'string' && ragResult.done.fullText.trim()
-                    ? ragResult.done.fullText
-                    : '';
-                reply = fullText
-                    ? { intent: 'OTHER', result: 'RAG_REPLIED', text: fullText }
-                    : { intent: 'OTHER', result: 'INTERNAL_ERROR', text: ZALO_FALLBACK_ERROR_TEXT };
-            } else {
-                logger.info(`[zalo-bot] action=REPLY_PATH_DETERMINISTIC intent=${reply.intent}`);
-            }
-        } catch (e) {
-            reply = { intent: detectedIntent.intent, result: 'INTERNAL_ERROR', text: ZALO_FALLBACK_ERROR_TEXT };
-            logger.error(`[zalo-bot] intent=${reply.intent} result=INTERNAL_ERROR error_code=INTERNAL_ERROR duration_ms=${Date.now() - startedAt}`);
-        }
+        const reply = await resolveZaloTurn({ text: parsed.text, history: [], principal, req, startedAt: _startTime, deadlineAt });
 
-        await deliverZaloReply({ chatId, eventName: parsed.eventName, reply, startedAt });
+        await deliverZaloReply({ chatId, eventName: parsed.eventName, reply, startedAt: _startTime, deadlineAt });
     })());
+}
+
+// Shared turn resolver: validated text/history in, validated final answer out.
+async function resolveZaloTurn({ text, history = [], principal, req, startedAt = Date.now(), deadlineAt = startedAt + 55000 }) {
+    const validation = validateChatContent(text);
+    if (!validation.ok) return { intent: 'VALIDATION', result: 'INVALID_INPUT', text: validation.detail };
+    const safeHistory = sanitizeHistory(history);
+    const ragDeadline = Math.min(deadlineAt - 15000, startedAt + 40000);
+    try {
+        return await withRequestTimeout(async () => {
+            const reply = await createZaloReply(text, {
+                history: safeHistory,
+                locationOptions: { fetchImpl: (url, options) => fetchWithinDeadline(url, options, ragDeadline, 8000, 'ZALO_LOCATION') },
+            });
+            if (reply.result !== 'RAG_REQUIRED') {
+                logger.info(`[zalo-bot] action=REPLY_PATH_DETERMINISTIC intent=${reply.intent}`);
+                return reply;
+            }
+            logger.info('[zalo-bot] action=REPLY_PATH_RAG');
+            const sink = createBufferSink();
+            await runChatOrchestration({
+                channel: 'zalo_bot', allowContentLogging: false, sink,
+                userMessage: text, history: safeHistory, clientIP: principal,
+                currentDate: getVnDateKeyForZalo(), deadlineAt: ragDeadline, _startTime: startedAt,
+                FIREBASE_DB_URL: process.env.FIREBASE_DB_URL || '',
+                FIREBASE_AUTH: process.env.FIREBASE_DB_SECRET ? `?auth=${process.env.FIREBASE_DB_SECRET}` : '',
+                evalMode: false, req,
+            });
+            const result = sink.result();
+            const fullText = result.done?.fullText;
+            if (typeof fullText !== 'string' || !fullText.trim()) throw new Error('ZALO_RAG_FAILED');
+            return { intent: 'OTHER', result: 'RAG_REPLIED', text: fullText };
+        }, getRemainingDeadlineMs(ragDeadline, 40000), 'ZALO_TURN');
+    } catch (_) {
+        logger.error('[zalo-bot] action=REPLY_FAILED error_code=INTERNAL_ERROR');
+        return { intent: 'OTHER', result: 'INTERNAL_ERROR', text: ZALO_FALLBACK_ERROR_TEXT };
+    }
 }
 
 const ZALO_RESULT_ERROR_CODES = {
@@ -2326,11 +2325,11 @@ const ZALO_RESULT_ERROR_CODES = {
 // Mọi tin gửi ra Zalo đi qua formatForZalo (Zalo hiển thị text thô, không render Markdown
 // của website) rồi mới chia theo giới hạn 2000 ký tự. `eventName` chỉ là nhãn đã được
 // parser/whitelist kiểm soát, không phải nội dung người dùng.
-async function deliverZaloReply({ chatId, eventName, reply, startedAt }) {
+async function deliverZaloReply({ chatId, eventName, reply, startedAt = Date.now(), deadlineAt = startedAt + 55000, sendImpl = sendZaloMessage }) {
     const text = formatForZalo(reply.text) || ZALO_FALLBACK_ERROR_TEXT;
     for (const chunk of splitZaloText(text, ZALO_MAX_TEXT_LENGTH)) {
         try {
-            await sendZaloMessage({ chatId, text: chunk });
+            await sendImpl({ chatId, text: chunk, timeoutMs: getRemainingDeadlineMs(deadlineAt, 8000) });
         } catch (e) {
             logger.error(`[zalo-bot] action=SEND_MESSAGE_FAILED intent=${reply.intent} result=${reply.result} http_status=502 error_code=ZALO_SEND_FAILED duration_ms=${Date.now() - startedAt}`);
             return;
@@ -3657,3 +3656,6 @@ module.exports.classifyEmptyGenerationError = classifyEmptyGenerationError;
 
 module.exports.validateChatContent = validateChatContent;
 module.exports.sanitizeHistory = sanitizeHistory;
+
+module.exports.resolveZaloTurn = resolveZaloTurn;
+module.exports.deliverZaloReply = deliverZaloReply;

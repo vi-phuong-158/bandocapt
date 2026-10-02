@@ -1,5 +1,11 @@
 # 03 — Technical Decisions
 
+## [2026-10-02] Zalo reply flow: mixed intent and absolute delivery deadline
+
+- RequestPlan là nguồn intent duy nhất; không trả location sớm khi còn nội dung thủ tục/pháp lý.
+- Giữ thủ tục trong câu làm rõ địa bàn thực sự, không kế thừa vào câu hỏi mới có chủ đề rõ ràng. Không đổi system prompt.
+- Resolver chung nhận history theo sanitizer hiện có (6 items). Giới hạn pipeline 40s và delivery trong ngân sách 55s; không reset deadline theo chunk.
+
 ## [2026-10-02] Zalo hardening: shared input validation and channel privacy
 
 - User yêu cầu triển khai toàn bộ review và bổ sung gom tin/ngữ cảnh ngắn, thay thế các mục Phase 2 trước đây chỉ hoãn tính năng này.
