@@ -7,6 +7,13 @@
 - **Lý do:** trả lời đủ yêu cầu và chừa thời gian gửi trên function 60s.
 - **Kiểm tra:** 61 targeted tests PASS, gồm mixed intent, clarification/topic change, deadline, PR #91 và golden SSE. Chưa nghiệm thu production.
 
+## [2026-10-02] Vá dependency gián tiếp để nghiệm thu CI
+- **Agent:** Codex
+- **Thay đổi:** lockfile dùng @grpc/grpc-js 1.14.5 và brace-expansion 2.1.7.
+- **File đã sửa:** package-lock.json, docs/brain/06-ai-working-log.md.
+- **Lý do:** CI hai PR đầu bị chặn bởi hai cảnh báo high có sẵn trên main; bản vá giữ nguyên interface.
+- **Kiểm tra:** bản triển khai đầy đủ dùng cùng hai bản vá đã PASS814 tests/build; npm audit --omit=dev --audit-level=high PASS, còn3 moderate. CI chạy lại theo từng nhánh.
+
 ## [2026-10-02] Zalo hardening — đợt 1 validation và privacy
 - **Agent:** Codex
 - **Thay đổi:** validation nội dung chung; channel policy khóa diagnostic/log content Zalo; allowlist metrics; redaction console theo async context; không gửi claims Zalo vào Telegram.
