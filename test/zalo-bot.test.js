@@ -354,6 +354,11 @@ test('sendZaloMessage: HTTP 200 với body {ok:true} vẫn coi là thành công'
     await assert.doesNotReject(() => sendZaloMessage({ chatId: '1001', text: 'x', token: 'tok', fetchImpl }));
 });
 
+test('batch delivery requires positive confirmation and classifies ambiguous failures', async () => {
+    await assert.rejects(() => sendZaloMessage({ chatId: '1', text: 'test', token: 'fake', requireConfirmation: true, fetchImpl: async () => ({ ok: true, json: async () => { throw new Error('invalid JSON'); } }) }), error => error.code === 'ZALO_DELIVERY_UNKNOWN');
+    await assert.rejects(() => sendZaloMessage({ chatId: '1', text: 'test', token: 'fake', fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({}) }) }), error => error.code === 'ZALO_SEND_RETRYABLE');
+});
+
 test('sendZaloMessage: body không có field ok (hoặc fetch mock không có .json) vẫn coi là thành công', async () => {
     const fetchImpl = async () => ({ ok: true, status: 200 }); // không có .json() — mock đời cũ
     await assert.doesNotReject(() => sendZaloMessage({ chatId: '1001', text: 'x', token: 'tok', fetchImpl }));
@@ -426,7 +431,7 @@ test('parseZaloWebhook: 4 loại tin không phải văn bản có replyTarget (c
             const parsed = parseZaloWebhook(body);
             assert.equal(parsed.supported, false);
             assert.equal(parsed.reason, 'UNSUPPORTED_EVENT');
-            assert.deepEqual(parsed.replyTarget, { chatId: '77', chatType: 'PRIVATE', fromId: '88' });
+            assert.deepEqual(parsed.replyTarget, { chatId: '77', chatType: 'PRIVATE', fromId: '88', messageId: '' });
             assert.equal(parsed.text, undefined, 'không bao giờ lộ nội dung tin không phải văn bản');
         }
     }

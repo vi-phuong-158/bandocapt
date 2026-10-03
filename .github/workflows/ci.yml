@@ -12,6 +12,14 @@ jobs:
   test-build-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 5
+    env:
+      ZALO_TEST_REDIS_PORT: '6379'
+      WRANGLER_SEND_METRICS: 'false'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,5 +31,6 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run ci
+      - run: npm run zalo:queue:check
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

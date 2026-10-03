@@ -1,5 +1,30 @@
 # 01 - Architecture
 
+## Zalo chat hardening — Redis/Cloudflare Queues Free (2026-10-03)
+
+- Provider queue đổi QStash -> Cloudflare theo yêu cầu owner, chỉ trả phí API AI. Vercel Node24 giữ webhook/RAG/Redis worker, CF Worker chỉ HMAC/fetch metadata. Batching mặc định OFF; hạ tầng dùng Free trong hạn mức, không tự nâng gói.
+- ON: validate -> Redis append/dedupe/spam gate -> Cloudflare REST publish xác nhận success -> ACK. Queue delay tới dueAt; failed persist/publish trả503, Redis due index là outbox.
+- Cloudflare consumer gọi cố định `/api/zalo-bot/worker` với raw text/plain body, HMAC-SHA256 ký timestamp+URL+body, cửa sổ60s; Vercel timing-safe verify. workerd dùng redirect manual, từ chối3xx để không chuyển tiếp header ký/bypass sang đích khác. Queue chỉ chatHash/batchId, callback chỉ metadata. Không thêm Vercel function thứ13.
+- Cron Trigger mỗi phút gọi sweep trực tiếp; không queue các tick rỗng. Consumer batchsize1, transport retry tối đa3, delay10/20/40 hoặc Retry-After (lease65s); 200 phải có status hợp lệ, không ACK HTML/protection hoặc200 bất kỳ.
+- Redis giữ3s/max8s buffer, 10phút batchTTL,5phút session3cặp, dedupe/done24h, quota Việt Nam50batch/ngày/spam30phút. Claim/fencing/lease65s/4 processing attempts/deadline55s/RAG40s/chunk persistence/delivery_unknown giữ nguyên.
+- Queue/consumer riêng theo environment/deployment. Preview callback immutable phải khớp VERCEL_URL/namespace; drain trước đổi callback hoặc tạo consumer riêng. Cấu hình trong cloudflare/zalo-queue/wrangler.toml; Wrangler chỉ devDependency. No observability event/payload capture; application logs chỉ status.
+- **Code Graph:** Zalo webhook -> chat-validation -> zalo-batch-store.append (Lua) -> zalo-queue.publishZaloJob (Cloudflare REST) -> CF Queue -> cloudflare/zalo-queue/worker.mjs.queue -> callWorker(HMAC/manual redirect/3xx reject) -> signed api/chat.handleZaloWorker -> zalo-queue.verifyZaloJob -> zalo-batch-worker -> claim -> resolveZaloTurn(history/shared RAG) -> persisted reply -> markSending/send/markSent -> finish/session/delete. CF worker.scheduled (Cron) -> signed sweep -> Redis due index -> publish. Website SSE giữ nguyên.
+- Removed lib/zalo-qstash.js, scripts/register-zalo-bot-worker.js và QStash SDK. Config/Free quotas/callback binding/acceptance/drain: [../zalo-chat-hardening.md](../zalo-chat-hardening.md). Quyết định2026-10-02 về Redis/retention/delivery vẫn hiệu lực; phần provider QStash được thay bởi quyết định2026-10-03.
+
+## Zalo chat hardening — reply flow (2026-10-02)
+
+- `resolveZaloTurn` nhận validated text + sanitized history, tạo phản hồi bằng deterministic-first/shared RAG. `createZaloReply` chỉ kết thúc địa điểm khi RequestPlan.isPureLocation, truyền history vào classifier/resolver.
+- Shared RequestPlan kế thừa thủ tục đang chờ khi người dùng trả lời ngắn địa bàn sau câu hỏi làm rõ; câu hỏi rõ chủ đề mới dùng intent hiện tại.
+- Code Graph: resolveZaloTurn -> validateChatContent/sanitizeHistory -> createZaloReply(history) -> pure location / shared orchestration(channel=zalo_bot) -> format/split -> delivery(global deadline).
+- Ngân sách resolver/RAG tối đa 40 giây, chừa 15 giây delivery; mỗi send tối đa 8 giây và không vượt absolute deadline. Worker persistence/resume thực hiện ở đợt 3.
+
+## Zalo chat hardening — validation/privacy (2026-10-02)
+
+- Website và Zalo dùng `lib/chat-validation.js` cho giới hạn 1.000 ký tự và detector injection hiện có; website vẫn giữ HMAC/Turnstile/SSE.
+- Orchestration nhận `channel` và `allowContentLogging`; kênh `zalo_bot` luôn chặn diagnostic content và `/logs.question`, bất kể diagnostic website bật. AsyncLocalStorage cô lập việc redaction console của utility/provider giữa các invocation; groundedness không gửi trích nội dung Zalo qua Telegram.
+- Metrics giữ channel, các facet RequestPlan đã allowlist và location_status, không giữ question/answer.
+- Code Graph: website body / Zalo parsed text -> chat-validation -> shared runChatOrchestration -> channel policy -> metadata telemetry. Zalo -> formatForZalo -> split -> sendMessage như PR #91.
+
 ## Zalo Bot UX hardening (2026-09-27)
 
 - **Output formatting:** every Zalo reply goes through `api/chat.js deliverZaloReply()` ->

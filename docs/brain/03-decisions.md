@@ -1,5 +1,39 @@
 # 03 — Technical Decisions
 
+## [2026-10-03] Thay QStash bằng Cloudflare Queues Free
+
+- Owner yêu cầu chuyển Cloudflare và chỉ trả phí API AI; hạ tầng dùng gói Free trong hạn mức, không tự nâng gói. Thay dependency QStash runtime bằng fetch REST Cloudflare và HMAC chuẩn; Wrangler chỉ là công cụ phát triển/deploy.
+- Vercel giữ webhook/RAG/Redis worker; Cloudflare consumer chỉ chuyển metadata tới worker, delay/retry và Cron Trigger sweep mỗi phút. Không chuyển chatbot hoặc hội thoại sang Workers.
+- Mỗi môi trường/deployment nghiệm thu có Queue và consumer cố định riêng, callback URL HTTPS cố định. Preview mới phải drain deployment cũ trước đổi callback hoặc tạo Queue/consumer riêng; tránh nhầm namespace Redis giữa deployment.
+- Worker Vercel xác thực HMAC-SHA256 trên timestamp + URL callback dự kiến + raw text/plain body, cửa sổ60s, timing-safe compare. Replay công việc vẫn qua Redis claim/done/fencing; không tin body đã parse JSON.
+- Nghiệm thu hạ tầng2026-10-03 phát hiện workerd không hỗ trợ redirect:error dù Node hỗ trợ. Consumer dùng manual và từ chối3xx; không chuyển header HMAC/bypass sang host khác. Test dùng workerd thật qua Miniflare đi kèm Wrangler, không chỉ mock fetch của Node. Compatibility date theo UTC (2026-10-02), không dùng ngày địa phương đang ở tương lai so với Cloudflare.
+- Free Queues10.000 operations/ngày, mỗi job thường3 operations, retry thêm read; Workers Free100.000 requests/ngày và CPU10ms. Consumer batchsize1 để giảm CPU, không chạy AI. Redis/Vercel cũng phải trong hạn mức Free. Quá hạn mức là lỗi hạ tầng, không tự chuyển trả phí.
+- QStash chưa cấu hình/bật ở Preview hoặc Production nên không có queue cũ cần migrate. Mặc định batching OFF tới khi cấu hình Cloudflare, kiểm tra callback/sweep và nghiệm thu Zalo thật.
+
+## [2026-10-02] Redis/QStash batching and short private sessions
+
+- User chốt toàn bộ review, nhớ ngắn 5 phút và hàng đợi bền vững. Thêm SDK chính thức @upstash/qstash để verify JWT; publish REST dùng fetch chuẩn. Lý do dependency/dịch vụ mới: delay/retry không phụ thuộc vòng đời waitUntil 60s.
+- Tái sử dụng Redis REST nhưng namespace riêng theo môi trường/deployment; chỉ namespace Zalo mới lưu nội dung tạm được người dùng chấp nhận. Namespace public contribution tiếp tục chỉ counter; không thay nguồn dữ liệu Sheets/Pinecone.
+- Gom 3s/max8s là heuristic. Dedupe ID 24h; không dedupe theo nội dung khi thiếu ID. Quota Zalo chuyển Redis để claim/reservation idempotent nguyên tử; website rate limit giữ Firebase.
+- Chỉ ACK 200 sau persist + publish; 503 khi hạ tầng lỗi. Redis due index + signed sweep đảm bảo có đường phục hồi khi publish thất bại. Session tối đa3 cặp/TTL5phút; batch TTL10phút; content không vào telemetry/console/queue.
+- Owner fencing/lease65s, max4 processing attempts. Delivery ambiguous không resend, có thể thiếu phản hồi; không hứa exactly-once. Confirmed chunks không gửi lại; reply persisted tránh generation lại trong delivery retry.
+- Worker co-host trên api/chat giữ budget12 function. Preview URL/namespace theo deployment, lịch tương ứng phải được đăng ký và drain trước xóa; batching OFF cho đến service configuration + Preview/Zalo acceptance.
+- Chi tiết vận hành/rollout/giới hạn trong docs/zalo-chat-hardening.md; không tự bật/promote Production.
+- CI phát hiện hai dependency gián tiếp cũ mức high: cập nhật bản vá @grpc/grpc-js 1.14.5 và brace-expansion 2.1.7 trong lockfile, không đổi interface hay nâng major. Audit production tiếp tục chặn mức high; ba cảnh báo moderate còn lại được ghi nhận, không dùng audit fix --force.
+
+## [2026-10-02] Zalo reply flow: mixed intent and absolute delivery deadline
+
+- RequestPlan là nguồn intent duy nhất; không trả location sớm khi còn nội dung thủ tục/pháp lý.
+- Giữ thủ tục trong câu làm rõ địa bàn thực sự, không kế thừa vào câu hỏi mới có chủ đề rõ ràng. Không đổi system prompt.
+- Resolver chung nhận history theo sanitizer hiện có (6 items). Giới hạn pipeline 40s và delivery trong ngân sách 55s; không reset deadline theo chunk.
+
+## [2026-10-02] Zalo hardening: shared input validation and channel privacy
+
+- User yêu cầu triển khai toàn bộ review và bổ sung gom tin/ngữ cảnh ngắn, thay thế các mục Phase 2 trước đây chỉ hoãn tính năng này.
+- Tách detector/normalizer/validation nội dung sang module chung; giữ nguyên pattern, thông báo và hợp đồng website.
+- Diagnostic opt-in của website không cho phép lưu nội dung Zalo. Channel policy được truyền tới từng telemetry path; console của RAG dùng AsyncLocalStorage để redaction an toàn khi các kênh chạy đồng thời.
+- Đợt 1 không thay RAG prompt, corpus hay nguồn dữ liệu; các thay đổi gom tin triển khai sau, mặc định tắt tới nghiệm thu.
+
 ## [2026-09-27] Zalo Bot UX hardening — formatter riêng, HELP có TTHC, không còn im lặng
 
 - **Bối cảnh:** sau khi V1 chạy production, owner thấy câu trả lời RAG trên Zalo lộ nguyên ký hiệu

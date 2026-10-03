@@ -27,10 +27,10 @@ hành chính có RAG — trả lời đa ngôn ngữ (vi/en/zh/ko) dựa trên v
 - Tra cứu trụ sở theo tên, địa chỉ hoặc dịch vụ (`IDENTITY`, `RESIDENCE`, `VEHICLE_REGISTRATION`, v.v.); bộ lọc dịch vụ single-select.
 - Giao diện Map-first: desktop sidebar đơn (`BROWSING` <-> `DETAIL`) và mobile bottom sheet 3 trạng thái (`hidden`, `collapsed`, `expanded`).
 - Chatbot RAG tư vấn thủ tục hành chính và hướng dẫn liên hệ trụ sở Công an.
-- Streaming SSE từ Gemini 2.5 Flash (hoặc DeepSeek fallback).
+- Streaming SSE trên website: DeepSeek primary, Gemini fallback khi được cấu hình; Zalo gửi phản hồi cuối qua Bot API.
 - Rate limiting chỉ theo IP/ngày; không áp quota tổng ngày/tháng cho toàn hệ thống.
 - CAPTCHA Cloudflare Turnstile chống bot.
-- Logging hội thoại vào Firestore / Firebase Realtime DB.
+- Telemetry mặc định chỉ metadata qua Firestore / Firebase RTDB; diagnostic website cần opt-in. Zalo không ghi nội dung vào logs. Khi bật batching, Redis lưu nội dung tạm có TTL để xử lý và giữ phiên ngắn.
 - Cổng đóng góp công khai `/dong-gop/` và cổng cán bộ `/can-bo/`.
 
 ### Đang thử nghiệm (Chưa thuộc main)
@@ -44,7 +44,7 @@ hành chính có RAG — trả lời đa ngôn ngữ (vi/en/zh/ko) dựa trên v
 ## Điểm khác biệt / giá trị cốt lõi
 
 - RAG với Pinecone + Gemini Embedding: trả lời dựa trên văn bản pháp luật thật, có trích dẫn.
-- Re-rank kết quả bằng Gemini Flash để tăng độ chính xác.
+- Re-rank/utility dùng DeepSeek primary và fallback theo cấu hình hiện hành.
 - System Prompt hardcode trong `api/chat.js` (`SYSTEM_PROMPT_BASE`) → đổi prompt phải sửa code + redeploy.
 - Bảo mật nhiều lớp: CORS whitelist, HMAC request signing, Turnstile CAPTCHA, prompt injection detection.
 - Tĩnh hoàn toàn ở frontend (HTML/CSS/JS thuần) — không framework, deploy nhanh trên Vercel.
