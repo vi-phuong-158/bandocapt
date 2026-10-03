@@ -1,6 +1,6 @@
 name = "bandocapt-zalo-queue"
 main = "worker.mjs"
-compatibility_date = "2026-10-03"
+compatibility_date = "2026-10-02"
 workers_dev = true
 
 # Metadata-only application logs; no provider event/payload capture.

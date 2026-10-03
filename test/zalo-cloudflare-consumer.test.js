@@ -22,7 +22,7 @@ test('Cloudflare consumer signs exact callback accepted by Node verifier and sen
     const m = message();
     await withFetch(async (url, options) => {
         assert.equal(url, env.ZALO_BOT_WORKER_URL);
-        assert.equal(options.redirect, 'error');
+        assert.equal(options.redirect, 'manual');
         assert.equal(options.headers['x-vercel-protection-bypass'], 'fake-bypass');
         assert.deepEqual(await verifyZaloJob({ method: options.method, headers: options.headers, body: options.body }, { env }), m.body);
         return new Response(JSON.stringify({ status: 'done' }));
@@ -67,6 +67,56 @@ test('Cloudflare consumer accepts terminal unknown delivery without resending', 
     await withFetch(async () => new Response('{"status":"delivery_unknown"}'), worker => worker.queue({ messages: [m] }, env));
     assert.equal(m.acknowledgements, 1);
     assert.deepEqual(m.retries, []);
+});
+
+test('Cloudflare consumer rejects redirects without following or acknowledging them', async () => {
+    const m = message();
+    await withFetch(async (_, options) => {
+        assert.equal(options.redirect, 'manual');
+        return new Response('{"status":"done"}', { status: 302, headers: { Location: 'https://other.test/' } });
+    }, worker => worker.queue({ messages: [m] }, env));
+    assert.equal(m.acknowledgements, 0);
+    assert.deepEqual(m.retries, [{ delaySeconds: 10 }]);
+});
+
+test('Cloudflare retry diagnostics contain fixed error codes without provider contents', async () => {
+    const original = console.warn;
+    const logs = [];
+    console.warn = line => logs.push(line);
+    try {
+        await withFetch(async () => { throw new TypeError('PRIVATE_PROVIDER_SECRET'); }, worker => worker.queue({ messages: [message()] }, env));
+        await withFetch(async () => new Response('PRIVATE_RESPONSE_SECRET'), worker => worker.queue({ messages: [message()] }, env));
+        assert.match(logs.join('\n'), /error_code=TRANSPORT_FAILED/);
+        assert.match(logs.join('\n'), /error_code=RESPONSE_INVALID/);
+        assert.equal(logs.join('').includes('PRIVATE_'), false);
+        assert.equal(logs.join('').includes(env.ZALO_BOT_WORKER_SECRET), false);
+    } finally { console.warn = original; }
+});
+
+test('Cloudflare workerd runtime accepts a signed callback without following redirects', async () => {
+    const { Miniflare, Log, LogLevel, convertV4MiniflareOptions } = require('miniflare');
+    const workerPath = path.join(__dirname, '../cloudflare/zalo-queue/worker.mjs');
+    let calls = 0;
+    const runtime = new Miniflare(convertV4MiniflareOptions({
+        compatibilityDate: '2026-10-02', log: new Log(LogLevel.NONE), bindings: env,
+        modules: [
+            { type: 'ESModule', path: path.join(path.dirname(workerPath), 'runtime-test.mjs'),
+                contents: "import worker from './worker.mjs'; export default { async fetch(_request, env) { await worker.scheduled({}, env); return new Response('ok'); } };" },
+            { type: 'ESModule', path: workerPath, contents: fs.readFileSync(workerPath, 'utf8') },
+        ],
+        outboundService: async request => {
+            calls++;
+            assert.equal(request.url, env.ZALO_BOT_WORKER_URL);
+            assert.deepEqual(await verifyZaloJob({ method: request.method, headers: Object.fromEntries(request.headers), body: await request.text() }, { env }), { type: 'sweep' });
+            return new Response('{"status":"swept"}');
+        },
+    }));
+    try {
+        const response = await runtime.dispatchFetch('http://localhost/');
+        assert.equal(response.status, 200);
+        assert.equal(await response.text(), 'ok');
+        assert.equal(calls, 1);
+    } finally { await runtime.dispose(); }
 });
 
 test('Cloudflare Cron invokes a signed sweep directly without queue operations', async () => {

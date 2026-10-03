@@ -1,5 +1,12 @@
 # 06 — AI Working Log
 
+## [2026-10-03] Cấu hình Cloudflare Preview và sửa lỗi workerd
+- **Agent:** Codex
+- **Thay đổi:** owner cấp OAuth và token Queues Edit riêng; tạo Queue/consumer Preview, cấu hình bốn biến branch Preview Vercel và hai Cloudflare secrets, deploy Cron mỗi phút. Sửa compatibility date UTC và redirect manual/3xx reject; thêm mã lỗi cố định không lộ exception. Bổ sung test redirect, privacy và runtime workerd thật qua Miniflare đi kèm Wrangler.
+- **File đã sửa:** cloudflare/zalo-queue/{worker.mjs,wrangler.toml}, test/zalo-cloudflare-consumer.test.js, docs/zalo-chat-hardening.md, docs/brain/{01,03,04,06}.
+- **Lý do:** triển khai theo yêu cầu owner đã đăng nhập Cloudflare. Smoke thật phát hiện workerd không hỗ trợ redirect:error, khác Node mock; ngày2026-10-03 địa phương còn ở tương lai so với UTC2026-10-02. Không nâng gói hoặc thay cấu hình Production.
+- **Kiểm tra:** targeted13/13 PASS, local826 tests817 PASS/9 Redis SKIP và build PASS trong snapshot sạch; hai validator và Wrangler dry-run PASS. Baseline CI823/823 Redis7 và120/120 Playwright PASS; CI cho commit runtime mới cần xem PR94. Token scoped verify/publish PASS; Preview thiếu chữ ký403, ký đúng job không có state200 ignored; Cloudflare consumer và Cron outcome ok, CPU1–2ms. Metadata Queue/Worker/deployment và hướng dẫn callback immutable ghi trong docs/zalo-chat-hardening.md. Không gọi AI/gửi Zalo trong smoke, batching OFF; token bot Preview dùng chung Production nên Zalo thật/Production chưa nghiệm thu. OAuth đọc subscriptions bị403, không suy diễn plan từ usage_model=standard; không thay billing.
+
 ## [2026-10-03] Chuyển Zalo queue sang Cloudflare Free
 - **Agent:** Codex
 - **Thay đổi:** bỏ SDK/module/schedule QStash; Cloudflare REST publisher, HMAC raw-body callbacks, consumer Worker metadata-only, Cron sweep mỗi phút. Queue/consumer tách Preview/Production, batchsize1/transport retry3, tôn trọng Retry-After, từ chối HTML/protection200 giả. Wrangler devDependency4.147.0 và dry-run CI; config/Free quotas/drain/acceptance cập nhật.

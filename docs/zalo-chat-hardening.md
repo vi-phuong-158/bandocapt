@@ -29,7 +29,7 @@ File `cloudflare/zalo-queue/wrangler.toml` có hai environment `preview`/`produc
 - `ZALO_BOT_WORKER_SECRET`: đặt bằng Wrangler secrets hoặc dashboard, không ghi vào toml/source.
 - `VERCEL_AUTOMATION_BYPASS_SECRET`: secret chỉ cần khi callback Preview có deployment protection; đặt trên Cloudflare qua secrets/dashboard. Chỉ gửi bằng header, không vào queue body hoặc logs.
 - Consumer chỉ nhận metadata `{chatHash,batchId}`; không có conversation/AI/Zalo token/Redis credential trên Cloudflare.
-- Callback HMAC-SHA256 ký `timestamp + "\n" + callbackURL + "\n" + rawBody`, cửa sổ60s. Header `x-zalo-worker-timestamp`, `x-zalo-worker-signature`; `text/plain` giữ nguyên raw body trên Vercel. Redis claim/done kiểm soát replay.
+- Callback HMAC-SHA256 ký `timestamp + "\n" + callbackURL + "\n" + rawBody`, cửa sổ60s. Header `x-zalo-worker-timestamp`, `x-zalo-worker-signature`; `text/plain` giữ nguyên raw body trên Vercel. Redis claim/done kiểm soát replay. workerd không hỗ trợ `redirect:error`: consumer dùng `manual` và từ chối3xx, không chuyển tiếp header sang URL redirect. Log chỉ mã lỗi cố định theo giai đoạn ký/gọi callback/đọc response, không log exception/provider payload.
 
 Không commit `.env*`, `.dev.vars*`, token hoặc output chứa secret. Observability capture của Worker tắt; ứng dụng chỉ log trạng thái cố định. Queue body có thể được xem trong Cloudflare dashboard nhưng chỉ gồm hai khóa metadata.
 
@@ -51,6 +51,14 @@ Redis/Vercel vẫn phải trong hạn mức Free hiện có. Khi quota/hạ tầ
 6. Tạo API token scoped Queues Write, đặt token/Account ID/Queue ID và worker secret trên Vercel Preview. Không đưa token deploy Wrangler vào ứng dụng. SDK QStash và QSTASH_* không còn được dùng.
 7. Kiểm tra artifact `npm run zalo:queue:check`, rồi `npm run zalo:queue:deploy:preview`. Cấu hình này deploy consumer và Cron mỗi phút; không tạo schedule qua QStash. Không deploy environment mặc định không có consumer.
 8. Kiểm tra callback ký đúng, callback sai/thiếu chữ ký bị403, sweep chạy được và quota/CPU trên dashboard. Chỉ sau đó bật batching Preview và chạy ma trận bên dưới. Ghi URL/SHA/QueueID (metadata), kết quả từng ca; không ghi secrets.
+
+### Bằng chứng hạ tầng Preview — 2026-10-03
+
+- Queue `bandocapt-zalo-preview`, ID `49dc87a3e780486a90686389b74df501`; consumer `bandocapt-zalo-preview`, Cron mỗi phút đã deploy. Account ID `3f882e11e9c01529fcae73ed30dedfff`; không yêu cầu nâng gói hoặc thay billing. OAuth không có quyền đọc subscriptions (403); không dùng `default_usage_model=standard` làm bằng chứng gói trả phí/Free.
+- Vercel Preview nhánh `codex/zalo-chat-hardening` đã có bốn biến Cloudflare/HMAC, token riêng Queues Edit được owner cấp; hai secrets worker/bypass đã lưu ở Cloudflare. Wrangler OAuth chỉ dùng vận hành, không được đặt vào application env.
+- Smoke callback deployment `https://bandocapt-qislv2abd-vi-phuong-158s-projects.vercel.app/api/zalo-bot/worker`: job metadata không có state -> ignored; thiếu chữ ký ->403; queue consumer và Cron outcome ok, CPU1–2ms. Bản sửa Worker `99a44d1e-dc08-4c3c-8e76-853b48247429` đã chạy thật; smoke không gọi AI hoặc gửi Zalo.
+- Callback này là bằng chứng tại thời điểm thử, không phải URL dùng cho mọi Preview. Sau push/redeploy phải trỏ consumer tới URL immutable mới và thử lại; batching OFF nên chưa có hội thoại cần drain ở bước này. URL/SHA/kết quả mới nhất ghi trong PR94.
+- Chưa nghiệm thu Zalo thật: token bot Preview hiện dùng chung Production, không đổi webhook Production trong thiết lập hạ tầng này. Cần bot test riêng hoặc owner chốt phương án kiểm thử trước bước tiếp theo. Production chưa cấu hình Queue/Redis hoặc bật batching.
 
 ### Preview mới và rollback
 

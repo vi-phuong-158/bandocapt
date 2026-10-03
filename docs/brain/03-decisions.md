@@ -6,6 +6,7 @@
 - Vercel giữ webhook/RAG/Redis worker; Cloudflare consumer chỉ chuyển metadata tới worker, delay/retry và Cron Trigger sweep mỗi phút. Không chuyển chatbot hoặc hội thoại sang Workers.
 - Mỗi môi trường/deployment nghiệm thu có Queue và consumer cố định riêng, callback URL HTTPS cố định. Preview mới phải drain deployment cũ trước đổi callback hoặc tạo Queue/consumer riêng; tránh nhầm namespace Redis giữa deployment.
 - Worker Vercel xác thực HMAC-SHA256 trên timestamp + URL callback dự kiến + raw text/plain body, cửa sổ60s, timing-safe compare. Replay công việc vẫn qua Redis claim/done/fencing; không tin body đã parse JSON.
+- Nghiệm thu hạ tầng2026-10-03 phát hiện workerd không hỗ trợ redirect:error dù Node hỗ trợ. Consumer dùng manual và từ chối3xx; không chuyển header HMAC/bypass sang host khác. Test dùng workerd thật qua Miniflare đi kèm Wrangler, không chỉ mock fetch của Node. Compatibility date theo UTC (2026-10-02), không dùng ngày địa phương đang ở tương lai so với Cloudflare.
 - Free Queues10.000 operations/ngày, mỗi job thường3 operations, retry thêm read; Workers Free100.000 requests/ngày và CPU10ms. Consumer batchsize1 để giảm CPU, không chạy AI. Redis/Vercel cũng phải trong hạn mức Free. Quá hạn mức là lỗi hạ tầng, không tự chuyển trả phí.
 - QStash chưa cấu hình/bật ở Preview hoặc Production nên không có queue cũ cần migrate. Mặc định batching OFF tới khi cấu hình Cloudflare, kiểm tra callback/sweep và nghiệm thu Zalo thật.
 
