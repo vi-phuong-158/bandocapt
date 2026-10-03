@@ -1,5 +1,15 @@
 # 06 — AI Working Log
 
+## [2026-10-03] Busboy security patch after Zalo Production acceptance
+- **Agent:** Codex
+- **Authorization:** Owner confirmed real multi-message Zalo testing, requested merge into main, then explicitly approved busboy 3.2.0 -> 3.2.1, dependency installation, full CI and merging the fix.
+- **Thay đổi:** Only the existing @fastify/busboy lockfile version, tarball URL and integrity change to 3.2.1. Official registry metadata matches; firebase-admin 14.4.0 already accepts ^3.0.0. No manifest, application, API, prompt, data or architecture change. Updated current-task status to reflect the completed Production rollout.
+- **File đã sửa:** package-lock.json, docs/brain/04-current-tasks.md, docs/brain/06-ai-working-log.md.
+- **Lý do:** Main CI run 37114659489 passed 826 tests/build but failed production audit on GHSA-xjh9-v7x6-24jw and GHSA-x8mw-p69m-v3mx. Both advisories identify 3.2.1 as patched. No audit suppression or broad audit fix.
+- **Kiểm tra local:** Isolated worktree from main 25e1ad6; npm ci installs 3.2.1, npm run ci succeeds: 826 tests, 817 pass/9 Redis integration skipped because no local Redis, zero failures; build and production audit high gate pass, three existing moderate findings remain. Full GitHub CI with Redis 7, Cloudflare dry-run and 120 Playwright E2E is required before merge; evidence lives in the fix PR checks.
+- **Production baseline:** PR #94 merged as 25e1ad6, identical tree to tested ff72e7e. Deployment dpl_2uo1YZaE35BG31VoKD9mFQAQvhC5 serves main with batching ON; Queue/signed callback/cron verified. User-confirmed acceptance is corroborated by content-free done logs with fragment_count=2 for RAG and location lookup. Existing webhook remains on the canonical Production domain.
+- **Boundary:** Preserve the dirty original PC checkout. No secrets or chat content in source/logs; no Production env/webhook/Queue mutation for this patch. Redis physical capacity/credentials remain shared with test/Preview, with a separate Production namespace.
+
 ## [2026-10-03] Cấu hình Cloudflare Preview và sửa lỗi workerd
 - **Agent:** Codex
 - **Thay đổi:** owner cấp OAuth và token Queues Edit riêng; tạo Queue/consumer Preview, cấu hình bốn biến branch Preview Vercel và hai Cloudflare secrets, deploy Cron mỗi phút. Sửa compatibility date UTC và redirect manual/3xx reject; thêm mã lỗi cố định không lộ exception. Bổ sung test redirect, privacy và runtime workerd thật qua Miniflare đi kèm Wrangler.

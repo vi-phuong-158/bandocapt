@@ -2,12 +2,12 @@
 
 ## Trạng thái hiện hành — Zalo chat hardening (2026-10-03)
 
-- **Nguồn:** main 9c2554c (PR #91), nhánh triển khai codex/zalo-chat-hardening; 3 đợt source/PR theo thứ tự validation/privacy → reply flow → batching.
+- **Nguồn:** main đã gồm toàn bộ Zalo hardening qua PR #94, merge 25e1ad6, tree trùng bản ff72e7e đã nghiệm thu.
 - **Source:** đã có validation chung, privacy theo kênh, mixed intent, deadline; Redis/Cloudflare Queues, dedupe, quota theo batch, gom 3s/max8s, phiên 5 phút, worker có fencing và resume chunk.
 - **Ràng buộc mới:** chỉ trả phí API AI; Cloudflare Workers/Queues Free, Redis/Vercel trong hạn mức Free. Không tự nâng gói.
-- **Cấu hình mặc định:** batching OFF. Production chưa bật. Worker vẫn drain công việc đã nhận khi tắt ingress batching.
-- **Nghiệm thu:** baseline CI823/823 tests với Redis7 thật và120/120 Playwright PASS. Preview đã có Queue, token scoped, HMAC secret và bypass; consumer/Cron smoke PASS, CPU1–2ms cho job metadata, thiếu chữ ký403/đúng chữ ký batch không tồn tại200 ignored. Đã sửa redirect incompatibility và thêm3 test, targeted13/13 PASS; local826 tests817 PASS/9 Redis SKIP, build/hai validator/Wrangler dry-run PASS; xem checks PR94 cho bằng chứng CI hiện hành. Build dùng source snapshot sạch do dist Windows bị khóa quyền xóa.
-- **Còn cần trước bật tính năng:** đối chiếu callback immutable sau mỗi Preview mới; bot test riêng và owner nghiệm thu Zalo thật. Preview đang có Zalo credentials dùng chung Production, chưa đổi webhook hoặc bật batching. Production Redis/Queue chưa cấu hình; không ghi nhận production acceptance khi chưa có bằng chứng.
+- **Cấu hình:** mặc định source batching OFF; Production đã được owner cho phép bật ON và triển khai trực tiếp. Queue/consumer/cron và HMAC callback Production đã cấu hình, namespace Redis tách Production. Worker vẫn drain công việc đã nhận khi tắt ingress batching.
+- **Nghiệm thu:** exact source ff72e7e đạt CI826/826 với Redis7 thật và120/120 Playwright. Production callback/Queue/cron đã xác minh; owner xác nhận test Zalo nhiều tin thành công, runtime ghi nhận done/fragment_count=2 cho RAG và địa điểm. Website/embed200, unsigned webhook/worker403.
+- **Bản vá audit:** CI main25e1ad6 đạt826 tests/build nhưng bị chặn bởi hai cảnh báo high của @fastify/busboy3.2.0. Owner đã duyệt bản vá3.2.1; xem checks PR bản vá cho full CI Redis/worker dry-run/Playwright. Ba cảnh báo moderate cũ còn lại; không nới audit gate. Redis dùng chung dung lượng/credentials test/Preview để giữ Free, namespace Production riêng; Preview callback immutable vẫn cần đối chiếu khi đổi deployment.
 
 ## Backlog vận hành
 
